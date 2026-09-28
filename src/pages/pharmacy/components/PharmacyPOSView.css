@@ -1,0 +1,297 @@
+.pharma-pos-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1.1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .pharma-pos-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pharma-pos-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 24px;
+}
+
+.pharma-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pharma-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.pharma-sub {
+  font-size: 12px;
+  color: #64748b;
+  margin: 2px 0 0;
+}
+
+.pharma-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 6px 12px;
+  width: 240px;
+  color: #64748b;
+}
+
+.pharma-search input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  width: 100%;
+}
+
+.pharma-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.pharma-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  transition: all 0.15s ease;
+}
+
+.pharma-item:hover {
+  background: #f1f5f9;
+}
+
+.pharma-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.pharma-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pharma-gen {
+  font-size: 12px;
+  color: #475569;
+  margin: 2px 0;
+}
+
+.pharma-meta {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+}
+
+.pharma-exp {
+  color: #64748b;
+}
+
+.pharma-stock-tag {
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.pharma-stock--ok {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.pharma-stock--low {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.pharma-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.pharma-price {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.pharma-add-btn {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pharma-add-btn:hover {
+  background: #1d4ed8;
+}
+
+.pharma-add-btn:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.pharma-count {
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 700;
+  font-size: 11.5px;
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+
+.pharma-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.pharma-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.pharma-cart-items {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  min-height: 200px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 10px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pharma-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 180px;
+  color: #94a3b8;
+  font-size: 13px;
+  text-align: center;
+}
+
+.pharma-cart-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.pharma-cart-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.pharma-cart-iname {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.pharma-cart-iprice {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.pharma-qty-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 12px;
+}
+
+.pharma-qty-btn {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.pharma-qty-num {
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 16px;
+  text-align: center;
+}
+
+.pharma-row-total {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pharma-total-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.pharma-total-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.pharma-grand-total {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 8px;
+  margin-top: 6px;
+  font-size: 15px;
+  font-weight: 800;
+  color: #2563eb;
+}

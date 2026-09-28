@@ -1,0 +1,204 @@
+.pat-reg-module {
+  width: 100%;
+}
+
+.pat-reg-grid {
+  display: grid;
+  grid-template-columns: 2.2fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .pat-reg-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pat-reg-form-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 24px;
+}
+
+.pat-reg-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.pat-reg-icon {
+  color: #2563eb;
+}
+
+.pat-reg-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.pat-reg-sub {
+  font-size: 12.5px;
+  color: #64748b;
+  margin: 2px 0 0;
+}
+
+.pat-reg-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pat-reg-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.pat-reg-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pat-reg-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.pat-reg-input,
+.pat-reg-select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13.5px;
+  outline: none;
+  background: #ffffff;
+  transition: border-color 0.15s ease;
+}
+
+.pat-reg-input:focus,
+.pat-reg-select:focus {
+  border-color: #2563eb;
+}
+
+.pat-reg-submit {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+/* Side Card */
+.pat-reg-side {
+  display: flex;
+  flex-direction: column;
+}
+
+.pat-card-preview {
+  background: linear-gradient(135deg, #0b2a5b 0%, #1e4b9b 100%);
+  color: #ffffff;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 10px 25px rgba(11, 42, 91, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pat-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 10px;
+}
+
+.pat-card-hosp {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.pat-card-badge {
+  background: #f59e0b;
+  color: #78350f;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.pat-card-uhid {
+  font-size: 20px;
+  font-weight: 800;
+  color: #93c5fd;
+  letter-spacing: 1px;
+}
+
+.pat-card-name {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.pat-card-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  font-size: 12px;
+  color: #e2e8f0;
+  margin-top: 6px;
+}
+
+.pat-card-print {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pat-card-print:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.pat-reg-guide {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  padding: 28px 20px;
+  text-align: center;
+  color: #64748b;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pat-reg-guide-icon {
+  color: #94a3b8;
+  margin-bottom: 12px;
+}
+
+.pat-reg-guide h4 {
+  margin: 0 0 6px 0;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.pat-reg-guide p {
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin: 0;
+}
