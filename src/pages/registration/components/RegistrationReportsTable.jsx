@@ -631,8 +631,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                       <span>UHID: <strong className="text-blue-700 font-mono font-bold">{editP.uhid || "—"}</strong></span>
                       <span>•</span>
                       <span>Patient ID: <strong className="text-slate-800 font-semibold">{editP.patientId || editP.id || "—"}</strong></span>
-                      <span>•</span>
-                      <span>Category: <strong className="text-slate-800 font-semibold">{editForm.category || "OPD"}</strong></span>
+                     
                     </div>
                   </div>
                 </div>
@@ -648,7 +647,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                   <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-blue-600"></span> 1. Personal Details
                   </h4>
-                  <span className="text-[11px] text-slate-500 font-medium">Identity Info</span>
+                  
                 </div>
                 
                 <div className="p-4.5 grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -735,7 +734,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                   <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-600"></span> 2. Contact Details
                   </h4>
-                  <span className="text-[11px] text-slate-500 font-medium">Communication Info</span>
+                  
                 </div>
 
                 <div className="p-4.5 grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -832,7 +831,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                   <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-violet-600"></span> 3. Additional Information
                   </h4>
-                  <span className="text-[11px] text-slate-500 font-medium">Emergency & Consultation</span>
+                 
                 </div>
 
                 <div className="p-4.5 grid grid-cols-1 md:grid-cols-3 gap-4">
