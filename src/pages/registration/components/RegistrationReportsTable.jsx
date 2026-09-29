@@ -182,7 +182,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
           </div>
           <div>
             <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Patient Registration Reports</h1>
-            <p className="text-xs text-slate-500 mt-0.5">View and manage all registered patients in the system</p>
+            <p className="text-xs text-slate-500 mt-0.5">View and manage all registered patients </p>
           </div>
         </div>
 
@@ -375,80 +375,335 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
         </div>
       </div>
 
-      {/* ─── VIEW MODAL ─── */}
-      {viewP && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setViewP(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-2xl">
-              <div>
-                <h3 className="text-base font-extrabold text-white">Patient Full Record</h3>
-                <p className="text-xs text-blue-200 mt-0.5">{viewP.uhid}</p>
-              </div>
-              <button onClick={() => setViewP(null)} className="text-white/70 hover:text-white">
-                <LuCircleX size={22} />
-              </button>
-            </div>
-            <div className="p-6 grid grid-cols-2 gap-x-6 gap-y-4">
-              {[
-                ["Full Name",        viewP.name || `${viewP.firstName || ""} ${viewP.lastName || ""}`.trim()],
-                ["UHID",             viewP.uhid || "—"],
-                ["Patient ID",       viewP.patientId || viewP.id || "—"],
-                ["Gender / Age",     `${viewP.gender || "—"} / ${viewP.age || viewP.ageYrs || "—"} Yrs`],
-                ["Date of Birth",    viewP.dob || "—"],
-                ["Blood Group",      viewP.bloodGroup || "—"],
-                ["Marital Status",   viewP.maritalStatus || "—"],
-                ["Nationality",      viewP.nationality || "Indian"],
-                ["Occupation",       viewP.occupation || "—"],
-                ["Aadhaar / ID",     viewP.idNo || viewP.aadhaar || "—"],
-                ["Mobile",           viewP.phone || viewP.mobile1 || "—"],
-                ["Alternate Mobile", viewP.mobile2 || viewP.altMobile || "—"],
-                ["Email",            viewP.email || "—"],
-                ["Address",          viewP.address || "—"],
-                ["City",             viewP.city || "—"],
-                ["State",            viewP.state || "—"],
-                ["Category",         viewP.category || "OPD"],
-                ["Department",       viewP.department || "—"],
-                ["Doctor / Referred",viewP.doctor || viewP.referredBy || "—"],
-                ["Payment Type",     viewP.paymentMode || viewP.paymentType || "—"],
-                ["Fee Paid",         `₹ ${viewP.fee || viewP.totalFee || "350"}`],
-                ["Health Insurance", viewP.healthInsurance || "No"],
-                ["Insurance No.",    viewP.insuranceNumber || "—"],
-                ["Emergency Contact",`${viewP.emergencyName || "—"} (${viewP.emergencyRelation || "—"})`],
-                ["Emergency Phone",  viewP.emergencyPhone || "—"],
-                ["Reg. Date",        viewP.registeredAt || viewP.regDate || "—"],
-                ["Current Status",   viewP.status || "Waiting"],
-              ].map(([label, val]) => (
-                <div key={label} className="border-b border-slate-100 pb-3">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{label}</p>
-                  <p className="text-sm font-semibold text-slate-800 mt-0.5 break-words">{val || "—"}</p>
+      {/* ─── VIEW MODAL (Hospital Registration Form in Table Format) ─── */}
+      {viewP && (() => {
+        const vSt = getStatus(viewP.status);
+        const vFullName = viewP.name || `${viewP.firstName || ""} ${viewP.lastName || ""}`.trim() || "Patient";
+        const vCatClass = 
+          viewP.category === "IPD"
+            ? "bg-purple-50 text-purple-700 border-purple-200"
+            : viewP.category === "Emergency"
+            ? "bg-rose-50 text-rose-700 border-rose-200"
+            : viewP.category === "Registered"
+            ? "bg-sky-50 text-sky-700 border-sky-200"
+            : "bg-blue-50 text-blue-700 border-blue-200";
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 print:p-0 print:bg-white"
+            onClick={() => setViewP(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200 print:border-none print:shadow-none print:max-h-none print:w-full"
+              onClick={e => e.stopPropagation()}>
+              
+              {/* Header Bar */}
+              <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-200 bg-slate-900 text-white">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
+                    <LuFileText size={20} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-white tracking-wide uppercase">Patient Registration Form</h3>
+                      <span className="text-[11px] font-semibold bg-blue-500/25 text-blue-200 px-2 py-0.5 rounded border border-blue-400/30">
+                        Official Record
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300">
+                      UHID: <span className="font-mono font-bold text-white">{viewP.uhid || "—"}</span>
+                      <span className="mx-2 text-slate-500">•</span>
+                      Reg Date: <span className="text-slate-200">{viewP.registeredAt || viewP.regDate || "—"}</span>
+                    </p>
+                  </div>
                 </div>
-              ))}
-            </div>
-            <div className="px-6 py-4 border-t border-slate-100 flex flex-wrap justify-between items-center gap-2">
-              <div className="flex items-center gap-2">
-                <button onClick={() => { const p = viewP; setViewP(null); openEdit(p); }}
-                  className="text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5">
-                  <LuSquarePen size={14} /> Edit Record
-                </button>
-                <button onClick={() => { const p = viewP; setViewP(null); setStatusP(p); setNewStatus(p.status || "Waiting"); }}
-                  className="text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5">
-                  <LuRefreshCw size={14} /> Update Status
-                </button>
-                <button onClick={() => { const p = viewP; setViewP(null); setCancelP(p); }}
-                  className="text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5">
-                  <LuBan size={14} /> Cancel
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => window.print()}
+                    className="flex items-center gap-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 transition-all cursor-pointer"
+                    title="Print Registration Form"
+                  >
+                    <LuPrinter size={14} /> Print
+                  </button>
+                  <button 
+                    onClick={() => setViewP(null)} 
+                    className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+                  >
+                    <LuCircleX size={22} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Form Content (Scrollable & Form Tables) */}
+              <div className="p-6 overflow-y-auto space-y-5 text-slate-800 bg-slate-50/50">
+                
+                {/* Patient Summary Header Card */}
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xl shadow-xs">
+                      {vFullName[0]?.toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2.5">
+                        <h2 className="text-lg font-bold text-slate-900 leading-tight">
+                          {vFullName}
+                        </h2>
+                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${vCatClass}`}>
+                          {viewP.category || "OPD"}
+                        </span>
+                        <span 
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md border"
+                          style={{
+                            color: vSt.color,
+                            backgroundColor: vSt.bg,
+                            borderColor: vSt.color + "44",
+                          }}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: vSt.color }} />
+                          {viewP.status || "Waiting"}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-slate-500">
+                        <span>UHID: <strong className="text-blue-700 font-mono font-bold">{viewP.uhid || "—"}</strong></span>
+                        <span>•</span>
+                        <span>Patient ID: <strong className="text-slate-800 font-semibold">{viewP.patientId || viewP.id || "—"}</strong></span>
+                        <span>•</span>
+                        <span>Gender / Age: <strong className="text-slate-800 font-semibold">{viewP.gender || "—"} / {viewP.age || viewP.ageYrs || "—"} Yrs</strong></span>
+                        <span>•</span>
+                        <span>Blood Group: <strong className="text-rose-600 font-bold">{viewP.bloodGroup || "—"}</strong></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 1: Personal & Demographic Information */}
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+                  <div className="bg-slate-100/90 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-600"></span> 1. Personal & Demographic Information
+                    </h4>
+                    <span className="text-[11px] text-slate-500 font-medium">Form Section A</span>
+                  </div>
+                  <table className="w-full text-xs border-collapse">
+                    <tbody>
+                      <tr className="border-b border-slate-200">
+                        <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Patient Full Name</td>
+                        <td className="w-1/4 p-2.5 font-bold text-slate-900 border-r border-slate-200">{vFullName}</td>
+                        <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">UHID Number</td>
+                        <td className="w-1/4 p-2.5 font-mono font-bold text-blue-700">{viewP.uhid || "—"}</td>
+                      </tr>
+                      <tr className="border-b border-slate-200">
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Patient ID</td>
+                        <td className="p-2.5 font-bold text-slate-900 border-r border-slate-200">{viewP.patientId || viewP.id || "—"}</td>
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Gender / Age</td>
+                        <td className="p-2.5 font-semibold text-slate-900">{viewP.gender || "—"} / {viewP.age || viewP.ageYrs || "—"} Yrs</td>
+                      </tr>
+                      <tr className="border-b border-slate-200">
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Date of Birth</td>
+                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{viewP.dob || "—"}</td>
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Blood Group</td>
+                        <td className="p-2.5 font-bold text-rose-600">{viewP.bloodGroup || "—"}</td>
+                      </tr>
+                      <tr className="border-b border-slate-200">
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Marital Status</td>
+                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{viewP.maritalStatus || "—"}</td>
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Nationality</td>
+                        <td className="p-2.5 font-medium text-slate-900">{viewP.nationality || "Indian"}</td>
+                      </tr>
+                      <tr>
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Aadhaar / ID Card No</td>
+                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{viewP.idNo || viewP.aadhaar || "—"}</td>
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Occupation</td>
+                        <td className="p-2.5 font-medium text-slate-900">{viewP.occupation || "—"}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Section 2: Contact & Residential Details */}
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+                  <div className="bg-slate-100/90 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-600"></span> 2. Contact & Address Details
+                    </h4>
+                    <span className="text-[11px] text-slate-500 font-medium">Form Section B</span>
+                  </div>
+                  <table className="w-full text-xs border-collapse">
+                    <tbody>
+                      <tr className="border-b border-slate-200">
+                        <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Primary Mobile No.</td>
+                        <td className="w-1/4 p-2.5 font-bold text-slate-900 border-r border-slate-200">{viewP.phone || viewP.mobile1 || "—"}</td>
+                        <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Alternate Mobile No.</td>
+                        <td className="w-1/4 p-2.5 font-medium text-slate-900">{viewP.mobile2 || viewP.altMobile || "—"}</td>
+                      </tr>
+                      <tr className="border-b border-slate-200">
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Email Address</td>
+                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200 break-all">{viewP.email || "—"}</td>
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">City / District</td>
+                        <td className="p-2.5 font-medium text-slate-900">{viewP.city || "—"}</td>
+                      </tr>
+                      <tr className="border-b border-slate-200">
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">State</td>
+                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{viewP.state || "—"}</td>
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Country / Pincode</td>
+                        <td className="p-2.5 font-medium text-slate-900">{viewP.country || "India"} {viewP.pincode ? `(${viewP.pincode})` : ""}</td>
+                      </tr>
+                      <tr>
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Full Residential Address</td>
+                        <td colSpan={3} className="p-2.5 font-medium text-slate-900">{viewP.address || "—"}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Section 3: Clinical & Registration Details */}
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+                  <div className="bg-slate-100/90 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-violet-600"></span> 3. Clinical & Registration Details
+                    </h4>
+                    <span className="text-[11px] text-slate-500 font-medium">Form Section C</span>
+                  </div>
+                  <table className="w-full text-xs border-collapse">
+                    <tbody>
+                      <tr className="border-b border-slate-200">
+                        <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Registration Category</td>
+                        <td className="w-1/4 p-2.5 font-bold text-slate-900 border-r border-slate-200">
+                          <span className={`inline-block px-2.5 py-0.5 rounded-md text-xs font-semibold border ${vCatClass}`}>
+                            {viewP.category || "OPD"}
+                          </span>
+                        </td>
+                        <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Assigned Department</td>
+                        <td className="w-1/4 p-2.5 font-bold text-slate-900">{viewP.department || "General Medicine"}</td>
+                      </tr>
+                      <tr className="border-b border-slate-200">
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Consulting Doctor / Ref.</td>
+                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{viewP.doctor || viewP.referredBy || "Dr. Duty Medical Officer"}</td>
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Registration Date & Time</td>
+                        <td className="p-2.5 font-medium text-slate-900">{viewP.registeredAt || viewP.regDate || "—"}</td>
+                      </tr>
+                      <tr>
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Current Status</td>
+                        <td className="p-2.5 font-bold text-slate-900 border-r border-slate-200">
+                          <span 
+                            className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-md border"
+                            style={{
+                              color: vSt.color,
+                              backgroundColor: vSt.bg,
+                              borderColor: vSt.color + "44",
+                            }}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: vSt.color }} />
+                            {viewP.status || "Waiting"}
+                          </span>
+                        </td>
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Ward / Bed Assignment</td>
+                        <td className="p-2.5 font-medium text-slate-900">{viewP.bedNo || viewP.roomNo || "Not Assigned"}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Section 4 & 5: Billing & Emergency Contact (Side by Side Tables) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* Billing & Insurance */}
+                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+                    <div className="bg-slate-100/90 px-4 py-2 border-b border-slate-200">
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-amber-600"></span> 4. Billing & Insurance
+                      </h4>
+                    </div>
+                    <table className="w-full text-xs border-collapse">
+                      <tbody>
+                        <tr className="border-b border-slate-200">
+                          <td className="w-1/2 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Payment Mode</td>
+                          <td className="w-1/2 p-2.5 font-bold text-slate-900">{viewP.paymentMode || viewP.paymentType || "Cash"}</td>
+                        </tr>
+                        <tr className="border-b border-slate-200">
+                          <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Registration Fee Paid</td>
+                          <td className="p-2.5 font-bold text-emerald-700">₹ {viewP.fee || viewP.totalFee || "350"}</td>
+                        </tr>
+                        <tr className="border-b border-slate-200">
+                          <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Health Insurance</td>
+                          <td className="p-2.5 font-medium text-slate-900">{viewP.healthInsurance || "No"}</td>
+                        </tr>
+                        <tr>
+                          <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Insurance / Policy No</td>
+                          <td className="p-2.5 font-mono text-slate-800">{viewP.insuranceNumber || "—"}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Emergency Contact */}
+                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+                    <div className="bg-slate-100/90 px-4 py-2 border-b border-slate-200">
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-rose-600"></span> 5. Emergency Contact
+                      </h4>
+                    </div>
+                    <table className="w-full text-xs border-collapse">
+                      <tbody>
+                        <tr className="border-b border-slate-200">
+                          <td className="w-1/2 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Contact Person</td>
+                          <td className="w-1/2 p-2.5 font-bold text-slate-900">{viewP.emergencyName || "—"}</td>
+                        </tr>
+                        <tr className="border-b border-slate-200">
+                          <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Relationship</td>
+                          <td className="p-2.5 font-medium text-slate-900">{viewP.emergencyRelation || "—"}</td>
+                        </tr>
+                        <tr className="border-b border-slate-200">
+                          <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Emergency Phone</td>
+                          <td className="p-2.5 font-bold text-slate-900">{viewP.emergencyPhone || "—"}</td>
+                        </tr>
+                        <tr>
+                          <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Alternative Phone</td>
+                          <td className="p-2.5 font-medium text-slate-900">{viewP.emergencyPhone2 || "—"}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Modal Footer Controls */}
+              <div className="px-6 py-3.5 border-t border-slate-200 bg-white flex flex-wrap justify-between items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => window.print()}
+                    className="text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  >
+                    <LuPrinter size={14} /> Print Form
+                  </button>
+                  <button 
+                    onClick={() => { const p = viewP; setViewP(null); openEdit(p); }}
+                    className="text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  >
+                    <LuSquarePen size={14} /> Edit Record
+                  </button>
+                  <button 
+                    onClick={() => { const p = viewP; setViewP(null); setStatusP(p); setNewStatus(p.status || "Waiting"); }}
+                    className="text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  >
+                    <LuRefreshCw size={13} /> Update Status
+                  </button>
+                  <button 
+                    onClick={() => { const p = viewP; setViewP(null); setCancelP(p); }}
+                    className="text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  >
+                    <LuBan size={14} /> Cancel
+                  </button>
+                </div>
+                <button 
+                  onClick={() => setViewP(null)}
+                  className="text-xs font-bold text-white bg-slate-900 hover:bg-black px-5 py-2 rounded-lg transition-all cursor-pointer shadow-xs"
+                >
+                  Close Form
                 </button>
               </div>
-              <button onClick={() => setViewP(null)}
-                className="text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 px-5 py-2 rounded-lg transition-all">
-                Close
-              </button>
+
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ─── EDIT MODAL ─── */}
       {editP && (

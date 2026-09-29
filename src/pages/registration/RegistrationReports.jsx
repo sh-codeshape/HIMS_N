@@ -12,8 +12,7 @@ export default function RegistrationReports() {
 
   return (
     <PageContainer
-      title="Registration Reports"
-      subtitle="Complete database and audit log of registered hospital patients"
+    
     >
       <RegistrationReportsTable patients={patients} />
     </PageContainer>
