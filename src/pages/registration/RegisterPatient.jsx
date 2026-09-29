@@ -175,12 +175,15 @@ export default function RegisterPatient() {
 
   // ── Validation ───────────────────────────────────────────────────────────
   const validate = () => {
-    if (!formData.firstName.trim()) { showToast("⚠️ First Name is required.", "error"); return false; }
-    if (!formData.lastName.trim()) { showToast("⚠️ Last Name is required.", "error"); return false; }
+    if (!formData.firstName.trim()) { showToast("⚠️ Full Name is required.", "error"); return false; }
     if (!formData.gender) { showToast("⚠️ Please select Gender.", "error"); return false; }
-    if (!formData.mobile || formData.mobile.length < 10) { showToast("⚠️ Valid 10-digit Mobile is required.", "error"); return false; }
-    if (!formData.address1.trim()) { showToast("⚠️ Address Line 1 is required.", "error"); return false; }
-    if (!formData.confirmed) { showToast("⚠️ Please confirm the information.", "error"); return false; }
+    if (!formData.age) { showToast("⚠️ Age is required.", "error"); return false; }
+    if (!formData.mobile || formData.mobile.length < 10) { showToast("⚠️ Valid 10-digit Mobile Number is required.", "error"); return false; }
+    if (!formData.address1.trim()) { showToast("⚠️ Address is required.", "error"); return false; }
+    if (!formData.emgName.trim()) { showToast("⚠️ Emergency Contact Name is required.", "error"); return false; }
+    if (!formData.emgNumber || formData.emgNumber.length < 10) { showToast("⚠️ Valid 10-digit Emergency Phone is required.", "error"); return false; }
+    if (!formData.emgRelation) { showToast("⚠️ Relationship with Patient is required.", "error"); return false; }
+    if (!formData.confirmed) { showToast("⚠️ Please check confirmation checkbox.", "error"); return false; }
     return true;
   };
 
@@ -199,7 +202,7 @@ export default function RegisterPatient() {
       shift: "Day Shift",
       type: "Normal",
       fee: 350,
-      paymentType: formData.paymentType || "Cash",
+      paymentType: "Cash",
     });
     showToast(`✅ ${patient.name} registered & added to OPD Queue! UHID: ${patient.uhid}`);
     handleReset();
@@ -218,9 +221,9 @@ export default function RegisterPatient() {
       phone: patient.phone,
       department: formData.department || "General Medicine",
       referredBy: formData.referredBy || "—",
-      paymentType: formData.paymentType || "Cash",
+      paymentType: "Cash",
       healthInsurance: formData.healthInsurance,
-      insuranceProvider: formData.insuranceProvider,
+      insuranceProvider: "",
     });
     showToast(`✅ ${patient.name} admitted to IPD! UHID: ${patient.uhid}`);
     handleReset();
@@ -237,21 +240,21 @@ export default function RegisterPatient() {
 
   // ─── Styles ──────────────────────────────────────────────────────────────
   const inputCls =
-    "w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400";
+    "w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 bg-white focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all placeholder:text-slate-400 shadow-2xs";
   const selectCls =
-    "w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer";
-  const labelCls = "block text-xs font-semibold text-slate-600 mb-1.5";
+    "w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 bg-white focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all cursor-pointer shadow-2xs";
+  const labelCls = "block text-xs font-semibold text-slate-700 mb-1.5";
   const secHdrCls =
-    "flex items-center gap-2 text-blue-700 font-bold text-sm mb-4 pb-2 border-b border-blue-100";
+    "flex items-center gap-2 text-slate-900 font-bold text-sm mb-5 pb-2.5 border-b border-slate-200 tracking-tight";
 
   return (
-    <div className="bg-slate-50 min-h-screen font-sans p-6">
+    <div className="bg-slate-50/70 min-h-screen font-sans p-6 md:p-8">
 
       {/* Toast */}
       {toast && (
         <div
-          className={`fixed top-5 right-5 z-50 flex items-center gap-2 px-5 py-3 rounded-xl shadow-lg text-sm font-semibold text-white transition-all
-            ${toast.type === "error" ? "bg-red-500" : toast.type === "info" ? "bg-slate-600" : "bg-emerald-500"}`}
+          className={`fixed top-5 right-5 z-50 flex items-center gap-2 px-5 py-3 rounded-xl shadow-xl text-sm font-semibold text-white transition-all
+            ${toast.type === "error" ? "bg-red-500" : toast.type === "info" ? "bg-slate-700" : "bg-emerald-600"}`}
         >
           <LuCircleCheck size={16} />
           {toast.msg}
@@ -259,29 +262,42 @@ export default function RegisterPatient() {
       )}
 
       {/* PAGE HEADER */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+          <div className="p-2.5 bg-slate-100 text-slate-800 rounded-xl shadow-2xs">
             <LuUserPlus size={22} />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold text-slate-800 tracking-tight">
+            <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
               Patient Registration
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">Register a new patient into the system</p>
           </div>
         </div>
-        <div className="text-xs font-medium text-slate-500">
-          <span className="text-blue-600 cursor-pointer hover:underline" onClick={() => navigate("/")}>Dashboard</span>
-          {" / "}
-          <span className="text-blue-600">Registration</span>
-          {" / Patient Registration"}
-        </div>
+
+        {/* Working Breadcrumb */}
+        <nav className="flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-white px-3.5 py-2 rounded-lg border border-slate-200/80 shadow-2xs">
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="text-slate-600 hover:text-slate-900 transition-colors cursor-pointer">
+            Dashboard
+          </button>
+          <span className="text-slate-300">/</span>
+          <button
+            type="button"
+            onClick={() => navigate("/registration/reports")}
+            className="text-slate-600 hover:text-slate-900 transition-colors cursor-pointer">
+            Registration
+          </button>
+          <span className="text-slate-300">/</span>
+          <span className="text-slate-900 font-bold">Patient Registration</span>
+        </nav>
       </div>
 
       {/* ── SEARCH BAR ── */}
-      <div ref={searchRef} className="relative mb-5 max-w-xl">
-        <div className="flex items-center gap-0 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+      <div ref={searchRef} className="relative mb-6 max-w-xl">
+        <div className="flex items-center gap-0 bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-100 transition-all">
           <LuSearch size={17} className="text-slate-400 shrink-0 ml-4" />
           <input
             type="text"
@@ -302,7 +318,7 @@ export default function RegisterPatient() {
             onClick={() => {
               if (searchQuery.trim().length >= 1) setShowDropdown(true);
             }}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-3 transition-all shrink-0"
+            className="flex items-center gap-2 bg-slate-900 hover:bg-black text-white text-sm font-semibold px-5 py-3 transition-all shrink-0"
           >
             <LuSearch size={15} />
             Search
@@ -311,15 +327,15 @@ export default function RegisterPatient() {
 
         {/* Dropdown results */}
         {showDropdown && searchResults.length > 0 && (
-          <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+          <div className="absolute top-full left-0 right-0 z-50 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden animate-fadeIn">
             <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wide">
               {searchResults.length} Patient(s) Found — Click to auto-fill form
             </div>
             {searchResults.map((p) => (
               <div key={p.uhid || p.id}
                 onClick={() => handleSelectPatient(p)}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-slate-100 last:border-0 transition-colors">
-                <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shrink-0">
+                className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0 transition-colors">
+                <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm shrink-0">
                   {(p.firstName || p.name || "?")[0].toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -327,7 +343,7 @@ export default function RegisterPatient() {
                     <span className="font-semibold text-sm text-slate-800">
                       {p.firstName ? `${p.firstName} ${p.lastName || ""}`.trim() : p.name}
                     </span>
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                    <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-mono font-medium">
                       {p.uhid}
                     </span>
                   </div>
@@ -338,7 +354,7 @@ export default function RegisterPatient() {
                     {p.city && <span>• 📍 {p.city}</span>}
                   </div>
                 </div>
-                <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg shrink-0">
+                <span className="text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-lg shrink-0">
                   Load →
                 </span>
               </div>
@@ -354,39 +370,30 @@ export default function RegisterPatient() {
       </div>
 
       {/* FORM CARD */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <div className="p-6 space-y-8">
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+        <div className="p-6 md:p-8 space-y-8">
 
           {/* ── SECTION 1: PERSONAL INFORMATION ── */}
           <div>
             <h3 className={secHdrCls}>
-              <LuUser size={16} /> Personal Information
+              <LuUser size={16} className="text-slate-800" /> Personal Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
 
-              <div>
-                <label className={labelCls}>First Name <span className="text-red-500">*</span></label>
-                <input type="text" name="firstName" placeholder="Enter first name"
+              <div className="md:col-span-2">
+                <label className={labelCls}>Full Name <span className="text-red-500">*</span></label>
+                <input type="text" name="firstName" placeholder="Enter full name"
                   className={inputCls} value={formData.firstName} onChange={handleChange} />
               </div>
-              <div>
-                <label className={labelCls}>Middle Name</label>
-                <input type="text" name="middleName" placeholder="Enter middle name"
-                  className={inputCls} value={formData.middleName} onChange={handleChange} />
-              </div>
-              <div>
-                <label className={labelCls}>Last Name <span className="text-red-500">*</span></label>
-                <input type="text" name="lastName" placeholder="Enter last name"
-                  className={inputCls} value={formData.lastName} onChange={handleChange} />
-              </div>
+
               <div>
                 <label className={labelCls}>Gender <span className="text-red-500">*</span></label>
-                <div className="flex items-center gap-4 mt-2">
+                <div className="flex items-center gap-4 mt-2.5">
                   {["Male", "Female", "Other"].map((g) => (
-                    <label key={g} className="flex items-center gap-1.5 text-sm text-slate-700 cursor-pointer">
+                    <label key={g} className="flex items-center gap-1.5 text-sm text-slate-700 cursor-pointer font-medium">
                       <input type="radio" name="gender" value={g}
                         checked={formData.gender === g} onChange={handleChange}
-                        className="accent-blue-600" />
+                        className="accent-slate-900" />
                       {g}
                     </label>
                   ))}
@@ -394,19 +401,15 @@ export default function RegisterPatient() {
               </div>
 
               <div>
-                <label className={labelCls}>Date of Birth <span className="text-red-500">*</span></label>
-                <input type="date" name="dob" className={inputCls}
-                  value={formData.dob} onChange={handleDobChange} />
-              </div>
-              <div>
                 <label className={labelCls}>Age <span className="text-red-500">*</span></label>
                 <div className="relative">
                   <input type="number" name="age" placeholder="Age"
                     className={inputCls} value={formData.age} onChange={handleChange} />
-                  <span className="absolute right-3 top-2 text-xs text-slate-400 font-medium">Years</span>
+                  <span className="absolute right-3.5 top-2.5 text-xs text-slate-400 font-medium">Years</span>
                 </div>
               </div>
-              <div>
+
+              <div className="md:col-span-2">
                 <label className={labelCls}>Blood Group</label>
                 <select name="bloodGroup" className={selectCls}
                   value={formData.bloodGroup} onChange={handleChange}>
@@ -416,46 +419,20 @@ export default function RegisterPatient() {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className={labelCls}>Marital Status</label>
-                <select name="maritalStatus" className={selectCls}
-                  value={formData.maritalStatus} onChange={handleChange}>
-                  <option value="">Select status</option>
-                  {["Single","Married","Divorced","Widowed"].map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </select>
+
+              <div className="md:col-span-2">
+                <label className={labelCls}>Aadhaar Number</label>
+                <input type="text" name="aadhaar" placeholder="Enter 12-digit aadhaar number"
+                  className={inputCls} value={formData.aadhaar} onChange={handleChange} maxLength={12} />
               </div>
 
-              <div>
-                <label className={labelCls}>Aadhaar Number</label>
-                <input type="text" name="aadhaar" placeholder="Enter aadhaar number"
-                  className={inputCls} value={formData.aadhaar} onChange={handleChange} />
-              </div>
-              <div>
-                <label className={labelCls}>PAN Number</label>
-                <input type="text" name="pan" placeholder="Enter PAN number"
-                  className={inputCls} value={formData.pan} onChange={handleChange} />
-              </div>
-              <div>
-                <label className={labelCls}>Occupation</label>
-                <input type="text" name="occupation" placeholder="Enter occupation"
-                  className={inputCls} value={formData.occupation} onChange={handleChange} />
-              </div>
-              <div>
-                <label className={labelCls}>Nationality</label>
-                <select name="nationality" className={selectCls}
-                  value={formData.nationality} onChange={handleChange}>
-                  {["Indian","NRI","Other"].map((n) => <option key={n}>{n}</option>)}
-                </select>
-              </div>
             </div>
           </div>
 
           {/* ── SECTION 2: CONTACT INFORMATION ── */}
           <div>
             <h3 className={secHdrCls}>
-              <LuPhone size={16} /> Contact Information
+              <LuPhone size={16} className="text-slate-800" /> Contact Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
               <div>
@@ -464,44 +441,24 @@ export default function RegisterPatient() {
                   className={inputCls} value={formData.mobile} onChange={handleChange}
                   maxLength={10} />
               </div>
-              <div>
-                <label className={labelCls}>Alternate Mobile</label>
-                <input type="tel" name="altMobile" placeholder="Alternate mobile"
-                  className={inputCls} value={formData.altMobile} onChange={handleChange}
-                  maxLength={10} />
-              </div>
-              <div>
-                <label className={labelCls}>Email Address</label>
-                <input type="email" name="email" placeholder="Enter email"
-                  className={inputCls} value={formData.email} onChange={handleChange} />
-              </div>
-              <div>
-                <label className={labelCls}>Landline</label>
-                <input type="text" name="landline" placeholder="Landline number"
-                  className={inputCls} value={formData.landline} onChange={handleChange} />
-              </div>
 
-              <div className="md:col-span-2">
-                <label className={labelCls}>Address Line 1 <span className="text-red-500">*</span></label>
-                <input type="text" name="address1" placeholder="Street / House / Locality"
+              <div className="md:col-span-3">
+                <label className={labelCls}>Address <span className="text-red-500">*</span></label>
+                <input type="text" name="address1" placeholder="Street / House / Locality / Area"
                   className={inputCls} value={formData.address1} onChange={handleChange} />
               </div>
-              <div className="md:col-span-2">
-                <label className={labelCls}>Address Line 2</label>
-                <input type="text" name="address2" placeholder="Landmark / Area"
-                  className={inputCls} value={formData.address2} onChange={handleChange} />
-              </div>
 
               <div>
-                <label className={labelCls}>Country <span className="text-red-500">*</span></label>
+                <label className={labelCls}>Country</label>
                 <select name="country" className={selectCls}
                   value={formData.country} onChange={handleChange}>
                   <option>India</option>
                   <option>Other</option>
                 </select>
               </div>
+
               <div>
-                <label className={labelCls}>State <span className="text-red-500">*</span></label>
+                <label className={labelCls}>State</label>
                 <select name="state" className={selectCls}
                   value={formData.state} onChange={handleChange}>
                   <option value="">Select state</option>
@@ -511,13 +468,15 @@ export default function RegisterPatient() {
                   ))}
                 </select>
               </div>
+
               <div>
-                <label className={labelCls}>City <span className="text-red-500">*</span></label>
+                <label className={labelCls}>City</label>
                 <input type="text" name="city" placeholder="Enter city"
                   className={inputCls} value={formData.city} onChange={handleChange} />
               </div>
+
               <div>
-                <label className={labelCls}>Pincode <span className="text-red-500">*</span></label>
+                <label className={labelCls}>Pincode</label>
                 <input type="text" name="pincode" placeholder="6-digit pincode"
                   className={inputCls} value={formData.pincode} onChange={handleChange}
                   maxLength={6} />
@@ -528,7 +487,7 @@ export default function RegisterPatient() {
           {/* ── SECTION 3: ADDITIONAL INFORMATION ── */}
           <div>
             <h3 className={secHdrCls}>
-              <LuFileText size={16} /> Additional Information
+              <LuFileText size={16} className="text-slate-800" /> Additional Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
               <div className="md:col-span-2">
@@ -536,12 +495,14 @@ export default function RegisterPatient() {
                 <input type="text" name="emgName" placeholder="Emergency contact name"
                   className={inputCls} value={formData.emgName} onChange={handleChange} />
               </div>
+
               <div>
                 <label className={labelCls}>Emergency Contact Number <span className="text-red-500">*</span></label>
                 <input type="tel" name="emgNumber" placeholder="Contact number"
                   className={inputCls} value={formData.emgNumber} onChange={handleChange}
                   maxLength={10} />
               </div>
+
               <div>
                 <label className={labelCls}>Relationship with Patient <span className="text-red-500">*</span></label>
                 <select name="emgRelation" className={selectCls}
@@ -553,7 +514,7 @@ export default function RegisterPatient() {
                 </select>
               </div>
 
-              <div>
+              <div className="md:col-span-2">
                 <label className={labelCls}>Referred By</label>
                 <select name="referredBy" className={selectCls}
                   value={formData.referredBy} onChange={handleChange}>
@@ -566,7 +527,8 @@ export default function RegisterPatient() {
                   <option>Other Hospital</option>
                 </select>
               </div>
-              <div>
+
+              <div className="md:col-span-2">
                 <label className={labelCls}>Department</label>
                 <select name="department" className={selectCls}
                   value={formData.department} onChange={handleChange}>
@@ -578,16 +540,17 @@ export default function RegisterPatient() {
                   ))}
                 </select>
               </div>
+
               <div className="md:col-span-2">
                 <label className={labelCls}>Visit Type</label>
-                <div className="flex items-center gap-6 mt-2">
+                <div className="flex items-center gap-6 mt-2.5">
                   {["OPD","IPD"].map((vt) => (
                     <label key={vt} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer font-medium">
                       <input type="radio" name="visitType" value={vt}
                         checked={formData.visitType === vt} onChange={handleChange}
-                        className="accent-blue-600 w-4 h-4" />
+                        className="accent-slate-900 w-4 h-4" />
                       <span className={formData.visitType === vt
-                        ? (vt === "OPD" ? "text-emerald-600 font-bold" : "text-rose-600 font-bold")
+                        ? (vt === "OPD" ? "text-emerald-700 font-bold" : "text-rose-700 font-bold")
                         : ""}>
                         {vt === "OPD" ? "🏥 OPD (Outpatient)" : "🛏️ IPD (Inpatient)"}
                       </span>
@@ -596,78 +559,52 @@ export default function RegisterPatient() {
                 </div>
               </div>
 
-              <div>
-                <label className={labelCls}>Payment Type</label>
-                <select name="paymentType" className={selectCls}
-                  value={formData.paymentType} onChange={handleChange}>
-                  <option value="">Select payment type</option>
-                  {["Cash","Card","UPI","Insurance","TPA","Free / BPL"].map((pt) => (
-                    <option key={pt}>{pt}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
+              <div className="md:col-span-2">
                 <label className={labelCls}>Health Insurance</label>
-                <div className="flex items-center gap-6 mt-2">
+                <div className="flex items-center gap-6 mt-2.5">
                   {["Yes","No"].map((v) => (
-                    <label key={v} className="flex items-center gap-1.5 text-sm text-slate-700 cursor-pointer">
+                    <label key={v} className="flex items-center gap-1.5 text-sm text-slate-700 cursor-pointer font-medium">
                       <input type="radio" name="healthInsurance" value={v}
                         checked={formData.healthInsurance === v} onChange={handleChange}
-                        className="accent-blue-600" />
+                        className="accent-slate-900" />
                       {v}
                     </label>
                   ))}
                 </div>
-              </div>
-              <div>
-                <label className={labelCls}>Insurance Provider</label>
-                <input type="text" name="insuranceProvider"
-                  disabled={formData.healthInsurance === "No"}
-                  placeholder="Insurance provider"
-                  className={`${inputCls} ${formData.healthInsurance === "No" ? "bg-slate-50 opacity-50 cursor-not-allowed" : ""}`}
-                  value={formData.insuranceProvider} onChange={handleChange} />
-              </div>
-              <div>
-                <label className={labelCls}>Insurance Number</label>
-                <input type="text" name="insuranceNumber"
-                  disabled={formData.healthInsurance === "No"}
-                  placeholder="Insurance / TPA number"
-                  className={`${inputCls} ${formData.healthInsurance === "No" ? "bg-slate-50 opacity-50 cursor-not-allowed" : ""}`}
-                  value={formData.insuranceNumber} onChange={handleChange} />
               </div>
             </div>
           </div>
         </div>
 
         {/* ── FOOTER ACTIONS ── */}
-        <div className="bg-slate-50 rounded-b-2xl border-t border-slate-200 p-5 flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-slate-50/80 rounded-b-2xl border-t border-slate-200/90 p-5 md:px-8 flex flex-wrap items-center justify-between gap-4">
           {/* Confirmation Checkbox */}
-          <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer font-medium">
+          <label className="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer font-medium select-none">
             <input type="checkbox" name="confirmed"
               checked={formData.confirmed} onChange={handleChange}
-              className="w-4 h-4 accent-blue-600 rounded border-slate-300" />
+              className="w-4 h-4 accent-slate-900 rounded border-slate-300" />
             I confirm that the above information is correct.
           </label>
 
           {/* Action Buttons */}
           <div className="flex items-center gap-3 flex-wrap">
             <button type="button" onClick={handleReset}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold text-sm hover:bg-slate-100 transition-all bg-white shadow-sm">
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-100 transition-all bg-white shadow-2xs active:scale-95">
               <LuRefreshCw size={15} /> Reset
             </button>
 
             <button type="button" onClick={handleProcessOPD}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-all shadow-md shadow-emerald-100 active:scale-95">
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all shadow-sm active:scale-95">
               <LuStethoscope size={15} /> Process to OPD
             </button>
 
             <button type="button" onClick={handleProcessIPD}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-700 transition-all shadow-md shadow-rose-100 active:scale-95">
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm transition-all shadow-sm active:scale-95">
               <LuBed size={15} /> Process to IPD
             </button>
 
             <button type="button" onClick={handleRegisterOnly}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95">
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-all shadow-sm active:scale-95">
               <LuUserPlus size={15} /> Register Patient
             </button>
           </div>
