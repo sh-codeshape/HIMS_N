@@ -572,48 +572,226 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
         );
       })()}
 
-      {/* ─── EDIT MODAL ─── */}
+      {/* ─── EDIT MODAL (Premium Healthcare Record Editor) ─── */}
       {editP && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 md:p-6"
           onClick={() => setEditP(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg"
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200"
             onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-              <h3 className="font-extrabold text-slate-800">Edit Patient Record</h3>
-              <button onClick={() => setEditP(null)}><LuCircleX size={20} className="text-slate-400 hover:text-slate-600" /></button>
-            </div>
-            <div className="p-6 grid grid-cols-2 gap-4">
-              {[
-                ["name","Full Name","text"],["phone","Mobile No.","tel"],
-                ["age","Age","number"],["gender","Gender","text"],
-                ["bloodGroup","Blood Group","text"],["department","Department","text"],
-                ["doctor","Doctor / Referred By","text"],["category","Category","text"],
-                ["fee","Fee (₹)","number"],["paymentMode","Payment Mode","text"],
-              ].map(([key, label, type]) => (
-                <div key={key}>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">{label}</label>
-                  <input type={type} value={editForm[key] || ""}
-                    onChange={e => setEditForm(f => ({...f, [key]: e.target.value}))}
-                    className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all" />
+            
+            {/* Header Bar */}
+            <div className="flex items-center justify-between px-6 py-3.5 border-b border-[#1b3a5b] bg-[#0b1e36] text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-blue-600/30 text-blue-300 border border-blue-400/20 flex items-center justify-center shadow-sm">
+                  <LuSquarePen size={18} />
                 </div>
-              ))}
-              <div className="col-span-2">
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Address</label>
-                <input type="text" value={editForm.address || ""}
-                  onChange={e => setEditForm(f => ({...f, address: e.target.value}))}
-                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all" />
+                <div>
+                  <h3 className="text-base font-bold text-white tracking-wide uppercase">Edit Patient Record</h3>
+                  <p className="text-xs text-blue-200/80">
+                    UHID: <span className="font-mono font-bold text-white">{editP.uhid || "—"}</span>
+                    <span className="mx-2 text-slate-400">•</span>
+                    Patient: <span className="text-slate-200 font-semibold">{editP.name || editForm.name || "—"}</span>
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
-              <button onClick={() => setEditP(null)}
-                className="text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg transition-all">
-                Cancel
-              </button>
-              <button onClick={saveEdit}
-                className="flex items-center gap-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 px-5 py-2 rounded-lg transition-all">
-                <LuSave size={14} /> Save Changes
+              <button 
+                onClick={() => setEditP(null)} 
+                className="text-red-400 hover:text-red-300 hover:bg-red-500/20 p-1 rounded-lg transition-colors cursor-pointer"
+                title="Cancel & Close"
+              >
+                <LuCircleX size={22} />
               </button>
             </div>
+
+            {/* Scrollable Form Body */}
+            <div className="p-6 overflow-y-auto space-y-4.5 text-slate-800 bg-slate-50/50">
+              
+              {/* Section 1: Personal & Contact Info */}
+              <div className="bg-white p-4.5 rounded-xl border border-slate-200 shadow-2xs space-y-3.5">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <span className="w-2 h-2 rounded-full bg-blue-600"></span> 1. Personal & Contact Information
+                </h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name <span className="text-red-500">*</span></label>
+                    <input 
+                      type="text" 
+                      value={editForm.name || ""}
+                      onChange={e => setEditForm(f => ({...f, name: e.target.value}))}
+                      placeholder="e.g. Juli Singh Patel"
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Primary Mobile No. <span className="text-red-500">*</span></label>
+                    <input 
+                      type="tel" 
+                      value={editForm.phone || ""}
+                      onChange={e => setEditForm(f => ({...f, phone: e.target.value}))}
+                      placeholder="10-digit mobile number"
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Age (Yrs)</label>
+                      <input 
+                        type="number" 
+                        value={editForm.age || ""}
+                        onChange={e => setEditForm(f => ({...f, age: e.target.value}))}
+                        placeholder="Age"
+                        className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Gender</label>
+                      <select 
+                        value={editForm.gender || "Male"}
+                        onChange={e => setEditForm(f => ({...f, gender: e.target.value}))}
+                        className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs"
+                      >
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Blood Group</label>
+                    <select 
+                      value={editForm.bloodGroup || ""}
+                      onChange={e => setEditForm(f => ({...f, bloodGroup: e.target.value}))}
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs"
+                    >
+                      <option value="">Select Blood Group</option>
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Clinical & Registration Details */}
+              <div className="bg-white p-4.5 rounded-xl border border-slate-200 shadow-2xs space-y-3.5">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <span className="w-2 h-2 rounded-full bg-violet-600"></span> 2. Department & Consultation
+                </h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Category</label>
+                    <select 
+                      value={editForm.category || "OPD"}
+                      onChange={e => setEditForm(f => ({...f, category: e.target.value}))}
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs"
+                    >
+                      <option value="OPD">OPD</option>
+                      <option value="IPD">IPD</option>
+                      <option value="Emergency">Emergency</option>
+                      <option value="Registered">Registered</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Department</label>
+                    <input 
+                      type="text" 
+                      value={editForm.department || ""}
+                      onChange={e => setEditForm(f => ({...f, department: e.target.value}))}
+                      placeholder="e.g. General Medicine, Ortho"
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Doctor / Referred By</label>
+                    <input 
+                      type="text" 
+                      value={editForm.doctor || ""}
+                      onChange={e => setEditForm(f => ({...f, doctor: e.target.value}))}
+                      placeholder="Consulting doctor name"
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Billing & Residential Details */}
+              <div className="bg-white p-4.5 rounded-xl border border-slate-200 shadow-2xs space-y-3.5">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600"></span> 3. Billing & Address Details
+                </h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Fee (₹)</label>
+                    <input 
+                      type="number" 
+                      value={editForm.fee || ""}
+                      onChange={e => setEditForm(f => ({...f, fee: e.target.value}))}
+                      placeholder="350"
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Payment Mode</label>
+                    <select 
+                      value={editForm.paymentMode || "CASH"}
+                      onChange={e => setEditForm(f => ({...f, paymentMode: e.target.value}))}
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs"
+                    >
+                      <option value="CASH">CASH</option>
+                      <option value="UPI / Online">UPI / Online</option>
+                      <option value="CARD">Debit / Credit Card</option>
+                      <option value="Insurance">Insurance / TPA</option>
+                      <option value="Exempted">Free / Exempted</option>
+                    </select>
+                  </div>
+
+                  <div className="col-span-1 md:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Full Residential Address</label>
+                    <textarea 
+                      rows={2}
+                      value={editForm.address || ""}
+                      onChange={e => setEditForm(f => ({...f, address: e.target.value}))}
+                      placeholder="Patient street address, locality, area..."
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs resize-none" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer Controls */}
+            <div className="px-6 py-3.5 border-t border-slate-200 bg-white flex items-center justify-between gap-3">
+              <button 
+                type="button"
+                onClick={() => setEditP(null)}
+                className="text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-300 px-4 py-2 rounded-lg transition-all cursor-pointer shadow-2xs"
+              >
+                Discard Changes
+              </button>
+              <button 
+                type="button"
+                onClick={saveEdit}
+                className="flex items-center gap-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm px-5 py-2 rounded-lg transition-all cursor-pointer"
+              >
+                <LuSave size={14} /> Update Record
+              </button>
+            </div>
+
           </div>
         </div>
       )}
