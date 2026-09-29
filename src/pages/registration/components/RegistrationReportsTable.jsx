@@ -6,7 +6,7 @@ import {
   LuSearch, LuX, LuDownload, LuFilter,
   LuEye, LuSquarePen, LuRefreshCw, LuBan, LuTrash2,
   LuPrinter, LuSave, LuCircleX, LuCircleCheck, LuChevronDown,
-  LuFolderSearch, LuBedDouble
+  LuFolderSearch, LuBedDouble, LuFileText
 } from "react-icons/lu";
 
 // ─── Status Config ────────────────────────────────────────────────────────────
