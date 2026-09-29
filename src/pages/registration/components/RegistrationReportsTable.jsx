@@ -578,11 +578,11 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
         );
       })()}
 
-      {/* ─── EDIT MODAL (Premium Healthcare Record Editor) ─── */}
+      {/* ─── EDIT MODAL (Premium Healthcare Record Editor - Wide & Structured) ─── */}
       {editP && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 md:p-6"
           onClick={() => setEditP(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200"
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200"
             onClick={e => e.stopPropagation()}>
             
             {/* Header Bar */}
@@ -592,7 +592,12 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                   <LuSquarePen size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white tracking-wide uppercase">Edit Patient Record</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-white tracking-wide uppercase">Edit Patient Record</h3>
+                    <span className="text-[11px] font-semibold bg-blue-500/25 text-blue-200 px-2 py-0.5 rounded border border-blue-400/30">
+                      Editor Mode
+                    </span>
+                  </div>
                   <p className="text-xs text-blue-200/80">
                     UHID: <span className="font-mono font-bold text-white">{editP.uhid || "—"}</span>
                     <span className="mx-2 text-slate-400">•</span>
@@ -602,7 +607,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
               </div>
               <button 
                 onClick={() => setEditP(null)} 
-                className="text-red-400 hover:text-red-300 hover:bg-red-500/20 p-1 rounded-lg transition-colors cursor-pointer"
+                className="text-red-400 hover:text-red-300 hover:bg-red-500/20 p-1.5 rounded-lg transition-colors cursor-pointer"
                 title="Cancel & Close"
               >
                 <LuCircleX size={22} />
@@ -610,32 +615,64 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
             </div>
 
             {/* Scrollable Form Body */}
-            <div className="p-6 overflow-y-auto space-y-4.5 text-slate-800 bg-slate-50/50">
+            <div className="p-6 overflow-y-auto space-y-5 text-slate-800 bg-slate-50/50">
               
-              {/* Section 1: Personal Details */}
-              <div className="bg-white p-4.5 rounded-xl border border-slate-200 shadow-2xs space-y-3.5">
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-slate-100">
-                  <span className="w-2 h-2 rounded-full bg-blue-600"></span> 1. Personal Details
-                </h4>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              {/* Patient Identity Banner */}
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-[#0b1e36] text-white flex items-center justify-center font-bold text-xl shadow-xs">
+                    {(editForm.name || "P")[0]?.toUpperCase()}
+                  </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name <span className="text-red-500">*</span></label>
+                    <h2 className="text-lg font-bold text-slate-900 leading-tight">
+                      {editForm.name || "Patient Record"}
+                    </h2>
+                    <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-slate-500">
+                      <span>UHID: <strong className="text-blue-700 font-mono font-bold">{editP.uhid || "—"}</strong></span>
+                      <span>•</span>
+                      <span>Patient ID: <strong className="text-slate-800 font-semibold">{editP.patientId || editP.id || "—"}</strong></span>
+                      <span>•</span>
+                      <span>Category: <strong className="text-slate-800 font-semibold">{editForm.category || "OPD"}</strong></span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-xs text-slate-500 text-right hidden sm:block">
+                  <span className="text-[11px] font-medium text-slate-400 block">Registration Date</span>
+                  <span className="font-semibold text-slate-700">{editP.registeredAt || editP.regDate || "—"}</span>
+                </div>
+              </div>
+
+              {/* Section 1: Personal Details */}
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+                <div className="bg-slate-100/90 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-600"></span> 1. Personal Details
+                  </h4>
+                  <span className="text-[11px] text-slate-500 font-medium">Identity Info</span>
+                </div>
+                
+                <div className="p-4.5 grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="col-span-1 md:col-span-2">
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                      Full Name <span className="text-red-500">*</span>
+                    </label>
                     <input 
                       type="text" 
                       value={editForm.name || ""}
                       onChange={e => setEditForm(f => ({...f, name: e.target.value}))}
                       placeholder="e.g. Juli Singh Patel"
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Gender <span className="text-red-500">*</span></label>
+                  <div className="col-span-1">
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                      Gender <span className="text-red-500">*</span>
+                    </label>
                     <select 
                       value={editForm.gender || "Male"}
                       onChange={e => setEditForm(f => ({...f, gender: e.target.value}))}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs"
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs cursor-pointer"
                     >
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
@@ -643,23 +680,27 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Age (Years) <span className="text-red-500">*</span></label>
+                  <div className="col-span-1">
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                      Age (Years) <span className="text-red-500">*</span>
+                    </label>
                     <input 
                       type="number" 
                       value={editForm.age || ""}
                       onChange={e => setEditForm(f => ({...f, age: e.target.value}))}
                       placeholder="Age in years"
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Blood Group</label>
+                  <div className="col-span-1 md:col-span-2">
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                      Blood Group
+                    </label>
                     <select 
                       value={editForm.bloodGroup || ""}
                       onChange={e => setEditForm(f => ({...f, bloodGroup: e.target.value}))}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs"
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs cursor-pointer"
                     >
                       <option value="">Select blood group</option>
                       <option value="A+">A+</option>
@@ -673,55 +714,66 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                     </select>
                   </div>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Aadhaar Number</label>
+                  <div className="col-span-1 md:col-span-2">
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                      Aadhaar Number
+                    </label>
                     <input 
                       type="text" 
                       value={editForm.aadhaar || ""}
                       onChange={e => setEditForm(f => ({...f, aadhaar: e.target.value}))}
                       placeholder="Enter 12-digit Aadhaar number"
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
                     />
                   </div>
                 </div>
               </div>
 
               {/* Section 2: Contact Details */}
-              <div className="bg-white p-4.5 rounded-xl border border-slate-200 shadow-2xs space-y-3.5">
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-slate-100">
-                  <span className="w-2 h-2 rounded-full bg-emerald-600"></span> 2. Contact Details
-                </h4>
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+                <div className="bg-slate-100/90 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-600"></span> 2. Contact Details
+                  </h4>
+                  <span className="text-[11px] text-slate-500 font-medium">Communication Info</span>
+                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Mobile No. <span className="text-red-500">*</span></label>
+                <div className="p-4.5 grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="col-span-1 md:col-span-2">
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                      Mobile No. <span className="text-red-500">*</span>
+                    </label>
                     <input 
                       type="tel" 
                       value={editForm.phone || ""}
                       onChange={e => setEditForm(f => ({...f, phone: e.target.value}))}
                       placeholder="10-digit mobile number"
                       maxLength={10}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">City</label>
+                  <div className="col-span-1">
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                      City
+                    </label>
                     <input 
                       type="text" 
                       value={editForm.city || ""}
                       onChange={e => setEditForm(f => ({...f, city: e.target.value}))}
                       placeholder="Enter city"
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">State</label>
+                  <div className="col-span-1">
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                      State
+                    </label>
                     <select 
                       value={editForm.state || ""}
                       onChange={e => setEditForm(f => ({...f, state: e.target.value}))}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs"
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs cursor-pointer"
                     >
                       <option value="">Select state</option>
                       {["Uttar Pradesh","Delhi","Maharashtra","Karnataka","Rajasthan","Madhya Pradesh",
@@ -731,79 +783,94 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Pincode</label>
+                  <div className="col-span-1">
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                      Pincode
+                    </label>
                     <input 
                       type="text" 
                       value={editForm.pincode || ""}
                       onChange={e => setEditForm(f => ({...f, pincode: e.target.value}))}
                       placeholder="6-digit pincode"
                       maxLength={6}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Country</label>
+                  <div className="col-span-1">
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                      Country
+                    </label>
                     <select 
                       value={editForm.country || "India"}
                       onChange={e => setEditForm(f => ({...f, country: e.target.value}))}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs"
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs cursor-pointer"
                     >
                       <option value="India">India</option>
                       <option value="Other">Other</option>
                     </select>
                   </div>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Address <span className="text-red-500">*</span></label>
+                  <div className="col-span-1 md:col-span-2">
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                      Address <span className="text-red-500">*</span>
+                    </label>
                     <input 
                       type="text" 
                       value={editForm.address || ""}
                       onChange={e => setEditForm(f => ({...f, address: e.target.value}))}
                       placeholder="Street / House / Locality"
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
                     />
                   </div>
                 </div>
               </div>
 
               {/* Section 3: Additional Information */}
-              <div className="bg-white p-4.5 rounded-xl border border-slate-200 shadow-2xs space-y-3.5">
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-slate-100">
-                  <span className="w-2 h-2 rounded-full bg-violet-600"></span> 3. Additional Information
-                </h4>
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+                <div className="bg-slate-100/90 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-violet-600"></span> 3. Additional Information
+                  </h4>
+                  <span className="text-[11px] text-slate-500 font-medium">Emergency & Consultation</span>
+                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                <div className="p-4.5 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Emergency Contact Name</label>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                      Emergency Contact Name
+                    </label>
                     <input 
                       type="text" 
                       value={editForm.emergencyName || ""}
                       onChange={e => setEditForm(f => ({...f, emergencyName: e.target.value}))}
                       placeholder="Emergency contact name"
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Emergency Contact Number</label>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                      Emergency Contact Number
+                    </label>
                     <input 
                       type="tel" 
                       value={editForm.emergencyPhone || ""}
                       onChange={e => setEditForm(f => ({...f, emergencyPhone: e.target.value}))}
                       placeholder="Contact number"
                       maxLength={10}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Relationship with Patient</label>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                      Relationship with Patient
+                    </label>
                     <select 
                       value={editForm.emergencyRelation || ""}
                       onChange={e => setEditForm(f => ({...f, emergencyRelation: e.target.value}))}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs"
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs cursor-pointer"
                     >
                       <option value="">Select relationship</option>
                       {["Spouse","Parent","Child","Sibling","Friend","Other"].map((r) => (
@@ -813,11 +880,13 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Referred By</label>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                      Referred By
+                    </label>
                     <select 
                       value={editForm.doctor || ""}
                       onChange={e => setEditForm(f => ({...f, doctor: e.target.value}))}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs"
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs cursor-pointer"
                     >
                       <option value="">Select doctor / source</option>
                       <option value="Dr. Ranju Chaurasia">Dr. Ranju Chaurasia</option>
@@ -830,11 +899,13 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Department</label>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                      Department
+                    </label>
                     <select 
                       value={editForm.department || ""}
                       onChange={e => setEditForm(f => ({...f, department: e.target.value}))}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs"
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs cursor-pointer"
                     >
                       <option value="">Select department</option>
                       {["General Medicine","Cardiology","Neurology","Orthopedics",
@@ -846,11 +917,13 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Visit Type</label>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                      Visit Type
+                    </label>
                     <select 
                       value={editForm.category || "OPD"}
                       onChange={e => setEditForm(f => ({...f, category: e.target.value}))}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs"
+                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs cursor-pointer"
                     >
                       <option value="OPD">OPD (Outpatient)</option>
                       <option value="IPD">IPD (Inpatient)</option>
@@ -863,20 +936,20 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
             </div>
 
             {/* Modal Footer Controls */}
-            <div className="px-6 py-3.5 border-t border-slate-200 bg-white flex items-center justify-between gap-3">
+            <div className="px-6 py-4 border-t border-slate-200 bg-white flex items-center justify-between gap-3">
               <button 
                 type="button"
                 onClick={() => setEditP(null)}
-                className="text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-300 px-4 py-2 rounded-lg transition-all cursor-pointer shadow-2xs"
+                className="text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-300 px-5 py-2.5 rounded-lg transition-all cursor-pointer shadow-2xs"
               >
                 Discard Changes
               </button>
               <button 
                 type="button"
                 onClick={saveEdit}
-                className="flex items-center gap-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm px-5 py-2 rounded-lg transition-all cursor-pointer"
+                className="flex items-center gap-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm px-6 py-2.5 rounded-lg transition-all cursor-pointer"
               >
-                <LuSave size={14} /> Update Record
+                <LuSave size={15} /> Update Record
               </button>
             </div>
 
