@@ -11,11 +11,8 @@ export default function RegistrationReports() {
   }, []);
 
   return (
-    <PageContainer
-      title="Registration Reports"
-      subtitle="Complete database and audit log of registered hospital patients"
-    >
+    <div className="p-6 md:p-8 w-full max-w-7xl mx-auto">
       <RegistrationReportsTable patients={patients} />
-    </PageContainer>
+    </div>
   );
 }
