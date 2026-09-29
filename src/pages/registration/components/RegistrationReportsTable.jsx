@@ -161,7 +161,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
   };
 
   // ─── Styles ───────────────────────────────────────────────────────────────
-  const thCls = "px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50/60 border-b border-slate-100";
+  const thCls = "px-5 py-3.5 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50/60 border-b border-slate-100";
 
   return (
     <div className="font-sans text-slate-800">
@@ -177,16 +177,18 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
       {/* ── PAGE HEADER ── */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <LuFileText size={26} className="text-blue-600 shrink-0" />
+          <div className="p-2.5 bg-slate-100 text-slate-800 rounded-xl">
+            <LuBedDouble size={22} />
+          </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Patient Registration Reports</h1>
+            <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Patient Registration Reports</h1>
             <p className="text-xs text-slate-500 mt-0.5">View and manage all registered patients in the system</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap">
           {/* Search */}
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3.5 py-2 w-64 text-sm shadow-2xs focus-within:border-blue-400">
+          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 w-56 text-sm shadow-2xs focus-within:border-slate-400">
             <LuSearch size={15} className="text-slate-400 shrink-0" />
             <input type="text" placeholder="Search name, mobile..."
               className="text-sm text-slate-700 bg-transparent outline-none placeholder:text-slate-400 w-full"
@@ -196,51 +198,31 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
             )}
           </div>
 
-          {/* Filter Button */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-1.5 text-sm font-medium border rounded-lg px-3.5 py-2 transition-all ${
-              showFilters || catFilter !== "All" || statusFilter !== "All"
-                ? "bg-blue-50 text-blue-600 border-blue-200"
-                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-2xs"
-            }`}>
-            <LuFilter size={15} /> Filter
-          </button>
-
-          {/* Export Excel */}
-          <button onClick={() => exportToExcel(filtered, showToast)}
-            className="flex items-center gap-1.5 text-sm font-semibold bg-[#00a368] hover:bg-[#008f5a] text-white px-4 py-2 rounded-lg transition-all active:scale-95 shadow-sm">
-            <LuDownload size={15} /> Export Excel
-          </button>
-        </div>
-      </div>
-
-      {/* Filter panel dropdown when Filter is clicked */}
-      {showFilters && (
-        <div className="flex items-center gap-3 bg-white p-3.5 rounded-xl border border-slate-200/90 mb-5 shadow-2xs">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Filter By:</span>
+          {/* Category Filter */}
           <select
-            className="text-xs border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:border-blue-400 cursor-pointer"
+            className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:border-slate-400 cursor-pointer shadow-2xs"
             value={catFilter} onChange={e => { setCat(e.target.value); setPage(1); }}>
             <option value="All">All Categories</option>
             <option value="OPD">OPD</option>
             <option value="IPD">IPD</option>
             <option value="Emergency">Emergency</option>
           </select>
+
+          {/* Status Filter */}
           <select
-            className="text-xs border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:border-blue-400 cursor-pointer"
+            className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:border-slate-400 cursor-pointer shadow-2xs"
             value={statusFilter} onChange={e => { setStat(e.target.value); setPage(1); }}>
             <option value="All">All Statuses</option>
             {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
-          {(catFilter !== "All" || statusFilter !== "All") && (
-            <button onClick={() => { setCat("All"); setStat("All"); }}
-              className="text-xs text-blue-600 hover:underline font-semibold ml-auto">
-              Reset Filters
-            </button>
-          )}
+
+          {/* Export Excel */}
+          <button onClick={() => exportToExcel(filtered, showToast)}
+            className="flex items-center gap-1.5 text-sm font-semibold bg-slate-900 hover:bg-black text-white px-4 py-2 rounded-lg transition-all active:scale-95 shadow-sm">
+            <LuDownload size={15} /> Export Excel
+          </button>
         </div>
-      )}
+      </div>
 
       {/* ── TABLE CARD ── */}
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
@@ -248,13 +230,13 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
           <table className="w-full text-sm">
             <thead>
               <tr>
-                <th className={thCls}>REG. DATE</th>
-                <th className={thCls}>PATIENT ID</th>
+                <th className={thCls}>UHID NUMBER</th>
+                <th className={thCls}>DATE</th>
                 <th className={thCls}>NAME</th>
-                <th className={thCls}>GENDER / AGE</th>
-                <th className={thCls}>MOBILE</th>
-                <th className={thCls}>CITY / STATE</th>
-                <th className="px-6 py-4 text-right text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50/60 border-b border-slate-100">ACTIONS</th>
+                <th className={thCls}>MOBILE NUMBER</th>
+                <th className={thCls}>CATEGORY</th>
+                <th className={thCls}>STATUS</th>
+                <th className={thCls}>ACTIONS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -267,51 +249,84 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                   </td>
                 </tr>
               ) : paginated.map((p, i) => {
+                const isCancelled = p.status === "Cancelled";
                 const fullName = p.name || `${p.firstName || ""} ${p.middleName ? p.middleName + " " : ""}${p.lastName || ""}`.trim();
                 const regDate  = p.registeredAt?.split(" ")[0] || p.regDate || "—";
-                const cityState = p.city && p.state ? `${p.city}, ${p.state}` : p.city || p.state || "—";
 
                 return (
                   <tr key={p.uhid || i}
-                    className="hover:bg-slate-50/50 transition-colors">
+                    className={`hover:bg-slate-50/50 transition-colors ${isCancelled ? "opacity-50" : ""}`}>
 
-                    {/* REG. DATE */}
-                    <td className="px-6 py-4.5 text-slate-600 whitespace-nowrap text-sm font-normal">
+                    {/* UHID NUMBER */}
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <button onClick={() => setViewP(p)}
+                        className="font-bold text-slate-900 hover:text-blue-600 transition-colors text-sm text-left">
+                        {p.uhid || p.id || "—"}
+                      </button>
+                      {p.patientId && (
+                        <div className="text-[11px] text-slate-400 mt-0.5">{p.patientId}</div>
+                      )}
+                    </td>
+
+                    {/* DATE */}
+                    <td className="px-5 py-4 text-slate-700 whitespace-nowrap text-sm">
                       {regDate}
                     </td>
 
-                    {/* PATIENT ID */}
-                    <td className="px-6 py-4.5 whitespace-nowrap text-sm font-bold text-slate-900">
-                      {p.uhid || p.patientId || p.id || "—"}
-                    </td>
-
                     {/* NAME */}
-                    <td className="px-6 py-4.5 text-slate-800 font-medium whitespace-nowrap text-sm">
-                      {fullName || "—"}
+                    <td className="px-5 py-4 text-slate-900 font-semibold text-sm whitespace-nowrap">
+                      <button onClick={() => setViewP(p)} className="hover:text-blue-600 transition-colors text-left font-semibold">
+                        {fullName || "—"}
+                      </button>
                     </td>
 
-                    {/* GENDER / AGE */}
-                    <td className="px-6 py-4.5 text-slate-600 whitespace-nowrap text-sm">
-                      {p.gender || "—"} / {p.age || p.ageYrs || "—"} Yrs
-                    </td>
-
-                    {/* MOBILE */}
-                    <td className="px-6 py-4.5 text-slate-600 whitespace-nowrap text-sm">
+                    {/* MOBILE NUMBER */}
+                    <td className="px-5 py-4 text-slate-700 whitespace-nowrap text-sm">
                       {p.phone || p.mobile1 || "—"}
                     </td>
 
-                    {/* CITY / STATE */}
-                    <td className="px-6 py-4.5 text-slate-600 whitespace-nowrap text-sm">
-                      {cityState}
+                    {/* CATEGORY */}
+                    <td className="px-5 py-4 whitespace-nowrap text-sm">
+                      <span className="inline-block px-3 py-1 rounded-md text-xs font-semibold bg-white border border-slate-200 text-slate-700 shadow-2xs">
+                        {p.category || "OPD"}
+                      </span>
+                    </td>
+
+                    {/* STATUS */}
+                    <td className="px-5 py-4 whitespace-nowrap text-sm">
+                      <button
+                        onClick={() => { setStatusP(p); setNewStatus(p.status || "Waiting"); }}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-md bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+                        {p.status || "Waiting"}
+                        <LuChevronDown size={11} className="text-slate-400" />
+                      </button>
                     </td>
 
                     {/* ACTIONS */}
-                    <td className="px-6 py-4.5 whitespace-nowrap text-right">
-                      <button
-                        onClick={() => setViewP(p)}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50/90 hover:bg-blue-100 px-4 py-1.5 rounded-full transition-all">
-                        Send to OPD <span className="text-sm font-normal">→</span>
-                      </button>
+                    <td className="px-5 py-4 whitespace-nowrap text-sm">
+                      <div className="flex items-center gap-1.5">
+                        {/* View */}
+                        <button onClick={() => setViewP(p)} title="View Details"
+                          className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-2xs">
+                          <LuEye size={13} /> View
+                        </button>
+                        {/* Edit */}
+                        <button onClick={() => openEdit(p)} title="Edit Patient"
+                          className="p-1.5 rounded-md bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-amber-600 transition-colors shadow-2xs">
+                          <LuSquarePen size={14} />
+                        </button>
+                        {/* Status */}
+                        <button onClick={() => { setStatusP(p); setNewStatus(p.status || "Waiting"); }} title="Change Status"
+                          className="p-1.5 rounded-md bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-2xs">
+                          <LuRefreshCw size={13} />
+                        </button>
+                        {/* Cancel */}
+                        <button onClick={() => setCancelP(p)} title="Cancel" disabled={isCancelled}
+                          className="p-1.5 rounded-md bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-red-600 transition-colors shadow-2xs disabled:opacity-40">
+                          {canDelete ? <LuTrash2 size={13} /> : <LuBan size={13} />}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
