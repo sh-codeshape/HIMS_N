@@ -177,7 +177,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
       {/* ── PAGE HEADER ── */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-slate-100 text-slate-800 rounded-xl">
+          <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
             <LuBedDouble size={22} />
           </div>
           <div>
@@ -188,7 +188,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
 
         <div className="flex items-center gap-2.5 flex-wrap">
           {/* Search */}
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 w-56 text-sm shadow-2xs focus-within:border-slate-400">
+          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 w-56 text-sm shadow-2xs focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
             <LuSearch size={15} className="text-slate-400 shrink-0" />
             <input type="text" placeholder="Search name, mobile..."
               className="text-sm text-slate-700 bg-transparent outline-none placeholder:text-slate-400 w-full"
@@ -200,7 +200,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
 
           {/* Category Filter */}
           <select
-            className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:border-slate-400 cursor-pointer shadow-2xs"
+            className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:border-blue-400 cursor-pointer shadow-2xs"
             value={catFilter} onChange={e => { setCat(e.target.value); setPage(1); }}>
             <option value="All">All Categories</option>
             <option value="OPD">OPD</option>
@@ -210,7 +210,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
 
           {/* Status Filter */}
           <select
-            className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:border-slate-400 cursor-pointer shadow-2xs"
+            className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:border-blue-400 cursor-pointer shadow-2xs"
             value={statusFilter} onChange={e => { setStat(e.target.value); setPage(1); }}>
             <option value="All">All Statuses</option>
             {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -218,7 +218,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
 
           {/* Export Excel */}
           <button onClick={() => exportToExcel(filtered, showToast)}
-            className="flex items-center gap-1.5 text-sm font-semibold bg-slate-900 hover:bg-black text-white px-4 py-2 rounded-lg transition-all active:scale-95 shadow-sm">
+            className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-all active:scale-95 shadow-sm">
             <LuDownload size={15} /> Export Excel
           </button>
         </div>
@@ -249,18 +249,19 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                   </td>
                 </tr>
               ) : paginated.map((p, i) => {
+                const st = getStatus(p.status);
                 const isCancelled = p.status === "Cancelled";
                 const fullName = p.name || `${p.firstName || ""} ${p.middleName ? p.middleName + " " : ""}${p.lastName || ""}`.trim();
                 const regDate  = p.registeredAt?.split(" ")[0] || p.regDate || "—";
 
                 return (
                   <tr key={p.uhid || i}
-                    className={`hover:bg-slate-50/50 transition-colors ${isCancelled ? "opacity-50" : ""}`}>
+                    className={`hover:bg-slate-50/60 transition-colors ${isCancelled ? "opacity-50" : ""}`}>
 
                     {/* UHID NUMBER */}
                     <td className="px-5 py-4 whitespace-nowrap">
                       <button onClick={() => setViewP(p)}
-                        className="font-bold text-slate-900 hover:text-blue-600 transition-colors text-sm text-left">
+                        className="font-bold text-blue-600 hover:text-blue-800 hover:underline transition-colors text-sm text-left">
                         {p.uhid || p.id || "—"}
                       </button>
                       {p.patientId && (
@@ -287,7 +288,15 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
 
                     {/* CATEGORY */}
                     <td className="px-5 py-4 whitespace-nowrap text-sm">
-                      <span className="inline-block px-3 py-1 rounded-md text-xs font-semibold bg-white border border-slate-200 text-slate-700 shadow-2xs">
+                      <span className={`inline-block px-3 py-1 rounded-md text-xs font-semibold border shadow-2xs ${
+                        p.category === "IPD"
+                          ? "bg-purple-50 text-purple-700 border-purple-200"
+                          : p.category === "Emergency"
+                          ? "bg-rose-50 text-rose-700 border-rose-200"
+                          : p.category === "Registered"
+                          ? "bg-sky-50 text-sky-700 border-sky-200"
+                          : "bg-blue-50 text-blue-700 border-blue-200"
+                      }`}>
                         {p.category || "OPD"}
                       </span>
                     </td>
@@ -296,10 +305,15 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                     <td className="px-5 py-4 whitespace-nowrap text-sm">
                       <button
                         onClick={() => { setStatusP(p); setNewStatus(p.status || "Waiting"); }}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-md bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-md border transition-all shadow-2xs hover:opacity-85"
+                        style={{
+                          color: st.color,
+                          backgroundColor: st.bg,
+                          borderColor: st.color + "44",
+                        }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: st.color }} />
                         {p.status || "Waiting"}
-                        <LuChevronDown size={11} className="text-slate-400" />
+                        <LuChevronDown size={11} style={{ color: st.color }} />
                       </button>
                     </td>
 
@@ -308,22 +322,26 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                       <div className="flex items-center gap-1.5">
                         {/* View */}
                         <button onClick={() => setViewP(p)} title="View Details"
-                          className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-2xs">
+                          className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-colors shadow-2xs">
                           <LuEye size={13} /> View
                         </button>
                         {/* Edit */}
                         <button onClick={() => openEdit(p)} title="Edit Patient"
-                          className="p-1.5 rounded-md bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-amber-600 transition-colors shadow-2xs">
+                          className={`p-1.5 rounded-md border transition-colors shadow-2xs ${
+                            canEdit
+                              ? "bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200"
+                              : "bg-slate-50 text-slate-300 border-slate-200 cursor-not-allowed"
+                          }`}>
                           <LuSquarePen size={14} />
                         </button>
                         {/* Status */}
                         <button onClick={() => { setStatusP(p); setNewStatus(p.status || "Waiting"); }} title="Change Status"
-                          className="p-1.5 rounded-md bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-2xs">
+                          className="p-1.5 rounded-md bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-colors shadow-2xs">
                           <LuRefreshCw size={13} />
                         </button>
                         {/* Cancel */}
                         <button onClick={() => setCancelP(p)} title="Cancel" disabled={isCancelled}
-                          className="p-1.5 rounded-md bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-red-600 transition-colors shadow-2xs disabled:opacity-40">
+                          className="p-1.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors shadow-2xs disabled:opacity-40">
                           {canDelete ? <LuTrash2 size={13} /> : <LuBan size={13} />}
                         </button>
                       </div>
