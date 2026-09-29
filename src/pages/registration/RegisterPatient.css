@@ -1,17 +1,17 @@
 /* =========================================================================
-   HIMS PATIENT REGISTRATION COUNTER - WORLD-CLASS PREMIUM HOSPITAL UI
+   HIMS PATIENT REGISTRATION - ULTRA-PREMIUM MODERN SAAS INTERFACE
    ========================================================================= */
 
 .prem-reg-container {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   color: #1e293b;
-  max-width: 100%;
+  width: 100%;
 }
 
-/* Floating Toast Notification */
+/* Toast Notification */
 .prem-toast {
   position: fixed;
   top: 20px;
@@ -19,501 +19,458 @@
   z-index: 999999;
   background: #0f172a;
   color: #ffffff;
-  padding: 11px 18px;
-  border-radius: 8px;
+  padding: 11px 20px;
+  border-radius: 9px;
   font-size: 13px;
   font-weight: 600;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
   border-left: 4px solid #10b981;
   animation: premSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes premSlideIn {
-  from { opacity: 0; transform: translateY(-10px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* ================= 1. TOP LOOKUP & DEMO BAR ================= */
-.prem-top-card {
+/* ================= 1. PREMIUM HEADER CARD ================= */
+.prem-header-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 10px 14px;
+  border-radius: 12px;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  gap: 14px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03), 0 4px 12px rgba(15, 23, 42, 0.02);
 }
 
-.prem-top-row {
+.prem-header-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
+  gap: 12px;
+}
+
+.prem-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.prem-header-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 8px rgba(13, 148, 136, 0.25);
+}
+
+.prem-page-heading {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.prem-page-sub {
+  font-size: 11.5px;
+  color: #64748b;
+  margin: 2px 0 0 0;
+}
+
+.prem-header-pills {
+  display: flex;
+  align-items: center;
   gap: 10px;
 }
 
-.prem-type-switcher {
-  display: inline-flex;
-  background: #f1f5f9;
-  padding: 3px;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
+.prem-uhid-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  background: #f0fdfa;
+  border: 1px solid #ccfbf1;
+  padding: 5px 12px;
+  border-radius: 7px;
 }
 
-.prem-switch-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  font-family: inherit;
+.prem-pid-badge {
+  background: #eff6ff;
+  border-color: #dbeafe;
 }
 
-.prem-switch-tab:hover {
-  color: #0f172a;
+.prem-uhid-lbl {
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #0d9488;
+  letter-spacing: 0.05em;
 }
 
-.prem-switch-tab--active {
-  background: #ffffff;
+.prem-pid-badge .prem-uhid-lbl {
   color: #2563eb;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-.prem-switch-tab--old.prem-switch-tab--active {
-  background: #ffffff;
-  color: #b45309;
+.prem-uhid-val {
+  font-family: monospace;
+  font-size: 13.5px;
+  font-weight: 900;
+  color: #0f766e;
 }
 
-.prem-demo-group {
+.prem-pid-badge .prem-uhid-val {
+  color: #1d4ed8;
+}
+
+/* Toolbar Search & Integrations */
+.prem-toolbar-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
-.prem-demo-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: #64748b;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  text-transform: uppercase;
-}
-
-.prem-quick-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 11.5px;
-  color: #334155;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  font-family: inherit;
-}
-
-.prem-chip-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #22c55e;
-}
-
-.prem-quick-chip:hover {
-  background: #eff6ff;
-  border-color: #3b82f6;
-  color: #1d4ed8;
-  transform: translateY(-1px);
-}
-
-/* Search Field */
-.prem-search-row {
-  display: flex;
-  width: 100%;
+.prem-search-box {
+  position: relative;
+  flex: 1;
+  min-width: 280px;
 }
 
 .prem-search-field {
-  display: flex;
-  align-items: center;
-  position: relative;
   width: 100%;
+  height: 38px;
+  border: 1.5px solid #0d9488;
+  border-radius: 8px;
+  padding: 0 36px;
+  font-size: 12.5px;
+  color: #0f172a;
+  background: #ffffff;
+  outline: none;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.08);
+}
+
+.prem-search-field:focus {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.18);
 }
 
 .prem-search-icon {
   position: absolute;
   left: 12px;
-  color: #64748b;
+  top: 11px;
+  color: #0d9488;
   pointer-events: none;
 }
 
-.prem-search-inp {
-  width: 100%;
-  height: 36px;
-  padding: 0 160px 0 36px;
-  border: 1.5px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 12.5px;
-  background: #f8fafc;
-  color: #0f172a;
-  outline: none;
-  transition: all 0.15s ease;
-  font-family: inherit;
-}
-
-.prem-search-inp:focus {
-  background: #ffffff;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-}
-
-.prem-clear-search {
+.prem-search-clear {
   position: absolute;
-  right: 155px;
+  right: 10px;
+  top: 10px;
   background: transparent;
   border: none;
   color: #94a3b8;
   cursor: pointer;
-  padding: 4px;
+  padding: 2px;
 }
 
-.prem-fetch-btn {
+.prem-search-clear:hover {
+  color: #0f172a;
+}
+
+/* Search Dropdown */
+.prem-search-dropdown {
   position: absolute;
-  right: 4px;
-  height: 28px;
-  padding: 0 14px;
-  border: none;
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-  color: #ffffff;
-  border-radius: 6px;
-  font-size: 11.5px;
-  font-weight: 700;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  transition: all 0.15s ease;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.16);
+  max-height: 280px;
+  overflow-y: auto;
 }
 
-.prem-fetch-btn:hover {
-  background: #000000;
+.prem-dropdown-hdr {
+  padding: 7px 12px;
+  background: #f8fafc;
+  font-size: 11px;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.prem-error-strip {
-  font-size: 12px;
-  font-weight: 600;
-  color: #b91c1c;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  padding: 6px 10px;
-  border-radius: 6px;
-}
-
-/* Old Patient Loaded Strip */
-.prem-loaded-banner {
+.prem-dropdown-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
-  padding: 7px 12px;
-  flex-wrap: wrap;
-  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  cursor: pointer;
+  gap: 10px;
+  transition: background 0.12s;
 }
 
-.prem-loaded-left {
+.prem-dropdown-row:last-child {
+  border-bottom: none;
+}
+
+.prem-dropdown-row:hover {
+  background: #f0fdfa;
+}
+
+.prem-drop-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #e0f2fe;
+  color: #0284c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.prem-drop-meta {
+  flex: 1;
+}
+
+.prem-drop-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
-  font-size: 12px;
+  font-size: 12.5px;
+  color: #0f172a;
 }
 
-.prem-uhid-tag {
-  background: #1e40af;
-  color: #ffffff;
-  font-weight: 800;
-  padding: 2px 7px;
-  border-radius: 4px;
+.prem-drop-uhid-tag {
   font-family: monospace;
+  font-size: 11px;
+  font-weight: 800;
+  color: #1d4ed8;
+  background: #eff6ff;
+  padding: 1px 5px;
+  border-radius: 3px;
 }
 
-.prem-pid-tag {
+.prem-drop-details {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.prem-drop-btn {
+  background: #0d9488;
+  color: #ffffff;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 11px;
   font-weight: 700;
-  color: #475569;
+  cursor: pointer;
 }
 
-.prem-visits-tag {
-  color: #1e3a8a;
-  font-size: 12px;
+.prem-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.prem-reset-link {
+.prem-newborn-pill {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  background: #ffffff;
+  gap: 6px;
+  background: #f8fafc;
   border: 1px solid #cbd5e1;
-  border-radius: 5px;
-  font-size: 11.5px;
+  padding: 6px 12px;
+  border-radius: 7px;
+  font-size: 12px;
   font-weight: 700;
-  color: #047857;
+  color: #0f172a;
   cursor: pointer;
   transition: all 0.15s;
 }
 
-.prem-reset-link:hover {
-  background: #ecfdf5;
-  border-color: #a7f3d0;
-}
-
-/* ================= 2. BALANCED MAIN 2-COLUMN GRID ================= */
-.prem-main-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 370px;
-  gap: 12px;
-  align-items: start;
-}
-
-@media (max-width: 1140px) {
-  .prem-main-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ================= 3. CARDS ON LEFT PANEL ================= */
-.prem-left-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.prem-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
-  transition: border-color 0.15s;
-}
-
-.prem-card:hover {
-  border-color: #cbd5e1;
-}
-
-.prem-card--ipd-active {
-  border: 1.5px solid #c084fc;
-}
-
-.prem-card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 7px 12px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.prem-card-head--ipd {
-  background: #faf5ff;
-  border-bottom-color: #f3e8ff;
-}
-
-.prem-card-head-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.prem-card-icon-wrap {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.prem-card-icon-wrap--blue {
+.prem-newborn-pill:hover {
   background: #eff6ff;
-  color: #2563eb;
+  border-color: #93c5fd;
 }
 
-.prem-card-icon-wrap--green {
-  background: #ecfdf5;
-  color: #059669;
-}
-
-.prem-card-icon-wrap--purple {
-  background: #f5f3ff;
-  color: #7c3aed;
-}
-
-.prem-card-icon-wrap--purple-dark {
-  background: #ede9fe;
-  color: #6d28d9;
-}
-
-.prem-card-title {
-  font-size: 12px;
-  font-weight: 800;
-  color: #0f172a;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.prem-uhid-badge {
+.prem-btn-abha {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11.5px;
-  color: #64748b;
-}
-
-.prem-uhid-badge strong {
-  color: #1e40af;
-  font-family: monospace;
   background: #eff6ff;
-  padding: 2px 7px;
-  border-radius: 4px;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  padding: 6px 14px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
 }
 
-.prem-card-body {
-  padding: 12px 14px;
+.prem-btn-abha:hover {
+  background: #dbeafe;
 }
 
-/* Photo + Name Row Layout */
-.prem-avatar-row {
-  display: grid;
-  grid-template-columns: 88px 1fr;
-  gap: 12px;
-  margin-bottom: 10px;
+/* Nav Tabs */
+.prem-nav-tabs {
+  display: flex;
   align-items: center;
+  gap: 6px;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 10px;
+  overflow-x: auto;
 }
 
-.prem-avatar-box {
-  width: 88px;
-  height: 78px;
-  border: 1.5px dashed #cbd5e1;
-  border-radius: 8px;
+.prem-tab-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.prem-tab-pill:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.prem-tab-pill.active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+/* ================= 2. FORM BODY & SECTION CARDS ================= */
+.prem-form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.prem-section-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.prem-section-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+}
+
+.prem-sec-header {
+  padding: 12px 18px;
+  background: #fafbfc;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.prem-sec-tag {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
-.prem-avatar-box:hover {
-  border-color: #2563eb;
-  background: #eff6ff;
+.prem-sec-tag--blue { background: #eff6ff; color: #2563eb; }
+.prem-sec-tag--teal { background: #ccfbf1; color: #0d9488; }
+.prem-sec-tag--purple { background: #f3e8ff; color: #9333ea; }
+.prem-sec-tag--emerald { background: #ecfdf5; color: #059669; }
+
+.prem-sec-titles h4 {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
 }
 
-.prem-avatar-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
+.prem-sec-titles p {
+  font-size: 11px;
   color: #64748b;
+  margin: 1px 0 0 0;
 }
 
-.prem-avatar-empty span {
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
+.prem-sec-grid {
+  padding: 16px 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
-.prem-avatar-box img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.prem-name-grid {
-  display: grid;
-  grid-template-columns: 85px 1fr 1fr 1fr;
-  gap: 8px;
-}
+/* Grid Column Spans */
+.span-12 { flex: 0 0 100%; width: 100%; }
+.span-8 { flex: 0 0 calc(66.66% - 6px); }
+.span-6 { flex: 0 0 calc(50% - 6px); }
+.span-5 { flex: 0 0 calc(41.66% - 7px); }
+.span-4 { flex: 0 0 calc(33.33% - 8px); }
+.span-3 { flex: 0 0 calc(25% - 9px); }
 
 @media (max-width: 768px) {
-  .prem-name-grid {
-    grid-template-columns: 1fr 1fr;
+  .span-8, .span-6, .span-5, .span-4, .span-3 {
+    flex: 0 0 100%;
   }
 }
 
-/* Balanced Grids */
-.prem-grid-4 {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px 10px;
-}
-
-.prem-grid-3 {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px 10px;
-}
-
-@media (max-width: 860px) {
-  .prem-grid-4 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .prem-grid-3 {
-    grid-template-columns: 1fr;
-  }
-}
-
-.prem-span-2 {
-  grid-column: span 2;
-}
-
-.prem-span-3 {
-  grid-column: span 3;
-}
-
-.prem-span-4 {
-  grid-column: 1 / -1;
-}
-
-/* Individual Form Field */
-.prem-field {
+.prem-field-group {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
-.prem-field label {
-  font-size: 11px;
+.prem-label {
+  font-size: 11.5px;
   font-weight: 700;
-  color: #334155;
-  letter-spacing: 0.01em;
+  color: #475569;
 }
 
-.prem-field input,
-.prem-field select {
-  height: 33px;
-  padding: 0 9px;
+.prem-label .req {
+  color: #ef4444;
+}
+
+.prem-input,
+.prem-select {
+  width: 100%;
+  height: 35px;
+  padding: 0 10px;
   border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: 7px;
+  font-size: 12.5px;
   color: #0f172a;
   background: #ffffff;
   outline: none;
@@ -521,666 +478,180 @@
   transition: all 0.15s ease;
 }
 
-.prem-field input:focus,
-.prem-field select:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 2.5px rgba(37, 99, 235, 0.12);
+.prem-input:focus,
+.prem-select:focus {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 2.5px rgba(13, 148, 136, 0.16);
 }
 
-.prem-input-with-affix {
-  display: flex;
-  align-items: center;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  background: #ffffff;
-  overflow: hidden;
-  height: 33px;
+/* Name Row */
+.prem-name-row {
+  display: grid;
+  grid-template-columns: 85px 1.2fr 1fr 1fr;
+  gap: 6px;
 }
 
-.prem-input-with-affix:focus-within {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 2.5px rgba(37, 99, 235, 0.12);
+@media (max-width: 600px) {
+  .prem-name-row {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
-.prem-input-with-affix input {
-  border: none !important;
-  box-shadow: none !important;
-  height: 100%;
-  flex: 1;
-}
-
-.prem-affix {
-  padding: 0 8px;
-  font-size: 11px;
+.prem-title-sel {
   font-weight: 700;
-  color: #64748b;
-  background: #f1f5f9;
-  height: 100%;
-  display: flex;
-  align-items: center;
 }
 
-.prem-two-inputs {
-  display: flex;
-  gap: 6px;
-}
-
-/* Flags Cell */
-.prem-flags-cell {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 12px;
-  padding-top: 14px;
-}
-
-.prem-toggle-check {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #0f172a;
-  cursor: pointer;
-}
-
-.prem-toggle-check input {
-  accent-color: #dc2626;
-  width: 15px;
-  height: 15px;
-  cursor: pointer;
-}
-
-/* Badges */
-.prem-badge {
-  font-size: 10px;
-  font-weight: 800;
-  padding: 2px 7px;
-  border-radius: 4px;
-  letter-spacing: 0.03em;
-}
-
-.prem-badge--old {
-  background: #fef08a;
-  color: #854d0e;
-  border: 1px solid #fde047;
-}
-
-.prem-badge--ipd {
-  background: #f3e8ff;
-  color: #6b21a8;
-  border: 1px solid #d8b4fe;
-}
-
-/* ================= 4. RIGHT PANEL: BILLING & CHECKOUT ================= */
-.prem-right-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  position: sticky;
-  top: 12px;
-}
-
-.prem-billing-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 10px 12px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-}
-
-.prem-bill-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #f1f5f9;
-  padding-bottom: 6px;
-  margin-bottom: 8px;
-}
-
-.prem-bill-header-left {
+/* Age & DOB Row */
+.prem-age-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  font-weight: 800;
-  color: #0f172a;
-  text-transform: uppercase;
 }
 
-.prem-bill-date {
-  font-size: 11px;
-  font-weight: 600;
-  color: #64748b;
-}
-
-/* Cash Acceptance Notice */
-.prem-cash-notice {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  border-radius: 6px;
-  padding: 6px 10px;
-  margin-bottom: 8px;
-}
-
-.prem-cash-icon-dot {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #10b981;
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.prem-cash-notice-txt {
-  font-size: 11px;
-  color: #065f46;
-  line-height: 1.25;
-}
-
-.prem-cash-notice-txt strong {
-  color: #047857;
-}
-
-/* Fee Rows */
-.prem-fee-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.prem-fee-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  color: #334155;
-}
-
-.prem-fee-val-wrap {
+.prem-age-unit {
   display: flex;
   align-items: center;
   gap: 3px;
+  width: 65px;
+}
+
+.prem-age-unit input {
+  text-align: center;
+  padding: 0 2px;
+}
+
+.prem-age-unit span {
+  font-size: 11px;
   font-weight: 700;
-}
-
-.prem-fee-inp {
-  width: 75px;
-  height: 27px;
-  text-align: right;
-  padding: 0 6px;
-  border: 1px solid #cbd5e1;
-  border-radius: 5px;
-  font-size: 12px;
-  font-weight: 800;
-  color: #0f172a;
-}
-
-.prem-total-box {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #f8fafc;
-  border: 1.5px dashed #cbd5e1;
-  border-radius: 7px;
-  padding: 8px 10px;
-  margin-top: 4px;
-}
-
-.prem-total-lbl {
-  font-size: 12px;
-  font-weight: 800;
-  color: #0f172a;
-}
-
-.prem-total-sub {
-  font-size: 10px;
   color: #64748b;
 }
 
-.prem-total-amount {
-  font-size: 17px;
-  font-weight: 900;
-  color: #059669;
-}
-
-/* Payment Mode Section */
-.prem-pay-section {
-  margin-top: 10px;
-  border-top: 1px solid #f1f5f9;
-  padding-top: 8px;
-}
-
-.prem-pay-title {
-  font-size: 11px;
-  font-weight: 800;
-  color: #475569;
-  text-transform: uppercase;
-  display: block;
-  margin-bottom: 6px;
-}
-
-.prem-pay-methods-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-
-.prem-pay-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 10px;
-  background: #f8fafc;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 6px;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #475569;
-  cursor: pointer;
-  position: relative;
-  transition: all 0.15s ease;
-  font-family: inherit;
-}
-
-.prem-pay-btn:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-}
-
-.prem-pay-btn--active-cash {
-  background: #ecfdf5;
-  border-color: #10b981;
-  color: #047857;
-}
-
-.prem-pay-btn--active-online {
-  background: #eff6ff;
-  border-color: #3b82f6;
-  color: #1d4ed8;
-}
-
-.prem-pay-btn--active-card {
-  background: #faf5ff;
-  border-color: #a855f7;
-  color: #7e22ce;
-}
-
-.prem-pay-btn--active-tpa {
-  background: #fffbeb;
-  border-color: #f59e0b;
-  color: #b45309;
-}
-
-.prem-pay-check {
-  margin-left: auto;
-  font-size: 11px;
-  font-weight: 900;
-}
-
-/* Cash Calculator Box */
-.prem-cash-calc-box {
-  margin-top: 8px;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: 6px;
-  padding: 7px 10px;
-}
-
-.prem-cash-calc-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 11.5px;
-  color: #166534;
-  margin-bottom: 5px;
-}
-
-.prem-cash-inp-wrap {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.prem-cash-inp {
-  width: 75px;
-  height: 25px;
-  text-align: right;
-  padding: 0 6px;
-  border: 1px solid #86efac;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 800;
-  color: #065f46;
-}
-
-.prem-cash-change-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 11.5px;
-  color: #14532d;
-  border-top: 1px dashed #bbf7d0;
-  padding-top: 4px;
-}
-
-.prem-change-green {
-  color: #047857;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-/* UPI QR Box */
-.prem-upi-qr-box {
-  margin-top: 8px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 6px;
-  padding: 8px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.prem-upi-qr-mock {
-  width: 52px;
-  height: 52px;
-  background: #ffffff;
-  border: 1px solid #93c5fd;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #1d4ed8;
-}
-
-.prem-upi-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.prem-upi-id {
-  font-size: 11px;
-  font-family: monospace;
-  font-weight: 700;
-  color: #1e3a8a;
-}
-
-.prem-upi-scan {
-  font-size: 12px;
-  font-weight: 800;
-  color: #059669;
-}
-
-/* ================= 5. USER REQUEST: "LAST MAI PUCHNA CHEYE OPD YA IPD" ================= */
-.prem-decision-card {
-  background: #f8fafc;
-  border: 1.5px solid #cbd5e1;
-  border-radius: 10px;
-  padding: 10px 12px;
-}
-
-.prem-decision-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 800;
-  color: #0f172a;
-  text-transform: uppercase;
-  margin-bottom: 2px;
-}
-
-.prem-decision-desc {
-  font-size: 11px;
-  color: #475569;
-  margin: 0 0 8px 0;
-  line-height: 1.3;
-}
-
-.prem-decision-options {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.prem-choice-option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 10px;
-  background: #ffffff;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 7px;
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  font-family: inherit;
-}
-
-.prem-choice-option:hover {
-  border-color: #3b82f6;
-  background: #f8fafc;
-}
-
-.prem-choice-option--active-opd {
-  background: #ecfdf5;
-  border-color: #10b981;
-}
-
-.prem-choice-option--active-ipd {
-  background: #faf5ff;
-  border-color: #a855f7;
-}
-
-.prem-radio-circle {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1.5px solid #94a3b8;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.prem-choice-option--active-opd .prem-radio-circle {
-  border-color: #10b981;
-}
-
-.prem-choice-option--active-ipd .prem-radio-circle {
-  border-color: #a855f7;
-}
-
-.prem-radio-inner {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #10b981;
-}
-
-.prem-choice-option--active-ipd .prem-radio-inner {
-  background: #a855f7;
-}
-
-.prem-choice-body {
-  display: flex;
-  flex-direction: column;
+.prem-dob-unit {
   flex: 1;
 }
 
-.prem-choice-name {
-  font-size: 12px;
-  font-weight: 800;
-  color: #0f172a;
+/* ABHA Input Wrap */
+.prem-abha-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
-.prem-choice-hint {
-  font-size: 10px;
-  color: #64748b;
-}
-
-.prem-choice-tag {
-  font-size: 10px;
-  font-weight: 900;
-  padding: 2px 6px;
-  border-radius: 4px;
+.prem-verified-tag {
+  position: absolute;
+  right: 6px;
   background: #ecfdf5;
   color: #059669;
-}
-
-.prem-choice-tag--ipd {
-  background: #f3e8ff;
-  color: #7c3aed;
-}
-
-/* ================= 6. USER REQUEST: EXACT 4 ACTION BUTTONS ================= */
-.prem-actions-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 10px 12px;
-}
-
-.prem-actions-header {
-  font-size: 11px;
+  border: 1px solid #a7f3d0;
+  font-size: 10.5px;
   font-weight: 800;
-  color: #475569;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  display: block;
-  margin-bottom: 8px;
+  padding: 2px 7px;
+  border-radius: 5px;
 }
 
-.prem-actions-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 7px;
+.prem-verify-btn {
+  position: absolute;
+  right: 6px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
-.prem-btn-action {
+/* MLC Pill */
+.prem-mlc-pill {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  padding: 8px 12px;
   border-radius: 7px;
-  border: none;
   cursor: pointer;
-  transition: all 0.15s ease;
-  font-family: inherit;
-  text-align: left;
+  font-size: 11.5px;
+  color: #92400e;
 }
 
-.prem-btn-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
+/* ================= 3. BOTTOM SUBMIT BAR ================= */
+.prem-submit-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 20px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.22);
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
-.prem-btn-txt {
+.prem-submit-left {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
 
-.prem-btn-title {
-  font-size: 12.5px;
-  font-weight: 800;
-  line-height: 1.15;
+.prem-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 8px 14px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
 }
 
-.prem-btn-sub {
-  font-size: 9.5px;
-  font-weight: 600;
-  opacity: 0.85;
-}
-
-/* 1. OPD Register: Radiant Emerald */
-.prem-btn-action--opd {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  color: #ffffff;
-  box-shadow: 0 3px 6px rgba(5, 150, 105, 0.25);
-}
-
-.prem-btn-action--opd:hover {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  transform: translateY(-1.5px);
-  box-shadow: 0 5px 12px rgba(5, 150, 105, 0.35);
-}
-
-/* 2. IPD Register: Deep Royal Purple */
-.prem-btn-action--ipd {
-  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
-  color: #ffffff;
-  box-shadow: 0 3px 6px rgba(124, 58, 237, 0.25);
-}
-
-.prem-btn-action--ipd:hover {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-  transform: translateY(-1.5px);
-  box-shadow: 0 5px 12px rgba(124, 58, 237, 0.35);
-}
-
-/* 3. Print Slip: Medical Sapphire */
-.prem-btn-action--print {
-  background: #ffffff;
-  border: 1.5px solid #2563eb;
-  color: #1d4ed8;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.prem-btn-action--print .prem-btn-icon {
-  background: #eff6ff;
-  color: #2563eb;
-}
-
-.prem-btn-action--print:hover {
-  background: #eff6ff;
-  transform: translateY(-1.5px);
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.15);
-}
-
-/* 4. Cancel: Muted Slate */
-.prem-btn-action--cancel {
-  background: #ffffff;
-  border: 1.5px solid #cbd5e1;
-  color: #64748b;
-}
-
-.prem-btn-action--cancel .prem-btn-icon {
+.prem-btn-secondary:hover {
   background: #f1f5f9;
-  color: #dc2626;
+  border-color: #94a3b8;
 }
 
-.prem-btn-action--cancel:hover {
-  background: #fef2f2;
-  border-color: #fca5a5;
-  color: #b91c1c;
-  transform: translateY(-1.5px);
+.prem-btn-register {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+  color: #ffffff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(13, 148, 136, 0.35);
+  transition: all 0.15s ease;
+  font-family: inherit;
 }
 
-/* ================= 7. USER REQUEST: OFFICIAL PRINTABLE SLIP MODAL ================= */
+.prem-btn-register:hover {
+  background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(13, 148, 136, 0.4);
+}
+
+/* ================= 4. POST-REGISTRATION 4-BUTTONS DECISION MODAL ================= */
 .prem-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(5px);
   z-index: 99999;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  animation: premFadeIn 0.2s ease-out;
+  padding: 20px;
+  animation: premFadeIn 0.2s ease;
 }
 
 @keyframes premFadeIn {
@@ -1188,63 +659,291 @@
   to { opacity: 1; }
 }
 
-.prem-modal-box {
+.prem-decision-modal {
   background: #ffffff;
-  border-radius: 12px;
+  border-radius: 16px;
   width: 100%;
-  max-width: 680px;
+  max-width: 580px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
-  overflow: hidden;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  max-height: 90vh;
+  gap: 16px;
+  animation: premScaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.prem-modal-head {
+@keyframes premScaleUp {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.prem-dec-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.prem-dec-icon-ring {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #ecfdf5;
+  border: 2px solid #a7f3d0;
+  color: #059669;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px;
-  background: #0f172a;
-  color: #ffffff;
+  justify-content: center;
+  margin-bottom: 10px;
 }
 
-.prem-modal-title-wrap {
+.prem-dec-title {
+  font-size: 17px;
+  font-weight: 900;
+  color: #0f172a;
+  margin: 0;
+}
+
+.prem-dec-sub {
+  font-size: 12px;
+  color: #64748b;
+  margin: 3px 0 0 0;
+}
+
+/* Patient Summary Card in Modal */
+.prem-dec-summary {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.prem-dec-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #e0f2fe;
+  color: #0284c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.prem-dec-info {
+  flex: 1;
+}
+
+.prem-dec-name {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 13.5px;
+  color: #0f172a;
 }
 
-.prem-modal-controls {
+.prem-dec-uhid {
+  font-family: monospace;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #1d4ed8;
+  background: #eff6ff;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.prem-dec-meta {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
   display: flex;
-  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.prem-dec-action-prompt {
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #334155;
+  padding: 2px 0;
+}
+
+/* ================= THE 4 REQUESTED BUTTONS GRID ================= */
+.prem-four-buttons-grid {
+  display: flex;
+  flex-direction: column;
   gap: 10px;
 }
 
-.prem-slip-format-toggle {
+.prem-choice-btn {
   display: flex;
-  background: rgba(255, 255, 255, 0.12);
-  padding: 2px;
-  border-radius: 6px;
-}
-
-.prem-fmt-btn {
-  padding: 3px 8px;
-  border: none;
-  background: transparent;
-  color: #cbd5e1;
-  font-size: 10.5px;
-  font-weight: 700;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.prem-fmt-btn--active {
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
   background: #ffffff;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  width: 100%;
+}
+
+.prem-choice-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.prem-choice-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.prem-choice-text strong {
+  font-size: 13.5px;
+  font-weight: 800;
   color: #0f172a;
+}
+
+.prem-choice-text span {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+.prem-choice-arrow {
+  color: #94a3b8;
+  transition: transform 0.15s ease;
+}
+
+/* Button 1: OPD Registration */
+.prem-choice-btn--opd:hover {
+  border-color: #0d9488;
+  background: #f0fdfa;
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.15);
+}
+
+.prem-choice-icon--opd {
+  background: #ccfbf1;
+  color: #0d9488;
+}
+
+.prem-choice-btn--opd:hover .prem-choice-text strong {
+  color: #0f766e;
+}
+
+.prem-choice-btn--opd:hover .prem-choice-arrow {
+  color: #0d9488;
+  transform: translateX(3px);
+}
+
+/* Button 2: IPD Registration */
+.prem-choice-btn--ipd:hover {
+  border-color: #7c3aed;
+  background: #faf5ff;
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);
+}
+
+.prem-choice-icon--ipd {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+
+.prem-choice-btn--ipd:hover .prem-choice-text strong {
+  color: #6d28d9;
+}
+
+.prem-choice-btn--ipd:hover .prem-choice-arrow {
+  color: #7c3aed;
+  transform: translateX(3px);
+}
+
+/* Button 3: Print UHID Card */
+.prem-choice-btn--print:hover {
+  border-color: #0f172a;
+  background: #f8fafc;
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+}
+
+.prem-choice-icon--print {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.prem-choice-btn--print:hover .prem-choice-arrow {
+  color: #0f172a;
+  transform: translateX(3px);
+}
+
+/* Button 4: Cancel & New Patient */
+.prem-choice-btn--cancel:hover {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  transform: translateY(-1.5px);
+}
+
+.prem-choice-icon--cancel {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.prem-choice-btn--cancel:hover .prem-choice-text strong {
+  color: #b45309;
+}
+
+/* ================= 5. CARD MODAL BOX ================= */
+.prem-card-modal-box {
+  background: #ffffff;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+}
+
+.prem-modal-box--sm {
+  background: #ffffff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.prem-modal-head {
+  padding: 12px 18px;
+  background: #0f172a;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+}
+
+.prem-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 800;
 }
 
 .prem-modal-close {
@@ -1252,379 +951,51 @@
   border: none;
   color: #94a3b8;
   cursor: pointer;
+  display: flex;
+  align-items: center;
 }
 
 .prem-modal-close:hover {
   color: #ffffff;
 }
 
-/* Printable Slip Area */
-.prem-slip-content {
-  padding: 18px 24px;
-  overflow-y: auto;
-  color: #0f172a;
-  background: #ffffff;
-}
-
-.prem-slip-content--thermal {
-  max-width: 480px;
-  margin: 0 auto;
-}
-
-.prem-slip-hosp-header {
-  text-align: center;
-  border-bottom: 2px solid #0f172a;
-  padding-bottom: 10px;
-  margin-bottom: 8px;
-}
-
-.prem-hosp-title {
-  font-size: 15px;
-  font-weight: 900;
-  margin: 0;
-  letter-spacing: 0.02em;
-  color: #0f172a;
-}
-
-.prem-hosp-sub {
-  font-size: 10px;
-  font-weight: 800;
-  color: #2563eb;
-  letter-spacing: 0.05em;
-  margin-top: 2px;
-}
-
-.prem-hosp-address {
-  font-size: 10px;
-  color: #475569;
-  margin: 3px 0 6px 0;
-}
-
-.prem-slip-meta-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 6px;
-  font-size: 11px;
-}
-
-.prem-slip-badge-type {
-  background: #0f172a;
-  color: #ffffff;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 10.5px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.prem-slip-receipt-no {
-  font-family: monospace;
-  font-weight: 800;
-  color: #475569;
-}
-
-.prem-slip-datetime {
-  color: #64748b;
-  font-weight: 600;
-}
-
-/* Barcode Strip */
-.prem-slip-barcode-strip {
-  text-align: center;
-  margin: 8px 0;
-  background: #f8fafc;
-  padding: 5px;
-  border-radius: 4px;
-}
-
-.prem-barcode-font {
-  font-family: monospace;
-  font-weight: 900;
-  letter-spacing: 3px;
-  font-size: 16px;
-  color: #0f172a;
-}
-
-.prem-barcode-label {
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  color: #334155;
-  margin-top: 2px;
-}
-
-/* Details Table */
-.prem-slip-data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 11.5px;
-  margin: 10px 0;
-}
-
-.prem-slip-data-table th,
-.prem-slip-data-table td {
-  padding: 5px 8px;
-  border: 1px solid #e2e8f0;
-  text-align: left;
-}
-
-.prem-slip-data-table th {
-  background: #f8fafc;
-  color: #475569;
-  font-weight: 700;
-  width: 22%;
-}
-
-.prem-data-bold {
-  font-weight: 800;
-}
-
-.prem-uhid-blue {
-  font-family: monospace;
-  font-weight: 900;
-  color: #1d4ed8;
-}
-
-.prem-token-highlight-row {
-  background: #f0fdf4;
-}
-
-.prem-token-pill {
-  font-size: 15px;
-  font-weight: 900;
-  color: #047857;
-  letter-spacing: 0.03em;
-}
-
-.prem-token-chamber {
-  font-size: 12px;
-  font-weight: 800;
-  color: #065f46;
-  margin-left: 8px;
-}
-
-.prem-adm-highlight-row {
-  background: #faf5ff;
-}
-
-.prem-bed-bold {
-  font-weight: 800;
-  color: #7c3aed;
-}
-
-/* Payment Card on Receipt */
-.prem-slip-payment-card {
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  padding: 8px 12px;
-  margin: 10px 0;
-}
-
-.prem-payment-head {
-  font-size: 10.5px;
-  font-weight: 800;
-  color: #475569;
-  text-transform: uppercase;
-  margin-bottom: 6px;
-  padding-bottom: 3px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.prem-payment-lines {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  font-size: 11.5px;
-}
-
-.prem-payment-line {
-  display: flex;
-  justify-content: space-between;
-  color: #334155;
-}
-
-.prem-payment-line--total {
-  border-top: 1.5px dashed #cbd5e1;
-  padding-top: 5px;
-  margin-top: 4px;
-  font-weight: 900;
-  color: #0f172a;
-  font-size: 13px;
-}
-
-.prem-paid-sum {
-  color: #059669;
-  font-size: 14px;
-}
-
-.prem-payment-cash-breakdown {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 10.5px;
-  color: #065f46;
-  background: #ecfdf5;
-  padding: 4px 8px;
-  border-radius: 4px;
-  margin-top: 6px;
-}
-
-.prem-status-paid {
-  font-weight: 900;
-  color: #047857;
-  letter-spacing: 0.05em;
-}
-
-/* Footer Notes */
-.prem-slip-footer-notes {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-top: 14px;
-  font-size: 10px;
-  color: #64748b;
-  line-height: 1.35;
-}
-
-.prem-terms {
-  flex: 1;
-}
-
-.prem-sign-area {
-  width: 170px;
-  text-align: center;
-}
-
-.prem-sign-box {
-  border-top: 1px solid #0f172a;
-  padding-top: 4px;
-  display: flex;
-  flex-direction: column;
-}
-
-.prem-sign-line {
-  font-size: 10.5px;
-  font-weight: 800;
-  color: #0f172a;
-}
-
-.prem-sign-role {
-  font-size: 9px;
-  color: #64748b;
-}
-
-/* Modal Bottom Actions */
 .prem-modal-actions {
+  padding: 12px 18px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 10px 16px;
-  background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
+  gap: 10px;
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
 }
 
-.prem-btn-print-slip {
+.prem-btn-print-action {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  background: #0f172a;
+  color: #ffffff;
+  border: none;
   padding: 8px 16px;
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-  color: #ffffff;
-  border: none;
   border-radius: 6px;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: all 0.15s;
 }
 
-.prem-btn-print-slip:hover {
-  background: #000000;
-  transform: translateY(-1px);
+.prem-btn-print-action:hover {
+  background: #1e293b;
 }
 
-.prem-btn-nav-opd {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 8px 14px;
-  background: #059669;
-  color: #ffffff;
-  border: none;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.prem-btn-nav-opd:hover {
-  background: #047857;
-}
-
-.prem-btn-nav-ipd {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 8px 14px;
-  background: #7c3aed;
-  color: #ffffff;
-  border: none;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.prem-btn-nav-ipd:hover {
-  background: #6d28d9;
-}
-
-.prem-btn-next-pat {
-  padding: 8px 14px;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  color: #475569;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.prem-btn-next-pat:hover {
+.prem-btn-sec-action {
   background: #f1f5f9;
-}
-
-/* ================= 8. PRINT CSS MEDIA QUERY ================= */
-@media print {
-  /* Hide everything on page except the hospital slip */
-  body * {
-    visibility: hidden !important;
-  }
-  #printableHospitalSlip,
-  #printableHospitalSlip * {
-    visibility: visible !important;
-  }
-  #printableHospitalSlip {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 12px !important;
-    background: #ffffff !important;
-    box-shadow: none !important;
-  }
-  .prem-modal-head,
-  .prem-modal-actions,
-  .prem-modal-overlay {
-    background: transparent !important;
-  }
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
 }

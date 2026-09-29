@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import sidebarConfig from "../../config/sidebarConfig";
 import { useAuth } from "../../auth/AuthContext.jsx";
 import Icon from "../common/Icon.jsx";
+import codeShapeLogo from "../../assets/logos/codeshape-logo.png";
 import "./Sidebar.css";
 
 export default function Sidebar() {
@@ -23,14 +24,14 @@ export default function Sidebar() {
   return (
     <>
       <aside className="sidebar">
-        {/* Premium Brand Area */}
+        {/* Hospital Brand Area */}
         <div className="sidebar__brand">
-          <div className="sidebar__brand-icon-box">
-            <Icon name="LuPlusSquare" size={22} />
+          <div className="sidebar__brand-logo-circle">
+            <img src={codeShapeLogo} alt="CodeShape Logo" className="sidebar__logo-img" />
           </div>
           <div className="sidebar__brand-text">
-            <span className="sidebar__brand-title">HIMS</span>
-            <span className="sidebar__brand-subtitle">Health Portal</span>
+            <span className="sidebar__brand-hospital">Narayan Hospital</span>
+            <span className="sidebar__brand-system">Hospital Management System</span>
           </div>
         </div>
 

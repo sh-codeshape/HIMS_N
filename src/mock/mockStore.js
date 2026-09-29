@@ -16,6 +16,7 @@ const KEYS = {
   MEDICINES: "hims_mock_medicines",
   LAB_TESTS: "hims_mock_lab_tests",
   DOCTORS: "hims_mock_doctors",
+  IPD_ADMISSIONS: "hims_mock_ipd_admissions",
 };
 
 function getStored(key, defaultData) {
@@ -40,7 +41,7 @@ function setStored(key, data) {
 }
 
 export const mockStore = {
-  // Patients
+  // ── Patients ──────────────────────────────────────────────────────────────
   getPatients: () => getStored(KEYS.PATIENTS, INITIAL_PATIENTS),
   addPatient: (patient) => {
     const list = getStored(KEYS.PATIENTS, INITIAL_PATIENTS);
@@ -68,7 +69,7 @@ export const mockStore = {
     return updated;
   },
 
-  // OPD
+  // ── OPD Queue ─────────────────────────────────────────────────────────────
   getOPDQueue: () => getStored(KEYS.OPD, INITIAL_OPD_QUEUE),
   addOPDToken: (opdEntry) => {
     const list = getStored(KEYS.OPD, INITIAL_OPD_QUEUE);
@@ -85,12 +86,40 @@ export const mockStore = {
   },
   updateOPDStatus: (tokenNo, status) => {
     const list = getStored(KEYS.OPD, INITIAL_OPD_QUEUE);
-    const updated = list.map((item) => (item.tokenNo === tokenNo ? { ...item, status } : item));
+    const updated = list.map((item) =>
+      item.tokenNo === tokenNo ? { ...item, status } : item
+    );
     setStored(KEYS.OPD, updated);
     return updated;
   },
 
-  // Beds
+  // ── IPD Admissions ────────────────────────────────────────────────────────
+  getIPDAdmissions: () => getStored(KEYS.IPD_ADMISSIONS, []),
+  addIPDAdmission: (admissionEntry) => {
+    const list = getStored(KEYS.IPD_ADMISSIONS, []);
+    const admNo = `IPD-${new Date().getFullYear()}-${String(list.length + 1).padStart(4, "0")}`;
+    const newAdmission = {
+      admissionNo: admNo,
+      admissionDate: new Date().toISOString().replace("T", " ").slice(0, 16),
+      status: "Admitted",
+      bedNo: "—",
+      ward: "—",
+      ...admissionEntry,
+    };
+    const updated = [newAdmission, ...list];
+    setStored(KEYS.IPD_ADMISSIONS, updated);
+    return newAdmission;
+  },
+  updateIPDStatus: (admissionNo, updates) => {
+    const list = getStored(KEYS.IPD_ADMISSIONS, []);
+    const updated = list.map((a) =>
+      a.admissionNo === admissionNo ? { ...a, ...updates } : a
+    );
+    setStored(KEYS.IPD_ADMISSIONS, updated);
+    return updated;
+  },
+
+  // ── Beds ──────────────────────────────────────────────────────────────────
   getBeds: () => getStored(KEYS.BEDS, INITIAL_BEDS),
   updateBedStatus: (bedNo, updates) => {
     const list = getStored(KEYS.BEDS, INITIAL_BEDS);
@@ -99,7 +128,7 @@ export const mockStore = {
     return updated;
   },
 
-  // Invoices / Billing
+  // ── Invoices / Billing ────────────────────────────────────────────────────
   getInvoices: () => getStored(KEYS.INVOICES, INITIAL_INVOICES),
   addInvoice: (invoice) => {
     const list = getStored(KEYS.INVOICES, INITIAL_INVOICES);
@@ -116,7 +145,7 @@ export const mockStore = {
     return newInv;
   },
 
-  // Medicines / Pharmacy
+  // ── Medicines / Pharmacy ──────────────────────────────────────────────────
   getMedicines: () => getStored(KEYS.MEDICINES, INITIAL_MEDICINES),
   dispenseMedicine: (medicineId, quantity) => {
     const list = getStored(KEYS.MEDICINES, INITIAL_MEDICINES);
@@ -127,7 +156,7 @@ export const mockStore = {
     return updated;
   },
 
-  // Lab Tests
+  // ── Lab Tests ─────────────────────────────────────────────────────────────
   getLabTests: () => getStored(KEYS.LAB_TESTS, INITIAL_LAB_TESTS),
   addLabTest: (test) => {
     const list = getStored(KEYS.LAB_TESTS, INITIAL_LAB_TESTS);
@@ -153,6 +182,6 @@ export const mockStore = {
     return updated;
   },
 
-  // Doctors
+  // ── Doctors ───────────────────────────────────────────────────────────────
   getDoctors: () => getStored(KEYS.DOCTORS, INITIAL_DOCTORS),
 };
