@@ -18,7 +18,7 @@ export class PatientController {
 
   async getPatient(req: Request, res: Response) {
     const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
-    const patient = await patientService.getPatient(req.params.id, organizationId);
+    const patient = await patientService.getPatient(String(req.params.id), organizationId);
     sendSuccess(res, patient);
   }
 }

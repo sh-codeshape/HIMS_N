@@ -2,6 +2,8 @@ import axiosInstance from "../axiosInstance";
 import { ENDPOINTS } from "../endpoints";
 import { createMockJwt, MOCK_USERS } from "../../mock/mockData";
 
+const unwrapData = (response) => response?.data?.data ?? response?.data ?? null;
+
 const authService = {
   login: async ({ role, username, password }) => {
     // If user is running frontend standalone without backend, or if backend fails with CORS/Network error
@@ -9,11 +11,14 @@ const authService = {
       const res = await axiosInstance.post(
         ENDPOINTS.AUTH.LOGIN,
         { role, username, password },
-        { skipErrorToast: true }
+        { skipErrorToast: true },
       );
-      return res.data;
+      return unwrapData(res);
     } catch (err) {
-      console.warn("Backend API unreachable or CORS error — falling back to Frontend Demo Mode:", err.message);
+      console.warn(
+        "Backend API unreachable or CORS error — falling back to Frontend Demo Mode:",
+        err.message,
+      );
 
       // Graceful fallback to rich mock auth
       const baseUser = MOCK_USERS[role] || {
@@ -28,7 +33,11 @@ const authService = {
       const user = {
         ...baseUser,
         role: role || baseUser.role,
-        name: username ? (username.includes("@") ? baseUser.name : username) : baseUser.name,
+        name: username
+          ? username.includes("@")
+            ? baseUser.name
+            : username
+          : baseUser.name,
         email: username || baseUser.email,
       };
 
@@ -58,7 +67,7 @@ const authService = {
   me: async () => {
     try {
       const res = await axiosInstance.get(ENDPOINTS.AUTH.ME);
-      return res.data;
+      return unwrapData(res);
     } catch {
       const rawUser = localStorage.getItem("hims_user");
       return rawUser ? JSON.parse(rawUser) : null;

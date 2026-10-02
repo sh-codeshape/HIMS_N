@@ -2,6 +2,18 @@ import { db } from '../../config/database';
 import { PoolClient } from 'pg';
 
 export class PatientRepository {
+  async getNextUHIDSerial(organization_id: string, year: number): Promise<number> {
+    const query = `
+      SELECT COALESCE(MAX(CAST(split_part(uhid, '-', 3) AS INTEGER)), 0) + 1 AS next_serial
+      FROM patients
+      WHERE organization_id = $1
+        AND uhid LIKE $2
+    `;
+
+    const result = await db.query(query, [organization_id, `HIMS-${year}-%`]);
+    return Number(result.rows[0]?.next_serial ?? 1);
+  }
+
   async checkPhoneNameExists(organization_id: string, phone: string, first_name: string, last_name: string): Promise<boolean> {
     const query = `
       SELECT 1 FROM patients 

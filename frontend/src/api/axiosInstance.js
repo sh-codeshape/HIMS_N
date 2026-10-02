@@ -1,7 +1,8 @@
 import axios from "axios";
 import toast from "react-hot-toast";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
 const USE_COOKIE_AUTH = import.meta.env.VITE_USE_COOKIE_AUTH === "true";
 
 const axiosInstance = axios.create({
@@ -26,7 +27,7 @@ axiosInstance.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 // ---- Response interceptor: normalize errors ----
@@ -38,7 +39,7 @@ axiosInstance.interceptors.response.use(
       if (!error.config?.skipErrorToast) {
         toast.error(
           "Backend server is offline or CORS issue. Running in Frontend Demo Mode.",
-          { id: "backend-offline-notice", duration: 3000 }
+          { id: "backend-offline-notice", duration: 3000 },
         );
       }
       return Promise.reject(error);
@@ -62,7 +63,7 @@ axiosInstance.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default axiosInstance;

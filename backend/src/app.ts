@@ -2,7 +2,6 @@ import express from 'express';
 import 'express-async-errors';
 import cors from 'cors';
 import helmet from 'helmet';
-import { pinoHttp } from 'pino-http';
 import { logger } from './config/logger';
 
 export const app = express();
@@ -14,7 +13,10 @@ app.use(cors({
 }));
 app.use(express.json());
 
-app.use(pinoHttp({ logger }));
+app.use((req, res, next) => {
+  logger.info({ method: req.method, url: req.originalUrl }, 'HTTP request');
+  next();
+});
 
 import authRoutes from './modules/auth/auth.routes';
 import patientRoutes from './modules/patient/patient.routes';

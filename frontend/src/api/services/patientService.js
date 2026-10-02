@@ -6,6 +6,12 @@ import { ENDPOINTS } from "../endpoints";
 // plain CRUD (e.g. a custom "discharge" action).
 const patientService = {
   ...createCrudService(ENDPOINTS.PATIENTS.BASE),
+  search: async (params = {}) => {
+    const res = await axiosInstance.get(ENDPOINTS.PATIENTS.DIRECTORY, {
+      params,
+    });
+    return res.data?.data ?? res.data ?? [];
+  },
 };
 
 export default patientService;

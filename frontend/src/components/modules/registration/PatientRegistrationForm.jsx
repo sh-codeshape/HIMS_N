@@ -33,7 +33,7 @@ export default function PatientRegistrationForm() {
     <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Input label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} required />
-        <Input label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} required />
+        <Input label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} />
         <Input label="Phone Number" name="phone" value={formData.phone} onChange={handleChange} required />
         
         <div className="flex flex-col gap-1.5 w-full">

@@ -22,7 +22,10 @@ export class AuthService {
     }
 
     const token = jwt.sign(
-      { userId: user.id, organizationId: user.organization_id },
+      {
+        userId: user.id,
+        organizationId: user.organization_id,
+      },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );

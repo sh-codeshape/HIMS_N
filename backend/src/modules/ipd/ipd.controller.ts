@@ -14,7 +14,7 @@ export class IpdController {
     
     // Defaulting facility_id from token if not in body
     if (!req.body.facility_id) {
-        req.body.facility_id = req.user!.facilityId;
+        req.body.facility_id = req.user?.facilityId ?? req.body.facility_id;
     }
 
     const result = await this.service.admitPatient(req.body, organizationId);
@@ -23,7 +23,7 @@ export class IpdController {
   };
 
   getAdmissions = async (req: Request, res: Response) => {
-    const facilityId = req.user!.facilityId;
+    const facilityId = req.user?.facilityId ?? (req.query.facilityId as string) ?? '';
 
     const queue = await this.service.getAdmissions(facilityId);
     

@@ -7,6 +7,7 @@ import {
   INITIAL_LAB_TESTS,
   INITIAL_DOCTORS,
 } from "./mockData";
+import { buildUHID, nextUHIDSerial } from "../utils/uhid";
 
 const KEYS = {
   PATIENTS: "hims_mock_patients",
@@ -45,9 +46,16 @@ export const mockStore = {
   getPatients: () => getStored(KEYS.PATIENTS, INITIAL_PATIENTS),
   addPatient: (patient) => {
     const list = getStored(KEYS.PATIENTS, INITIAL_PATIENTS);
+    const year = new Date().getFullYear();
+    const highestSerial =
+      list
+        .map((p) => Number(String(p.uhid || "").split("-")[2] || 0))
+        .filter((n) => Number.isFinite(n) && n > 0)
+        .sort((a, b) => b - a)[0] || 0;
+
     const newPatient = {
       id: `P-${Date.now().toString().slice(-5)}`,
-      uhid: `HIMS-2026-${Math.floor(10000 + Math.random() * 90000)}`,
+      uhid: buildUHID(year, nextUHIDSerial(highestSerial)),
       registeredAt: new Date().toISOString().replace("T", " ").slice(0, 16),
       status: "Active",
       ...patient,
@@ -58,7 +66,9 @@ export const mockStore = {
   },
   updatePatient: (uhid, updates) => {
     const list = getStored(KEYS.PATIENTS, INITIAL_PATIENTS);
-    const updated = list.map((p) => (p.uhid === uhid ? { ...p, ...updates } : p));
+    const updated = list.map((p) =>
+      p.uhid === uhid ? { ...p, ...updates } : p,
+    );
     setStored(KEYS.PATIENTS, updated);
     return updated;
   },
@@ -76,7 +86,10 @@ export const mockStore = {
     const count = list.length + 1;
     const newEntry = {
       tokenNo: `T-${count < 10 ? "0" + count : count}`,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      time: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
       status: "Waiting",
       ...opdEntry,
     };
@@ -87,7 +100,7 @@ export const mockStore = {
   updateOPDStatus: (tokenNo, status) => {
     const list = getStored(KEYS.OPD, INITIAL_OPD_QUEUE);
     const updated = list.map((item) =>
-      item.tokenNo === tokenNo ? { ...item, status } : item
+      item.tokenNo === tokenNo ? { ...item, status } : item,
     );
     setStored(KEYS.OPD, updated);
     return updated;
@@ -113,7 +126,7 @@ export const mockStore = {
   updateIPDStatus: (admissionNo, updates) => {
     const list = getStored(KEYS.IPD_ADMISSIONS, []);
     const updated = list.map((a) =>
-      a.admissionNo === admissionNo ? { ...a, ...updates } : a
+      a.admissionNo === admissionNo ? { ...a, ...updates } : a,
     );
     setStored(KEYS.IPD_ADMISSIONS, updated);
     return updated;
@@ -123,7 +136,9 @@ export const mockStore = {
   getBeds: () => getStored(KEYS.BEDS, INITIAL_BEDS),
   updateBedStatus: (bedNo, updates) => {
     const list = getStored(KEYS.BEDS, INITIAL_BEDS);
-    const updated = list.map((b) => (b.bedNo === bedNo ? { ...b, ...updates } : b));
+    const updated = list.map((b) =>
+      b.bedNo === bedNo ? { ...b, ...updates } : b,
+    );
     setStored(KEYS.BEDS, updated);
     return updated;
   },
@@ -150,7 +165,9 @@ export const mockStore = {
   dispenseMedicine: (medicineId, quantity) => {
     const list = getStored(KEYS.MEDICINES, INITIAL_MEDICINES);
     const updated = list.map((m) =>
-      m.id === medicineId ? { ...m, stock: Math.max(0, m.stock - quantity) } : m
+      m.id === medicineId
+        ? { ...m, stock: Math.max(0, m.stock - quantity) }
+        : m,
     );
     setStored(KEYS.MEDICINES, updated);
     return updated;
@@ -176,7 +193,9 @@ export const mockStore = {
   updateLabResult: (orderId, result, status = "Completed") => {
     const list = getStored(KEYS.LAB_TESTS, INITIAL_LAB_TESTS);
     const updated = list.map((t) =>
-      t.orderId === orderId ? { ...t, result, status, sampleCollected: "Yes" } : t
+      t.orderId === orderId
+        ? { ...t, result, status, sampleCollected: "Yes" }
+        : t,
     );
     setStored(KEYS.LAB_TESTS, updated);
     return updated;

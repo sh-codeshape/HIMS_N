@@ -14,7 +14,7 @@ export class BillingController {
     const createdById = req.user!.userId;
     
     if (!req.body.facility_id) {
-        req.body.facility_id = req.user!.facilityId;
+        req.body.facility_id = req.user?.facilityId ?? req.body.facility_id;
     }
 
     const result = await this.service.generateInvoice(req.body, organizationId, createdById);
@@ -23,7 +23,7 @@ export class BillingController {
   };
 
   getInvoices = async (req: Request, res: Response) => {
-    const facilityId = req.user!.facilityId;
+    const facilityId = req.user?.facilityId ?? (req.query.facilityId as string) ?? '';
 
     const invoices = await this.service.getInvoices(facilityId);
     

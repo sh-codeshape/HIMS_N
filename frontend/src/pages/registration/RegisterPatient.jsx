@@ -6,11 +6,20 @@ import {
   LuStethoscope, LuBed, LuSearch, LuX
 } from "react-icons/lu";
 import { mockStore } from "../../mock/mockStore";
+import { buildUHID, nextUHIDSerial } from "../../utils/uhid";
 import "./RegisterPatient.css";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
-const genUHID = () =>
-  `HIMS-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+const genUHID = () => {
+  const existingPatients = mockStore.getPatients();
+  const year = new Date().getFullYear();
+  const lastSerial = existingPatients
+    .map((patient) => Number(String(patient.uhid || "").split("-")[2] || 0))
+    .filter((n) => Number.isFinite(n) && n > 0)
+    .sort((a, b) => b - a)[0] || 0;
+
+  return buildUHID(year, nextUHIDSerial(lastSerial));
+};
 
 const INITIAL_FORM = {
   firstName: "", middleName: "", lastName: "", gender: "",
@@ -176,7 +185,6 @@ export default function RegisterPatient() {
   // ── Validation ───────────────────────────────────────────────────────────
   const validate = () => {
     if (!formData.firstName.trim()) { showToast("⚠️ First Name is required.", "error"); return false; }
-    if (!formData.lastName.trim()) { showToast("⚠️ Last Name is required.", "error"); return false; }
     if (!formData.gender) { showToast("⚠️ Please select Gender.", "error"); return false; }
     if (!formData.mobile || formData.mobile.length < 10) { showToast("⚠️ Valid 10-digit Mobile is required.", "error"); return false; }
     if (!formData.address1.trim()) { showToast("⚠️ Address Line 1 is required.", "error"); return false; }

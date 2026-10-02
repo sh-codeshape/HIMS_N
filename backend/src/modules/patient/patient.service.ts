@@ -1,17 +1,14 @@
-import crypto from 'crypto';
 import { db } from '../../config/database';
 import { patientRepository } from './patient.repository';
 import { CreatePatientRequest, SearchPatientQuery } from './patient.schema';
 import { ConflictError, NotFoundError } from '../../shared/errors/AppError';
+import { buildUHID } from '../../shared/utils/uhid';
 
 export class PatientService {
-  private generateUHID(): string {
-    const now = new Date();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const yy = String(now.getFullYear()).slice(-2);
-    // 6 random uppercase hex characters (e.g. A4F8B2)
-    const randomHex = crypto.randomBytes(3).toString('hex').toUpperCase();
-    return `${mm}${yy}-${randomHex}`;
+  private async generateUHID(organizationId: string): Promise<string> {
+    const year = new Date().getFullYear();
+    const nextSerial = await patientRepository.getNextUHIDSerial(organizationId, year);
+    return buildUHID(year, nextSerial);
   }
 
   async createPatient(organizationId: string, data: CreatePatientRequest) {
@@ -27,7 +24,7 @@ export class PatientService {
       throw new ConflictError('A patient with this name and phone number already exists.');
     }
 
-    const uhid = this.generateUHID();
+    const uhid = await this.generateUHID(organizationId);
 
     const client = await db.getClient();
     try {

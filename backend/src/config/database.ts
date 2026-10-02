@@ -6,8 +6,8 @@ export const pool = new Pool({
   connectionString: config.databaseUrl,
 });
 
-pool.on('error', (err) => {
-  logger.error('Unexpected error on idle client', err);
+pool.on('error', (err: Error) => {
+  logger.error({ err }, 'Unexpected error on idle client');
   process.exit(-1);
 });
 
@@ -48,3 +48,11 @@ export const getClient = async () => {
   
   return client;
 };
+
+export const db = {
+  query,
+  getClient,
+  connect: pool.connect.bind(pool),
+};
+
+export default db;

@@ -20,7 +20,7 @@ export class OpdController {
   };
 
   getQueue = async (req: Request, res: Response) => {
-    const facilityId = req.user!.facilityId;
+    const facilityId = req.user?.facilityId ?? (req.query.facilityId as string) ?? '';
     const practitionerId = req.query.doctorId as string;
     const date = req.query.date as string;
 
@@ -30,11 +30,11 @@ export class OpdController {
   };
 
   updateStatus = async (req: Request, res: Response) => {
-    const facilityId = req.user!.facilityId;
+    const facilityId = req.user?.facilityId ?? (req.body.facility_id as string) ?? '';
     const { id } = req.params;
     const { status } = req.body;
 
-    const result = await this.service.updateStatus(id, status, facilityId);
+    const result = await this.service.updateStatus(String(id), String(status), facilityId);
 
     sendSuccess(res, result, 'OPD status updated successfully');
   };

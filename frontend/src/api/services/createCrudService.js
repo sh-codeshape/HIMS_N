@@ -9,27 +9,29 @@ import axiosInstance from "../axiosInstance";
  *   await opdRegistrationService.getAll({ page: 1 });
  *   await opdRegistrationService.create(payload);
  */
+const unwrapData = (response) => response?.data?.data ?? response?.data ?? null;
+
 export default function createCrudService(basePath) {
   return {
     getAll: async (params = {}) => {
       const res = await axiosInstance.get(basePath, { params });
-      return res.data;
+      return unwrapData(res);
     },
     getById: async (id) => {
       const res = await axiosInstance.get(`${basePath}/${id}`);
-      return res.data;
+      return unwrapData(res);
     },
     create: async (payload) => {
       const res = await axiosInstance.post(basePath, payload);
-      return res.data;
+      return unwrapData(res);
     },
     update: async (id, payload) => {
       const res = await axiosInstance.put(`${basePath}/${id}`, payload);
-      return res.data;
+      return unwrapData(res);
     },
     remove: async (id) => {
       const res = await axiosInstance.delete(`${basePath}/${id}`);
-      return res.data;
+      return unwrapData(res);
     },
   };
 }

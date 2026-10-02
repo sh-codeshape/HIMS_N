@@ -1,11 +1,15 @@
+import axiosInstance from "../axiosInstance";
 import createCrudService from "./createCrudService";
 import { ENDPOINTS } from "../endpoints";
 
-// Base CRUD (getAll, getById, create, update, remove) generated from the
-// factory. Add module-specific calls below when a screen needs more than
-// plain CRUD (e.g. a custom "discharge" action).
 const billingService = {
   ...createCrudService(ENDPOINTS.BILLING.OPD),
+  createInvoice: async (payload) => {
+    const res = await axiosInstance.post("/billing/invoices", payload);
+    return res.data?.data ?? res.data ?? null;
+  },
+  getInvoices: async (params = {}) => {
+    const res = await axiosInstance.get("/billing/invoices", { params });
+    return res.data?.data ?? res.data ?? [];
+  },
 };
-
-export default billingService;

@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { AnyZodObject, ZodError } from 'zod';
+import { ZodError } from 'zod';
 import { ValidationError } from '../shared/errors/AppError';
 
-export const validate = (schema: AnyZodObject) => {
+export const validate = (schema: { parseAsync: (data: unknown) => Promise<unknown> }) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       await schema.parseAsync({
@@ -13,7 +13,7 @@ export const validate = (schema: AnyZodObject) => {
       return next();
     } catch (error) {
       if (error instanceof ZodError) {
-        return next(new ValidationError('Validation error', error.errors));
+        return next(new ValidationError('Validation error', error.issues));
       }
       return next(error);
     }

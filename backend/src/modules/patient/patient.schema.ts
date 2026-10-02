@@ -5,7 +5,7 @@ export const createPatientSchema = z.object({
     facility_id: z.string().uuid(),
     first_name: z.string().min(1),
     middle_name: z.string().optional(),
-    last_name: z.string().min(1),
+    last_name: z.string().optional(),
     gender: z.enum(['male', 'female', 'other', 'unknown']),
     date_of_birth: z.string().optional(),
     phone: z.string().min(10),
@@ -25,7 +25,7 @@ export const updatePatientSchema = z.object({
   body: z.object({
     first_name: z.string().min(1).optional(),
     middle_name: z.string().optional(),
-    last_name: z.string().min(1).optional(),
+    last_name: z.string().optional(),
     gender: z.enum(['male', 'female', 'other', 'unknown']).optional(),
     date_of_birth: z.string().optional(),
     phone: z.string().min(10).optional(),
