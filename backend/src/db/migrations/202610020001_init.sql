@@ -1,0 +1,37 @@
+-- migrate:up
+-- =====================================================================
+--  HMS  |  Flexible, multi-facility Hospital Management System schema
+--  Target: PostgreSQL 14+ (tested on 16)
+--
+--  DESIGN PRINCIPLES
+--   1. Multi-tenant ready: organizations -> facilities -> departments.
+--      Masters are scoped to organization, transactions to facility.
+--   2. Encounter-centric: every clinical, order and billing record hangs
+--      off an ENCOUNTER (OPD / IPD / ER / daycare / teleconsult ...), the
+--      same Visit->Encounter->Observation idea used by OpenMRS/Bahmni.
+--   3. Flexible without schema changes:
+--        * observation_definitions + observations  (EAV for vitals, labs)
+--        * form_templates + form_submissions       (JSONB custom forms)
+--        * custom_field_definitions + custom_fields JSONB on key tables
+--        * lookup_values (editable code lists), settings (JSONB)
+--        * tariff plans / packages / tax groups drive pricing, not code
+--   4. Billing is a pipeline:  CHARGES (accrue) -> INVOICES (bill)
+--      -> PAYMENTS (settle, via allocations) -> CREDIT NOTES / CLAIMS.
+--      Issued invoices are immutable; corrections go through credit notes.
+--   5. Stock is a ledger: stock_movements is append-only; batch balances
+--      are maintained by trigger and can never go negative.
+--   6. Auditability: created_by/updated_by filled from the session GUC
+--      app.current_user_id, plus a row-level audit_logs trail.
+--
+--  CONVENTIONS
+--   * UUID primary keys, timestamptz everywhere, money = numeric(14,2).
+--   * created_by / updated_by / deleted_by are soft references to
+--     users(id) (no FK on purpose: avoids circular deps and lock
+--     contention, and lets auth live in a separate service).
+--   * Closed state machines use CHECK constraints; open lists use
+--     lookup_values or dedicated master tables.
+--   * Set per transaction:  SET LOCAL app.current_user_id = '<uuid>';
+-- =====================================================================
+
+-- migrate:down
+-- TODO: add drop statements
