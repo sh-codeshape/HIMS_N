@@ -4,20 +4,22 @@ export const createIpdAdmissionSchema = z.object({
   body: z.object({
     facility_id: z.string().uuid(),
     patient_id: z.string().uuid(),
-    bed_id: z.string().uuid(),
-    admitting_practitioner_id: z.string().uuid(),
-    department_id: z.string().uuid().optional(),
+    bed_id: z.string().uuid().optional().nullable(),
+    admitting_practitioner_id: z.string().uuid().optional().nullable(),
+    department_id: z.string().uuid().optional().nullable(),
+    referred_by: z.string().optional().nullable(),
+    admission_type: z.enum(['elective', 'emergency', 'maternity', 'daycare']).optional(),
     reason_for_admission: z.string().optional()
   })
 });
 
 export const dischargePatientSchema = z.object({
   params: z.object({
-    admission_id: z.string().uuid()
+    id: z.string().uuid()
   }),
   body: z.object({
-    discharge_type: z.enum(['routine', 'lama', 'transfer', 'expired']),
-    discharge_summary: z.string().optional()
+    discharge_type: z.enum(['normal', 'lama', 'dama', 'absconded', 'referred', 'transferred', 'death']),
+    discharge_condition: z.string().optional()
   })
 });
 

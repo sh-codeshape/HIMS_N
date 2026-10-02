@@ -5,16 +5,18 @@ export interface UserRecord {
   id: string;
   organization_id: string;
   username: string;
+  email?: string | null;
   password_hash: string;
-  first_name: string;
-  last_name: string;
+  full_name: string;
   is_active: boolean;
+  is_superadmin?: boolean;
+  phone?: string | null;
 }
 
 export class AuthRepository {
   async findByUsername(username: string): Promise<UserRecord | null> {
     const query = `
-      SELECT id, organization_id, username, password_hash, first_name, last_name, is_active
+      SELECT id, organization_id, username, email, password_hash, full_name, is_active, is_superadmin
       FROM users
       WHERE username = $1
     `;
@@ -28,26 +30,26 @@ export class AuthRepository {
       organization_id: string;
       username: string;
       password_hash: string;
-      first_name: string;
-      last_name: string;
+      full_name: string;
       email?: string;
       phone?: string;
+      is_superadmin?: boolean;
     }
   ): Promise<UserRecord> {
     const query = `
       INSERT INTO users (
-        organization_id, username, password_hash, first_name, last_name, email, phone
+        organization_id, username, password_hash, full_name, email, phone, is_superadmin
       ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING id, organization_id, username, password_hash, first_name, last_name, is_active
+      RETURNING id, organization_id, username, email, password_hash, full_name, is_active, is_superadmin
     `;
     const values = [
       data.organization_id,
       data.username,
       data.password_hash,
-      data.first_name,
-      data.last_name,
-      data.email,
-      data.phone,
+      data.full_name,
+      data.email ?? null,
+      data.phone ?? null,
+      data.is_superadmin ?? false,
     ];
     const result = await client.query(query, values);
     return result.rows[0];

@@ -29,4 +29,14 @@ export class IpdController {
     
     sendSuccess(res, queue, 'Admissions retrieved successfully');
   };
+
+  dischargePatient = async (req: Request, res: Response) => {
+    const facilityId = req.user?.facilityId ?? (req.body.facility_id as string) ?? '';
+    const { id } = req.params;
+    const { discharge_type, discharge_condition } = req.body;
+
+    const result = await this.service.dischargePatient(facilityId, String(id), String(discharge_type), discharge_condition);
+
+    sendSuccess(res, result, 'Patient discharged successfully');
+  };
 }

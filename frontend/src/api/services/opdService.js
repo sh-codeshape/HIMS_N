@@ -1,9 +1,7 @@
 import axiosInstance from "../axiosInstance";
-import createCrudService from "./createCrudService";
 import { ENDPOINTS } from "../endpoints";
 
 const opdService = {
-  ...createCrudService(ENDPOINTS.OPD.REGISTRATION),
   issueToken: async (payload) => {
     const res = await axiosInstance.post("/opd/tokens", payload);
     return res.data?.data ?? res.data ?? null;
@@ -18,6 +16,10 @@ const opdService = {
       ...payload,
     });
     return res.data?.data ?? res.data ?? null;
+  },
+  getReports: async (params = {}) => {
+    const res = await axiosInstance.get("/opd/reports", { params });
+    return res.data?.data ?? res.data ?? [];
   },
 };
 

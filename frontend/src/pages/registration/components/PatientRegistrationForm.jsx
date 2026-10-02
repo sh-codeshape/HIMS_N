@@ -3,7 +3,8 @@ import toast from "react-hot-toast";
 import Icon from "../../../components/common/Icon.jsx";
 import Input from "../../../components/common/Input.jsx";
 import Button from "../../../components/common/Button.jsx";
-import { mockStore } from "../../../mock/mockStore";
+import { mockStore } from "../../../mock/mockStore"; // Keep for fallback or remove if not needed elsewhere
+import patientService from "../../../api/services/patientService";
 import "./PatientRegistrationForm.css";
 
 const DEPARTMENTS = [
@@ -59,36 +60,64 @@ export default function PatientRegistrationForm({ onRegistered }) {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name || !form.phone || !form.age) {
       toast.error("Please fill all required patient details.");
       return;
     }
 
-    const newPatient = mockStore.addPatient(form);
-    setLastRegistered(newPatient);
-    if (onRegistered) onRegistered(newPatient);
+    try {
+      const [firstName, ...lastNameArr] = form.name.split(" ");
+      const lastName = lastNameArr.join(" ");
 
-    toast.success(`Patient Registered! UHID: ${newPatient.uhid}`, {
-      icon: "📋",
-      duration: 4000,
-    });
+      const payload = {
+        first_name: firstName,
+        last_name: lastName,
+        gender: form.gender.toLowerCase(),
+        phone: form.phone,
+        date_of_birth: new Date(new Date().setFullYear(new Date().getFullYear() - Number(form.age))).toISOString().split('T')[0],
+      };
 
-    setForm({
-      name: "",
-      age: "",
-      gender: "Male",
-      phone: "",
-      bloodGroup: "O+",
-      category: "OPD",
-      department: "General Medicine",
-      doctor: "Dr. Priyadarshan Joshi",
-      address: "",
-      guardianName: "",
-      emergencyContact: "",
-      notes: "",
-    });
+      const newPatientData = await patientService.create(payload);
+      
+      const newPatient = {
+        id: newPatientData.id,
+        uhid: newPatientData.uhid,
+        name: form.name,
+        age: form.age,
+        gender: form.gender,
+        phone: form.phone,
+        bloodGroup: form.bloodGroup,
+        department: form.department
+      };
+
+      setLastRegistered(newPatient);
+      if (onRegistered) onRegistered(newPatient);
+
+      toast.success(`Patient Registered! UHID: ${newPatient.uhid}`, {
+        icon: "📋",
+        duration: 4000,
+      });
+
+      setForm({
+        name: "",
+        age: "",
+        gender: "Male",
+        phone: "",
+        bloodGroup: "O+",
+        category: "OPD",
+        department: "General Medicine",
+        doctor: "Dr. Priyadarshan Joshi",
+        address: "",
+        guardianName: "",
+        emergencyContact: "",
+        notes: "",
+      });
+    } catch (err) {
+      toast.error("Failed to register patient");
+      console.error(err);
+    }
   };
 
   return (

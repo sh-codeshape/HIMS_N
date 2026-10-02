@@ -7,8 +7,9 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "db:migrate": "dbmate -d src/db/migrations up",
+    "db:migrate": "./bin/dbmate -d src/db/migrations up",
     "db:rollback": "dbmate -d src/db/migrations down",
+    "db:seed": "tsx src/db/seed.ts",
     "test": "vitest",
     "lint": "eslint src --ext .ts"
   },

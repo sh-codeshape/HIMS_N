@@ -4,8 +4,9 @@ export const createOpdEncounterSchema = z.object({
   body: z.object({
     facility_id: z.string().uuid(),
     patient_id: z.string().uuid(),
-    department_id: z.string().uuid().optional(),
-    primary_practitioner_id: z.string().uuid(),
+    department_id: z.string().uuid().optional().nullable(),
+    primary_practitioner_id: z.string().uuid().optional().nullable(),
+    referred_by: z.string().optional().nullable(),
     chief_complaint: z.string().optional(),
     triage_vitals: z.object({
       bp: z.string().optional(),

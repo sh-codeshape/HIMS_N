@@ -23,6 +23,10 @@ import patientRoutes from './modules/patient/patient.routes';
 import { opdRoutes } from './modules/opd/opd.routes';
 import { ipdRoutes } from './modules/ipd/ipd.routes';
 import { billingRoutes } from './modules/billing/billing.routes';
+import { bedRoutes } from './modules/bed/bed.routes';
+import { staffRoutes } from './modules/staff/staff.routes';
+import { labRoutes } from './modules/laboratory/lab.routes';
+import { pharmacyRoutes } from './modules/pharmacy/pharmacy.routes';
 
 // Health check
 app.get('/health', (req, res) => {
@@ -35,6 +39,10 @@ app.use('/api/v1/patients', patientRoutes);
 app.use('/api/v1/opd', opdRoutes);
 app.use('/api/v1/ipd', ipdRoutes);
 app.use('/api/v1/billing', billingRoutes);
+app.use('/api/v1/beds', bedRoutes);
+app.use('/api/v1/staff', staffRoutes);
+app.use('/api/v1/laboratory', labRoutes);
+app.use('/api/v1/pharmacy', pharmacyRoutes);
 
 // Global Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -48,6 +56,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     error: {
       code: err.code || 'INTERNAL_ERROR',
       message,
+      ...(err.details && { details: err.details }),
       ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
     }
   });

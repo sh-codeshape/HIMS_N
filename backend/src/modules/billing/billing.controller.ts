@@ -9,24 +9,22 @@ export class BillingController {
     this.service = new BillingService();
   }
 
-  generateInvoice = async (req: Request, res: Response) => {
+  createInvoice = async (req: Request, res: Response) => {
     const organizationId = req.user!.organizationId;
-    const createdById = req.user!.userId;
-    
-    if (!req.body.facility_id) {
-        req.body.facility_id = req.user?.facilityId ?? req.body.facility_id;
-    }
-
-    const result = await this.service.generateInvoice(req.body, organizationId, createdById);
-    
-    sendSuccess(res, result, 'Invoice generated successfully', 201);
+    const result = await this.service.createInvoice(req.body, organizationId);
+    sendSuccess(res, result, 'Invoice created successfully', 201);
   };
 
-  getInvoices = async (req: Request, res: Response) => {
-    const facilityId = req.user?.facilityId ?? (req.query.facilityId as string) ?? '';
-
-    const invoices = await this.service.getInvoices(facilityId);
-    
+  listInvoices = async (req: Request, res: Response) => {
+    const facilityId = (req.user?.facilityId as string) ?? (req.query.facilityId as string) ?? '';
+    const invoices = await this.service.listInvoices(facilityId);
     sendSuccess(res, invoices, 'Invoices retrieved successfully');
+  };
+
+  getInvoice = async (req: Request, res: Response) => {
+    const facilityId = (req.user?.facilityId as string) ?? (req.query.facilityId as string) ?? '';
+    const id = req.params.id as string;
+    const invoice = await this.service.getInvoice(id, facilityId);
+    sendSuccess(res, invoice, 'Invoice retrieved successfully');
   };
 }

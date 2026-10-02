@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import Icon from "../../../components/common/Icon.jsx";
 import Button from "../../../components/common/Button.jsx";
-import { mockStore } from "../../../mock/mockStore";
+import patientService from "../../../api/services/patientService";
+import billingInvoicesService from "../../../api/services/billingInvoicesService";
 import "./BillingInvoiceForm.css";
 
 const STANDARD_SERVICES = [
@@ -29,8 +30,42 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
   const [activeInvoiceModal, setActiveInvoiceModal] = useState(null);
 
   useEffect(() => {
-    setPatients(mockStore.getPatients());
-    setInvoices(mockStore.getInvoices());
+    const fetchData = async () => {
+      try {
+        const [patientsData, invoicesData] = await Promise.all([
+          patientService.search(),
+          billingInvoicesService.getAll()
+        ]);
+        
+        const mappedPatients = patientsData.map(p => ({
+          id: p.id,
+          uhid: p.uhid,
+          name: p.full_name || `${p.first_name} ${p.last_name}`,
+          phone: p.phone,
+          age: p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0,
+          gender: p.gender
+        }));
+        
+        const mappedInvoices = invoicesData.map(inv => ({
+          id: inv.id,
+          invoiceNo: inv.invoice_no,
+          patientName: inv.patient_id, // we might need to join or map this, ideally backend returns patient name
+          service: inv.billing_type,
+          grossAmount: inv.total_amount,
+          discount: inv.discount_amount,
+          netAmount: inv.net_amount,
+          paymentMode: inv.payment_mode || "N/A",
+          status: inv.status,
+          date: new Date(inv.created_at).toLocaleDateString()
+        }));
+
+        setPatients(mappedPatients);
+        setInvoices(mappedInvoices);
+      } catch (err) {
+        toast.error("Failed to load billing data");
+      }
+    };
+    fetchData();
   }, []);
 
   const handleAddItem = (service) => {
@@ -47,7 +82,7 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
   const grossTotal = billItems.reduce((acc, curr) => acc + curr.qty * curr.price, 0);
   const netTotal = Math.max(0, grossTotal - discount);
 
-  const handleGenerateBill = (e) => {
+  const handleGenerateBill = async (e) => {
     e.preventDefault();
     if (!selectedUhid) {
       toast.error("Please select a patient to bill.");
@@ -59,26 +94,50 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
     }
 
     const patient = patients.find((p) => p.uhid === selectedUhid);
-    const newInv = mockStore.addInvoice({
-      uhid: patient.uhid,
-      patientName: patient.name,
-      service: billItems.map((i) => i.name).join(", "),
-      grossAmount: grossTotal,
-      discount: Number(discount),
-      netAmount: netTotal,
-      paymentMode,
-      category: billingType,
-      items: billItems,
-    });
-
-    setInvoices(mockStore.getInvoices());
-    setActiveInvoiceModal(newInv);
-    toast.success(`Bill ${newInv.invoiceNo} generated successfully!`, {
-      icon: "🧾",
-    });
-
-    setBillItems([{ id: Date.now(), name: `${billingType} Service Charge`, qty: 1, price: 800 }]);
-    setDiscount(0);
+    
+    try {
+      const payload = {
+        patient_id: patient.id,
+        facility_id: "00000000-0000-0000-0000-000000000000",
+        billing_type: billingType.toLowerCase(),
+        items: billItems.map(item => ({
+          item_name: item.name,
+          quantity: item.qty,
+          unit_price: item.price
+        })),
+        discount_amount: Number(discount),
+        payment_mode: paymentMode.toLowerCase().includes("upi") ? "upi" : 
+                      paymentMode.toLowerCase().includes("cash") ? "cash" : "card",
+        amount_paid: netTotal
+      };
+      
+      const newInvData = await billingInvoicesService.create(payload);
+      
+      const newInv = {
+        id: newInvData.id,
+        invoiceNo: newInvData.invoice_no,
+        patientName: patient.name,
+        uhid: patient.uhid,
+        service: billItems.map((i) => i.name).join(", "),
+        grossAmount: grossTotal,
+        discount: Number(discount),
+        netAmount: netTotal,
+        paymentMode,
+        status: newInvData.status,
+        date: new Date().toLocaleDateString()
+      };
+  
+      setInvoices(prev => [newInv, ...prev]);
+      setActiveInvoiceModal(newInv);
+      toast.success(`Bill ${newInv.invoiceNo} generated successfully!`, {
+        icon: "🧾",
+      });
+  
+      setBillItems([{ id: Date.now(), name: `${billingType} Service Charge`, qty: 1, price: 800 }]);
+      setDiscount(0);
+    } catch (err) {
+      toast.error("Failed to generate bill");
+    }
   };
 
   return (

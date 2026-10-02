@@ -18,6 +18,7 @@ export class OpdService {
       data.patient_id,
       data.primary_practitioner_id,
       data.department_id,
+      data.referred_by,
       data.chief_complaint,
       nextToken
     );

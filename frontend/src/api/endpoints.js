@@ -37,10 +37,7 @@ export const ENDPOINTS = {
     REPORTS: "/billing/reports",
   },
   BILLING_INVOICES: {
-    CREATE_BILL: "/billing-invoices/create-bill",
-    ADVANCE_DEPOSITS: "/billing-invoices/advance-deposits",
-    TPA_INSURANCE: "/billing-invoices/tpa-insurance",
-    REFUND_DISCOUNTS: "/billing-invoices/refund-discounts",
+    BASE: "/billing",
   },
   STAFF: {
     DUTY_ROSTER: "/staff/duty-roster",

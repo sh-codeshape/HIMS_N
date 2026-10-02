@@ -15,7 +15,7 @@ export const registerSchema = z.object({
     username: z.string().min(3),
     password: z.string().min(6),
     first_name: z.string().min(1),
-    last_name: z.string().min(1),
+    last_name: z.string().min(1).optional(),
     email: z.string().email().optional(),
     phone: z.string().optional(),
   }),

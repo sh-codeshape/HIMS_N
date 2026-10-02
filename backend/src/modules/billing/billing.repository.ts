@@ -1,106 +1,134 @@
 import { db } from '../../config/database';
 
 export class BillingRepository {
-  async createInvoice(
-    facilityId: string,
-    organizationId: string,
-    patientId: string,
-    encounterId: string | undefined,
-    items: { service_id?: string; description: string; quantity: number; rate: number }[],
-    createdById: string
-  ) {
-    const client = await db.connect();
-    
+  async createInvoice(data: any) {
+    const client = await db.getClient();
     try {
       await client.query('BEGIN');
 
       const invoiceNo = `INV-${Date.now()}`;
       
-      let subtotal = 0;
-      items.forEach(item => {
-        subtotal += item.quantity * item.rate;
-      });
-      // simplified calculation
-      const netAmount = subtotal; 
-
-      // 1. Create Invoice
       const invoiceQuery = `
         INSERT INTO invoices (
-          organization_id,
-          facility_id,
-          patient_id,
-          encounter_id,
-          invoice_no,
-          invoice_date,
-          due_date,
-          status,
-          subtotal,
-          total_discount,
-          total_tax,
-          net_amount,
-          amount_due,
-          created_by
-        ) VALUES ($1, $2, $3, $4, $5, NOW(), NOW(), 'draft', $6, 0, 0, $7, $8, $9)
-        RETURNING *;
+          organization_id, facility_id, patient_id, invoice_no, invoice_type, status,
+          subtotal, discount_total, total_amount, due_amount, paid_amount, issued_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, 'paid',
+          $6, $7, $8, 0, $8, NOW()
+        ) RETURNING *;
       `;
       
-      const invoiceResult = await client.query(invoiceQuery, [
-        organizationId,
-        facilityId,
-        patientId,
-        encounterId,
+      const invoiceRes = await client.query(invoiceQuery, [
+        data.organization_id,
+        data.facility_id,
+        data.patient_id,
         invoiceNo,
-        subtotal,
-        netAmount,
-        netAmount,
-        createdById
+        data.invoice_type,
+        data.subtotal,
+        data.discount_total,
+        data.total_amount
       ]);
-      const invoice = invoiceResult.rows[0];
+      const invoice = invoiceRes.rows[0];
 
-      // 2. Insert Invoice Lines
-      for (const item of items) {
+      let lineNo = 1;
+      for (const item of data.items) {
+        const taxableAmount = item.qty * item.price;
+        const lineTotal = taxableAmount;
         const lineQuery = `
           INSERT INTO invoice_lines (
-            invoice_id,
-            service_id,
-            description,
-            quantity,
-            unit_price,
-            gross_amount,
-            net_amount
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            invoice_id, line_no, description, quantity, unit_price, taxable_amount, line_total
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7
+          )
         `;
-        const lineGross = item.quantity * item.rate;
         await client.query(lineQuery, [
           invoice.id,
-          item.service_id,
-          item.description,
-          item.quantity,
-          item.rate,
-          lineGross,
-          lineGross
+          lineNo++,
+          item.name,
+          item.qty,
+          item.price,
+          taxableAmount,
+          lineTotal
         ]);
+      }
+
+      if (data.payment_mode && data.total_amount > 0) {
+        const methodRes = await client.query('SELECT id FROM payment_methods WHERE name ILIKE $1 OR type ILIKE $1 LIMIT 1', [`%${data.payment_mode}%`]);
+        let methodId = methodRes.rows[0]?.id;
+        
+        if (!methodId) {
+          const anyMethodRes = await client.query('SELECT id FROM payment_methods LIMIT 1');
+          methodId = anyMethodRes.rows[0]?.id;
+        }
+        
+        if (methodId) {
+          const receiptNo = `REC-${Date.now()}`;
+          const paymentQuery = `
+            INSERT INTO payments (
+              organization_id, facility_id, receipt_no, patient_id, direction, payment_type, payment_method_id,
+              amount, allocated_amount, status
+            ) VALUES (
+              $1, $2, $3, $4, 'in', 'invoice_payment', $5,
+              $6, $6, 'completed'
+            ) RETURNING *;
+          `;
+          const payRes = await client.query(paymentQuery, [
+            data.organization_id,
+            data.facility_id,
+            receiptNo,
+            data.patient_id,
+            methodId,
+            data.total_amount
+          ]);
+          const payment = payRes.rows[0];
+          
+          await client.query(`
+            INSERT INTO payment_allocations (payment_id, invoice_id, amount)
+            VALUES ($1, $2, $3)
+          `, [payment.id, invoice.id, data.total_amount]);
+        }
       }
 
       await client.query('COMMIT');
       return invoice;
-    } catch (error) {
+    } catch (e) {
       await client.query('ROLLBACK');
-      throw error;
+      throw e;
     } finally {
       client.release();
     }
   }
 
-  async getInvoices(facilityId: string) {
+  async listInvoices(facilityId: string) {
+    const query = `
+      SELECT i.*, p.first_name, p.last_name, p.uhid 
+      FROM invoices i
+      JOIN patients p ON i.patient_id = p.id
+      WHERE i.facility_id = $1
+      ORDER BY i.created_at DESC
+    `;
+    const res = await db.query(query, [facilityId]);
+    return res.rows;
+  }
+
+  async getInvoice(id: string, facilityId: string) {
     const query = `
       SELECT i.*, p.first_name, p.last_name, p.uhid
       FROM invoices i
       JOIN patients p ON i.patient_id = p.id
-      WHERE i.facility_id = $1
-      ORDER BY i.created_at DESC;
+      WHERE i.id = $1 AND i.facility_id = $2
     `;
-    const result = await db.query(query, [facilityId]);
-    return result.rows;
+    const res = await db.query(query, [id, facilityId]);
+    if (res.rows.length === 0) return null;
+
+    const invoice = res.rows[0];
+
+    const linesQuery = `
+      SELECT * FROM invoice_lines WHERE invoice_id = $1 ORDER BY line_no ASC
+    `;
+    const linesRes = await db.query(linesQuery, [id]);
+    invoice.items = linesRes.rows;
+
+    return invoice;
   }
 }

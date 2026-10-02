@@ -1,5 +1,6 @@
 import { BillingRepository } from './billing.repository';
-import { GenerateInvoiceRequest } from './billing.schema';
+import { CreateInvoiceRequest } from './billing.schema';
+import { NotFoundError } from '../../shared/errors/AppError';
 
 export class BillingService {
   private repository: BillingRepository;
@@ -8,19 +9,32 @@ export class BillingService {
     this.repository = new BillingRepository();
   }
 
-  async generateInvoice(data: GenerateInvoiceRequest, organizationId: string, createdById: string) {
-    const result = await this.repository.createInvoice(
-      data.facility_id,
-      organizationId,
-      data.patient_id,
-      data.encounter_id,
-      data.items,
-      createdById
-    );
-    return result;
+  async createInvoice(data: CreateInvoiceRequest, organizationId: string) {
+    const subtotal = data.items.reduce((acc, item) => acc + (item.qty * item.price), 0);
+    const totalAmount = Math.max(0, subtotal - (data.discount_total || 0));
+
+    return this.repository.createInvoice({
+      organization_id: organizationId,
+      facility_id: data.facility_id,
+      patient_id: data.patient_id,
+      invoice_type: data.invoice_type,
+      subtotal,
+      discount_total: data.discount_total || 0,
+      total_amount: totalAmount,
+      items: data.items,
+      payment_mode: data.payment_mode
+    });
   }
 
-  async getInvoices(facilityId: string) {
-    return this.repository.getInvoices(facilityId);
+  async listInvoices(facilityId: string) {
+    return this.repository.listInvoices(facilityId);
+  }
+
+  async getInvoice(invoiceId: string, facilityId: string) {
+    const invoice = await this.repository.getInvoice(invoiceId, facilityId);
+    if (!invoice) {
+      throw new NotFoundError('Invoice not found');
+    }
+    return invoice;
   }
 }

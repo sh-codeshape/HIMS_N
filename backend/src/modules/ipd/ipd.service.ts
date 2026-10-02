@@ -10,19 +10,28 @@ export class IpdService {
   }
 
   async admitPatient(data: CreateIpdAdmissionRequest, organizationId: string) {
-    const result = await this.repository.createAdmission(
+    return this.repository.admitPatient(
       data.facility_id,
       organizationId,
       data.patient_id,
       data.bed_id,
       data.admitting_practitioner_id,
       data.department_id,
+      data.referred_by,
+      data.admission_type,
       data.reason_for_admission
     );
-    return result;
   }
 
   async getAdmissions(facilityId: string) {
     return this.repository.getAdmissions(facilityId);
+  }
+
+  async dischargePatient(facilityId: string, admissionId: string, dischargeType: string, dischargeCondition?: string) {
+    const admission = await this.repository.dischargePatient(facilityId, admissionId, dischargeType, dischargeCondition);
+    if (!admission) {
+      throw new NotFoundError('Admission not found');
+    }
+    return admission;
   }
 }

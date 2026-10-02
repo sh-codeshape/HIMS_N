@@ -5,8 +5,9 @@ export class OpdRepository {
     facilityId: string,
     organizationId: string,
     patientId: string,
-    practitionerId: string,
-    departmentId?: string,
+    practitionerId?: string | null,
+    departmentId?: string | null,
+    referredBy?: string | null,
     chiefComplaint?: string,
     tokenNumber?: string
   ) {
@@ -19,12 +20,13 @@ export class OpdRepository {
         patient_id,
         primary_practitioner_id,
         department_id,
+        referred_by,
         encounter_type,
         status,
         chief_complaint,
         custom_fields,
         encounter_no
-      ) VALUES ($1, $2, $3, $4, $5, 'opd', 'arrived', $6, $7, $8)
+      ) VALUES ($1, $2, $3, $4, $5, $6, 'opd', 'arrived', $7, $8, $9)
       RETURNING *;
     `;
     const encounterNo = `OPD-${Date.now()}`; // Temporary till we fix sequence
@@ -33,8 +35,9 @@ export class OpdRepository {
       facilityId,
       organizationId,
       patientId,
-      practitionerId,
-      departmentId,
+      practitionerId || null,
+      departmentId || null,
+      referredBy || null,
       chiefComplaint,
       JSON.stringify(customFields),
       encounterNo
@@ -42,17 +45,21 @@ export class OpdRepository {
     return result.rows[0];
   }
 
-  async getNextToken(facilityId: string, practitionerId: string): Promise<string> {
+  async getNextToken(facilityId: string, practitionerId?: string | null): Promise<string> {
     const query = `
       SELECT COUNT(*) + 1 as next_token
       FROM encounters
       WHERE facility_id = $1
-        AND primary_practitioner_id = $2
+        AND ($2::uuid IS NULL OR primary_practitioner_id = $2)
         AND encounter_type = 'opd'
         AND DATE(started_at) = CURRENT_DATE
     `;
-    const result = await db.query(query, [facilityId, practitionerId]);
-    return `T-${String(result.rows[0].next_token).padStart(2, '0')}`;
+    const result = await db.query(query, [facilityId, practitionerId || null]);
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yy = String(now.getFullYear()).slice(-2);
+    return `T-${dd}${mm}${yy}-${String(result.rows[0].next_token).padStart(2, '0')}`;
   }
 
   async getQueue(facilityId: string, practitionerId?: string, date?: string) {

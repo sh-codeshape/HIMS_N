@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import Icon from "../../../components/common/Icon.jsx";
 import Button from "../../../components/common/Button.jsx";
-import { mockStore } from "../../../mock/mockStore";
+import ipdService from "../../../api/services/ipdService";
+import patientService from "../../../api/services/patientService";
 
 export default function IPDAdmissionView() {
   const [patients, setPatients] = useState([]);
@@ -13,13 +14,42 @@ export default function IPDAdmissionView() {
   const [admitReason, setAdmitReason] = useState("");
 
   useEffect(() => {
-    setPatients(mockStore.getPatients());
-    setBeds(mockStore.getBeds());
+    const fetchData = async () => {
+      try {
+        const [patientsData, bedsData] = await Promise.all([
+          patientService.search(),
+          ipdService.getBedMatrix()
+        ]);
+        
+        const mappedPatients = patientsData.map(p => ({
+          id: p.id,
+          uhid: p.uhid,
+          name: p.full_name || `${p.first_name} ${p.last_name}`,
+          age: p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0,
+          gender: p.gender,
+          bloodGroup: p.blood_group || "Unknown"
+        }));
+        
+        const mappedBeds = bedsData.map(b => ({
+          id: b.id,
+          bedNo: b.bed_no,
+          ward: b.ward_name,
+          floor: b.room_name ? `Room ${b.room_name}` : "General",
+          status: b.current_status
+        }));
+
+        setPatients(mappedPatients);
+        setBeds(mappedBeds);
+      } catch (err) {
+        toast.error("Failed to load admission data");
+      }
+    };
+    fetchData();
   }, []);
 
   const availableBeds = beds.filter((b) => b.status === "Available");
 
-  const handleAdmit = (e) => {
+  const handleAdmit = async (e) => {
     e.preventDefault();
     if (!selectedUhid || !selectedBed) {
       toast.error("Please select both a patient and an available bed.");
@@ -27,18 +57,27 @@ export default function IPDAdmissionView() {
     }
 
     const patient = patients.find((p) => p.uhid === selectedUhid);
-    mockStore.updateBedStatus(selectedBed, {
-      status: "Occupied",
-      patient: `${patient.name} (${patient.age}${patient.gender?.[0] || "M"})`,
-      doctor: doctor,
-      admittedDate: new Date().toISOString().slice(0, 10),
-    });
+    const bed = beds.find((b) => b.id === selectedBed);
 
-    setBeds(mockStore.getBeds());
-    toast.success(`IPD Admission created for ${patient.name} on ${selectedBed}!`, { icon: "🏥" });
-    setSelectedUhid("");
-    setSelectedBed("");
-    setAdmitReason("");
+    try {
+      await ipdService.admitPatient({
+        patient_id: patient.id,
+        bed_id: bed.id,
+        facility_id: "00000000-0000-0000-0000-000000000000",
+        department_id: null,
+        primary_practitioner_id: null,
+        admission_type: "routine",
+        admission_reason: admitReason
+      });
+
+      setBeds(prev => prev.map(b => b.id === bed.id ? { ...b, status: "Occupied" } : b));
+      toast.success(`IPD Admission created for ${patient.name} on ${bed.bedNo}!`, { icon: "🏥" });
+      setSelectedUhid("");
+      setSelectedBed("");
+      setAdmitReason("");
+    } catch (err) {
+      toast.error("Failed to admit patient");
+    }
   };
 
   return (
@@ -84,7 +123,7 @@ export default function IPDAdmissionView() {
             >
               <option value="">-- Choose Vacant Bed --</option>
               {availableBeds.map((b) => (
-                <option key={b.id} value={b.bedNo}>
+                <option key={b.id} value={b.id}>
                   {b.bedNo} ({b.ward} - {b.floor})
                 </option>
               ))}

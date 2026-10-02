@@ -5,20 +5,53 @@ import {
   LuRefreshCw, LuCircleCheck,
   LuStethoscope, LuBed, LuSearch, LuX
 } from "react-icons/lu";
-import { mockStore } from "../../mock/mockStore";
-import { buildUHID, nextUHIDSerial } from "../../utils/uhid";
+import patientService from "../../api/services/patientService";
+import opdService from "../../api/services/opdService";
+import ipdService from "../../api/services/ipdService";
 import "./RegisterPatient.css";
 
-// ─── helpers ────────────────────────────────────────────────────────────────
-const genUHID = () => {
-  const existingPatients = mockStore.getPatients();
-  const year = new Date().getFullYear();
-  const lastSerial = existingPatients
-    .map((patient) => Number(String(patient.uhid || "").split("-")[2] || 0))
-    .filter((n) => Number.isFinite(n) && n > 0)
-    .sort((a, b) => b - a)[0] || 0;
+const normalizeCountryCode = (value, fallback = "IN") => {
+  if (!value) return fallback;
 
-  return buildUHID(year, nextUHIDSerial(lastSerial));
+  const raw = String(value).trim();
+  if (!raw) return fallback;
+
+  const upper = raw.toUpperCase();
+  if (/^[A-Z]{2}$/.test(upper)) return upper;
+
+  const map = {
+    india: "IN",
+    "united states": "US",
+    "united states of america": "US",
+    usa: "US",
+    "united kingdom": "GB",
+    uk: "GB",
+    canada: "CA",
+    australia: "AU",
+    germany: "DE",
+    france: "FR",
+    italy: "IT",
+    spain: "ES",
+    nepal: "NP",
+    bangladesh: "BD",
+    pakistan: "PK",
+    china: "CN",
+    japan: "JP",
+    singapore: "SG",
+    "united arab emirates": "AE",
+    uae: "AE",
+  };
+
+  return map[raw.toLowerCase()] || fallback;
+};
+
+const normalizeGender = (value) => {
+  if (!value) return "unknown";
+  const v = String(value).trim().toLowerCase();
+  if (v === "m" || v === "male") return "male";
+  if (v === "f" || v === "female") return "female";
+  if (v === "other") return "other";
+  return "unknown";
 };
 
 const INITIAL_FORM = {
@@ -62,20 +95,18 @@ export default function RegisterPatient() {
   };
 
   // ── Live search handler ──────────────────────────────────────────────────
-  const handleSearchChange = (e) => {
+  const handleSearchChange = async (e) => {
     const q = e.target.value;
     setSearchQuery(q);
     if (q.trim().length < 1) { setSearchResults([]); setShowDropdown(false); return; }
-    const term = q.trim().toLowerCase();
-    const all = mockStore.getPatients();
-    const matches = all.filter((p) => {
-      const name = `${p.firstName || ""} ${p.lastName || ""} ${p.name || ""}`.toLowerCase();
-      const phone = (p.mobile1 || p.phone || p.mobile || "").toLowerCase();
-      const uhid = (p.uhid || "").toLowerCase();
-      return name.includes(term) || phone.includes(term) || uhid.includes(term);
-    });
-    setSearchResults(matches.slice(0, 8));
-    setShowDropdown(true);
+    
+    try {
+      const matches = await patientService.search({ q });
+      setSearchResults(matches.slice(0, 8));
+      setShowDropdown(true);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   // ── Auto-fill form on patient select ────────────────────────────────────
@@ -138,47 +169,54 @@ export default function RegisterPatient() {
     showToast("Form cleared.", "info");
   };
 
-  // ── Build patient record from form ───────────────────────────────────────
   const buildPatientRecord = () => {
-    const uhid = genUHID();
     return {
-      uhid,
-      name: `${formData.firstName} ${formData.middleName ? formData.middleName + " " : ""}${formData.lastName}`.trim(),
-      firstName: formData.firstName,
-      middleName: formData.middleName,
-      lastName: formData.lastName,
-      gender: formData.gender,
-      dob: formData.dob,
-      age: formData.age,
-      bloodGroup: formData.bloodGroup,
-      maritalStatus: formData.maritalStatus,
-      aadhaar: formData.aadhaar,
-      pan: formData.pan,
-      occupation: formData.occupation,
-      nationality: formData.nationality,
+      facility_id: "00000000-0000-0000-0000-000000000000",
+
+      // Basic Info
+      first_name: formData.firstName,
+      middle_name: formData.middleName || undefined,
+      last_name: formData.lastName || undefined,
+      gender: normalizeGender(formData.gender),
+      date_of_birth: formData.dob || undefined,
+      age: formData.age || undefined,
+      blood_group: formData.bloodGroup || undefined,
+      marital_status: formData.maritalStatus || undefined,
+      occupation: formData.occupation || undefined,
+      nationality: normalizeCountryCode(formData.nationality, "IN"),
+
+      // Contact Info
       phone: formData.mobile,
-      mobile1: formData.mobile,
-      mobile2: formData.altMobile,
-      email: formData.email,
-      landline: formData.landline,
-      address: `${formData.address1}${formData.address2 ? ", " + formData.address2 : ""}`,
-      city: formData.city,
-      state: formData.state,
-      pincode: formData.pincode,
-      country: formData.country,
-      emergencyName: formData.emgName,
-      emergencyPhone: formData.emgNumber,
-      emergencyRelation: formData.emgRelation,
-      referredBy: formData.referredBy,
-      department: formData.department,
-      visitType: formData.visitType,
-      paymentType: formData.paymentType,
-      healthInsurance: formData.healthInsurance,
-      insuranceProvider: formData.insuranceProvider,
-      insuranceNumber: formData.insuranceNumber,
-      regDate: new Date().toISOString().split("T")[0],
-      category: "Registered",
-      status: "Active",
+      alternate_phone: formData.altMobile || undefined,
+      email: formData.email || undefined,
+      landline: formData.landline || undefined,
+
+      // Address
+      address_line1: `${formData.address1}${formData.address2 ? ", " + formData.address2 : ""}`,
+      city: formData.city || undefined,
+      state: formData.state || undefined,
+      postal_code: formData.pincode || undefined,
+      country: normalizeCountryCode(formData.country, "IN"),
+
+      // Identifiers
+      aadhaar_number: formData.aadhaar || undefined,
+      pan_number: formData.pan || undefined,
+
+      // Emergency Contact
+      emergency_name: formData.emgName || undefined,
+      emergency_phone: formData.emgNumber || undefined,
+      emergency_relation: formData.emgRelation || undefined,
+
+      // Visit / OPD Details (To be handled by OPD service if needed)
+      referred_by: formData.referredBy || undefined,
+      department: formData.department || undefined,
+      visit_type: formData.visitType || undefined,
+      payment_type: formData.paymentType || undefined,
+
+      // Insurance
+      health_insurance: formData.healthInsurance || undefined,
+      insurance_provider: formData.insuranceProvider || undefined,
+      insurance_number: formData.insuranceNumber || undefined
     };
   };
 
@@ -193,54 +231,62 @@ export default function RegisterPatient() {
   };
 
   // ── Process to OPD ───────────────────────────────────────────────────────
-  const handleProcessOPD = () => {
+  const handleProcessOPD = async () => {
     if (!validate()) return;
-    const patient = mockStore.addPatient(buildPatientRecord());
-    const tokenCount = mockStore.getOPDQueue().length + 1;
-    mockStore.addOPDToken({
-      tokenNo: `T-${String(tokenCount).padStart(2, "0")}`,
-      patientName: patient.name,
-      uhid: patient.uhid,
-      doctor: formData.referredBy || "Dr. Ranju Chaurasia",
-      department: formData.department || "General Medicine",
-      status: "Waiting",
-      shift: "Day Shift",
-      type: "Normal",
-      fee: 350,
-      paymentType: formData.paymentType || "Cash",
-    });
-    showToast(`✅ ${patient.name} registered & added to OPD Queue! UHID: ${patient.uhid}`);
-    handleReset();
-    setTimeout(() => navigate("/opd/reports"), 1500);
+    try {
+      const payload = buildPatientRecord();
+      const patient = await patientService.create(payload);
+      
+      await opdService.issueToken({
+        patient_id: patient.id,
+        facility_id: "00000000-0000-0000-0000-000000000000",
+        referred_by: formData.referredBy || null,
+        visit_type: "OPD",
+        payment_type: formData.paymentType || "Cash",
+      });
+      
+      showToast(`✅ ${patient.firstName} registered & added to OPD Queue! UHID: ${patient.uhid}`);
+      handleReset();
+      setTimeout(() => navigate("/opd/reports"), 1500);
+    } catch (err) {
+      showToast("Error processing OPD: " + err.message, "error");
+    }
   };
 
   // ── Process to IPD ───────────────────────────────────────────────────────
-  const handleProcessIPD = () => {
+  const handleProcessIPD = async () => {
     if (!validate()) return;
-    const patient = mockStore.addPatient(buildPatientRecord());
-    mockStore.addIPDAdmission({
-      patientName: patient.name,
-      uhid: patient.uhid,
-      gender: patient.gender,
-      age: patient.age,
-      phone: patient.phone,
-      department: formData.department || "General Medicine",
-      referredBy: formData.referredBy || "—",
-      paymentType: formData.paymentType || "Cash",
-      healthInsurance: formData.healthInsurance,
-      insuranceProvider: formData.insuranceProvider,
-    });
-    showToast(`✅ ${patient.name} admitted to IPD! UHID: ${patient.uhid}`);
-    handleReset();
-    setTimeout(() => navigate("/ipd/bed-allotment"), 1500);
+    try {
+      const payload = buildPatientRecord();
+      const patient = await patientService.create(payload);
+      
+      await ipdService.admitPatient({
+        patient_id: patient.id,
+        facility_id: "00000000-0000-0000-0000-000000000000",
+        referred_by: formData.referredBy || null,
+        payment_type: formData.paymentType || "Cash",
+        admission_type: "Elective",
+      });
+      
+      showToast(`✅ ${patient.firstName} admitted to IPD! UHID: ${patient.uhid}`);
+      handleReset();
+      setTimeout(() => navigate("/ipd/bed-allotment"), 1500);
+    } catch (err) {
+      showToast("Error processing IPD: " + err.message, "error");
+    }
   };
 
   // ── Register Only (no OPD/IPD) ───────────────────────────────────────────
-  const handleRegisterOnly = () => {
+  const handleRegisterOnly = async () => {
     if (!validate()) return;
-    const patient = mockStore.addPatient(buildPatientRecord());
-    showToast(`🎉 Patient Registered! UHID: ${patient.uhid}`);
-    handleReset();
+    try {
+      const payload = buildPatientRecord();
+      const patient = await patientService.create(payload);
+      showToast(`🎉 Patient Registered! UHID: ${patient.uhid}`);
+      handleReset();
+    } catch (err) {
+      showToast("Error registering patient: " + err.message, "error");
+    }
   };
 
   // ─── Styles ──────────────────────────────────────────────────────────────

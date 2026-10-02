@@ -1,16 +1,45 @@
 import React, { useState, useEffect } from "react";
 import Icon from "../../../components/common/Icon.jsx";
-import { mockStore } from "../../../mock/mockStore";
+import { toast } from "react-hot-toast";
+import patientService from "../../../api/services/patientService";
 import "./PatientDirectoryTable.css";
 
 export default function PatientDirectoryTable() {
   const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterDept, setFilterDept] = useState("All");
   const [selectedPatient, setSelectedPatient] = useState(null);
 
   useEffect(() => {
-    setPatients(mockStore.getPatients());
+    const fetchPatients = async () => {
+      try {
+        setLoading(true);
+        const data = await patientService.getAll();
+        const mapped = data.map(p => {
+          const age = p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0;
+          return {
+            id: p.id,
+            uhid: p.uhid,
+            name: p.full_name,
+            age,
+            gender: p.gender ? p.gender.charAt(0).toUpperCase() + p.gender.slice(1) : "Unknown",
+            bloodGroup: p.blood_group || "—",
+            phone: p.phone,
+            registeredAt: new Date(p.created_at).toLocaleDateString(),
+            doctor: "—",
+            department: "—",
+            category: "—"
+          };
+        });
+        setPatients(mapped);
+      } catch (error) {
+        toast.error("Failed to fetch patients");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPatients();
   }, []);
 
   const departments = ["All", ...new Set(patients.map((p) => p.department).filter(Boolean))];
@@ -66,7 +95,9 @@ export default function PatientDirectoryTable() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((p) => (
+            {loading ? (
+              <tr><td colSpan="8" style={{textAlign:"center", padding:"20px"}}>Loading...</td></tr>
+            ) : filtered.map((p) => (
               <tr key={p.uhid}>
                 <td>
                   <span className="pat-dir-uhid">{p.uhid}</span>

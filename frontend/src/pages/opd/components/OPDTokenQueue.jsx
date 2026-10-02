@@ -2,53 +2,133 @@ import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import Icon from "../../../components/common/Icon.jsx";
 import Button from "../../../components/common/Button.jsx";
-import { mockStore } from "../../../mock/mockStore";
+import patientService from "../../../api/services/patientService";
+import opdService from "../../../api/services/opdService";
 import "./OPDTokenQueue.css";
 
+const statusMap = {
+  arrived: "Waiting",
+  in_progress: "In Consultation",
+  finished: "Completed"
+};
+const revStatusMap = {
+  "Waiting": "arrived",
+  "In Consultation": "in_progress",
+  "Completed": "finished"
+};
+
+const mapOpdEntry = (item) => ({
+  id: item.id,
+  tokenNo: item.custom_fields?.opd_token || item.encounter_no,
+  patientName: `${item.first_name || ""} ${item.last_name || ""}`.trim(),
+  uhid: item.uhid,
+  doctor: item.referred_by || "—",
+  department: "—",
+  chiefComplaint: item.chief_complaint,
+  time: new Date(item.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  status: statusMap[item.status] || "Waiting"
+});
+
 export default function OPDTokenQueue() {
-  const [patients, setPatients] = useState([]);
   const [opdQueue, setOpdQueue] = useState([]);
-  const [selectedPatientUhid, setSelectedPatientUhid] = useState("");
+  const [patientSearchText, setPatientSearchText] = useState("");
+  const [patientSearchResults, setPatientSearchResults] = useState([]);
+  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [patientSearchPage, setPatientSearchPage] = useState(1);
+  const [hasMorePatients, setHasMorePatients] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
+  
   const [doctor, setDoctor] = useState("Dr. Priya Deshmukh (Cardiology)");
   const [department, setDepartment] = useState("Cardiology");
   const [chiefComplaint, setChiefComplaint] = useState("");
   const [vitals, setVitals] = useState({ bp: "120/80", pulse: "72", temp: "98.4", spo2: "99" });
 
+  const fetchQueue = async () => {
+    try {
+      const data = await opdService.getQueue();
+      setOpdQueue(data.map(mapOpdEntry));
+    } catch (err) {
+      toast.error("Failed to load OPD queue");
+    }
+  };
+
   useEffect(() => {
-    setPatients(mockStore.getPatients());
-    setOpdQueue(mockStore.getOPDQueue());
+    fetchQueue();
   }, []);
 
-  const handleIssueToken = (e) => {
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (patientSearchText && !selectedPatient) {
+        setPatientSearchPage(1);
+        setIsSearching(true);
+        try {
+          const data = await patientService.getAll({ query: patientSearchText, limit: 10, page: 1 });
+          setPatientSearchResults(data);
+          setHasMorePatients(data.length === 10);
+          setShowPatientDropdown(true);
+        } catch (err) {
+          toast.error("Failed to search patients");
+        } finally {
+          setIsSearching(false);
+        }
+      } else {
+        setPatientSearchResults([]);
+        setShowPatientDropdown(false);
+      }
+    }, 300);
+    return () => clearTimeout(delayDebounceFn);
+  }, [patientSearchText, selectedPatient]);
+
+  const handleScrollPatients = async (e) => {
+    const bottom = e.target.scrollHeight - e.target.scrollTop <= e.target.clientHeight + 10;
+    if (bottom && hasMorePatients && !isSearching) {
+      setIsSearching(true);
+      const nextPage = patientSearchPage + 1;
+      try {
+        const data = await patientService.getAll({ query: patientSearchText, limit: 10, page: nextPage });
+        setPatientSearchResults(prev => [...prev, ...data]);
+        setPatientSearchPage(nextPage);
+        setHasMorePatients(data.length === 10);
+      } catch (err) {
+        toast.error("Failed to load more patients");
+      } finally {
+        setIsSearching(false);
+      }
+    }
+  };
+
+  const handleIssueToken = async (e) => {
     e.preventDefault();
-    if (!selectedPatientUhid) {
+    if (!selectedPatient) {
       toast.error("Please select a registered patient.");
       return;
     }
 
-    const patient = patients.find((p) => p.uhid === selectedPatientUhid);
-    if (!patient) return;
-
-    const newEntry = mockStore.addOPDToken({
-      patientName: patient.name,
-      uhid: patient.uhid,
-      doctor: doctor.split(" (")[0],
-      department: department,
-      chiefComplaint,
-      vitals,
-    });
-
-    setOpdQueue(mockStore.getOPDQueue());
-    toast.success(`OPD Token ${newEntry.tokenNo} Issued for ${patient.name}!`, {
-      icon: "🎫",
-    });
-
-    setChiefComplaint("");
+    try {
+      await opdService.issueToken({
+        patient_id: selectedPatient.id,
+        facility_id: "00000000-0000-0000-0000-000000000000",
+        referred_by: doctor.split(" (")[0],
+        chief_complaint: chiefComplaint
+      });
+      toast.success(`OPD Token Issued for ${selectedPatient.full_name || selectedPatient.first_name}!`, { icon: "🎫" });
+      setChiefComplaint("");
+      setSelectedPatient(null);
+      setPatientSearchText("");
+      fetchQueue();
+    } catch (err) {
+      toast.error("Failed to issue token");
+    }
   };
 
-  const handleStatusChange = (tokenNo, status) => {
-    const updated = mockStore.updateOPDStatus(tokenNo, status);
-    setOpdQueue(updated);
+  const handleStatusChange = async (id, statusLabel) => {
+    try {
+      await opdService.updateStatus(id, revStatusMap[statusLabel]);
+      fetchQueue();
+    } catch (err) {
+      toast.error("Failed to update status");
+    }
   };
 
   return (
@@ -64,21 +144,45 @@ export default function OPDTokenQueue() {
         </div>
 
         <form onSubmit={handleIssueToken} className="opd-mod-form">
-          <div className="opd-mod-group">
+          <div className="opd-mod-group" style={{ position: "relative" }}>
             <label className="opd-mod-label">Select Registered Patient *</label>
-            <select
-              className="opd-mod-select"
-              value={selectedPatientUhid}
-              onChange={(e) => setSelectedPatientUhid(e.target.value)}
+            <input
+              type="text"
+              className="opd-mod-input"
+              placeholder="Search by name, UHID, or phone..."
+              value={patientSearchText}
+              onChange={(e) => {
+                setPatientSearchText(e.target.value);
+                if (selectedPatient) setSelectedPatient(null);
+              }}
               required
-            >
-              <option value="">-- Choose Patient by Name / UHID --</option>
-              {patients.map((p) => (
-                <option key={p.uhid} value={p.uhid}>
-                  {p.name} ({p.uhid}) • Age: {p.age}Y
-                </option>
-              ))}
-            </select>
+            />
+            {showPatientDropdown && (patientSearchResults.length > 0 || isSearching) && (
+              <div 
+                style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #ccc", zIndex: 10, maxHeight: "200px", overflowY: "auto", borderRadius: "4px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}
+                onScroll={handleScrollPatients}
+              >
+                {patientSearchResults.map((p) => {
+                  const age = p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0;
+                  const name = p.full_name || `${p.first_name} ${p.last_name}`;
+                  return (
+                    <div 
+                      key={p.id} 
+                      style={{ padding: "8px 12px", cursor: "pointer", borderBottom: "1px solid #eee", fontSize: "14px" }}
+                      onClick={() => {
+                        setSelectedPatient(p);
+                        setPatientSearchText(`${name} (${p.uhid})`);
+                        setShowPatientDropdown(false);
+                      }}
+                    >
+                      <strong>{name}</strong> ({p.uhid}) • Age: {age}Y
+                    </div>
+                  );
+                })}
+                {isSearching && <div style={{ padding: "8px 12px", textAlign: "center", fontSize: "12px", color: "#666" }}>Loading...</div>}
+                {!hasMorePatients && patientSearchResults.length > 0 && <div style={{ padding: "8px 12px", textAlign: "center", fontSize: "12px", color: "#666" }}>End of results</div>}
+              </div>
+            )}
           </div>
 
           <div className="opd-mod-row">
@@ -187,7 +291,7 @@ export default function OPDTokenQueue() {
         <div className="opd-mod-queue-list">
           {opdQueue.map((item) => (
             <div
-              key={item.tokenNo}
+              key={item.id}
               className={`opd-mod-token-row ${
                 item.status === "In Consultation"
                   ? "opd-row--active"
@@ -223,7 +327,7 @@ export default function OPDTokenQueue() {
                     <button
                       type="button"
                       className="opd-call-btn"
-                      onClick={() => handleStatusChange(item.tokenNo, "In Consultation")}
+                      onClick={() => handleStatusChange(item.id, "In Consultation")}
                     >
                       Call Patient
                     </button>
@@ -232,7 +336,7 @@ export default function OPDTokenQueue() {
                     <button
                       type="button"
                       className="opd-finish-btn"
-                      onClick={() => handleStatusChange(item.tokenNo, "Completed")}
+                      onClick={() => handleStatusChange(item.id, "Completed")}
                     >
                       Finish Consultation
                     </button>

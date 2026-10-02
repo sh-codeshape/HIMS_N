@@ -34,32 +34,41 @@ export class PatientRepository {
       uhid: string;
       first_name: string;
       middle_name?: string;
-      last_name: string;
+      last_name?: string;
       gender: string;
       date_of_birth?: string;
       phone: string;
       email?: string;
       blood_group?: string;
+      marital_status?: string;
+      occupation?: string;
+      nationality?: string;
+      alternate_phone?: string;
     }
   ) {
     const query = `
       INSERT INTO patients (
         organization_id, uhid, first_name, middle_name, last_name, 
-        gender, date_of_birth, phone, email, blood_group
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        gender, date_of_birth, phone, email, blood_group,
+        marital_status, occupation, nationality, alternate_phone
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *
     `;
     const values = [
       data.organization_id,
       data.uhid,
       data.first_name,
-      data.middle_name,
-      data.last_name,
+      data.middle_name || null,
+      data.last_name || null,
       data.gender,
       data.date_of_birth || null,
       data.phone,
-      data.email,
-      data.blood_group
+      data.email || null,
+      data.blood_group || null,
+      data.marital_status || null,
+      data.occupation || null,
+      data.nationality || null,
+      data.alternate_phone || null
     ];
     const result = await client.query(query, values);
     return result.rows[0];
@@ -68,15 +77,63 @@ export class PatientRepository {
   async createPatientAddress(
     client: PoolClient,
     patient_id: string,
-    data: { address_line1?: string; city?: string; state?: string; postal_code?: string; }
+    data: { address_line1?: string; city?: string; state?: string; postal_code?: string; country?: string; }
   ) {
     if (!data.address_line1 && !data.city && !data.state) return;
+
+    const countryCode = (() => {
+      const raw = (data.country ?? 'IN').trim();
+      if (!raw) return 'IN';
+      const upper = raw.toUpperCase();
+      if (/^[A-Z]{2}$/.test(upper)) return upper;
+      const map: Record<string, string> = {
+        india: 'IN',
+        'united states': 'US',
+        'united states of america': 'US',
+        usa: 'US',
+        'united kingdom': 'GB',
+        uk: 'GB',
+        canada: 'CA',
+        australia: 'AU',
+      };
+      return map[raw.toLowerCase()] ?? 'IN';
+    })();
     
     const query = `
-      INSERT INTO patient_addresses (patient_id, address_type, address_line1, city, state, postal_code, is_primary)
-      VALUES ($1, 'home', $2, $3, $4, $5, true)
+      INSERT INTO patient_addresses (patient_id, address_type, line1, city, state, postal_code, country, is_primary)
+      VALUES ($1, 'home', $2, $3, $4, $5, $6, true)
     `;
-    await client.query(query, [patient_id, data.address_line1, data.city, data.state, data.postal_code]);
+    await client.query(query, [patient_id, data.address_line1, data.city, data.state, data.postal_code, countryCode]);
+  }
+
+  async createPatientIdentifier(
+    client: PoolClient,
+    organization_id: string,
+    patient_id: string,
+    id_type: string,
+    id_value: string
+  ) {
+    if (!id_value) return;
+    const query = `
+      INSERT INTO patient_identifiers (organization_id, patient_id, id_type, id_value)
+      VALUES ($1, $2, $3, $4)
+    `;
+    await client.query(query, [organization_id, patient_id, id_type, id_value]);
+  }
+
+  async createPatientContact(
+    client: PoolClient,
+    patient_id: string,
+    name: string,
+    relationship?: string,
+    phone?: string
+  ) {
+    if (!name) return;
+    const query = `
+      INSERT INTO patient_contacts (patient_id, name, relationship, phone, is_emergency_contact)
+      VALUES ($1, $2, $3, $4, true)
+    `;
+    await client.query(query, [patient_id, name, relationship || null, phone || null]);
   }
 
   async searchPatients(organization_id: string, params: { query?: string; phone?: string; uhid?: string; limit: number; offset: number }) {

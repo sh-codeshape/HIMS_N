@@ -11,7 +11,7 @@ const JWT_EXPIRES_IN = '24h';
 export class AuthService {
   async login(data: LoginRequest) {
     const user = await authRepository.findByUsername(data.username);
-    
+
     if (!user || !user.is_active) {
       throw new UnauthorizedError('Invalid credentials or inactive user');
     }
@@ -30,15 +30,19 @@ export class AuthService {
       { expiresIn: JWT_EXPIRES_IN }
     );
 
+    const name = user.full_name || user.username;
+    const role = user.is_superadmin ? 'super_admin' : 'admin';
+
     return {
       token,
       user: {
         id: user.id,
         username: user.username,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        organization_id: user.organization_id
-      }
+        email: user.email || user.username,
+        name,
+        role,
+        organization_id: user.organization_id,
+      },
     };
   }
 
@@ -48,15 +52,20 @@ export class AuthService {
       throw new ConflictError('Username already exists');
     }
 
+    const full_name = [data.first_name, data.last_name].filter(Boolean).join(' ').trim();
     const password_hash = await bcrypt.hash(data.password, 10);
-    
+
     let newUser;
     const client = await db.getClient();
     try {
       await client.query('BEGIN');
       newUser = await authRepository.createUser(client, {
-        ...data,
-        password_hash
+        organization_id: data.organization_id,
+        username: data.username,
+        password_hash,
+        full_name,
+        email: data.email,
+        phone: data.phone,
       });
       await client.query('COMMIT');
     } catch (error) {
@@ -69,8 +78,8 @@ export class AuthService {
     return {
       id: newUser.id,
       username: newUser.username,
-      first_name: newUser.first_name,
-      last_name: newUser.last_name
+      name: newUser.full_name,
+      role: newUser.is_superadmin ? 'super_admin' : 'admin',
     };
   }
 }

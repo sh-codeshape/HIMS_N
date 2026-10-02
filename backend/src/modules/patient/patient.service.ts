@@ -4,6 +4,99 @@ import { CreatePatientRequest, SearchPatientQuery } from './patient.schema';
 import { ConflictError, NotFoundError } from '../../shared/errors/AppError';
 import { buildUHID } from '../../shared/utils/uhid';
 
+const COUNTRY_NAME_TO_CODE: Record<string, string> = {
+  india: 'IN',
+  'united states': 'US',
+  'united states of america': 'US',
+  usa: 'US',
+  'united kingdom': 'GB',
+  uk: 'GB',
+  england: 'GB',
+  scotland: 'GB',
+  wales: 'GB',
+  ireland: 'IE',
+  canada: 'CA',
+  australia: 'AU',
+  germany: 'DE',
+  france: 'FR',
+  italy: 'IT',
+  spain: 'ES',
+  nepal: 'NP',
+  bangladesh: 'BD',
+  sri: 'LK',
+  'sri lanka': 'LK',
+  pakistan: 'PK',
+  afghanistan: 'AF',
+  china: 'CN',
+  japan: 'JP',
+  singapore: 'SG',
+  uae: 'AE',
+  'united arab emirates': 'AE',
+  saudi: 'SA',
+  'saudi arabia': 'SA',
+};
+
+export const normalizeCountryCode = (value?: string): string | undefined => {
+  if (!value) return undefined;
+
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const upper = trimmed.toUpperCase();
+  if (/^[A-Z]{2}$/.test(upper)) {
+    return upper;
+  }
+
+  const key = trimmed.toLowerCase();
+  if (COUNTRY_NAME_TO_CODE[key]) {
+    return COUNTRY_NAME_TO_CODE[key];
+  }
+
+  return undefined;
+};
+
+export const normalizeGender = (value?: string): string | undefined => {
+  if (!value) return undefined;
+
+  const normalized = value.trim().toLowerCase();
+  const mapping: Record<string, string> = {
+    m: 'male',
+    male: 'male',
+    f: 'female',
+    female: 'female',
+    other: 'other',
+    o: 'other',
+    u: 'unknown',
+    unknown: 'unknown',
+    n: 'unknown',
+  };
+
+  return mapping[normalized] ?? normalized;
+};
+
+export const normalizePatientRequest = <T extends {
+  gender?: string;
+  nationality?: string;
+  country?: string;
+  phone?: string;
+  state?: string;
+  city?: string;
+}>(data: T): T => {
+  const normalizedGender = normalizeGender(data.gender) ?? 'unknown';
+  const normalizedNationality = normalizeCountryCode(data.nationality) ?? 'IN';
+  const normalizedCountry = normalizeCountryCode(data.country) ?? 'IN';
+
+  return {
+    ...data,
+    gender: normalizedGender,
+    nationality: normalizedNationality,
+    country: normalizedCountry,
+    phone: data.phone?.trim() ?? data.phone,
+    state: data.state?.trim() || undefined,
+    city: data.city?.trim() || undefined,
+  } as T;
+};
+
 export class PatientService {
   private async generateUHID(organizationId: string): Promise<string> {
     const year = new Date().getFullYear();
@@ -12,12 +105,14 @@ export class PatientService {
   }
 
   async createPatient(organizationId: string, data: CreatePatientRequest) {
+    const normalizedData = normalizePatientRequest(data);
+
     // Identity verification (phone + name deduplication)
     const exists = await patientRepository.checkPhoneNameExists(
       organizationId, 
-      data.phone, 
-      data.first_name, 
-      data.last_name
+      normalizedData.phone ?? '', 
+      normalizedData.first_name,
+      normalizedData.last_name ?? ''
     );
 
     if (exists) {
@@ -33,23 +128,40 @@ export class PatientService {
       const newPatient = await patientRepository.createPatient(client, {
         organization_id: organizationId,
         uhid,
-        first_name: data.first_name,
-        middle_name: data.middle_name,
-        last_name: data.last_name,
-        gender: data.gender,
-        date_of_birth: data.date_of_birth,
-        phone: data.phone,
-        email: data.email,
-        blood_group: data.blood_group,
+        first_name: normalizedData.first_name,
+        middle_name: normalizedData.middle_name,
+        last_name: normalizedData.last_name,
+        gender: normalizeGender(normalizedData.gender) ?? 'unknown',
+        date_of_birth: normalizedData.date_of_birth,
+        phone: normalizedData.phone ?? '',
+        email: normalizedData.email,
+        blood_group: normalizedData.blood_group,
+        marital_status: normalizedData.marital_status,
+        occupation: normalizedData.occupation,
+        nationality: normalizeCountryCode(normalizedData.nationality) ?? 'IN',
+        alternate_phone: normalizedData.alternate_phone
       });
 
-      if (data.address_line1 || data.city || data.state) {
+      if (normalizedData.address_line1 || normalizedData.city || normalizedData.state) {
         await patientRepository.createPatientAddress(client, newPatient.id, {
-          address_line1: data.address_line1,
-          city: data.city,
-          state: data.state,
-          postal_code: data.postal_code,
+          address_line1: normalizedData.address_line1,
+          city: normalizedData.city,
+          state: normalizedData.state,
+          postal_code: normalizedData.postal_code,
+          country: normalizeCountryCode(normalizedData.country) ?? 'IN'
         });
+      }
+
+      if (data.aadhaar_number) {
+        await patientRepository.createPatientIdentifier(client, organizationId, newPatient.id, 'aadhaar_token', data.aadhaar_number);
+      }
+      
+      if (data.pan_number) {
+        await patientRepository.createPatientIdentifier(client, organizationId, newPatient.id, 'pan', data.pan_number);
+      }
+
+      if (data.emergency_name) {
+        await patientRepository.createPatientContact(client, newPatient.id, data.emergency_name, data.emergency_relation, data.emergency_phone);
       }
 
       await client.query('COMMIT');
