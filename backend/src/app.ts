@@ -16,12 +16,23 @@ app.use(express.json());
 
 app.use(pinoHttp({ logger }));
 
+import authRoutes from './modules/auth/auth.routes';
+import patientRoutes from './modules/patient/patient.routes';
+import { opdRoutes } from './modules/opd/opd.routes';
+import { ipdRoutes } from './modules/ipd/ipd.routes';
+import { billingRoutes } from './modules/billing/billing.routes';
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// TODO: Routes will be mounted here
+// Routes
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/patients', patientRoutes);
+app.use('/api/v1/opd', opdRoutes);
+app.use('/api/v1/ipd', ipdRoutes);
+app.use('/api/v1/billing', billingRoutes);
 
 // Global Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
