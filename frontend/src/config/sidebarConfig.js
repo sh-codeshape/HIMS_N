@@ -137,8 +137,6 @@ const sidebarConfig = [
     icon: "LuHospital",
     allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION],
     children: [
-      { label: "OPD Registration", path: "/ward/opd-registration", allowedRoles: [SUPER_ADMIN, ADMIN, RECEPTION] },
-      { label: "IPD Admission", path: "/ward/ipd-admission", allowedRoles: [SUPER_ADMIN, ADMIN, RECEPTION] },
       { label: "Floor & Bed Floor Map", path: "/ward/floor-map", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION] },
       { label: "Nursing Station Log", path: "/ward/nursing-log", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR] },
     ],

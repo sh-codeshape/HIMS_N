@@ -6,6 +6,7 @@ import {
   INITIAL_MEDICINES,
   INITIAL_LAB_TESTS,
   INITIAL_DOCTORS,
+  INITIAL_APPOINTMENTS,
 } from "./mockData";
 import { buildUHID, nextUHIDSerial } from "../utils/uhid";
 
@@ -18,6 +19,7 @@ const KEYS = {
   LAB_TESTS: "hims_mock_lab_tests",
   DOCTORS: "hims_mock_doctors",
   IPD_ADMISSIONS: "hims_mock_ipd_admissions",
+  APPOINTMENTS: "hims_mock_appointments",
 };
 
 function getStored(key, defaultData) {
@@ -203,4 +205,15 @@ export const mockStore = {
 
   // ── Doctors ───────────────────────────────────────────────────────────────
   getDoctors: () => getStored(KEYS.DOCTORS, INITIAL_DOCTORS),
+
+  // ── Appointments ──────────────────────────────────────────────────────────
+  getAppointments: () => getStored(KEYS.APPOINTMENTS, INITIAL_APPOINTMENTS),
+  updateAppointmentStatus: (id, status) => {
+    const list = getStored(KEYS.APPOINTMENTS, INITIAL_APPOINTMENTS);
+    const updated = list.map((item) =>
+      item.id === id ? { ...item, status } : item
+    );
+    setStored(KEYS.APPOINTMENTS, updated);
+    return updated;
+  },
 };

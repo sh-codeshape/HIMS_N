@@ -225,3 +225,13 @@ export const INITIAL_DOCTORS = [
   { id: "DOC-4", name: "Dr. Meenakshi Iyer", department: "Obstetrics & Gynecology", opdRoom: "OPD-104", timing: "11:00 AM - 05:00 PM", status: "In OT", patientsWaiting: 3 },
   { id: "DOC-5", name: "Dr. Arvind Saxena", department: "Pediatrics & Neonatology", opdRoom: "OPD-105", timing: "09:00 AM - 01:00 PM", status: "Available", patientsWaiting: 5 },
 ];
+
+export const INITIAL_APPOINTMENTS = [
+  { id: "APT-101", patientName: "Aarav Gupta", phone: "+91 98765 43210", uhid: "HIMS-2026-00481", patientType: "OPD", category: "OPD", doctor: "Dr. Sadhana Chaurasiya", date: "2026-10-01", token: "T-01", status: "Confirmed" },
+  { id: "APT-102", patientName: "Sunita Verma", phone: "+91 98123 76543", uhid: "HIMS-2026-00482", patientType: "IPD", category: "IPD", doctor: "Dr. Anand Prakash Tiwari", date: "2026-10-01", token: "T-02", status: "Pending" },
+  { id: "APT-103", patientName: "Mohammad Farooq", phone: "+91 97890 12345", uhid: "HIMS-2026-00483", patientType: "OPD", category: "OPD", doctor: "Dr. Akhilesh Kumar Singh", date: "2026-10-01", token: "T-03", status: "Completed" },
+  { id: "APT-104", patientName: "Kavita Meena", phone: "+91 94140 98765", uhid: "HIMS-2026-00484", patientType: "IPD", category: "IPD", doctor: "Dr. Meenakshi Iyer", date: "2026-10-01", token: "T-04", status: "Confirmed" },
+  { id: "APT-105", patientName: "Rohan Bhatia", phone: "+91 99280 44332", uhid: "HIMS-2026-00485", patientType: "OPD", category: "OPD", doctor: "Dr. Sadhana Chaurasiya", date: "2026-10-01", token: "T-05", status: "Cancelled" },
+  { id: "APT-106", patientName: "Gurpreet Singh", phone: "+91 96541 22334", uhid: "HIMS-2026-00486", patientType: "IPD", category: "IPD", doctor: "Dr. Anand Prakash Tiwari", date: "2026-10-01", token: "T-06", status: "Pending" },
+];
+
