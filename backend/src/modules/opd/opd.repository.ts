@@ -55,11 +55,27 @@ export class OpdRepository {
         AND DATE(started_at) = CURRENT_DATE
     `;
     const result = await db.query(query, [facilityId, practitionerId || null]);
+    const nextTokenNum = result.rows[0].next_token;
+
+    let doctorCode = 'GEN';
+    if (practitionerId) {
+      const codeQuery = `
+        SELECT s.staff_code 
+        FROM practitioners p 
+        JOIN staff s ON p.staff_id = s.id 
+        WHERE p.id = $1
+      `;
+      const codeResult = await db.query(codeQuery, [practitionerId]);
+      if (codeResult.rows.length > 0 && codeResult.rows[0].staff_code) {
+        doctorCode = codeResult.rows[0].staff_code;
+      }
+    }
+
     const now = new Date();
     const dd = String(now.getDate()).padStart(2, '0');
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const yy = String(now.getFullYear()).slice(-2);
-    return `T-${dd}${mm}${yy}-${String(result.rows[0].next_token).padStart(2, '0')}`;
+    return `T-${dd}${mm}${yy}-${doctorCode}-${String(nextTokenNum).padStart(2, '0')}`;
   }
 
   async getQueue(facilityId: string, practitionerId?: string, date?: string) {

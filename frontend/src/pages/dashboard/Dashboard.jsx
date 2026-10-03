@@ -5,6 +5,10 @@ import { ROLE_LABELS } from "../../auth/roles";
 import PageContainer from "../../components/common/PageContainer.jsx";
 import Icon from "../../components/common/Icon.jsx";
 import { mockStore } from "../../mock/mockStore";
+import patientService from "../../api/services/patientService";
+import opdService from "../../api/services/opdService";
+import ipdService from "../../api/services/ipdService";
+import { isMockMode } from "../../config/appConfig";
 import "./Dashboard.css";
 
 export default function Dashboard() {
@@ -18,11 +22,53 @@ export default function Dashboard() {
   const [doctors, setDoctors] = useState([]);
 
   useEffect(() => {
-    setPatients(mockStore.getPatients());
-    setOpdQueue(mockStore.getOPDQueue());
-    setBeds(mockStore.getBeds());
-    setInvoices(mockStore.getInvoices());
-    setDoctors(mockStore.getDoctors());
+    const loadDashboardData = async () => {
+      if (isMockMode()) {
+        setPatients(mockStore.getPatients());
+        setOpdQueue(mockStore.getOPDQueue());
+        setBeds(mockStore.getBeds());
+        setInvoices(mockStore.getInvoices());
+        setDoctors(mockStore.getDoctors());
+        return;
+      }
+
+      try {
+        const [patientList, queueList, bedList] = await Promise.all([
+          patientService.getAll(),
+          opdService.getQueue(),
+          ipdService.getBedMatrix(),
+        ]);
+
+        setPatients(patientList || []);
+        setOpdQueue((queueList || []).map((item) => ({
+          tokenNo: item.tokenNo || item.token_no || item.id || "—",
+          patientName: item.patientName || item.patient_name || item.full_name || `${item.first_name || ""} ${item.last_name || ""}`.trim() || "Patient",
+          uhid: item.uhid || "—",
+          doctor: item.doctor || item.referred_by || "—",
+          department: item.department || "General Medicine",
+          time: item.time || new Date(item.created_at || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          status: item.status || "Waiting",
+        })));
+        setBeds((bedList || []).map((bed) => ({
+          id: bed.id,
+          bedNo: bed.bed_no || bed.bedNo || "—",
+          ward: bed.ward_name || bed.ward || "General",
+          room: bed.room_name || bed.room || "General",
+          status: bed.current_status || bed.status || "Available",
+        })));
+        setInvoices([]);
+        setDoctors([]);
+      } catch (err) {
+        console.error("Dashboard live data load failed:", err);
+        setPatients([]);
+        setOpdQueue([]);
+        setBeds([]);
+        setInvoices([]);
+        setDoctors([]);
+      }
+    };
+
+    loadDashboardData();
   }, []);
 
   const totalBeds = beds.length;

@@ -1,20 +1,18 @@
-export const UHID_PREFIX = "HIMS";
-export const UHID_SERIAL_LENGTH = 5;
+export const UHID_SERIAL_LENGTH = 4;
 
 export const buildUHID = (
-  year = new Date().getFullYear(),
-  serial = 1,
-  prefix = UHID_PREFIX,
+  date = new Date(),
+  serial = 1
 ) => {
-  if (!Number.isInteger(year) || year < 2000 || year > 9999) {
-    throw new RangeError("UHID year must be an integer between 2000 and 9999.");
+  const month = date.getMonth() + 1;
+  const yearSuffix = date.getFullYear() % 100;
+
+  if (!Number.isInteger(serial) || serial < 1 || serial > 9999) {
+    throw new RangeError("UHID serial must be an integer between 1 and 9999.");
   }
 
-  if (!Number.isInteger(serial) || serial < 1 || serial > 99999) {
-    throw new RangeError("UHID serial must be an integer between 1 and 99999.");
-  }
-
-  return `${prefix}-${year}-${String(serial).padStart(UHID_SERIAL_LENGTH, "0")}`;
+  const mmyy = `${String(month).padStart(2, '0')}${String(yearSuffix).padStart(2, '0')}`;
+  return `${mmyy}-${String(serial).padStart(UHID_SERIAL_LENGTH, "0")}`;
 };
 
 export const nextUHIDSerial = (currentSerial = 0) => {

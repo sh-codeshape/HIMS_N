@@ -33,7 +33,7 @@ const exportToExcel = (rows, showToast) => {
   const data = rows.map(p => [
     p.registeredAt?.split(" ")[0] || p.regDate || "",
     p.uhid || "",
-    p.name || `${p.firstName || ""} ${p.lastName || ""}`.trim(),
+    p.name || `${p.firstName || p.first_name || ""} ${p.lastName || p.last_name || ""}`.trim(),
     p.gender || "",
     p.age || p.ageYrs || "",
     p.bloodGroup || "",
@@ -107,7 +107,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
       (p.name || "").toLowerCase().includes(q) ||
       (p.uhid || "").toLowerCase().includes(q) ||
       (p.phone || p.mobile1 || "").includes(q) ||
-      (`${p.firstName || ""} ${p.lastName || ""}`).toLowerCase().includes(q);
+      (`${p.firstName || p.first_name || ""} ${p.lastName || p.last_name || ""}`).toLowerCase().includes(q);
     const matchCat  = catFilter === "All" || p.category === catFilter;
     const matchStat = statusFilter === "All" || p.status === statusFilter;
     return matchQ && matchCat && matchStat;
@@ -122,7 +122,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
     if (!canEdit) { showToast("🔒 Edit requires Reception or Admin role.", "warn"); return; }
     setEditP(p);
     setEditForm({
-      name: p.name || `${p.firstName || ""} ${p.lastName || ""}`.trim(),
+      name: p.name || `${p.firstName || p.first_name || ""} ${p.lastName || p.last_name || ""}`.trim(),
       gender: p.gender || "Male",
       age: p.age || p.ageYrs || "",
       bloodGroup: p.bloodGroup || "",
@@ -257,7 +257,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
               ) : paginated.map((p, i) => {
                 const st = getStatus(p.status);
                 const isCancelled = p.status === "Cancelled";
-                const fullName = p.name || `${p.firstName || ""} ${p.middleName ? p.middleName + " " : ""}${p.lastName || ""}`.trim();
+                const fullName = p.name || p.full_name || `${p.firstName || p.first_name || ""} ${p.middleName || p.middle_name ? (p.middleName || p.middle_name) + " " : ""}${p.lastName || p.last_name || ""}`.trim();
                 const regDate  = p.registeredAt?.split(" ")[0] || p.regDate || "—";
 
                 return (
@@ -383,7 +383,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
 
       {/* ─── VIEW MODAL (Hospital Registration Form in Table Format) ─── */}
       {viewP && (() => {
-        const vFullName = viewP.name || `${viewP.firstName || ""} ${viewP.lastName || ""}`.trim() || "Patient";
+        const vFullName = viewP.name || viewP.full_name || `${viewP.firstName || viewP.first_name || ""} ${viewP.lastName || viewP.last_name || ""}`.trim() || "Patient";
 
         return (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 print:p-0 print:bg-white"

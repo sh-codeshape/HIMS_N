@@ -9,6 +9,11 @@ export default function IPDAdmissionView() {
   const [patients, setPatients] = useState([]);
   const [beds, setBeds] = useState([]);
   const [selectedUhid, setSelectedUhid] = useState("");
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [patientSearchText, setPatientSearchText] = useState("");
+  const [patientSearchResults, setPatientSearchResults] = useState([]);
+  const [showPatientSearch, setShowPatientSearch] = useState(false);
+  const [isSearchingPatients, setIsSearchingPatients] = useState(false);
   const [selectedBed, setSelectedBed] = useState("");
   const [doctor, setDoctor] = useState("Dr. Rajesh Sharma");
   const [admitReason, setAdmitReason] = useState("");
@@ -20,16 +25,16 @@ export default function IPDAdmissionView() {
           patientService.search(),
           ipdService.getBedMatrix()
         ]);
-        
+
         const mappedPatients = patientsData.map(p => ({
           id: p.id,
           uhid: p.uhid,
-          name: p.full_name || `${p.first_name} ${p.last_name}`,
-          age: p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0,
+          name: p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Patient",
+          age: p.age ?? (p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0),
           gender: p.gender,
           bloodGroup: p.blood_group || "Unknown"
         }));
-        
+
         const mappedBeds = bedsData.map(b => ({
           id: b.id,
           bedNo: b.bed_no,
@@ -47,6 +52,30 @@ export default function IPDAdmissionView() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      const q = patientSearchText.trim();
+      if (!q) {
+        setPatientSearchResults([]);
+        setShowPatientSearch(false);
+        return;
+      }
+
+      try {
+        setIsSearchingPatients(true);
+        const results = await patientService.search({ query: q });
+        setPatientSearchResults(results.slice(0, 8));
+        setShowPatientSearch(true);
+      } catch (err) {
+        setPatientSearchResults([]);
+      } finally {
+        setIsSearchingPatients(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [patientSearchText]);
+
   const availableBeds = beds.filter((b) => b.status === "Available");
 
   const handleAdmit = async (e) => {
@@ -56,7 +85,7 @@ export default function IPDAdmissionView() {
       return;
     }
 
-    const patient = patients.find((p) => p.uhid === selectedUhid);
+    const patient = patients.find((p) => p.uhid === selectedUhid) || selectedPatient;
     const bed = beds.find((b) => b.id === selectedBed);
 
     try {
@@ -65,14 +94,16 @@ export default function IPDAdmissionView() {
         bed_id: bed.id,
         facility_id: "00000000-0000-0000-0000-000000000000",
         department_id: null,
-        primary_practitioner_id: null,
-        admission_type: "routine",
-        admission_reason: admitReason
+        admitting_practitioner_id: null,
+        admission_type: "elective",
+        reason_for_admission: admitReason
       });
 
       setBeds(prev => prev.map(b => b.id === bed.id ? { ...b, status: "Occupied" } : b));
       toast.success(`IPD Admission created for ${patient.name} on ${bed.bedNo}!`, { icon: "🏥" });
       setSelectedUhid("");
+      setSelectedPatient(null);
+      setPatientSearchText("");
       setSelectedBed("");
       setAdmitReason("");
     } catch (err) {
@@ -91,23 +122,53 @@ export default function IPDAdmissionView() {
       </div>
 
       <form onSubmit={handleAdmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div>
+        <div style={{ position: "relative" }}>
           <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 6 }}>
-            Select Registered Patient *
+            Search Registered Patient *
           </label>
-          <select
+          <input
+            type="text"
+            value={patientSearchText}
+            placeholder="Type patient name, UHID, or phone..."
+            onChange={(e) => {
+              setPatientSearchText(e.target.value);
+              if (selectedPatient) setSelectedPatient(null);
+              setSelectedUhid("");
+            }}
             style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13.5 }}
-            value={selectedUhid}
-            onChange={(e) => setSelectedUhid(e.target.value)}
             required
-          >
-            <option value="">-- Choose Patient by Name / UHID --</option>
-            {patients.map((p) => (
-              <option key={p.uhid} value={p.uhid}>
-                {p.name} ({p.uhid}) • {p.bloodGroup} • Age: {p.age}Y
-              </option>
-            ))}
-          </select>
+          />
+          {selectedPatient && (
+            <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 8, background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1d4ed8", fontSize: 13 }}>
+              Selected: <strong>{selectedPatient.name}</strong> ({selectedPatient.uhid})
+            </div>
+          )}
+          {showPatientSearch && (
+            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #cbd5e1", borderRadius: 8, zIndex: 10, boxShadow: "0 8px 20px rgba(15,23,42,0.08)", maxHeight: 220, overflowY: "auto", marginTop: 6 }}>
+              {isSearchingPatients ? <div style={{ padding: "8px 12px", color: "#64748b", fontSize: 12 }}>Searching...</div> : patientSearchResults.length > 0 ? patientSearchResults.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => {
+                    const patientEntry = {
+                      id: p.id,
+                      uhid: p.uhid,
+                      name: p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Patient",
+                      age: p.age ?? (p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0),
+                      gender: p.gender,
+                      bloodGroup: p.blood_group || "Unknown"
+                    };
+                    setSelectedPatient(patientEntry);
+                    setSelectedUhid(p.uhid);
+                    setPatientSearchText(`${patientEntry.name} (${p.uhid})`);
+                    setShowPatientSearch(false);
+                  }}
+                  style={{ padding: "8px 12px", cursor: "pointer", borderBottom: "1px solid #eef2f7", fontSize: 13 }}
+                >
+                  <strong>{p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Patient"}</strong> ({p.uhid}) • {p.blood_group || "Unknown"} • Age: {p.age ?? (p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0)}Y
+                </div>
+              )) : <div style={{ padding: "8px 12px", color: "#64748b", fontSize: 12 }}>No patient found</div>}
+            </div>
+          )}
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>

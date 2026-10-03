@@ -74,6 +74,31 @@ export const normalizeGender = (value?: string): string | undefined => {
   return mapping[normalized] ?? normalized;
 };
 
+export const getPatientAge = (dateOfBirth?: string | Date | null): number | null => {
+  if (!dateOfBirth) return null;
+
+  const dob = new Date(dateOfBirth);
+  if (Number.isNaN(dob.getTime())) return null;
+
+  const diffMs = Date.now() - dob.getTime();
+  if (diffMs < 0) return 0;
+
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24 * 365.25));
+};
+
+export const deriveDateOfBirthFromAge = (age?: string | number | null): string | undefined => {
+  if (age === undefined || age === null || age === '') return undefined;
+
+  const parsedAge = Number(age);
+  if (!Number.isFinite(parsedAge) || parsedAge < 0 || parsedAge > 120) {
+    return undefined;
+  }
+
+  const dob = new Date();
+  dob.setFullYear(dob.getFullYear() - parsedAge);
+  return dob.toISOString().split('T')[0];
+};
+
 export const normalizePatientRequest = <T extends {
   gender?: string;
   nationality?: string;
@@ -81,10 +106,13 @@ export const normalizePatientRequest = <T extends {
   phone?: string;
   state?: string;
   city?: string;
+  date_of_birth?: string;
+  age?: string | number;
 }>(data: T): T => {
   const normalizedGender = normalizeGender(data.gender) ?? 'unknown';
   const normalizedNationality = normalizeCountryCode(data.nationality) ?? 'IN';
   const normalizedCountry = normalizeCountryCode(data.country) ?? 'IN';
+  const normalizedDob = data.date_of_birth || deriveDateOfBirthFromAge(data.age);
 
   return {
     ...data,
@@ -94,14 +122,19 @@ export const normalizePatientRequest = <T extends {
     phone: data.phone?.trim() ?? data.phone,
     state: data.state?.trim() || undefined,
     city: data.city?.trim() || undefined,
+    date_of_birth: normalizedDob,
+    age: data.age ?? (normalizedDob ? String(getPatientAge(normalizedDob) ?? '') : undefined),
   } as T;
 };
 
 export class PatientService {
   private async generateUHID(organizationId: string): Promise<string> {
-    const year = new Date().getFullYear();
-    const nextSerial = await patientRepository.getNextUHIDSerial(organizationId, year);
-    return buildUHID(year, nextSerial);
+    const date = new Date();
+    const month = date.getMonth() + 1;
+    const yearSuffix = date.getFullYear() % 100;
+    const mmyy = `${String(month).padStart(2, '0')}${String(yearSuffix).padStart(2, '0')}`;
+    const nextSerial = await patientRepository.getNextUHIDSerial(organizationId, mmyy);
+    return buildUHID(date, nextSerial);
   }
 
   async createPatient(organizationId: string, data: CreatePatientRequest) {
@@ -142,6 +175,9 @@ export class PatientService {
         alternate_phone: normalizedData.alternate_phone
       });
 
+      const patientAge = getPatientAge(newPatient.date_of_birth);
+      const patientName = newPatient.full_name || [newPatient.first_name, newPatient.middle_name, newPatient.last_name].filter(Boolean).join(' ').trim();
+
       if (normalizedData.address_line1 || normalizedData.city || normalizedData.state) {
         await patientRepository.createPatientAddress(client, newPatient.id, {
           address_line1: normalizedData.address_line1,
@@ -165,7 +201,11 @@ export class PatientService {
       }
 
       await client.query('COMMIT');
-      return newPatient;
+      return {
+        ...newPatient,
+        age: patientAge,
+        full_name: patientName,
+      };
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;

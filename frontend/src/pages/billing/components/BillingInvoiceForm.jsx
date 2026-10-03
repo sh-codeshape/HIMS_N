@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import Icon from "../../../components/common/Icon.jsx";
 import Button from "../../../components/common/Button.jsx";
 import patientService from "../../../api/services/patientService";
 import billingInvoicesService from "../../../api/services/billingInvoicesService";
+import opdService from "../../../api/services/opdService";
 import "./BillingInvoiceForm.css";
 
 const STANDARD_SERVICES = [
@@ -22,6 +23,14 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
   const [patients, setPatients] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [selectedUhid, setSelectedUhid] = useState("");
+  const [selectedPatient, setSelectedPatient] = useState(null);
+
+  // Search states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchContainerRef = useRef(null);
+  const searchInputRef = useRef(null);
+
   const [billItems, setBillItems] = useState([
     { id: 1, name: `${billingType} Consultation & Services`, qty: 1, price: 800 },
   ]);
@@ -32,25 +41,52 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [patientsData, invoicesData] = await Promise.all([
+        const [patientsData, invoicesData, opdQueueData] = await Promise.all([
           patientService.search(),
-          billingInvoicesService.getAll()
+          billingInvoicesService.getAll(),
+          opdService.getQueue().catch(() => [])
         ]);
         
-        const mappedPatients = patientsData.map(p => ({
-          id: p.id,
-          uhid: p.uhid,
-          name: p.full_name || `${p.first_name} ${p.last_name}`,
-          phone: p.phone,
-          age: p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0,
-          gender: p.gender
-        }));
-        
-        const mappedInvoices = invoicesData.map(inv => ({
+        // Map OPD queue to get today's tokens
+        const tokenMap = {};
+        (opdQueueData || []).forEach((item) => {
+          let custom = item.custom_fields;
+          if (typeof custom === "string") {
+            try { custom = JSON.parse(custom); } catch (e) {}
+          }
+          const tokenNo = custom?.opd_token || custom?.token_number || item.encounter_no || item.tokenNo || "";
+          if (tokenNo) {
+            if (item.uhid) tokenMap[item.uhid] = tokenNo;
+            if (item.patient_id) tokenMap[item.patient_id] = tokenNo;
+            if (item.id) tokenMap[item.id] = tokenNo;
+          }
+        });
+
+        const mappedPatients = patientsData.map((p) => {
+          const token = tokenMap[p.uhid] || tokenMap[p.id] || p.today_token || p.opd_token || "";
+          return {
+            id: p.id,
+            uhid: p.uhid,
+            name: p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim(),
+            phone: p.phone || "—",
+            age: p.age ?? (p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0),
+            gender: p.gender || "—",
+            token: token
+          };
+        });
+
+        const patientNameMap = {};
+        mappedPatients.forEach((p) => {
+          patientNameMap[p.id] = p.name;
+          patientNameMap[p.uhid] = p.name;
+        });
+
+        const mappedInvoices = invoicesData.map((inv) => ({
           id: inv.id,
           invoiceNo: inv.invoice_no,
-          patientName: inv.patient_id, // we might need to join or map this, ideally backend returns patient name
-          service: inv.billing_type,
+          patientName: patientNameMap[inv.patient_id] || inv.patient_name || inv.patient_id || "Patient",
+          uhid: inv.uhid || "—",
+          service: inv.billing_type || "Hospital Charges",
           grossAmount: inv.total_amount,
           discount: inv.discount_amount,
           netAmount: inv.net_amount,
@@ -68,6 +104,40 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
     fetchData();
   }, []);
 
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Filter patients by Name, UHID, or Today's Token Number
+  const filteredPatients = patients.filter((p) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    const paddedQ = q.padStart(2, "0");
+    
+    const nameMatch = p.name.toLowerCase().includes(q);
+    const uhidMatch = p.uhid.toLowerCase().includes(q);
+    const phoneMatch = p.phone.includes(q);
+    
+    const tokenLower = (p.token || "").toLowerCase();
+    const tokenMatch = Boolean(
+      tokenLower && (
+        tokenLower.includes(q) ||
+        tokenLower.includes(paddedQ) ||
+        tokenLower.endsWith(`-${q}`) ||
+        tokenLower.endsWith(`-${paddedQ}`)
+      )
+    );
+
+    return nameMatch || uhidMatch || phoneMatch || tokenMatch;
+  });
+
   const handleAddItem = (service) => {
     setBillItems([
       ...billItems,
@@ -84,8 +154,8 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
 
   const handleGenerateBill = async (e) => {
     e.preventDefault();
-    if (!selectedUhid) {
-      toast.error("Please select a patient to bill.");
+    if (!selectedUhid || !selectedPatient) {
+      toast.error("Please search and select a patient to bill.");
       return;
     }
     if (billItems.length === 0) {
@@ -93,19 +163,19 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
       return;
     }
 
-    const patient = patients.find((p) => p.uhid === selectedUhid);
+    const patient = selectedPatient;
     
     try {
       const payload = {
         patient_id: patient.id,
         facility_id: "00000000-0000-0000-0000-000000000000",
-        billing_type: billingType.toLowerCase(),
-        items: billItems.map(item => ({
-          item_name: item.name,
-          quantity: item.qty,
-          unit_price: item.price
+        invoice_type: billingType.toLowerCase(),
+        items: billItems.map((item) => ({
+          name: item.name,
+          qty: item.qty,
+          price: item.price
         })),
-        discount_amount: Number(discount),
+        discount_total: Number(discount),
         payment_mode: paymentMode.toLowerCase().includes("upi") ? "upi" : 
                       paymentMode.toLowerCase().includes("cash") ? "cash" : "card",
         amount_paid: netTotal
@@ -127,7 +197,7 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
         date: new Date().toLocaleDateString()
       };
   
-      setInvoices(prev => [newInv, ...prev]);
+      setInvoices((prev) => [newInv, ...prev]);
       setActiveInvoiceModal(newInv);
       toast.success(`Bill ${newInv.invoiceNo} generated successfully!`, {
         icon: "🧾",
@@ -135,6 +205,9 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
   
       setBillItems([{ id: Date.now(), name: `${billingType} Service Charge`, qty: 1, price: 800 }]);
       setDiscount(0);
+      setSelectedPatient(null);
+      setSelectedUhid("");
+      setSearchQuery("");
     } catch (err) {
       toast.error("Failed to generate bill");
     }
@@ -148,26 +221,136 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
           <Icon name="LuReceipt" size={20} className="bill-mod-icon" />
           <div>
             <h3 className="bill-mod-title">New {billingType} Billing Slip</h3>
-            <p className="bill-mod-sub">Select patient and add diagnostic / consultation charges</p>
+            <p className="bill-mod-sub">Search patient by Name, UHID, or Today's Token Number</p>
           </div>
         </div>
 
         <form onSubmit={handleGenerateBill}>
           <div className="bill-mod-group">
             <label className="bill-mod-label">Select Patient *</label>
-            <select
-              className="bill-mod-select"
-              value={selectedUhid}
-              onChange={(e) => setSelectedUhid(e.target.value)}
-              required
-            >
-              <option value="">-- Choose Patient by Name / UHID --</option>
-              {patients.map((p) => (
-                <option key={p.uhid} value={p.uhid}>
-                  {p.name} ({p.uhid}) • {p.phone}
-                </option>
-              ))}
-            </select>
+
+            {selectedPatient ? (
+              <div className="bill-mod-selected-card">
+                <div className="bill-mod-selected-info">
+                  <div className="bill-mod-selected-icon">
+                    <Icon name="LuUserCheck" size={24} />
+                  </div>
+                  <div>
+                    <div className="bill-mod-selected-name">
+                      {selectedPatient.name}
+                      {selectedPatient.token && (
+                        <span className="bill-mod-token-tag">
+                          <Icon name="LuTicket" size={13} /> Token #{selectedPatient.token}
+                        </span>
+                      )}
+                    </div>
+                    <div className="bill-mod-selected-meta">
+                      <span><strong>UHID:</strong> {selectedPatient.uhid}</span>
+                      <span>•</span>
+                      <span><strong>Phone:</strong> {selectedPatient.phone}</span>
+                      {selectedPatient.age > 0 && (
+                        <>
+                          <span>•</span>
+                          <span><strong>Age/Gender:</strong> {selectedPatient.age}Y / {selectedPatient.gender}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="bill-mod-change-btn"
+                  onClick={() => {
+                    setSelectedPatient(null);
+                    setSelectedUhid("");
+                    setSearchQuery("");
+                    setTimeout(() => searchInputRef.current?.focus(), 100);
+                  }}
+                >
+                  <Icon name="LuX" size={16} /> Change Patient
+                </button>
+              </div>
+            ) : (
+              <div className="bill-mod-search-container" ref={searchContainerRef}>
+                <div className="bill-mod-search-input-wrap">
+                  <Icon name="LuSearch" size={18} className="bill-mod-search-icon" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    className="bill-mod-search-input"
+                    placeholder="Search patient by Name, UHID, or Today's Token No (e.g. T-01, 01)..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setShowDropdown(true);
+                    }}
+                    onFocus={() => setShowDropdown(true)}
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      className="bill-mod-search-clear"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setShowDropdown(false);
+                      }}
+                    >
+                      <Icon name="LuX" size={16} />
+                    </button>
+                  )}
+                </div>
+
+                {showDropdown && (
+                  <div className="bill-mod-search-results">
+                    <div className="bill-mod-search-header">
+                      <span>Matching Patients & Today's OPD Tokens ({filteredPatients.length})</span>
+                    </div>
+                    {filteredPatients.length > 0 ? (
+                      <div className="bill-mod-patient-list">
+                        {filteredPatients.slice(0, 15).map((p) => (
+                          <div
+                            key={p.uhid || p.id}
+                            className="bill-mod-patient-card"
+                            onClick={() => {
+                              setSelectedPatient(p);
+                              setSelectedUhid(p.uhid);
+                              setShowDropdown(false);
+                              setSearchQuery("");
+                            }}
+                          >
+                            <div className="bill-patient-card-left">
+                              <div className="bill-patient-card-avatar">
+                                {p.name ? p.name.charAt(0).toUpperCase() : "P"}
+                              </div>
+                              <div>
+                                <div className="bill-patient-card-name">{p.name}</div>
+                                <div className="bill-patient-card-sub">
+                                  <span className="bill-uhid-pill">{p.uhid}</span>
+                                  <span>• {p.phone}</span>
+                                  {p.age > 0 && <span>• {p.age}Y/{p.gender}</span>}
+                                </div>
+                              </div>
+                            </div>
+                            {p.token && (
+                              <div className="bill-patient-card-right">
+                                <span className="bill-mod-token-badge">
+                                  <Icon name="LuTicket" size={13} /> Token: {p.token}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bill-mod-no-results">
+                        <Icon name="LuUserX" size={20} />
+                        <span>No patient found matching "{searchQuery}"</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Quick Add Services Chips */}

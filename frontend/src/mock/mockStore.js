@@ -8,6 +8,7 @@ import {
   INITIAL_DOCTORS,
 } from "./mockData";
 import { buildUHID, nextUHIDSerial } from "../utils/uhid";
+import { isMockMode } from "../config/appConfig";
 
 const KEYS = {
   PATIENTS: "hims_mock_patients",
@@ -21,6 +22,9 @@ const KEYS = {
 };
 
 function getStored(key, defaultData) {
+  if (!isMockMode()) {
+    return [];
+  }
   try {
     const raw = localStorage.getItem(key);
     if (!raw) {
@@ -55,7 +59,7 @@ export const mockStore = {
 
     const newPatient = {
       id: `P-${Date.now().toString().slice(-5)}`,
-      uhid: buildUHID(year, nextUHIDSerial(highestSerial)),
+      uhid: buildUHID(new Date(), nextUHIDSerial(highestSerial)),
       registeredAt: new Date().toISOString().replace("T", " ").slice(0, 16),
       status: "Active",
       ...patient,

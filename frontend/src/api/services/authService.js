@@ -1,6 +1,7 @@
 import axiosInstance from "../axiosInstance";
 import { ENDPOINTS } from "../endpoints";
 import { createMockJwt, MOCK_USERS } from "../../mock/mockData";
+import { isMockMode } from "../../config/appConfig";
 
 const unwrapData = (response) => response?.data?.data ?? response?.data ?? null;
 
@@ -15,6 +16,10 @@ const authService = {
       );
       return unwrapData(res);
     } catch (err) {
+      if (!isMockMode()) {
+        throw err;
+      }
+
       console.warn(
         "Backend API unreachable or CORS error — falling back to Frontend Demo Mode:",
         err.message,

@@ -36,9 +36,6 @@ export default function PatientRegistrationForm({ onRegistered }) {
     gender: "Male",
     phone: "",
     bloodGroup: "O+",
-    category: "OPD",
-    department: "General Medicine",
-    doctor: "Dr. Priyadarshan Joshi",
     address: "",
     guardianName: "",
     emergencyContact: "",
@@ -49,15 +46,7 @@ export default function PatientRegistrationForm({ onRegistered }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if (name === "department") {
-      setForm((prev) => ({
-        ...prev,
-        department: value,
-        doctor: DOCTOR_OPTIONS[value] || "Dr. Rajesh Sharma",
-      }));
-    } else {
-      setForm((prev) => ({ ...prev, [name]: value }));
-    }
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -88,8 +77,7 @@ export default function PatientRegistrationForm({ onRegistered }) {
         age: form.age,
         gender: form.gender,
         phone: form.phone,
-        bloodGroup: form.bloodGroup,
-        department: form.department
+        bloodGroup: form.bloodGroup
       };
 
       setLastRegistered(newPatient);
@@ -106,9 +94,6 @@ export default function PatientRegistrationForm({ onRegistered }) {
         gender: "Male",
         phone: "",
         bloodGroup: "O+",
-        category: "OPD",
-        department: "General Medicine",
-        doctor: "Dr. Priyadarshan Joshi",
         address: "",
         guardianName: "",
         emergencyContact: "",
@@ -195,43 +180,6 @@ export default function PatientRegistrationForm({ onRegistered }) {
                   ))}
                 </select>
               </div>
-              <div className="pat-reg-group">
-                <label className="pat-reg-label">Intake Category</label>
-                <select
-                  name="category"
-                  value={form.category}
-                  onChange={handleChange}
-                  className="pat-reg-select"
-                >
-                  <option value="OPD">OPD Consultation</option>
-                  <option value="IPD">IPD Admission</option>
-                  <option value="Emergency">Emergency / Trauma</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="pat-reg-row">
-              <div className="pat-reg-group">
-                <label className="pat-reg-label">Department *</label>
-                <select
-                  name="department"
-                  value={form.department}
-                  onChange={handleChange}
-                  className="pat-reg-select"
-                >
-                  {DEPARTMENTS.map((dept) => (
-                    <option key={dept} value={dept}>
-                      {dept}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <Input
-                label="Consulting Doctor"
-                name="doctor"
-                value={form.doctor}
-                onChange={handleChange}
-              />
               <Input
                 label="Father / Guardian Name"
                 name="guardianName"
@@ -284,7 +232,6 @@ export default function PatientRegistrationForm({ onRegistered }) {
                 <div className="pat-card-meta">
                   <div><strong>Age/Sex:</strong> {lastRegistered.age}Y / {lastRegistered.gender}</div>
                   <div><strong>Blood:</strong> {lastRegistered.bloodGroup}</div>
-                  <div><strong>Dept:</strong> {lastRegistered.department}</div>
                   <div><strong>Mobile:</strong> {lastRegistered.phone}</div>
                 </div>
               </div>

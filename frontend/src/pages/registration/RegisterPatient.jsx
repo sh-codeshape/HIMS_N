@@ -3,11 +3,9 @@ import { useNavigate } from "react-router-dom";
 import {
   LuUserPlus, LuUser, LuPhone, LuFileText,
   LuRefreshCw, LuCircleCheck,
-  LuStethoscope, LuBed, LuSearch, LuX
+  LuSearch, LuX, LuStethoscope, LuBed
 } from "react-icons/lu";
 import patientService from "../../api/services/patientService";
-import opdService from "../../api/services/opdService";
-import ipdService from "../../api/services/ipdService";
 import "./RegisterPatient.css";
 
 const normalizeCountryCode = (value, fallback = "IN") => {
@@ -99,9 +97,9 @@ export default function RegisterPatient() {
     const q = e.target.value;
     setSearchQuery(q);
     if (q.trim().length < 1) { setSearchResults([]); setShowDropdown(false); return; }
-    
+
     try {
-      const matches = await patientService.search({ q });
+      const matches = await patientService.search({ query: q.trim() });
       setSearchResults(matches.slice(0, 8));
       setShowDropdown(true);
     } catch (err) {
@@ -111,39 +109,42 @@ export default function RegisterPatient() {
 
   // ── Auto-fill form on patient select ────────────────────────────────────
   const handleSelectPatient = (p) => {
-    const addrParts = (p.address || "").split(",");
+    const fullName = p.full_name || p.name || `${p.first_name || p.firstName || ""} ${p.last_name || p.lastName || ""}`.trim();
+    const firstName = p.first_name || p.firstName || (fullName || "").split(" ")[0] || "";
+    const lastName = p.last_name || p.lastName || (fullName || "").split(" ").slice(1).join(" ") || "";
+    const addrParts = (p.address || p.address_line1 || "").split(",");
     setFormData({
       ...INITIAL_FORM,
-      firstName:  p.firstName || (p.name || "").split(" ")[0] || "",
-      middleName: p.middleName || "",
-      lastName:   p.lastName  || (p.name || "").split(" ").slice(1).join(" ") || "",
-      gender:     p.gender    || "",
-      dob:        p.dob       || "",
-      age:        p.age       || p.ageYrs || "",
-      bloodGroup: p.bloodGroup || "",
-      maritalStatus: p.maritalStatus || "",
-      aadhaar:    p.aadhaar   || p.idNo || "",
+      firstName,
+      middleName: p.middle_name || p.middleName || "",
+      lastName,
+      gender: p.gender || "",
+      dob: p.date_of_birth || p.dob || "",
+      age: p.age || p.ageYrs || "",
+      bloodGroup: p.blood_group || p.bloodGroup || "",
+      maritalStatus: p.marital_status || p.maritalStatus || "",
+      aadhaar: p.aadhaar_number || p.aadhaar || p.idNo || "",
       occupation: p.occupation || "",
       nationality: p.nationality || "Indian",
-      mobile:     p.mobile1   || p.phone || p.mobile || "",
-      altMobile:  p.mobile2   || p.altMobile || "",
-      email:      p.email     || "",
-      address1:   addrParts[0]?.trim() || p.address || "",
-      address2:   addrParts[1]?.trim() || "",
-      city:       p.city      || "",
-      state:      p.state     || "",
-      pincode:    p.pin       || p.pincode || "",
-      country:    p.country   || "India",
-      emgName:    p.emergencyName || "",
-      emgNumber:  p.emergencyPhone || "",
-      emgRelation: p.emergencyRelation || "",
+      mobile: p.phone || p.mobile1 || p.mobile || "",
+      altMobile: p.alternate_phone || p.mobile2 || p.altMobile || "",
+      email: p.email || "",
+      address1: addrParts[0]?.trim() || p.address_line1 || p.address || "",
+      address2: addrParts[1]?.trim() || "",
+      city: p.city || "",
+      state: p.state || "",
+      pincode: p.postal_code || p.pin || p.pincode || "",
+      country: p.country || "India",
+      emgName: p.emergency_name || p.emergencyName || "",
+      emgNumber: p.emergency_phone || p.emergencyPhone || "",
+      emgRelation: p.emergency_relation || p.emergencyRelation || "",
       department: p.department || "",
-      visitType:  "OPD",
-      confirmed:  false,
+      visitType: "OPD",
+      confirmed: false,
     });
-    setSearchQuery(`${p.firstName || p.name} — ${p.mobile1 || p.phone || p.mobile} (${p.uhid})`);
+    setSearchQuery(`${fullName || "Patient"} — ${p.mobile1 || p.phone || p.mobile || "—"} (${p.uhid})`);
     setShowDropdown(false);
-    showToast(`✅ Patient loaded: ${p.firstName || p.name} (${p.uhid})`);
+    showToast(`✅ Patient loaded: ${fullName || "Patient"} (${p.uhid})`);
   };
 
   const clearSearch = () => { setSearchQuery(""); setSearchResults([]); setShowDropdown(false); };
@@ -230,60 +231,19 @@ export default function RegisterPatient() {
     return true;
   };
 
-  // ── Process to OPD ───────────────────────────────────────────────────────
-  const handleProcessOPD = async () => {
-    if (!validate()) return;
-    try {
-      const payload = buildPatientRecord();
-      const patient = await patientService.create(payload);
-      
-      await opdService.issueToken({
-        patient_id: patient.id,
-        facility_id: "00000000-0000-0000-0000-000000000000",
-        referred_by: formData.referredBy || null,
-        visit_type: "OPD",
-        payment_type: formData.paymentType || "Cash",
-      });
-      
-      showToast(`✅ ${patient.firstName} registered & added to OPD Queue! UHID: ${patient.uhid}`);
-      handleReset();
-      setTimeout(() => navigate("/opd/reports"), 1500);
-    } catch (err) {
-      showToast("Error processing OPD: " + err.message, "error");
-    }
-  };
 
-  // ── Process to IPD ───────────────────────────────────────────────────────
-  const handleProcessIPD = async () => {
-    if (!validate()) return;
-    try {
-      const payload = buildPatientRecord();
-      const patient = await patientService.create(payload);
-      
-      await ipdService.admitPatient({
-        patient_id: patient.id,
-        facility_id: "00000000-0000-0000-0000-000000000000",
-        referred_by: formData.referredBy || null,
-        payment_type: formData.paymentType || "Cash",
-        admission_type: "Elective",
-      });
-      
-      showToast(`✅ ${patient.firstName} admitted to IPD! UHID: ${patient.uhid}`);
-      handleReset();
-      setTimeout(() => navigate("/ipd/bed-allotment"), 1500);
-    } catch (err) {
-      showToast("Error processing IPD: " + err.message, "error");
-    }
-  };
 
-  // ── Register Only (no OPD/IPD) ───────────────────────────────────────────
-  const handleRegisterOnly = async () => {
+  // ── Register & Navigate ───────────────────────────────────────────
+  const handleRegisterAndNavigate = async (path) => {
     if (!validate()) return;
     try {
       const payload = buildPatientRecord();
       const patient = await patientService.create(payload);
       showToast(`🎉 Patient Registered! UHID: ${patient.uhid}`);
       handleReset();
+      if (path) {
+        setTimeout(() => navigate(path), 1000);
+      }
     } catch (err) {
       showToast("Error registering patient: " + err.message, "error");
     }
@@ -374,12 +334,12 @@ export default function RegisterPatient() {
                 onClick={() => handleSelectPatient(p)}
                 className="flex items-center gap-3 px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-slate-100 last:border-0 transition-colors">
                 <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shrink-0">
-                  {(p.firstName || p.name || "?")[0].toUpperCase()}
+                  {((p.full_name || p.name || `${p.first_name || p.firstName || ""} ${p.last_name || p.lastName || ""}`.trim()) || "?")[0]?.toUpperCase() || "?"}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-sm text-slate-800">
-                      {p.firstName ? `${p.firstName} ${p.lastName || ""}`.trim() : p.name}
+                      {p.full_name || p.name || `${p.first_name || p.firstName || ""} ${p.last_name || p.lastName || ""}`.trim() || "Patient"}
                     </span>
                     <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
                       {p.uhid}
@@ -636,17 +596,17 @@ export default function RegisterPatient() {
               <LuRefreshCw size={15} /> Reset
             </button>
 
-            <button type="button" onClick={handleProcessOPD}
+            <button type="button" onClick={() => handleRegisterAndNavigate("/opd/queue")}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-all shadow-md shadow-emerald-100 active:scale-95">
-              <LuStethoscope size={15} /> Process to OPD
+              <LuStethoscope size={15} /> Save & Process to OPD
             </button>
 
-            <button type="button" onClick={handleProcessIPD}
+            <button type="button" onClick={() => handleRegisterAndNavigate("/ipd/bed-allotment")}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-700 transition-all shadow-md shadow-rose-100 active:scale-95">
-              <LuBed size={15} /> Process to IPD
+              <LuBed size={15} /> Save & Process to IPD
             </button>
 
-            <button type="button" onClick={handleRegisterOnly}
+            <button type="button" onClick={() => handleRegisterAndNavigate(null)}
               className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95">
               <LuUserPlus size={15} /> Register Patient
             </button>

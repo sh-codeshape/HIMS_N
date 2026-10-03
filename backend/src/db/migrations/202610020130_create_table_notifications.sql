@@ -189,13 +189,13 @@ INSERT INTO permissions (code, module, description) VALUES
     ('audit.view','admin','View audit logs');
 
 ----
-Well based on my frontend analyse this and tell me if we scale how fit this schema will be :? 
-
-also i want few changes token per doctor, and uhid generation per patient should be unique with mmyy-xxxx
-
-and it will be based on what (in my previous project we used name + phone number) as we have whatsapp chatbot too so : but here we don't have one but the thing is i want that family related booking flexibility so what do you thing tell me : 
-
-Also this schema i have given mostly a direction even i lack some information in there so i want you write me proper documentation under docs/ folder and add  docs/ under gitignore okay .... now you tell me how should i proceed?
+-- Well based on my frontend analyse this and tell me if we scale how fit this schema will be :? 
+-- 
+-- also i want few changes token per doctor, and uhid generation per patient should be unique with mmyy-xxxx
+-- 
+-- and it will be based on what (in my previous project we used name + phone number) as we have whatsapp chatbot too so : but here we don't have one but the thing is i want that family related booking flexibility so what do you thing tell me : 
+-- 
+-- Also this schema i have given mostly a direction even i lack some information in there so i want you write me proper documentation under docs/ folder and add  docs/ under gitignore okay .... now you tell me how should i proceed?
 
 -- migrate:down
 -- TODO: add drop statements

@@ -145,11 +145,11 @@ export default function OPDTokenQueue() {
 
         <form onSubmit={handleIssueToken} className="opd-mod-form">
           <div className="opd-mod-group" style={{ position: "relative" }}>
-            <label className="opd-mod-label">Select Registered Patient *</label>
+            <label className="opd-mod-label">Search Registered Patient *</label>
             <input
               type="text"
               className="opd-mod-input"
-              placeholder="Search by name, UHID, or phone..."
+              placeholder="Type patient name, UHID, or phone..."
               value={patientSearchText}
               onChange={(e) => {
                 setPatientSearchText(e.target.value);
@@ -157,14 +157,19 @@ export default function OPDTokenQueue() {
               }}
               required
             />
+            {selectedPatient && (
+              <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 8, background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1d4ed8", fontSize: 13 }}>
+                Selected: <strong>{selectedPatient.full_name || `${selectedPatient.first_name || ""} ${selectedPatient.last_name || ""}`.trim() || "Patient"}</strong> ({selectedPatient.uhid})
+              </div>
+            )}
             {showPatientDropdown && (patientSearchResults.length > 0 || isSearching) && (
               <div 
                 style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #ccc", zIndex: 10, maxHeight: "200px", overflowY: "auto", borderRadius: "4px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}
                 onScroll={handleScrollPatients}
               >
                 {patientSearchResults.map((p) => {
-                  const age = p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0;
-                  const name = p.full_name || `${p.first_name} ${p.last_name}`;
+                  const age = p.age ?? (p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0);
+                  const name = p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Patient";
                   return (
                     <div 
                       key={p.id} 
@@ -175,7 +180,7 @@ export default function OPDTokenQueue() {
                         setShowPatientDropdown(false);
                       }}
                     >
-                      <strong>{name}</strong> ({p.uhid}) • Age: {age}Y
+                      <strong>{name}</strong> ({p.uhid}) • Age: {age}Y • {p.phone || "—"}
                     </div>
                   );
                 })}

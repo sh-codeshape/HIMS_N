@@ -381,3 +381,269 @@
   font-weight: 600;
   cursor: pointer;
 }
+
+/* Patient Search Input & Live Results */
+.bill-mod-search-container {
+  position: relative;
+  width: 100%;
+}
+
+.bill-mod-search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.bill-mod-search-input-wrap:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.bill-mod-search-icon {
+  position: absolute;
+  left: 12px;
+  color: #64748b;
+  pointer-events: none;
+}
+
+.bill-mod-search-input {
+  width: 100%;
+  padding: 10px 36px 10px 38px;
+  border: none;
+  background: transparent;
+  font-size: 13.5px;
+  outline: none;
+  color: #0f172a;
+}
+
+.bill-mod-search-clear {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+}
+
+.bill-mod-search-clear:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.bill-mod-search-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.15);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.bill-mod-search-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  background: #f8fafc;
+  padding: 8px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.bill-mod-patient-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.bill-mod-patient-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.bill-mod-patient-card:last-child {
+  border-bottom: none;
+}
+
+.bill-mod-patient-card:hover {
+  background: #f0f7ff;
+}
+
+.bill-patient-card-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bill-patient-card-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #e0e7ff;
+  color: #3730a3;
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.bill-patient-card-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.bill-patient-card-sub {
+  font-size: 11.5px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.bill-uhid-pill {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.bill-patient-card-right {
+  display: flex;
+  align-items: center;
+}
+
+.bill-mod-token-badge {
+  background: #fef3c7;
+  color: #b45309;
+  font-weight: 700;
+  font-size: 11.5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #fde68a;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.bill-mod-no-results {
+  padding: 20px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Selected Patient Card */
+.bill-mod-selected-card {
+  background: #f0f9ff;
+  border: 1.5px solid #bae6fd;
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bill-mod-selected-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bill-mod-selected-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #0284c7;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.bill-mod-selected-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0c4a6e;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bill-mod-token-tag {
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #fde68a;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.bill-mod-selected-meta {
+  font-size: 12px;
+  color: #0369a1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.bill-mod-change-btn {
+  background: #ffffff;
+  border: 1px solid #7dd3fc;
+  color: #0369a1;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.bill-mod-change-btn:hover {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+

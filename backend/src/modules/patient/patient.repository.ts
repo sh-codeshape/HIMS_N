@@ -2,16 +2,9 @@ import { db } from '../../config/database';
 import { PoolClient } from 'pg';
 
 export class PatientRepository {
-  async getNextUHIDSerial(organization_id: string, year: number): Promise<number> {
-    const query = `
-      SELECT COALESCE(MAX(CAST(split_part(uhid, '-', 3) AS INTEGER)), 0) + 1 AS next_serial
-      FROM patients
-      WHERE organization_id = $1
-        AND uhid LIKE $2
-    `;
-
-    const result = await db.query(query, [organization_id, `HIMS-${year}-%`]);
-    return Number(result.rows[0]?.next_serial ?? 1);
+  async getNextUHIDSerial(): Promise<number> {
+    const result = await db.query(`SELECT nextval('uhid_seq') AS next_serial`);
+    return Number(result.rows[0].next_serial);
   }
 
   async checkPhoneNameExists(organization_id: string, phone: string, first_name: string, last_name: string): Promise<boolean> {
@@ -138,7 +131,8 @@ export class PatientRepository {
 
   async searchPatients(organization_id: string, params: { query?: string; phone?: string; uhid?: string; limit: number; offset: number }) {
     let query = `
-      SELECT id, uhid, first_name, middle_name, last_name, gender, date_of_birth, phone, email
+      SELECT id, uhid, first_name, middle_name, last_name, full_name, gender, date_of_birth,
+             EXTRACT(YEAR FROM AGE(date_of_birth))::int AS age, phone, email, blood_group, created_at
       FROM patients
       WHERE organization_id = $1
     `;
@@ -170,7 +164,8 @@ export class PatientRepository {
   async getPatientById(id: string, organization_id: string) {
     const query = `
       SELECT p.*, 
-        (SELECT json_agg(a.*) FROM patient_addresses a WHERE a.patient_id = p.id) as addresses
+             EXTRACT(YEAR FROM AGE(p.date_of_birth))::int AS age,
+             (SELECT json_agg(a.*) FROM patient_addresses a WHERE a.patient_id = p.id) as addresses
       FROM patients p
       WHERE p.id = $1 AND p.organization_id = $2
     `;
