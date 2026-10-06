@@ -133,7 +133,7 @@ export class PatientService {
     const month = date.getMonth() + 1;
     const yearSuffix = date.getFullYear() % 100;
     const mmyy = `${String(month).padStart(2, '0')}${String(yearSuffix).padStart(2, '0')}`;
-    const nextSerial = await patientRepository.getNextUHIDSerial(organizationId, mmyy);
+    const nextSerial = await patientRepository.getNextUHIDSerial();
     return buildUHID(date, nextSerial);
   }
 

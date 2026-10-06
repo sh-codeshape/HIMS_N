@@ -27,6 +27,8 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
 
   // Search states
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const searchContainerRef = useRef(null);
   const searchInputRef = useRef(null);
@@ -38,32 +40,40 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
   const [paymentMode, setPaymentMode] = useState("UPI / PhonePe");
   const [activeInvoiceModal, setActiveInvoiceModal] = useState(null);
 
+  // Helper to fetch and map today's OPD tokens
+  const fetchTokenMap = async () => {
+    try {
+      const opdQueueData = await opdService.getQueue();
+      const map = {};
+      (opdQueueData || []).forEach((item) => {
+        let custom = item.custom_fields;
+        if (typeof custom === "string") {
+          try { custom = JSON.parse(custom); } catch (e) {}
+        }
+        const tokenNo = custom?.opd_token || custom?.token_number || item.encounter_no || item.tokenNo || "";
+        if (tokenNo) {
+          if (item.uhid) map[item.uhid] = tokenNo;
+          if (item.patient_id) map[item.patient_id] = tokenNo;
+          if (item.id) map[item.id] = tokenNo;
+        }
+      });
+      return map;
+    } catch (e) {
+      return {};
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [patientsData, invoicesData, opdQueueData] = await Promise.all([
+        const [patientsData, invoicesData, tMap] = await Promise.all([
           patientService.search(),
           billingInvoicesService.getAll(),
-          opdService.getQueue().catch(() => [])
+          fetchTokenMap()
         ]);
-        
-        // Map OPD queue to get today's tokens
-        const tokenMap = {};
-        (opdQueueData || []).forEach((item) => {
-          let custom = item.custom_fields;
-          if (typeof custom === "string") {
-            try { custom = JSON.parse(custom); } catch (e) {}
-          }
-          const tokenNo = custom?.opd_token || custom?.token_number || item.encounter_no || item.tokenNo || "";
-          if (tokenNo) {
-            if (item.uhid) tokenMap[item.uhid] = tokenNo;
-            if (item.patient_id) tokenMap[item.patient_id] = tokenNo;
-            if (item.id) tokenMap[item.id] = tokenNo;
-          }
-        });
 
-        const mappedPatients = patientsData.map((p) => {
-          const token = tokenMap[p.uhid] || tokenMap[p.id] || p.today_token || p.opd_token || "";
+        const mappedPatients = (patientsData || []).map((p) => {
+          const token = tMap[p.uhid] || tMap[p.id] || p.today_token || p.opd_token || "";
           return {
             id: p.id,
             uhid: p.uhid,
@@ -81,7 +91,7 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
           patientNameMap[p.uhid] = p.name;
         });
 
-        const mappedInvoices = invoicesData.map((inv) => ({
+        const mappedInvoices = (invoicesData || []).map((inv) => ({
           id: inv.id,
           invoiceNo: inv.invoice_no,
           patientName: patientNameMap[inv.patient_id] || inv.patient_name || inv.patient_id || "Patient",
@@ -96,6 +106,7 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
         }));
 
         setPatients(mappedPatients);
+        setSearchResults(mappedPatients);
         setInvoices(mappedInvoices);
       } catch (err) {
         toast.error("Failed to load billing data");
@@ -103,6 +114,73 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
     };
     fetchData();
   }, []);
+
+  // Debounced API Search on query change
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults(patients);
+      setIsSearching(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const [apiResults, currentTokenMap] = await Promise.all([
+          patientService.search({ query: searchQuery.trim() }),
+          fetchTokenMap()
+        ]);
+
+        const mappedApi = (apiResults || []).map((p) => {
+          const token = currentTokenMap[p.uhid] || currentTokenMap[p.id] || p.today_token || p.opd_token || "";
+          return {
+            id: p.id,
+            uhid: p.uhid,
+            name: p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim(),
+            phone: p.phone || "—",
+            age: p.age ?? (p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0),
+            gender: p.gender || "—",
+            token: token
+          };
+        });
+
+        // Filter local patients matching token, name, uhid, or phone as well
+        const q = searchQuery.toLowerCase().trim();
+        const paddedQ = q.padStart(2, "0");
+        const localMatches = patients.filter((p) => {
+          const nameMatch = p.name.toLowerCase().includes(q);
+          const uhidMatch = p.uhid.toLowerCase().includes(q);
+          const phoneMatch = p.phone.includes(q);
+          const tokenLower = (p.token || "").toLowerCase();
+          const tokenMatch = Boolean(
+            tokenLower && (
+              tokenLower.includes(q) ||
+              tokenLower.includes(paddedQ) ||
+              tokenLower.endsWith(`-${q}`) ||
+              tokenLower.endsWith(`-${paddedQ}`)
+            )
+          );
+          return nameMatch || uhidMatch || phoneMatch || tokenMatch;
+        });
+
+        // Merge API results and local matches, deduplicated by UHID/ID
+        const combined = [...mappedApi];
+        localMatches.forEach((lp) => {
+          if (!combined.some((ap) => ap.uhid === lp.uhid || ap.id === lp.id)) {
+            combined.push(lp);
+          }
+        });
+
+        setSearchResults(combined);
+      } catch (err) {
+        console.error("API Patient Search Error:", err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, patients]);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -114,29 +192,6 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  // Filter patients by Name, UHID, or Today's Token Number
-  const filteredPatients = patients.filter((p) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    const paddedQ = q.padStart(2, "0");
-    
-    const nameMatch = p.name.toLowerCase().includes(q);
-    const uhidMatch = p.uhid.toLowerCase().includes(q);
-    const phoneMatch = p.phone.includes(q);
-    
-    const tokenLower = (p.token || "").toLowerCase();
-    const tokenMatch = Boolean(
-      tokenLower && (
-        tokenLower.includes(q) ||
-        tokenLower.includes(paddedQ) ||
-        tokenLower.endsWith(`-${q}`) ||
-        tokenLower.endsWith(`-${paddedQ}`)
-      )
-    );
-
-    return nameMatch || uhidMatch || phoneMatch || tokenMatch;
-  });
 
   const handleAddItem = (service) => {
     setBillItems([
@@ -303,11 +358,18 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
                 {showDropdown && (
                   <div className="bill-mod-search-results">
                     <div className="bill-mod-search-header">
-                      <span>Matching Patients & Today's OPD Tokens ({filteredPatients.length})</span>
+                      <span>
+                        {isSearching ? "Searching API..." : `Matching Patients & Today's OPD Tokens (${searchResults.length})`}
+                      </span>
                     </div>
-                    {filteredPatients.length > 0 ? (
+
+                    {isSearching ? (
+                      <div className="bill-mod-no-results">
+                        <span>Searching hospital database...</span>
+                      </div>
+                    ) : searchResults.length > 0 ? (
                       <div className="bill-mod-patient-list">
-                        {filteredPatients.slice(0, 15).map((p) => (
+                        {searchResults.slice(0, 15).map((p) => (
                           <div
                             key={p.uhid || p.id}
                             className="bill-mod-patient-card"

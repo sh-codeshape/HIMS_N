@@ -30,3 +30,7 @@ docs/
 
 # Database
 schema.sql
+
+
+
+backend/package-lock.json

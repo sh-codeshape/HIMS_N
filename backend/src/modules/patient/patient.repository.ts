@@ -150,8 +150,9 @@ export class PatientRepository {
     }
     
     if (params.query) {
-      query += ` AND full_name ILIKE $${count++}`;
+      query += ` AND (full_name ILIKE $${count} OR uhid ILIKE $${count} OR phone ILIKE $${count})`;
       values.push(`%${params.query}%`);
+      count++;
     }
 
     query += ` ORDER BY created_at DESC LIMIT $${count++} OFFSET $${count}`;

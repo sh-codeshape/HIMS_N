@@ -61,7 +61,7 @@ const patientService = {
     return normalizePatientRecord(res.data?.data ?? res.data);
   },
   search: async (params = {}) => {
-    const res = await axiosInstance.get(ENDPOINTS.PATIENTS.DIRECTORY, {
+    const res = await axiosInstance.get(ENDPOINTS.PATIENTS.BASE, {
       params,
     });
     const records = res.data?.data ?? res.data ?? [];

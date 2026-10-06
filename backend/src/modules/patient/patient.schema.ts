@@ -65,7 +65,7 @@ export const getPatientSchema = z.object({
 
 export const searchPatientSchema = z.object({
   query: z.object({
-    query: z.string().min(2).optional(),
+    query: z.string().min(1).optional(),
     phone: z.string().optional(),
     uhid: z.string().optional(),
     page: z.string().regex(/^\d+$/).optional(),

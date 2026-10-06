@@ -22,7 +22,7 @@ export class OpdRepository {
         department_id,
         referred_by,
         encounter_type,
-        status,
+        status, 
         chief_complaint,
         custom_fields,
         encounter_no

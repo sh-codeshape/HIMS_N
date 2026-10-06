@@ -10,19 +10,19 @@ export class BillingController {
   }
 
   createInvoice = async (req: Request, res: Response) => {
-    const organizationId = req.user!.organizationId;
+    const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
     const result = await this.service.createInvoice(req.body, organizationId);
     sendSuccess(res, result, 'Invoice created successfully', 201);
   };
 
   listInvoices = async (req: Request, res: Response) => {
-    const facilityId = (req.user?.facilityId as string) ?? (req.query.facilityId as string) ?? '';
+    const facilityId = (req.user?.facilityId as string) || (req.query.facilityId as string) || '00000000-0000-0000-0000-000000000000';
     const invoices = await this.service.listInvoices(facilityId);
     sendSuccess(res, invoices, 'Invoices retrieved successfully');
   };
 
   getInvoice = async (req: Request, res: Response) => {
-    const facilityId = (req.user?.facilityId as string) ?? (req.query.facilityId as string) ?? '';
+    const facilityId = (req.user?.facilityId as string) || (req.query.facilityId as string) || '00000000-0000-0000-0000-000000000000';
     const id = req.params.id as string;
     const invoice = await this.service.getInvoice(id, facilityId);
     sendSuccess(res, invoice, 'Invoice retrieved successfully');
