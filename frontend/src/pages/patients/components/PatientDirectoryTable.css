@@ -1,263 +1,668 @@
-.pat-dir-mod {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 24px;
+/* Patient Directory Layout & Styles */
+.pd-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  color: #1e293b;
 }
 
-.pat-dir-header {
+/* 1. TOP FILTER CARD */
+.pd-filter-card {
+  background: #f4f8fd;
+  border: 1px solid #d0e1fd;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
+}
+
+.pd-filter-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.pd-search-block {
+  flex: 1;
+  min-width: 320px;
+}
+
+.pd-section-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e40af;
+  margin-bottom: 8px;
+}
+
+.pd-label-icon {
+  color: #2563eb;
+}
+
+.pd-search-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pd-input-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px 12px;
+  flex: 1;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.pd-search-icon {
+  color: #94a3b8;
+}
+
+.pd-input-with-icon input {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 13.5px;
+  color: #1e293b;
+}
+
+.pd-input-with-icon input::placeholder {
+  color: #94a3b8;
+}
+
+.pd-btn-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+}
+
+.pd-btn-search:hover {
+  background: #1d4ed8;
+}
+
+/* Date Range Block */
+.pd-date-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.pd-date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pd-date-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px 12px;
+  width: 150px;
+}
+
+.pd-cal-icon {
+  color: #2563eb;
+}
+
+.pd-date-input-wrap input {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 13px;
+  color: #334155;
+  background: transparent;
+}
+
+.pd-date-to {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Filter Dropdowns Row */
+.pd-filter-dropdowns {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pd-select-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 110px;
+}
+
+.pd-select-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.pd-select-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pd-select-wrapper select {
+  width: 100%;
+  appearance: none;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 7px 26px 7px 10px;
+  font-size: 13px;
+  color: #334155;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+}
+
+.pd-select-arrow {
+  position: absolute;
+  right: 8px;
+  pointer-events: none;
+  color: #64748b;
+}
+
+.pd-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.pd-btn-more-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #2563eb;
+  color: #2563eb;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pd-btn-reset {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.pd-btn-reset:hover {
+  background: #f8fafc;
+}
+
+/* 2. MAIN PATIENT DIRECTORY CARD */
+.pd-main-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Toolbar & Tabs */
+.pd-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid #f1f5f9;
   flex-wrap: wrap;
   gap: 12px;
 }
 
-.pat-dir-search {
+.pd-tabs {
   display: flex;
-  align-items: center;
   gap: 8px;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
+}
+
+.pd-tab {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  padding: 8px 16px;
   border-radius: 8px;
-  padding: 8px 14px;
-  width: 320px;
-  color: #64748b;
-}
-
-.pat-dir-search input {
-  border: none;
-  background: transparent;
-  outline: none;
-  font-size: 13.5px;
-  width: 100%;
-}
-
-.pat-dir-filters {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.pat-dir-chip {
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  color: #334155;
+  color: #475569;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.pat-dir-chip--active {
-  background: #2563eb;
-  color: #ffffff;
+.pd-tab--active {
+  background: #eff6ff;
   border-color: #2563eb;
+  color: #2563eb;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);
 }
 
-.pat-dir-table-wrap {
+.pd-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pd-btn-outline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #2563eb;
+  color: #2563eb;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pd-view-toggle {
+  display: flex;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.pd-view-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 10px;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.pd-view-btn--active {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+/* Data Table */
+.pd-table-container {
   overflow-x: auto;
 }
 
-.pat-dir-table {
+.pd-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
   font-size: 13px;
 }
 
-.pat-dir-table th {
-  background: #f8fafc;
-  color: #64748b;
-  font-weight: 600;
+.pd-table th {
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-weight: 700;
   padding: 12px 14px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #dbeafe;
+  white-space: nowrap;
 }
 
-.pat-dir-table td {
+.pd-col-cb {
+  width: 40px;
+  text-align: center;
+}
+
+.pd-col-idx {
+  width: 40px;
+  color: #64748b;
+}
+
+.pd-col-sortable {
+  cursor: pointer;
+}
+
+.pd-sort-arrow {
+  color: #93c5fd;
+  font-size: 11px;
+  margin-left: 2px;
+}
+
+.pd-table td {
   padding: 12px 14px;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
+  color: #334155;
 }
 
-.pat-dir-uhid {
-  font-weight: 700;
-  color: #1e40af;
-  background: #eff6ff;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 12px;
+.pd-row--selected {
+  background-color: #f0f9ff;
 }
 
-.pat-dir-name {
+.pd-col-uhid {
   font-weight: 600;
-  color: #0f172a;
+  color: #334155;
 }
 
-.pat-dir-meta {
-  font-size: 11.5px;
-  color: #64748b;
-}
-
-.pat-dir-pill {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.pat-dir-pill--opd {
-  background: #eff6ff;
-  color: #2563eb;
-}
-
-.pat-dir-pill--ipd {
-  background: #f5f3ff;
-  color: #7c3aed;
-}
-
-.pat-dir-pill--emergency {
-  background: #fee2e2;
-  color: #dc2626;
-}
-
-.pat-dir-vitals {
-  font-size: 11.5px;
-  color: #059669;
-  font-weight: 600;
-}
-
-.pat-dir-btn-emr {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: #eff6ff;
-  color: #2563eb;
-  border: 1px solid #bfdbfe;
-  padding: 5px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.pat-dir-btn-emr:hover {
-  background: #2563eb;
-  color: #ffffff;
-}
-
-/* Modal */
-.pat-dir-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+.pd-patient-cell {
   display: flex;
   align-items: center;
-  justify-content: center;
-  z-index: 999;
-  padding: 20px;
-}
-
-.pat-dir-modal-card {
-  background: #ffffff;
-  width: 100%;
-  max-width: 600px;
-  border-radius: 14px;
-  padding: 24px;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
-}
-
-.pat-dir-modal-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.pat-dir-modal-head h2 {
-  font-size: 18px;
-  font-weight: 800;
-  color: #0b2a5b;
-  margin: 0 0 4px;
-}
-
-.pat-dir-modal-head p {
-  font-size: 13px;
-  color: #64748b;
-  margin: 0;
-}
-
-.pat-dir-modal-close {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  color: #94a3b8;
-}
-
-.pat-dir-emr-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.pat-dir-emr-panel {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 14px;
-}
-
-.pat-dir-emr-panel h4 {
-  font-size: 13px;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0 0 10px;
-}
-
-.pat-dir-emr-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 12.5px;
-  color: #475569;
-}
-
-.pat-dir-modal-footer {
-  display: flex;
-  justify-content: flex-end;
   gap: 10px;
 }
 
-.pat-dir-btn-print {
-  display: inline-flex;
+.pd-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pd-patient-name {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pd-visit-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.pd-visit-date {
+  font-weight: 500;
+  color: #334155;
+}
+
+.pd-visit-dept {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+/* Patient Type Pills */
+.pd-pill {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 14px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.pd-pill--opd {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.pd-pill--ipd {
+  background: #f3e8ff;
+  color: #9333ea;
+}
+
+.pd-pill--emergency {
+  background: #ffe4e6;
+  color: #e11d48;
+}
+
+/* Status Badges */
+.pd-status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 14px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.pd-status--active {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.pd-status--admitted {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.pd-status--discharged {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+/* Actions Column */
+.pd-col-action {
+  text-align: center;
+  width: 100px;
+}
+
+.pd-action-icons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.pd-icon-btn {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.pd-icon-btn:hover {
+  background: #eff6ff;
+}
+
+/* Pagination Bar */
+.pd-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  border-top: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: #ffffff;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.pd-pag-info {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.pd-pag-controls {
+  display: flex;
   align-items: center;
   gap: 6px;
-  background: #2563eb;
-  color: #ffffff;
-  border: none;
-  padding: 9px 16px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 13px;
+}
+
+.pd-pag-nav {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
   cursor: pointer;
 }
 
-.pat-dir-btn-dismiss {
-  background: #f1f5f9;
+.pd-pag-nav:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pd-pag-num {
+  background: #ffffff;
   border: 1px solid #cbd5e1;
-  color: #475569;
-  padding: 9px 16px;
-  border-radius: 8px;
-  font-weight: 600;
+  border-radius: 6px;
+  padding: 4px 10px;
+  min-width: 32px;
+  height: 32px;
   font-size: 13px;
+  font-weight: 600;
+  color: #334155;
   cursor: pointer;
 }
+
+.pd-pag-num--active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+.pd-pag-dots {
+  color: #94a3b8;
+  padding: 0 4px;
+}
+
+.pd-pag-perpage select {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 13px;
+  color: #334155;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Modal Styles */
+.pd-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.pd-modal-card {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 580px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.pd-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.pd-modal-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pd-modal-user h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pd-modal-user p {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.pd-modal-close {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.pd-modal-body {
+  padding: 24px;
+}
+
+.pd-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.pd-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pd-info-item label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.pd-info-item span {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.pd-modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  background: #f8fafc;
+}
+

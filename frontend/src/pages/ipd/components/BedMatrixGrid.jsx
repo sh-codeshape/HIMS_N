@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import Icon from "../../../components/common/Icon.jsx";
 import Button from "../../../components/common/Button.jsx";
-import ipdService from "../../../api/services/ipdService";
-import patientService from "../../../api/services/patientService";
+import { mockStore } from "../../../mock/mockStore";
 import "./BedMatrixGrid.css";
 
 export default function BedMatrixGrid() {
@@ -15,59 +14,8 @@ export default function BedMatrixGrid() {
   const [assignDoctor, setAssignDoctor] = useState("Dr. Rajesh Sharma");
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [bedsData, patientsData] = await Promise.all([
-          ipdService.getBedMatrix(),
-          patientService.search()
-        ]);
-        
-        // Map backend beds to UI format
-        const mappedBeds = bedsData.map(b => ({
-          id: b.id,
-          bedNo: b.bed_no,
-          ward: b.ward_name,
-          floor: b.room_name ? `Room ${b.room_name}` : "General",
-          status: b.current_status,
-          // Since we don't have patient join in getBeds yet, we mock patient info if occupied, 
-          // or ideally fetch active admissions. For now, leave blank if not provided by backend.
-          patient: null, 
-          doctor: null,
-          admittedDate: null
-        }));
-        
-        // Let's also fetch active admissions to map patients to beds
-        try {
-          const admissions = await ipdService.getAdmissions({ status: 'admitted' });
-          admissions.forEach(adm => {
-            const bed = mappedBeds.find(b => b.id === adm.bed_id);
-            if (bed) {
-              bed.patient = `${adm.first_name} ${adm.last_name}`;
-              bed.doctor = adm.primary_practitioner_id || "Assigned Doctor";
-              bed.admittedDate = new Date(adm.admission_date).toLocaleDateString();
-              bed.status = "Occupied";
-            }
-          });
-        } catch (e) {
-          console.warn("Could not fetch active admissions to map to beds.");
-        }
-        
-        setBeds(mappedBeds);
-        
-        const mappedPatients = patientsData.map(p => ({
-          id: p.id,
-          uhid: p.uhid,
-          name: p.full_name || `${p.first_name} ${p.last_name}`,
-          age: p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0,
-          gender: p.gender,
-          bloodGroup: p.blood_group || "Unknown"
-        }));
-        setPatients(mappedPatients);
-      } catch (err) {
-        toast.error("Failed to load bed matrix data");
-      }
-    };
-    fetchData();
+    setBeds(mockStore.getBeds());
+    setPatients(mockStore.getPatients());
   }, []);
 
   const filteredBeds =
@@ -75,7 +23,7 @@ export default function BedMatrixGrid() {
       ? beds
       : beds.filter((b) => b.ward.toLowerCase().includes(filterWard.toLowerCase()));
 
-  const handleAllotBed = async (e) => {
+  const handleAllotBed = (e) => {
     e.preventDefault();
     if (!selectedBed || !assignPatientUhid) {
       toast.error("Please select a patient for bed allotment.");
@@ -83,47 +31,29 @@ export default function BedMatrixGrid() {
     }
 
     const patient = patients.find((p) => p.uhid === assignPatientUhid);
-    try {
-      await ipdService.admitPatient({
-        patient_id: patient.id,
-        bed_id: selectedBed.id,
-        facility_id: "00000000-0000-0000-0000-000000000000",
-        department_id: null,
-        primary_practitioner_id: null,
-        admission_type: "routine",
-        admission_reason: "Routine checkup/treatment"
-      });
-      
-      setBeds(prev => prev.map(b => 
-        b.id === selectedBed.id 
-          ? { ...b, status: "Occupied", patient: patient.name, doctor: assignDoctor, admittedDate: new Date().toLocaleDateString() } 
-          : b
-      ));
-      toast.success(`Bed ${selectedBed.bedNo} allotted to ${patient.name}!`, { icon: "🛏️" });
-      setSelectedBed(null);
-      setAssignPatientUhid("");
-    } catch (err) {
-      toast.error("Failed to admit patient");
-    }
+    const updated = mockStore.updateBedStatus(selectedBed.bedNo, {
+      status: "Occupied",
+      patient: `${patient.name} (${patient.age}${patient.gender?.[0] || "M"})`,
+      doctor: assignDoctor,
+      admittedDate: new Date().toISOString().slice(0, 10),
+    });
+
+    setBeds(updated);
+    toast.success(`Bed ${selectedBed.bedNo} allotted to ${patient.name}!`, { icon: "🛏️" });
+    setSelectedBed(null);
+    setAssignPatientUhid("");
   };
 
-  const handleVacateBed = async (bedNo, bedId) => {
-    try {
-      // Find the admission for this bed... ideally the backend should have a direct /beds/:id/vacate 
-      // or we just find the active admission. But since we need an admission ID to discharge, 
-      // let's just make a placeholder update for now (or call a custom endpoint if it existed).
-      // Since this is a demo, we will just optimistically clear it from UI for now, 
-      // the true fix requires fetching the active admission ID to discharge.
-      setBeds(prev => prev.map(b => 
-        b.id === bedId 
-          ? { ...b, status: "Available", patient: null, doctor: null, admittedDate: null } 
-          : b
-      ));
-      toast.success(`Bed ${bedNo} is now vacant and ready for sanitization.`, { icon: "🧹" });
-      setSelectedBed(null);
-    } catch (err) {
-      toast.error("Failed to vacate bed");
-    }
+  const handleVacateBed = (bedNo) => {
+    const updated = mockStore.updateBedStatus(bedNo, {
+      status: "Available",
+      patient: null,
+      doctor: null,
+      admittedDate: null,
+    });
+    setBeds(updated);
+    toast.success(`Bed ${bedNo} is now vacant and ready for sanitization.`, { icon: "🧹" });
+    setSelectedBed(null);
   };
 
   return (
@@ -211,7 +141,7 @@ export default function BedMatrixGrid() {
                   <button
                     type="button"
                     className="ipd-vacate-btn"
-                    onClick={() => handleVacateBed(selectedBed.bedNo, selectedBed.id)}
+                    onClick={() => handleVacateBed(selectedBed.bedNo)}
                   >
                     <Icon name="LuLogOut" size={15} /> Discharge / Vacate Bed
                   </button>
