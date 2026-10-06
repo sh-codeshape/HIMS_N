@@ -11,6 +11,14 @@ pool.on('error', (err: Error) => {
   process.exit(-1);
 });
 
+// Try to parse the database URL to log where we are connecting (hiding the password)
+try {
+  const dbUrl = new URL(config.databaseUrl);
+  logger.info(`Database connection configured for host: ${dbUrl.hostname}, database: ${dbUrl.pathname.replace('/', '')}`);
+} catch (e) {
+  logger.warn('Could not parse database URL for logging.');
+}
+
 export const query = async (text: string, params?: any[]) => {
   const start = Date.now();
   const res = await pool.query(text, params);

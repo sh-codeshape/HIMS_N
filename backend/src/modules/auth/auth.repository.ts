@@ -17,7 +17,7 @@ export class AuthRepository {
   async findByUsername(username: string): Promise<UserRecord | null> {
     const query = `
       SELECT id, organization_id, username, email, password_hash, full_name, is_active, is_superadmin
-      FROM users
+      FROM public.users
       WHERE username = $1
     `;
     const result = await db.query(query, [username]);
