@@ -1,0 +1,360 @@
+/* BedAvailability.css - Ultra-Premium Target Mockup Bed Availability Styling */
+
+.bed-avail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  background-color: #f8fafc;
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #1e293b;
+}
+
+/* Header Section */
+.bed-avail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  background: #ffffff;
+  padding: 0.75rem 1.15rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.bed-avail-header__title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.bed-avail-header__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+}
+
+.bed-avail-header__title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.bed-avail-header__subtitle {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0.1rem 0 0 0;
+}
+
+/* Filter Dropdowns Bar */
+.bed-avail-filters-bar {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.filter-dropdowns-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.filter-select-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.filter-select-label {
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.filter-select-input {
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  font-size: 0.775rem;
+  color: #334155;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Category Filter Pills Bar */
+.category-pills-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.2rem;
+}
+
+.category-pill-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  font-size: 0.775rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.category-pill-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.category-pill-btn--active {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.category-pill-count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #334155;
+  padding: 0.1rem 0.4rem;
+  border-radius: 10px;
+}
+
+.category-pill-btn--active .category-pill-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* Main Dual Column Layout */
+.bed-avail-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 0.85rem;
+}
+
+@media (max-width: 1100px) {
+  .bed-avail-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Floor Accordion Card */
+.floor-accordion-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  margin-bottom: 0.65rem;
+}
+
+.floor-accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: #ffffff;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease;
+}
+
+.floor-accordion-header:hover {
+  background: #f8fafc;
+}
+
+.floor-header-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.floor-icon-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+}
+
+.floor-name-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.floor-meta-info {
+  font-size: 0.725rem;
+  color: #64748b;
+  margin-top: 0.1rem;
+}
+
+.floor-progress-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.floor-pct-text {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.floor-progress-bar-track {
+  width: 110px;
+  height: 7px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.floor-progress-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+}
+
+/* Accordion Table */
+.floor-rooms-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.775rem;
+}
+
+.floor-rooms-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1.5px solid #e2e8f0;
+  text-align: left;
+}
+
+.floor-rooms-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+}
+
+.room-status-badge {
+  padding: 0.15rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: inline-block;
+}
+
+.room-status-badge--available { background: #dcfce7; color: #15803d; }
+.room-status-badge--almost-full { background: #fee2e2; color: #dc2626; }
+.room-status-badge--full { background: #ef4444; color: #ffffff; }
+
+.btn-view-beds {
+  background: #ffffff;
+  color: #2563eb;
+  border: 1px solid #cbd5e1;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.725rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-view-beds:hover {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+/* Quick View Department Tiles Grid */
+.quick-view-tiles-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+.quick-view-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.6rem 0.35rem;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.quick-view-tile__icon {
+  font-size: 1rem;
+}
+
+.quick-view-tile__name {
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.quick-view-tile__count {
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+/* Gender Preference Bar */
+.gender-bar-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.gender-bar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.gender-bar-track {
+  width: 100%;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.gender-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+}

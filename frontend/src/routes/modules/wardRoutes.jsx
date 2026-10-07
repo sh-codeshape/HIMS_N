@@ -6,6 +6,9 @@ import {
   WardOPDRegistration,
   WardIPDAdmission,
   FloorBedMap,
+  BedAllotment,
+  BedTransfer,
+  DischargeManagement,
   NursingStationLog,
 } from "../../pages/ward";
 
@@ -36,6 +39,33 @@ export const wardRoutes = [
     element={
       <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION]}>
         <FloorBedMap />
+      </ProtectedRoute>
+    }
+  />,
+  <Route
+    key="ward-bed-allotment"
+    path="/ward/bed-allotment"
+    element={
+      <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, RECEPTION]}>
+        <BedAllotment />
+      </ProtectedRoute>
+    }
+  />,
+  <Route
+    key="ward-bed-transfer"
+    path="/ward/bed-transfer"
+    element={
+      <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, RECEPTION]}>
+        <BedTransfer />
+      </ProtectedRoute>
+    }
+  />,
+  <Route
+    key="ward-discharge-management"
+    path="/ward/discharge-management"
+    element={
+      <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION]}>
+        <DischargeManagement />
       </ProtectedRoute>
     }
   />,
