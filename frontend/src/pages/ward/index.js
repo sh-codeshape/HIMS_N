@@ -1,4 +1,9 @@
 export { default as WardOPDRegistration } from "./WardOPDRegistration.jsx";
 export { default as WardIPDAdmission } from "./WardIPDAdmission.jsx";
 export { default as FloorBedMap } from "./FloorBedMap.jsx";
+export { default as BedAllotment } from "./BedAllotment.jsx";
+export { default as BedTransfer } from "./BedTransfer.jsx";
+export { default as BedAvailability } from "./BedAvailability.jsx";
+export { default as DischargeManagement } from "./DischargeManagement.jsx";
+export { default as DischargeSummary } from "./DischargeSummary.jsx";
 export { default as NursingStationLog } from "./NursingStationLog.jsx";

@@ -138,6 +138,10 @@ const sidebarConfig = [
     allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION],
     children: [
       { label: "Floor & Bed Floor Map", path: "/ward/floor-map", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION] },
+      { label: "Bed Allotment", path: "/ward/bed-allotment", allowedRoles: [SUPER_ADMIN, ADMIN, RECEPTION] },
+      { label: "Bed Transfer", path: "/ward/bed-transfer", allowedRoles: [SUPER_ADMIN, ADMIN, RECEPTION] },
+      { label: "Bed Availability", path: "/ward/bed-availability", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION] },
+      { label: "Discharge Management", path: "/ward/discharge-management", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION] },
       { label: "Nursing Station Log", path: "/ward/nursing-log", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR] },
     ],
   },

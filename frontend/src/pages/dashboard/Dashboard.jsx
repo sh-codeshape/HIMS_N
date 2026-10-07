@@ -173,7 +173,7 @@ export default function Dashboard() {
           </div>
           <div className="dash-header-title-box">
             <h1>Appointments (OPD & IPD)</h1>
-            <p>OPD & IPD bookings across all doctors</p>
+            <p>OPD & IPD bookings</p>
           </div>
         </div>
 

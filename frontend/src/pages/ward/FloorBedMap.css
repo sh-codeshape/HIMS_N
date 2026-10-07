@@ -1,0 +1,962 @@
+/* FloorBedMap.css - Ultra-Compact High-Density Hospital Bed & Floor Blueprint UI Styling */
+
+.floor-map-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  background-color: #f8fafc;
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #1e293b;
+}
+
+/* Header Section - Compact Hospital Grade Bar */
+.floor-map-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  background: #ffffff;
+  padding: 0.75rem 1.15rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.floor-map-header__title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.floor-map-header__icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+}
+
+.floor-map-header__title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.floor-map-header__subtitle {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0.1rem 0 0 0;
+}
+
+.floor-map-header__right-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.floor-map-header__live-status {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #f1f5f9;
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.775rem;
+  border: 1px solid #e2e8f0;
+}
+
+.floor-map-header__live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+  color: #10b981;
+}
+
+.floor-map-header__live-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+  70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.floor-map-header__last-updated {
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.floor-map-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  padding: 0.45rem 0.95rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+}
+
+.floor-map-btn-primary:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+/* Stat Cards Row - High Density Space Saver */
+.floor-map-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.75rem;
+}
+
+.floor-map-stat-card {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 0.65rem 0.95rem;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: transform 0.15s ease;
+}
+
+.floor-map-stat-card:hover {
+  transform: translateY(-1px);
+  border-color: #cbd5e1;
+}
+
+.floor-map-stat-card__info {
+  display: flex;
+  flex-direction: column;
+}
+
+.floor-map-stat-card__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: capitalize;
+}
+
+.floor-map-stat-card__value {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.15;
+  margin-top: 0.1rem;
+}
+
+.floor-map-stat-card__subtext {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  font-weight: 500;
+  margin-top: 0.1rem;
+}
+
+.floor-map-stat-card__subtext--pct {
+  font-weight: 700;
+}
+
+.floor-map-stat-card__icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+/* Stat Color Variants */
+.floor-map-stat-card--total .floor-map-stat-card__icon-wrap { background-color: #eff6ff; color: #2563eb; }
+.floor-map-stat-card--occupied .floor-map-stat-card__icon-wrap { background-color: #ecfdf5; color: #10b981; }
+.floor-map-stat-card--occupied .floor-map-stat-card__subtext--pct { color: #10b981; }
+.floor-map-stat-card--available .floor-map-stat-card__icon-wrap { background-color: #e0f2fe; color: #0284c7; }
+.floor-map-stat-card--available .floor-map-stat-card__subtext--pct { color: #0284c7; }
+.floor-map-stat-card--reserved .floor-map-stat-card__icon-wrap { background-color: #fff7ed; color: #f97316; }
+.floor-map-stat-card--reserved .floor-map-stat-card__subtext--pct { color: #f97316; }
+.floor-map-stat-card--maintenance .floor-map-stat-card__icon-wrap { background-color: #fef2f2; color: #ef4444; }
+.floor-map-stat-card--maintenance .floor-map-stat-card__subtext--pct { color: #ef4444; }
+
+/* Floor Tabs Bar - Compact Pill Nav */
+.floor-map-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #ffffff;
+  padding: 0.35rem 0.5rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  overflow-x: auto;
+}
+
+.floor-map-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.floor-map-tab-btn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.floor-map-tab-btn--active {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.floor-map-tab-btn__count {
+  font-size: 0.7rem;
+  font-weight: 500;
+  opacity: 0.85;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+.floor-map-tab-btn:not(.floor-map-tab-btn--active) .floor-map-tab-btn__count {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* Main Content Dual Grid Layout */
+.floor-map-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 0.85rem;
+}
+
+@media (max-width: 1150px) {
+  .floor-map-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Blueprint Canvas Card */
+.blueprint-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  padding: 0.85rem 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.blueprint-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.blueprint-card__title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.blueprint-card__title-icon {
+  color: #2563eb;
+  background: #eff6ff;
+  padding: 0.35rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+}
+
+.blueprint-card__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.blueprint-card__meta-summary {
+  font-size: 0.75rem;
+  color: #475569;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.blueprint-card__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.blueprint-select {
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.775rem;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+
+.blueprint-view-list-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.775rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.blueprint-view-list-btn:hover {
+  background: #f1f5f9;
+}
+
+/* Floor Blueprint Layout Map Frame - Space Optimized */
+.blueprint-frame {
+  background: #f8fafc;
+  border: 1.5px solid #94a3b8;
+  border-radius: 10px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  position: relative;
+  overflow-x: auto;
+}
+
+.blueprint-floor-plan {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 0.85rem;
+  min-width: 680px;
+}
+
+/* Left Utility Rooms */
+.blueprint-utility-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.blueprint-utility-box {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.6rem 0.4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.35rem;
+}
+
+.blueprint-utility-box--nursing {
+  background: #fffbeb;
+  border-color: #fcd34d;
+  flex: 1.8;
+}
+
+.blueprint-utility-box--lift {
+  background: #ffffff;
+  flex: 1;
+}
+
+.blueprint-utility-box--stairs {
+  background: #ffffff;
+  flex: 1;
+}
+
+.blueprint-utility-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #0f172a;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.blueprint-utility-box--nursing .blueprint-utility-icon {
+  background: #d97706;
+}
+
+.blueprint-utility-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.1;
+}
+
+/* Rooms & Corridor */
+.blueprint-rooms-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.blueprint-rooms-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.65rem;
+}
+
+.blueprint-corridor {
+  background: #e2e8f0;
+  border: 1px dashed #94a3b8;
+  border-radius: 6px;
+  padding: 0.4rem;
+  text-align: center;
+  font-size: 0.775rem;
+  font-weight: 800;
+  letter-spacing: 0.25em;
+  color: #475569;
+  text-transform: uppercase;
+}
+
+/* Individual Room Box */
+.blueprint-room {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.blueprint-room:hover {
+  border-color: #2563eb;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
+}
+
+.blueprint-room--doctor {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.blueprint-room__header {
+  text-align: center;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 0.25rem;
+}
+
+.blueprint-room__name {
+  font-size: 0.775rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.blueprint-room__capacity {
+  font-size: 0.675rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Bed Grid inside Room */
+.blueprint-bed-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.35rem;
+}
+
+.blueprint-room--isolation .blueprint-bed-grid {
+  grid-template-columns: repeat(2, 1fr);
+  justify-content: center;
+}
+
+.blueprint-bed-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.3rem 0.15rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  border: 1px solid transparent;
+}
+
+.blueprint-bed-item:hover {
+  transform: scale(1.06);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.blueprint-bed-icon {
+  font-size: 1.05rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.blueprint-bed-num {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+/* Bed Status Styling */
+.blueprint-bed-item--available { background-color: #ecfdf5; border-color: #a7f3d0; color: #10b981; }
+.blueprint-bed-item--occupied { background-color: #fef2f2; border-color: #fecaca; color: #ef4444; }
+.blueprint-bed-item--reserved { background-color: #eff6ff; border-color: #bfdbfe; color: #2563eb; }
+.blueprint-bed-item--maintenance { background-color: #fff7ed; border-color: #fed7aa; color: #f97316; }
+
+/* Right Side Panel Styling - High Compact Density */
+.floor-map-side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.side-panel-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 0.85rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.side-panel-card__title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.65rem 0;
+}
+
+/* Donut Chart View */
+.donut-chart-wrap {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  margin: 0 auto 0.75rem auto;
+}
+
+.donut-chart-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.donut-center-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.donut-center-val {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1;
+}
+
+.donut-center-lbl {
+  font-size: 0.65rem;
+  color: #64748b;
+  font-weight: 600;
+  margin-top: 0.1rem;
+}
+
+.overview-legend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.overview-legend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.775rem;
+}
+
+.overview-legend-left {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #475569;
+}
+
+.overview-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.overview-legend-val {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* Map Legend Card */
+.map-legend-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.map-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.775rem;
+  color: #334155;
+  font-weight: 500;
+}
+
+.map-legend-icon-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+}
+
+/* Quick Actions Card */
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.quick-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.6rem 0.35rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.725rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quick-action-btn:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+.quick-action-btn__icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+}
+
+.quick-action-btn--allocate .quick-action-btn__icon { background: #dcfce7; color: #15803d; }
+.quick-action-btn--transfer .quick-action-btn__icon { background: #dbeafe; color: #1d4ed8; }
+.quick-action-btn--block .quick-action-btn__icon { background: #ffedd5; color: #c2410c; }
+.quick-action-btn--reports .quick-action-btn__icon { background: #f3e8ff; color: #7e22ce; }
+
+/* Bottom Table Section */
+.floor-map-table-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 0.85rem 1rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.table-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.table-card__title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.table-card__filters {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.table-search-box {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  width: 240px;
+}
+
+.table-search-box input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.775rem;
+  width: 100%;
+}
+
+.table-select-filter {
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  font-size: 0.775rem;
+  color: #334155;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Data Table Component */
+.floor-map-table-wrapper {
+  overflow-x: auto;
+}
+
+.floor-map-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.8rem;
+}
+
+.floor-map-data-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 2px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.floor-map-data-table td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.floor-map-data-table tr:hover {
+  background: #f8fafc;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.status-badge--occupied { background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; }
+.status-badge--available { background: #ecfdf5; color: #10b981; border: 1px solid #a7f3d0; }
+.status-badge--reserved { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+.status-badge--maintenance { background: #fff7ed; color: #f97316; border: 1px solid #fed7aa; }
+
+.table-action-btns {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.table-action-icon-btn {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.table-action-icon-btn:hover {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+/* Modal Styling */
+.floor-map-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.floor-map-modal-card {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 480px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  animation: modal-slide-in 0.15s ease-out;
+}
+
+@keyframes modal-slide-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.floor-map-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 1rem;
+}
+
+.floor-map-modal-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.floor-map-modal-close {
+  background: transparent;
+  border: none;
+  font-size: 1.1rem;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0.2rem;
+  border-radius: 4px;
+}
+
+.modal-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.85rem;
+}
+
+.modal-form-label {
+  font-size: 0.775rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.modal-form-input, .modal-form-select {
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.8125rem;
+  outline: none;
+  width: 100%;
+}
+
+.modal-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.modal-btn-cancel {
+  background: #f1f5f9;
+  color: #475569;
+  border: none;
+  padding: 0.5rem 0.95rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.modal-btn-submit {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  padding: 0.5rem 1.05rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
