@@ -9,7 +9,10 @@ export const createIpdAdmissionSchema = z.object({
     department_id: z.string().uuid().optional().nullable(),
     referred_by: z.string().optional().nullable(),
     admission_type: z.enum(['elective', 'emergency', 'maternity', 'daycare']).optional(),
-    reason_for_admission: z.string().optional()
+    reason_for_admission: z.string().optional(),
+    attendant_name: z.string().optional().nullable(),
+    attendant_relation: z.string().optional().nullable(),
+    attendant_phone: z.string().optional().nullable(),
   })
 });
 

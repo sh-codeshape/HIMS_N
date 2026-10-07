@@ -2,65 +2,95 @@ import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import Icon from "../../../components/common/Icon.jsx";
 import Button from "../../../components/common/Button.jsx";
-import { mockStore } from "../../../mock/mockStore";
+import ipdService from "../../../api/services/ipdService";
+import patientService from "../../../api/services/patientService";
+import staffService from "../../../api/services/staffService";
 import "./BedMatrixGrid.css";
 
 export default function BedMatrixGrid() {
   const [beds, setBeds] = useState([]);
   const [patients, setPatients] = useState([]);
+  const [doctors, setDoctors] = useState([]);
   const [filterWard, setFilterWard] = useState("All");
   const [selectedBed, setSelectedBed] = useState(null);
-  const [assignPatientUhid, setAssignPatientUhid] = useState("");
-  const [assignDoctor, setAssignDoctor] = useState("Dr. Rajesh Sharma");
+  const [assignPatientId, setAssignPatientId] = useState("");
+  const [assignDoctorId, setAssignDoctorId] = useState("");
+
+  const loadData = async () => {
+    try {
+      const [bedsData, patientsData, staffData] = await Promise.all([
+        ipdService.getBedMatrix(),
+        patientService.getAll(),
+        staffService.getAll({ type: "doctor" })
+      ]);
+      setBeds(bedsData);
+      setPatients(patientsData);
+      setDoctors(staffData);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load bed matrix data.");
+    }
+  };
 
   useEffect(() => {
-    setBeds(mockStore.getBeds());
-    setPatients(mockStore.getPatients());
+    loadData();
   }, []);
 
   const filteredBeds =
     filterWard === "All"
       ? beds
-      : beds.filter((b) => b.ward.toLowerCase().includes(filterWard.toLowerCase()));
+      : beds.filter((b) => b.ward_name?.toLowerCase().includes(filterWard.toLowerCase()));
 
-  const handleAllotBed = (e) => {
+  const handleAllotBed = async (e) => {
     e.preventDefault();
-    if (!selectedBed || !assignPatientUhid) {
+    if (!selectedBed || !assignPatientId) {
       toast.error("Please select a patient for bed allotment.");
       return;
     }
 
-    const patient = patients.find((p) => p.uhid === assignPatientUhid);
-    const updated = mockStore.updateBedStatus(selectedBed.bedNo, {
-      status: "Occupied",
-      patient: `${patient.name} (${patient.age}${patient.gender?.[0] || "M"})`,
-      doctor: assignDoctor,
-      admittedDate: new Date().toISOString().slice(0, 10),
-    });
-
-    setBeds(updated);
-    toast.success(`Bed ${selectedBed.bedNo} allotted to ${patient.name}!`, { icon: "🛏️" });
-    setSelectedBed(null);
-    setAssignPatientUhid("");
+    // In a real flow, a proper admission might need to be created first, 
+    // or the 'admitPatient' endpoint handles creating admission + bed assignment.
+    try {
+      await ipdService.admitPatient({
+        patient_id: assignPatientId,
+        bed_id: selectedBed.id,
+        attending_practitioner_id: assignDoctorId,
+        admission_type: "elective"
+      });
+      toast.success(`Bed ${selectedBed.bed_no} allotted successfully!`, { icon: "🛏️" });
+      setSelectedBed(null);
+      setAssignPatientId("");
+      loadData();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to allot bed.");
+    }
   };
 
-  const handleVacateBed = (bedNo) => {
-    const updated = mockStore.updateBedStatus(bedNo, {
-      status: "Available",
-      patient: null,
-      doctor: null,
-      admittedDate: null,
-    });
-    setBeds(updated);
-    toast.success(`Bed ${bedNo} is now vacant and ready for sanitization.`, { icon: "🧹" });
-    setSelectedBed(null);
+  const handleVacateBed = async (bed) => {
+    if (!bed.admission_id) {
+      toast.error("No active admission found for this bed.");
+      return;
+    }
+    try {
+      await ipdService.dischargePatient(bed.admission_id, {
+        discharge_type: "normal",
+        discharge_condition: "Stable"
+      });
+      toast.success(`Bed ${bed.bed_no} is now vacant and ready for sanitization.`, { icon: "🧹" });
+      setSelectedBed(null);
+      loadData();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to vacate bed.");
+    }
   };
 
   return (
     <div className="ipd-bed-module">
       <div className="ipd-bed-toolbar">
         <div className="ipd-ward-filters">
-          {["All", "ICU", "General Male", "General Female", "Private Room", "Emergency"].map(
+          {["All", "ICU", "General", "Private"].map(
             (w) => (
               <button
                 key={w}
@@ -92,28 +122,28 @@ export default function BedMatrixGrid() {
         {filteredBeds.map((bed) => (
           <div
             key={bed.id}
-            className={`ipd-card ipd-card--${bed.status.toLowerCase()}`}
+            className={`ipd-card ipd-card--${bed.current_status?.toLowerCase() || 'available'}`}
             onClick={() => setSelectedBed(bed)}
           >
             <div className="ipd-card-head">
-              <span className="ipd-card-no">{bed.bedNo}</span>
-              <span className={`ipd-card-badge ipd-badge--${bed.status.toLowerCase()}`}>
-                {bed.status}
+              <span className="ipd-card-no">{bed.bed_no}</span>
+              <span className={`ipd-card-badge ipd-badge--${bed.current_status?.toLowerCase() || 'available'}`}>
+                {bed.current_status}
               </span>
             </div>
 
             <div className="ipd-card-body">
-              <div className="ipd-card-ward">{bed.ward} • {bed.floor}</div>
-              {bed.patient ? (
+              <div className="ipd-card-ward">{bed.ward_name} • {bed.room_name}</div>
+              {bed.current_status === 'occupied' && bed.patient_id ? (
                 <div className="ipd-card-patient">
-                  <div className="ipd-pname">{bed.patient}</div>
-                  <div className="ipd-pdoc">{bed.doctor}</div>
-                  <div className="ipd-pdate">Adm: {bed.admittedDate}</div>
+                  <div className="ipd-pname">{bed.patient_first_name} {bed.patient_last_name}</div>
+                  <div className="ipd-pdoc">Dr. {bed.doctor_first_name} {bed.doctor_last_name}</div>
+                  <div className="ipd-pdate">Adm: {new Date(bed.admitted_at).toLocaleDateString()}</div>
                 </div>
               ) : (
                 <div className="ipd-card-empty">
                   <Icon name="LuBed" size={24} />
-                  <span>Vacant & Sanitized</span>
+                  <span>{bed.current_status === 'maintenance' ? 'Under Maintenance' : 'Vacant & Sanitized'}</span>
                 </div>
               )}
             </div>
@@ -126,22 +156,22 @@ export default function BedMatrixGrid() {
         <div className="ipd-modal-overlay" onClick={() => setSelectedBed(null)}>
           <div className="ipd-modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="ipd-modal-header">
-              <h3>Bed Allocation: {selectedBed.bedNo}</h3>
-              <span className="ipd-card-ward">{selectedBed.ward} ({selectedBed.floor})</span>
+              <h3>Bed Allocation: {selectedBed.bed_no}</h3>
+              <span className="ipd-card-ward">{selectedBed.ward_name} ({selectedBed.room_name})</span>
             </div>
 
-            {selectedBed.status === "Occupied" ? (
+            {selectedBed.current_status === "occupied" ? (
               <div className="ipd-occupied-view">
                 <div className="ipd-occ-info">
-                  <p><strong>Patient:</strong> {selectedBed.patient}</p>
-                  <p><strong>Doctor:</strong> {selectedBed.doctor}</p>
-                  <p><strong>Admission Date:</strong> {selectedBed.admittedDate}</p>
+                  <p><strong>Patient:</strong> {selectedBed.patient_first_name} {selectedBed.patient_last_name} ({selectedBed.patient_uhid})</p>
+                  <p><strong>Doctor:</strong> Dr. {selectedBed.doctor_first_name} {selectedBed.doctor_last_name}</p>
+                  <p><strong>Admission Date:</strong> {new Date(selectedBed.admitted_at).toLocaleString()}</p>
                 </div>
                 <div className="ipd-modal-btns">
                   <button
                     type="button"
                     className="ipd-vacate-btn"
-                    onClick={() => handleVacateBed(selectedBed.bedNo)}
+                    onClick={() => handleVacateBed(selectedBed)}
                   >
                     <Icon name="LuLogOut" size={15} /> Discharge / Vacate Bed
                   </button>
@@ -160,14 +190,14 @@ export default function BedMatrixGrid() {
                   <label className="ipd-label">Select Patient to Admit *</label>
                   <select
                     className="ipd-select"
-                    value={assignPatientUhid}
-                    onChange={(e) => setAssignPatientUhid(e.target.value)}
+                    value={assignPatientId}
+                    onChange={(e) => setAssignPatientId(e.target.value)}
                     required
                   >
                     <option value="">-- Choose Patient --</option>
                     {patients.map((p) => (
-                      <option key={p.uhid} value={p.uhid}>
-                        {p.name} ({p.uhid}) • {p.bloodGroup}
+                      <option key={p.id} value={p.id}>
+                        {p.full_name} ({p.uhid}) • {p.blood_group || "N/A"}
                       </option>
                     ))}
                   </select>
@@ -177,13 +207,15 @@ export default function BedMatrixGrid() {
                   <label className="ipd-label">Attending Doctor</label>
                   <select
                     className="ipd-select"
-                    value={assignDoctor}
-                    onChange={(e) => setAssignDoctor(e.target.value)}
+                    value={assignDoctorId}
+                    onChange={(e) => setAssignDoctorId(e.target.value)}
                   >
-                    <option value="Dr. Rajesh Sharma">Dr. Rajesh Sharma (Gen Surgery)</option>
-                    <option value="Dr. Priya Deshmukh">Dr. Priya Deshmukh (Cardiology)</option>
-                    <option value="Dr. Anand Kulkarni">Dr. Anand Kulkarni (Orthopedics)</option>
-                    <option value="Dr. Meenakshi Iyer">Dr. Meenakshi Iyer (Gynecology)</option>
+                    <option value="">-- Select Doctor --</option>
+                    {doctors.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        Dr. {d.first_name} {d.last_name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

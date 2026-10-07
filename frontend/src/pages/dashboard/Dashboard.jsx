@@ -66,19 +66,22 @@ export default function Dashboard() {
         setInvoices([]);
         setDoctors([]);
 
-        // Generate appointments from patientList since we don't have a dedicated appointments API
-        const apptsMapped = (patientList || []).map((item) => ({
-          id: item.id || Math.random().toString(),
-          patientName: item.patientName || item.patient_name || item.full_name || `${item.first_name || ""} ${item.last_name || ""}`.trim() || "Patient",
-          uhid: item.uhid || item.id?.substring(0, 8) || "—",
-          phone: item.phone || item.mobile || "—",
-          patientType: item.visit_type || item.patientType || "OPD",
-          category: item.department || "Consultation",
-          doctor: item.doctor || item.referred_by || "—",
-          date: item.created_at ? new Date(item.created_at).toLocaleDateString() : new Date().toLocaleDateString(),
-          token: item.tokenNo || item.token_no || "T-" + Math.floor(Math.random() * 1000),
-          status: item.status || "Confirmed",
-        }));
+        // Generate appointments from queueList (actual OPD encounters) instead of patientList
+        const apptsMapped = (queueList || []).map((item) => {
+          const customFields = typeof item.custom_fields === "string" ? JSON.parse(item.custom_fields) : (item.custom_fields || {});
+          return {
+            id: item.id || Math.random().toString(),
+            patientName: item.first_name ? `${item.first_name} ${item.last_name || ""}`.trim() : (item.patientName || "Patient"),
+            uhid: item.uhid || item.id?.substring(0, 8) || "—",
+            phone: item.phone || item.mobile || "—",
+            patientType: item.encounter_type === "opd" ? "OPD" : "IPD",
+            category: item.department_name || item.department || "Consultation",
+            doctor: item.doc_first_name ? `Dr. ${item.doc_first_name} ${item.doc_last_name || ""}`.trim() : (item.doctor || "—"),
+            date: item.started_at ? new Date(item.started_at).toLocaleDateString() : new Date().toLocaleDateString(),
+            token: customFields.opd_token || item.tokenNo || item.token_no || "—",
+            status: item.status === "arrived" ? "Confirmed" : item.status || "Confirmed",
+          };
+        });
         
         setAppointments(apptsMapped.length > 0 ? apptsMapped : (mockStore.getAppointments() || []));
       } catch (err) {

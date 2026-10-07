@@ -342,7 +342,10 @@ export default function IPDAdmissionView() {
           patient_id: selectedPatient.id,
           bed_id: actualBedId !== selectedBed ? actualBedId : null,
           admission_type: payloadAdmissionType,
-          reason_for_admission: reasonForAdmission || selectedComplaints.join(", ")
+          reason_for_admission: reasonForAdmission || selectedComplaints.join(", "),
+          attendant_name: attendantName,
+          attendant_relation: relationship,
+          attendant_phone: attendantMobile
         });
       }
 

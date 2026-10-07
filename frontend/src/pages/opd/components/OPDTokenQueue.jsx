@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import Icon from "../../../components/common/Icon.jsx";
 import { mockStore } from "../../../mock/mockStore";
 import patientService from "../../../api/services/patientService";
+import opdService from "../../../api/services/opdService";
 import "./OPDTokenQueue.css";
 
 // ── Department & Doctor Fee Structure ──────────────────────────────────────────
@@ -269,7 +270,7 @@ export default function OPDTokenQueue() {
   const totalAmount = Math.max(0, subTotal - Number(discount || 0));
 
   // Form Submit Handler
-  const handleRegisterOPD = (e) => {
+  const handleRegisterOPD = async (e) => {
     e.preventDefault();
     if (!selectedPatient) {
       toast.error("Please search and select a patient first for OPD registration!");
@@ -285,58 +286,57 @@ export default function OPDTokenQueue() {
       return;
     }
 
-    const tokenNo = `A-0${Math.floor(Math.random() * 800 + 100)}`;
-    const now = new Date();
-    const formattedDate = `${now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`;
-    const slipInfo = {
-      tokenNo,
-      date: formattedDate,
-      patientName: selectedPatient.full_name || selectedPatient.name || `${selectedPatient.first_name || ""} ${selectedPatient.last_name || ""}`.trim(),
-      uhid: selectedPatient.uhid,
-      phone: selectedPatient.phone || selectedPatient.mobile1 || selectedPatient.mobile || "—",
-      age: selectedPatient.age || selectedPatient.ageYrs || "32",
-      gender: selectedPatient.gender || "Male",
-      address: selectedPatient.address || "Sector 21, Noida, Uttar Pradesh",
-      doctor: selectedDoctor.name,
-      doctorDegree: selectedDoctor.degree,
-      roomNo: selectedDoctor.room,
-      department,
-      chiefComplaint: `${chiefComplaintText} (${duration} ${durationUnit})`,
-      symptoms,
-      visitType,
-      consultationType,
-      registrationFee,
-      consultationFee,
-      serviceFee,
-      discount,
-      totalAmount,
-      paymentMode,
-      paymentStatus,
-      attendantName,
-      attendantRelation,
-      attendantPhone
-    };
+    try {
+      const payload = {
+        patient_id: selectedPatient.id,
+        facility_id: "00000000-0000-0000-0000-000000000000", // Fallback facility ID
+        chief_complaint: `${chiefComplaintText} (${duration} ${durationUnit})`,
+        attendant_name: attendantName,
+        attendant_relation: attendantRelation,
+        attendant_phone: attendantPhone
+      };
 
-    mockStore.addOPDToken({
-      tokenNo,
-      patientName: slipInfo.patientName,
-      uhid: slipInfo.uhid,
-      doctor: selectedDoctor.name,
-      department,
-      chiefComplaint: slipInfo.chiefComplaint,
-      fee: totalAmount,
-      paymentMode,
-      paymentStatus,
-      status: "Waiting",
-      roomNo: selectedDoctor.room,
-      attendantName,
-      attendantRelation,
-      attendantPhone
-    });
+      const result = await opdService.issueToken(payload);
+      const generatedToken = result?.token_number || result?.opd_token || `A-0${Math.floor(Math.random() * 800 + 100)}`;
 
-    setOpdSlipData(slipInfo);
-    setShowPrintModal(true);
-    toast.success(`OPD Token #${tokenNo} generated successfully!`);
+      const now = new Date();
+      const formattedDate = `${now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`;
+      const slipInfo = {
+        tokenNo: generatedToken,
+        date: formattedDate,
+        patientName: selectedPatient.full_name || selectedPatient.name || `${selectedPatient.first_name || ""} ${selectedPatient.last_name || ""}`.trim(),
+        uhid: selectedPatient.uhid,
+        phone: selectedPatient.phone || selectedPatient.mobile1 || selectedPatient.mobile || "—",
+        age: selectedPatient.age || selectedPatient.ageYrs || "32",
+        gender: selectedPatient.gender || "Male",
+        address: selectedPatient.address || "Sector 21, Noida, Uttar Pradesh",
+        doctor: selectedDoctor.name,
+        doctorDegree: selectedDoctor.degree,
+        roomNo: selectedDoctor.room,
+        department,
+        chiefComplaint: `${chiefComplaintText} (${duration} ${durationUnit})`,
+        symptoms,
+        visitType,
+        consultationType,
+        registrationFee,
+        consultationFee,
+        serviceFee,
+        discount,
+        totalAmount,
+        paymentMode,
+        paymentStatus,
+        attendantName,
+        attendantRelation,
+        attendantPhone
+      };
+
+      setOpdSlipData(slipInfo);
+      setShowPrintModal(true);
+      toast.success(`OPD Token #${generatedToken} generated successfully!`);
+    } catch (err) {
+      console.error("Failed to generate OPD token:", err);
+      toast.error("Failed to generate OPD token. Please try again.");
+    }
   };
 
   const handlePrintSlip = () => {

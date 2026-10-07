@@ -10,7 +10,10 @@ export class IpdRepository {
     departmentId?: string | null,
     referredBy?: string | null,
     admissionType?: string | null,
-    reason?: string
+    reason?: string,
+    attendantName?: string | null,
+    attendantRelation?: string | null,
+    attendantPhone?: string | null
   ) {
     const client = await db.getClient();
     
@@ -29,8 +32,11 @@ export class IpdRepository {
           encounter_type,
           status,
           chief_complaint,
-          encounter_no
-        ) VALUES ($1, $2, $3, $4, $5, $6, 'ipd', 'in_progress', $7, $8)
+          encounter_no,
+          attendant_name,
+          attendant_relation,
+          attendant_phone
+        ) VALUES ($1, $2, $3, $4, $5, $6, 'ipd', 'in_progress', $7, $8, $9, $10, $11)
         RETURNING *;
       `;
       const encounterNo = `IPD-${Date.now()}`;
@@ -42,7 +48,10 @@ export class IpdRepository {
         departmentId || null,
         referredBy || null,
         reason,
-        encounterNo
+        encounterNo,
+        attendantName || null,
+        attendantRelation || null,
+        attendantPhone || null
       ]);
       const encounter = encounterResult.rows[0];
 
@@ -59,8 +68,11 @@ export class IpdRepository {
           admission_type,
           admission_diagnosis,
           status,
-          admitted_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'admitted', NOW())
+          admitted_at,
+          attendant_name,
+          attendant_relation,
+          attendant_phone
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'admitted', NOW(), $10, $11, $12)
         RETURNING *;
       `;
       const admissionNo = `ADM-${Date.now()}`;
@@ -73,7 +85,10 @@ export class IpdRepository {
         departmentId || null,
         admissionNo,
         admissionType || 'elective',
-        reason || null
+        reason || null,
+        attendantName || null,
+        attendantRelation || null,
+        attendantPhone || null
       ]);
       const admission = admissionResult.rows[0];
 

@@ -252,28 +252,15 @@ export default function StaffManagement() {
                 </div>
               )}
 
-              {(formData.create_user && !editingStaff) && (
+              {(formData.create_user || editingStaff) && (
                 <div className="mt-4 p-4 border rounded-lg bg-gray-50">
                   <Input
-                    label="Initial Password"
+                    label={editingStaff ? "New Password (leave blank to keep current)" : "Initial Password"}
                     type="password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    required={formData.create_user}
-                    placeholder="Enter a secure password for the user"
-                  />
-                </div>
-              )}
-
-              {(formData.create_user && !editingStaff) && (
-                <div className="mt-4 p-4 border rounded-lg bg-gray-50">
-                  <Input
-                    label="Initial Password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    required={formData.create_user}
-                    placeholder="Enter a secure password for the user"
+                    required={formData.create_user && !editingStaff}
+                    placeholder={editingStaff ? "Enter a new password" : "Enter a secure password for the user"}
                   />
                 </div>
               )}

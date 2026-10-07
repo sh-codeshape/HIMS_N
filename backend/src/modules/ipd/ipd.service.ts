@@ -19,7 +19,10 @@ export class IpdService {
       data.department_id,
       data.referred_by,
       data.admission_type,
-      data.reason_for_admission
+      data.reason_for_admission,
+      data.attendant_name,
+      data.attendant_relation,
+      data.attendant_phone
     );
   }
 

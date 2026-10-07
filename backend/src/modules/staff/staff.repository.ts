@@ -174,17 +174,24 @@ export class StaffRepository {
         await client.query(query, values);
       }
 
-      // If user exists and roles need updating
-      if (data.role_ids !== undefined) {
+      // If user exists and roles or password need updating
+      if (data.role_ids !== undefined || data.password) {
         const staffRes = await client.query('SELECT user_id FROM staff WHERE id = $1', [staffId]);
         const userId = staffRes.rows[0]?.user_id;
         
         if (userId) {
-          await client.query('DELETE FROM user_roles WHERE user_id = $1', [userId]);
-          if (data.role_ids && data.role_ids.length > 0) {
-            const roleValues = data.role_ids.map((roleId: string, index: number) => `($1, $${index + 2})`).join(', ');
-            const roleQuery = `INSERT INTO user_roles (user_id, role_id) VALUES ${roleValues}`;
-            await client.query(roleQuery, [userId, ...data.role_ids]);
+          if (data.password) {
+            const passwordHash = await bcrypt.hash(data.password, 10);
+            await client.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, userId]);
+          }
+
+          if (data.role_ids !== undefined) {
+            await client.query('DELETE FROM user_roles WHERE user_id = $1', [userId]);
+            if (data.role_ids && data.role_ids.length > 0) {
+              const roleValues = data.role_ids.map((roleId: string, index: number) => `($1, $${index + 2})`).join(', ');
+              const roleQuery = `INSERT INTO user_roles (user_id, role_id) VALUES ${roleValues}`;
+              await client.query(roleQuery, [userId, ...data.role_ids]);
+            }
           }
         }
       }

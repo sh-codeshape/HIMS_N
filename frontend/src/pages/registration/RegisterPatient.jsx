@@ -287,7 +287,7 @@ export default function RegisterPatient() {
       showToast(`🎉 Patient Registered! UHID: ${patient.uhid}`);
       handleReset();
       if (path) {
-        setTimeout(() => navigate(path), 1000);
+        setTimeout(() => navigate(`${path}?uhid=${patient.uhid}`), 1000);
       }
     } catch (err) {
       showToast("Error registering patient: " + err.message, "error");
@@ -719,7 +719,7 @@ export default function RegisterPatient() {
               <LuStethoscope size={15} /> Save & Process to OPD
             </button>
 
-            <button type="button" onClick={() => handleRegisterAndNavigate("/ipd/bed-allotment")}
+            <button type="button" onClick={() => handleRegisterAndNavigate("/ipd/admission")}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-700 transition-all shadow-md shadow-rose-100 active:scale-95">
               <LuBed size={15} /> Save & Process to IPD
             </button>
