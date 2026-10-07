@@ -54,6 +54,29 @@ export class AuthRepository {
     const result = await client.query(query, values);
     return result.rows[0];
   }
+
+  async getUserRolesAndPermissions(userId: string): Promise<{ roles: string[]; permissions: string[] }> {
+    const rolesQuery = `
+      SELECT r.code
+      FROM user_roles ur
+      JOIN roles r ON ur.role_id = r.id
+      WHERE ur.user_id = $1
+    `;
+    const rolesResult = await db.query(rolesQuery, [userId]);
+    const roles = rolesResult.rows.map((row) => row.code);
+
+    const permissionsQuery = `
+      SELECT DISTINCT p.code
+      FROM user_roles ur
+      JOIN role_permissions rp ON ur.role_id = rp.role_id
+      JOIN permissions p ON rp.permission_id = p.id
+      WHERE ur.user_id = $1
+    `;
+    const permissionsResult = await db.query(permissionsQuery, [userId]);
+    const permissions = permissionsResult.rows.map((row) => row.code);
+
+    return { roles, permissions };
+  }
 }
 
 export const authRepository = new AuthRepository();

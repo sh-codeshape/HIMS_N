@@ -11,6 +11,8 @@ declare global {
         userId: string;
         organizationId: string;
         facilityId?: string;
+        roles?: string[];
+        permissions?: string[];
       };
     }
   }
@@ -30,6 +32,8 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
       userId: string;
       organizationId: string;
       facilityId?: string;
+      roles?: string[];
+      permissions?: string[];
     };
     req.user = payload;
     next();

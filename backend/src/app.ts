@@ -28,6 +28,8 @@ import { staffRoutes } from './modules/staff/staff.routes';
 import { labRoutes } from './modules/laboratory/lab.routes';
 import { pharmacyRoutes } from './modules/pharmacy/pharmacy.routes';
 
+import { rolesRoutes } from './modules/roles/roles.routes';
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -43,6 +45,7 @@ app.use('/api/v1/beds', bedRoutes);
 app.use('/api/v1/staff', staffRoutes);
 app.use('/api/v1/laboratory', labRoutes);
 app.use('/api/v1/pharmacy', pharmacyRoutes);
+app.use('/api/v1/roles', rolesRoutes);
 
 // Global Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

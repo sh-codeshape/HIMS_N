@@ -21,17 +21,28 @@ export class AuthService {
       throw new UnauthorizedError('Invalid credentials');
     }
 
+    const { roles, permissions } = await authRepository.getUserRolesAndPermissions(user.id);
+    
+    // Fallback or explicit injection of super_admin role if is_superadmin is true
+    const assignedRoles = user.is_superadmin && !roles.includes('super_admin') 
+      ? ['super_admin', ...roles] 
+      : roles;
+      
+    // Default role logic to keep frontend compatibility for now
+    const primaryRole = user.is_superadmin ? 'super_admin' : (assignedRoles[0] || 'admin');
+
     const token = jwt.sign(
       {
         userId: user.id,
         organizationId: user.organization_id,
+        roles: assignedRoles,
+        permissions,
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
 
     const name = user.full_name || user.username;
-    const role = user.is_superadmin ? 'super_admin' : 'admin';
 
     return {
       token,
@@ -40,7 +51,9 @@ export class AuthService {
         username: user.username,
         email: user.email || user.username,
         name,
-        role,
+        role: primaryRole, // kept for backward compatibility
+        roles: assignedRoles,
+        permissions,
         organization_id: user.organization_id,
       },
     };

@@ -8,6 +8,10 @@ async function seed() {
     await client.query('BEGIN');
 
     const orgId = '00000000-0000-0000-0000-000000000000';
+    
+    // Fix: role_permissions has no id column, so audit trigger fails. Drop it here.
+    await client.query('DROP TRIGGER IF EXISTS trg_role_permissions_audit ON role_permissions');
+
     await client.query(`
       INSERT INTO organizations (id, code, name)
       VALUES ($1, 'DEFAULT', 'Default Hospital Organization')
@@ -49,8 +53,75 @@ async function seed() {
         phone = EXCLUDED.phone;
     `, [orgId, adminUsername, adminUsername, passwordHash, 'HIMS Administrator', facilityId]);
 
+    const userResult = await client.query(`SELECT id FROM users WHERE username = $1`, [adminUsername]);
+    const adminUserId = userResult.rows[0].id;
+
     // ---------------------------------------------------------
-    // BED CATEGORIES
+    // ROLES AND PERMISSIONS
+    // ---------------------------------------------------------
+    const rolesToSeed = [
+      { code: 'super_admin', name: 'Super Admin', description: 'Full System Access', is_system: true },
+      { code: 'admin', name: 'Admin', description: 'Hospital Admin & Masters', is_system: true },
+      { code: 'doctor', name: 'Doctor', description: 'OPD, IPD & EMR', is_system: true },
+      { code: 'reception', name: 'Reception', description: 'Patient Intake & Billing', is_system: true },
+      { code: 'pharmacy', name: 'Pharmacy', description: 'POS & Drug Inventory', is_system: true },
+    ];
+
+    for (const r of rolesToSeed) {
+      await client.query(`
+        INSERT INTO roles (organization_id, code, name, description, is_system)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (organization_id, code) DO NOTHING;
+      `, [orgId, r.code, r.name, r.description, r.is_system]);
+    }
+
+    const permissionsToSeed = [
+      { code: 'staff.view', module: 'staff', description: 'View staff members' },
+      { code: 'staff.create', module: 'staff', description: 'Create staff members' },
+      { code: 'staff.edit', module: 'staff', description: 'Edit staff members' },
+      { code: 'staff.delete', module: 'staff', description: 'Delete staff members' },
+      { code: 'roles.view', module: 'roles', description: 'View roles and permissions' },
+      { code: 'roles.manage', module: 'roles', description: 'Manage roles and permissions' },
+      { code: 'billing.view', module: 'billing', description: 'View billing' },
+      { code: 'billing.create', module: 'billing', description: 'Create billing' },
+    ];
+
+    for (const p of permissionsToSeed) {
+      await client.query(`
+        INSERT INTO permissions (code, module, description)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (code) DO NOTHING;
+      `, [p.code, p.module, p.description]);
+    }
+
+    // Map permissions to Super Admin role
+    const superAdminRoleRes = await client.query(`SELECT id FROM roles WHERE code = 'super_admin' AND organization_id = $1`, [orgId]);
+    const superAdminRoleId = superAdminRoleRes.rows[0]?.id;
+
+    if (superAdminRoleId) {
+      for (const p of permissionsToSeed) {
+        const permRes = await client.query(`SELECT id FROM permissions WHERE code = $1`, [p.code]);
+        if (permRes.rows.length > 0) {
+          const permId = permRes.rows[0].id;
+          await client.query(`
+            INSERT INTO role_permissions (role_id, permission_id)
+            VALUES ($1, $2)
+            ON CONFLICT (role_id, permission_id) DO NOTHING;
+          `, [superAdminRoleId, permId]);
+        }
+      }
+
+      // Assign Super Admin role to the default admin user
+      const checkUr = await client.query(`SELECT id FROM user_roles WHERE user_id = $1 AND role_id = $2`, [adminUserId, superAdminRoleId]);
+      if (checkUr.rows.length === 0) {
+        await client.query(`
+          INSERT INTO user_roles (user_id, role_id, facility_id)
+          VALUES ($1, $2, $3)
+        `, [adminUserId, superAdminRoleId, facilityId]);
+      }
+    }
+
+    // ---------------------------------------------------------
     // ---------------------------------------------------------
     await client.query(`
       INSERT INTO bed_categories (organization_id, code, name, rank, is_icu)

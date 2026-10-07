@@ -85,6 +85,7 @@ const sidebarConfig = [
     children: [
       { label: "Doctor Duty Roster", path: "/staff/duty-roster", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR] },
       { label: "Staff Management", path: "/staff/management", allowedRoles: [SUPER_ADMIN, ADMIN] },
+      { label: "Role Management", path: "/staff/roles", allowedRoles: [SUPER_ADMIN] },
       { label: "Consultant Commission", path: "/staff/consultant-commission", allowedRoles: [SUPER_ADMIN, ADMIN] },
       { label: "Leave Applications", path: "/staff/leave-applications", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR] },
     ],

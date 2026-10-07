@@ -7,6 +7,7 @@ import {
   StaffManagement,
   ConsultantCommission,
   LeaveApplications,
+  RoleManagement,
 } from "../../pages/staff";
 
 const { SUPER_ADMIN, ADMIN, DOCTOR } = ROLES;
@@ -27,6 +28,15 @@ export const staffRoutes = [
     element={
       <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN]}>
         <StaffManagement />
+      </ProtectedRoute>
+    }
+  />,
+  <Route
+    key="st-roles"
+    path="/staff/roles"
+    element={
+      <ProtectedRoute allowedRoles={[SUPER_ADMIN]}>
+        <RoleManagement />
       </ProtectedRoute>
     }
   />,

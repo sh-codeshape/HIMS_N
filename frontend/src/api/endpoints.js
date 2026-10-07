@@ -40,10 +40,13 @@ export const ENDPOINTS = {
     BASE: "/billing",
   },
   STAFF: {
+    BASE: "/staff",
     DUTY_ROSTER: "/staff/duty-roster",
-    MANAGEMENT: "/staff/management",
     CONSULTANT_COMMISSION: "/staff/consultant-commission",
     LEAVE_APPLICATIONS: "/staff/leave-applications",
+  },
+  ROLES: {
+    BASE: "/roles",
   },
   PHARMACY: {
     POS: "/pharmacy/pos",
