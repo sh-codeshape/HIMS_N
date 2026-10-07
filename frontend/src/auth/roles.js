@@ -20,11 +20,11 @@ export const ROLE_LABELS = {
 
 // Shown as selectable cards on the Login screen.
 export const LOGIN_ROLE_OPTIONS = [
-  { role: ROLES.ADMIN, label: "Admin", icon: "LuShieldCheck", email: "admin@narayanhospital.in", desc: "Hospital Admin & Masters" },
-  { role: ROLES.SUPER_ADMIN, label: "Super Admin", icon: "LuCrown", email: "superadmin@narayanhospital.in", desc: "Full System Access" },
-  { role: ROLES.DOCTOR, label: "Doctor", icon: "LuStethoscope", email: "dr.priya@narayanhospital.in", desc: "OPD, IPD & EMR" },
-  { role: ROLES.RECEPTION, label: "Reception", icon: "LuUserCheck", email: "reception@narayanhospital.in", desc: "Patient Intake & Billing" },
-  { role: ROLES.PHARMACY, label: "Pharmacy", icon: "LuPill", email: "pharmacy@narayanhospital.in", desc: "POS & Drug Inventory" },
+  { role: ROLES.ADMIN, label: "Admin", icon: "LuShieldCheck", email: "admin@narayanhospital.com", desc: "Hospital Admin & Masters" },
+  { role: ROLES.SUPER_ADMIN, label: "Super Admin", icon: "LuCrown", email: "superadmin@narayanhospital.com", desc: "Full System Access" },
+  { role: ROLES.DOCTOR, label: "Doctor", icon: "LuStethoscope", email: "dr.priya@narayanhospital.com", desc: "OPD, IPD & EMR" },
+  { role: ROLES.RECEPTION, label: "Reception", icon: "LuUserCheck", email: "reception@narayanhospital.com", desc: "Patient Intake & Billing" },
+  { role: ROLES.PHARMACY, label: "Pharmacy", icon: "LuPill", email: "pharmacy@narayanhospital.com", desc: "POS & Drug Inventory" },
 ];
 
 export const ALL_ROLES = Object.values(ROLES);

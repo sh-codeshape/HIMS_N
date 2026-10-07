@@ -23,7 +23,7 @@ async function seed() {
         facility_type = EXCLUDED.facility_type;
     `, [facilityId, orgId]);
 
-    const adminUsername = 'admin@kgnandahospital.com';
+    const adminUsername = 'admin@narayanhospital.com';
     const password = 'password123';
     const passwordHash = await bcrypt.hash(password, 10);
 

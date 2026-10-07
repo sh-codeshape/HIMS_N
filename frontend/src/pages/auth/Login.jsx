@@ -11,7 +11,7 @@ import "./Login.css";
 export default function Login() {
   const [selectedRole, setSelectedRole] = useState(ROLES.ADMIN);
   const [form, setForm] = useState({
-    username: LOGIN_ROLE_OPTIONS[0]?.email || "admin@narayanhospital.in",
+    username: LOGIN_ROLE_OPTIONS[0]?.email || "admin@narayanhospital.com",
     password: "password123",
   });
   const [submitting, setSubmitting] = useState(false);
@@ -22,7 +22,7 @@ export default function Login() {
   const handleSelectRole = (roleOption) => {
     setSelectedRole(roleOption.role);
     setForm({
-      username: roleOption.email || `${roleOption.role}@narayanhospital.in`,
+      username: roleOption.email || `${roleOption.role}@narayanhospital.com`,
       password: "password123",
     });
   };
@@ -111,7 +111,7 @@ export default function Login() {
                   name="username"
                   value={form.username}
                   onChange={handleChange}
-                  placeholder="e.g. admin@narayanhospital.in"
+                  placeholder="e.g. admin@narayanhospital.com"
                   required
                 />
               </div>

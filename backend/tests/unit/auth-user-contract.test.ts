@@ -9,7 +9,7 @@ describe('auth user contract', () => {
       rows: [{
         id: 'user-1',
         organization_id: 'org-1',
-        username: 'admin@kgnandahospital.com',
+        username: 'admin@narayanhospital.com',
         password_hash: 'hash',
         full_name: 'HIMS Admin',
         is_active: true,
@@ -20,7 +20,7 @@ describe('auth user contract', () => {
       fields: [],
     } as any);
 
-    const result = await repo.findByUsername('admin@kgnandahospital.com');
+    const result = await repo.findByUsername('admin@narayanhospital.com');
 
     expect(result?.full_name).toBe('HIMS Admin');
     expect(querySpy.mock.calls[0][0]).toContain('full_name');
