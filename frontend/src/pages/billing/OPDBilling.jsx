@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import Icon from "../../components/common/Icon.jsx";
+import patientService from "../../api/services/patientService";
+import billingInvoicesService from "../../api/services/billingInvoicesService";
 import "./OPDBilling.css";
 
 // Comprehensive Mock Data matching hospital specs
@@ -204,44 +206,43 @@ export default function OPDBilling() {
   });
 
   // Handle Search Input Change
-  const handleSearchChange = (e) => {
+  const handleSearchChange = async (e) => {
     const query = e.target.value;
     setSearchTerm(query);
     if (query.trim().length > 0) {
-      const filtered = SAMPLE_PATIENTS.filter(
-        (p) =>
-          p.uhid.toLowerCase().includes(query.toLowerCase()) ||
-          p.name.toLowerCase().includes(query.toLowerCase()) ||
-          p.mobile.includes(query)
-      );
-      setSuggestions(filtered);
+      try {
+        const results = await patientService.search({ query: query.trim() });
+        setSuggestions(results.slice(0, 6));
+      } catch (error) {
+        console.error("Search failed", error);
+      }
     } else {
       setSuggestions([]);
       setSelectedPatient(null);
     }
   };
 
-  // Select Patient from Search/Suggestions
   const handleSelectPatient = (patient) => {
     setSelectedPatient(patient);
     setSearchTerm(patient.uhid);
     setSuggestions([]);
-    toast.success(`Fetched data for ${patient.name} (${patient.uhid})`);
+    toast.success(`Fetched data for ${patient.full_name || patient.name || patient.first_name} (${patient.uhid})`);
   };
 
-  const handleSearchSubmit = (e) => {
+  const handleSearchSubmit = async (e) => {
     e.preventDefault();
-    const query = searchTerm.trim().toLowerCase();
-    const found = SAMPLE_PATIENTS.find(
-      (p) =>
-        p.uhid.toLowerCase() === query ||
-        p.name.toLowerCase().includes(query) ||
-        p.mobile.includes(query)
-    );
-    if (found) {
-      handleSelectPatient(found);
-    } else {
-      toast.error("No patient found with provided details.");
+    const query = searchTerm.trim();
+    if (!query) return;
+    try {
+      const results = await patientService.search({ query });
+      if (results.length > 0) {
+        handleSelectPatient(results[0]);
+      } else {
+        toast.error("No patient found with provided details.");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Search error.");
     }
   };
 
@@ -336,36 +337,28 @@ export default function OPDBilling() {
   };
 
   // Handle Create New Patient
-  const handleSaveNewPatient = (e) => {
+  const handleSaveNewPatient = async (e) => {
     e.preventDefault();
     if (!newPatientForm.name || !newPatientForm.mobile) {
       toast.error("Please enter Patient Name and Mobile Number.");
       return;
     }
-    const newUhid = `UHID${Math.floor(10000 + Math.random() * 90000)}`;
-    const created = {
-      ...newPatientForm,
-      uhid: newUhid,
-      age: Number(newPatientForm.age) || 30,
-      totalVisits: 1,
-      lastDoctor: newPatientForm.doctor,
-      lastVisit: new Date().toLocaleDateString("en-GB").replace(/\//g, "-"),
-      status: "Active",
-      type: "OPD",
-      visits: [
-        {
-          date: new Date().toLocaleDateString("en-GB").replace(/\//g, "-"),
-          dept: newPatientForm.department,
-          doctor: newPatientForm.doctor,
-          amount: netAmount,
-        },
-      ],
-    };
-
-    SAMPLE_PATIENTS.unshift(created);
-    handleSelectPatient(created);
-    setShowNewPatientModal(false);
-    toast.success(`New Patient Registered! Assigned UHID: ${newUhid}`);
+    try {
+      const created = await patientService.create({
+        first_name: newPatientForm.name,
+        phone: newPatientForm.mobile,
+        gender: newPatientForm.gender,
+        age: Number(newPatientForm.age) || 30,
+        city: newPatientForm.city,
+        blood_group: newPatientForm.bloodGroup,
+      });
+      handleSelectPatient(created);
+      setShowNewPatientModal(false);
+      toast.success(`New Patient Registered! Assigned UHID: ${created.uhid}`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to create patient.");
+    }
   };
 
   return (
@@ -427,9 +420,9 @@ export default function OPDBilling() {
                       onClick={() => handleSelectPatient(p)}
                     >
                       <div>
-                        <div className="opd-suggestion-name">{p.name}</div>
+                        <div className="opd-suggestion-name">{p.full_name || p.name || p.first_name}</div>
                         <div className="opd-suggestion-meta">
-                          {p.age} Y / {p.gender} • {p.mobile}
+                          {p.age} Y / {p.gender} • {p.phone || p.mobile1 || p.mobile}
                         </div>
                       </div>
                       <span className="opd-uhid-badge">{p.uhid}</span>
@@ -457,18 +450,18 @@ export default function OPDBilling() {
               {/* Middle Info */}
               <div className="opd-patient-main-info">
                 <div className="opd-patient-name-row">
-                  <h3 className="opd-patient-name">{selectedPatient.name}</h3>
+                  <h3 className="opd-patient-name">{selectedPatient.full_name || selectedPatient.name || selectedPatient.first_name}</h3>
                   <span className="opd-badge-opd">OPD</span>
                   <span className="opd-badge-active">Active</span>
                 </div>
                 <div className="opd-patient-detail-line">
-                  <Icon name="LuUser" size={14} /> {selectedPatient.age} Years / {selectedPatient.gender} | {selectedPatient.mobile}
+                  <Icon name="LuUser" size={14} /> {selectedPatient.age} Years / {selectedPatient.gender} | {selectedPatient.phone || selectedPatient.mobile1 || selectedPatient.mobile}
                 </div>
                 <div className="opd-patient-detail-line">
-                  <Icon name="LuMapPin" size={14} /> {selectedPatient.city}
+                  <Icon name="LuMapPin" size={14} /> {selectedPatient.city || "Unknown"}
                 </div>
                 <div className="opd-patient-detail-line">
-                  <Icon name="LuCalendar" size={14} /> Last Visit: {selectedPatient.lastVisit}
+                  <Icon name="LuCalendar" size={14} /> Last Visit: {selectedPatient.lastVisit || "-"}
                 </div>
               </div>
 
@@ -478,7 +471,7 @@ export default function OPDBilling() {
                   <Icon name="LuDroplet" size={16} className="opd-vital-icon" style={{ color: "#ef4444" }} />
                   <div>
                     <div className="opd-vital-label">Blood Group</div>
-                    <div className="opd-vital-val" style={{ color: "#ef4444" }}>{selectedPatient.bloodGroup}</div>
+                    <div className="opd-vital-val" style={{ color: "#ef4444" }}>{selectedPatient.bloodGroup || selectedPatient.blood_group || "-"}</div>
                   </div>
                 </div>
 
@@ -486,7 +479,7 @@ export default function OPDBilling() {
                   <Icon name="LuCalendar" size={16} className="opd-vital-icon" style={{ color: "#2563eb" }} />
                   <div>
                     <div className="opd-vital-label">Total Visits</div>
-                    <div className="opd-vital-val">{selectedPatient.totalVisits}</div>
+                    <div className="opd-vital-val">{selectedPatient.totalVisits || "-"}</div>
                   </div>
                 </div>
 
@@ -494,7 +487,7 @@ export default function OPDBilling() {
                   <Icon name="LuShieldAlert" size={16} className="opd-vital-icon" style={{ color: "#16a34a" }} />
                   <div>
                     <div className="opd-vital-label">Allergies</div>
-                    <div className="opd-vital-val">{selectedPatient.allergies}</div>
+                    <div className="opd-vital-val">{selectedPatient.allergies || "-"}</div>
                   </div>
                 </div>
 
@@ -502,7 +495,7 @@ export default function OPDBilling() {
                   <Icon name="LuStethoscope" size={16} className="opd-vital-icon" style={{ color: "#2563eb" }} />
                   <div>
                     <div className="opd-vital-label">Last Doctor</div>
-                    <div className="opd-vital-val">{selectedPatient.lastDoctor}</div>
+                    <div className="opd-vital-val">{selectedPatient.lastDoctor || "-"}</div>
                   </div>
                 </div>
 
@@ -510,7 +503,7 @@ export default function OPDBilling() {
                   <Icon name="LuActivity" size={16} className="opd-vital-icon" style={{ color: "#ef4444" }} />
                   <div>
                     <div className="opd-vital-label">Known History</div>
-                    <div className="opd-vital-val">{selectedPatient.history}</div>
+                    <div className="opd-vital-val">{selectedPatient.history || "-"}</div>
                   </div>
                 </div>
 
@@ -518,7 +511,7 @@ export default function OPDBilling() {
                   <Icon name="LuBuilding2" size={16} className="opd-vital-icon" style={{ color: "#2563eb" }} />
                   <div>
                     <div className="opd-vital-label">Department</div>
-                    <div className="opd-vital-val">{selectedPatient.department}</div>
+                    <div className="opd-vital-val">{selectedPatient.department || "-"}</div>
                   </div>
                 </div>
               </div>

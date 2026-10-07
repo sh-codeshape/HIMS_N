@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import Icon from "../../../components/common/Icon.jsx";
 import { mockStore } from "../../../mock/mockStore";
+import patientService from "../../../api/services/patientService";
 import "./OPDTokenQueue.css";
 
 // ── Department & Doctor Fee Structure ──────────────────────────────────────────
@@ -89,7 +90,6 @@ export default function OPDTokenQueue() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const [patients, setPatients] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
 
   // Search state
@@ -150,22 +150,27 @@ export default function OPDTokenQueue() {
 
   // Load patient list and check URL parameter `?uhid=...`
   useEffect(() => {
-    const allPatients = mockStore.getPatients();
-    setPatients(allPatients);
-
-    const uhidParam = searchParams.get("uhid");
-    if (uhidParam) {
-      const found = allPatients.find((p) => p.uhid === uhidParam);
-      if (found) {
-        setSelectedPatient(found);
-        setSearchQuery(`${found.name || found.firstName} (${found.uhid})`);
-        if (found.department && DOCTOR_LIST[found.department]) {
-          setDepartment(found.department);
+    const loadFromUrl = async () => {
+      const uhidParam = searchParams.get("uhid");
+      if (uhidParam) {
+        try {
+          const results = await patientService.search({ uhid: uhidParam });
+          if (results && results.length > 0) {
+            const found = results[0];
+            setSelectedPatient(found);
+            setSearchQuery(`${found.full_name || found.name || found.first_name} (${found.uhid})`);
+            if (found.department && DOCTOR_LIST[found.department]) {
+              setDepartment(found.department);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch patient by UHID:", error);
         }
+      } else {
+        setSelectedPatient(null);
       }
-    } else {
-      setSelectedPatient(null);
-    }
+    };
+    loadFromUrl();
   }, [searchParams]);
 
   // Update Consultation Fee & Selected Doctor when Department changes
@@ -181,7 +186,7 @@ export default function OPDTokenQueue() {
   }, [department]);
 
   // Handle Patient Search Input Change
-  const handleSearchChange = (e) => {
+  const handleSearchChange = async (e) => {
     const query = e.target.value;
     setSearchQuery(query);
     if (!query.trim()) {
@@ -189,22 +194,21 @@ export default function OPDTokenQueue() {
       setShowDropdown(false);
       return;
     }
-    const term = query.trim().toLowerCase();
-    const matches = patients.filter((p) => {
-      const name = `${p.firstName || ""} ${p.lastName || ""} ${p.name || ""}`.toLowerCase();
-      const phone = (p.mobile1 || p.phone || p.mobile || "").toLowerCase();
-      const uhid = (p.uhid || "").toLowerCase();
-      return name.includes(term) || phone.includes(term) || uhid.includes(term);
-    });
-    setSearchResults(matches.slice(0, 6));
-    setShowDropdown(true);
+    
+    try {
+      const results = await patientService.search({ query: query.trim() });
+      setSearchResults(results.slice(0, 6));
+      setShowDropdown(true);
+    } catch (error) {
+      console.error("Failed to search patients:", error);
+    }
   };
 
   const handleSelectPatient = (p) => {
     setSelectedPatient(p);
-    setSearchQuery(`${p.name || p.firstName} (${p.uhid})`);
+    setSearchQuery(`${p.full_name || p.name || p.first_name} (${p.uhid})`);
     setShowDropdown(false);
-    toast.success(`Patient selected: ${p.name || p.firstName}`);
+    toast.success(`Patient selected: ${p.full_name || p.name || p.first_name}`);
   };
 
   // Complaint Selection Handlers
@@ -266,7 +270,7 @@ export default function OPDTokenQueue() {
     const slipInfo = {
       tokenNo,
       date: formattedDate,
-      patientName: selectedPatient.name || `${selectedPatient.firstName || ""} ${selectedPatient.lastName || ""}`.trim(),
+      patientName: selectedPatient.full_name || selectedPatient.name || `${selectedPatient.first_name || ""} ${selectedPatient.last_name || ""}`.trim(),
       uhid: selectedPatient.uhid,
       phone: selectedPatient.phone || selectedPatient.mobile1 || selectedPatient.mobile || "—",
       age: selectedPatient.age || selectedPatient.ageYrs || "32",
@@ -326,39 +330,6 @@ export default function OPDTokenQueue() {
         </div>
       </div>
 
-<<<<<<< HEAD
-        <form onSubmit={handleIssueToken} className="opd-mod-form">
-          <div className="opd-mod-group" style={{ position: "relative" }}>
-            <label className="opd-mod-label">Search Registered Patient *</label>
-            <input
-              type="text"
-              className="opd-mod-input"
-              placeholder="Type patient name, UHID, or phone..."
-              value={patientSearchText}
-              onChange={(e) => {
-                setPatientSearchText(e.target.value);
-                if (selectedPatient) setSelectedPatient(null);
-              }}
-              required
-            />
-            {selectedPatient && (
-              <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 8, background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1d4ed8", fontSize: 13 }}>
-                Selected: <strong>{selectedPatient.full_name || `${selectedPatient.first_name || ""} ${selectedPatient.last_name || ""}`.trim() || "Patient"}</strong> ({selectedPatient.uhid})
-              </div>
-            )}
-            {showPatientDropdown && (patientSearchResults.length > 0 || isSearching) && (
-              <div 
-                style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #ccc", zIndex: 10, maxHeight: "200px", overflowY: "auto", borderRadius: "4px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}
-                onScroll={handleScrollPatients}
-              >
-                {patientSearchResults.map((p) => {
-                  const age = p.age ?? (p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0);
-                  const name = p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Patient";
-                  return (
-                    <div 
-                      key={p.id} 
-                      style={{ padding: "8px 12px", cursor: "pointer", borderBottom: "1px solid #eee", fontSize: "14px" }}
-=======
       {/* ── PATIENT SEARCH BAR ── */}
       <div ref={searchRef} className="opd-search-card">
         <label className="opd-search-label">
@@ -411,15 +382,15 @@ export default function OPDTokenQueue() {
                 onClick={() => handleSelectPatient(pt)}
               >
                 <div className="opd-dropdown-avatar">
-                  {(pt.name || pt.firstName || "P")[0].toUpperCase()}
+                  {(pt.full_name || pt.name || pt.first_name || "P")[0].toUpperCase()}
                 </div>
                 <div className="opd-dropdown-info">
                   <div className="opd-dropdown-name">
-                    {pt.name || `${pt.firstName || ""} ${pt.lastName || ""}`.trim()}
+                    {pt.full_name || pt.name || `${pt.first_name || ""} ${pt.last_name || ""}`.trim()}
                     <span className="opd-dropdown-uhid-badge">{pt.uhid}</span>
                   </div>
                   <div className="opd-dropdown-sub">
-                    📞 {pt.mobile1 || pt.phone || pt.mobile || "—"} | {pt.age || pt.ageYrs || "32"} Yrs / {pt.gender || "Male"} | 🩸 {pt.bloodGroup || "B+"}
+                    📞 {pt.phone || pt.mobile1 || pt.mobile || "—"} | {pt.age || pt.ageYrs || "32"} Yrs / {pt.gender || "Male"} | 🩸 {pt.blood_group || pt.bloodGroup || "B+"}
                   </div>
                 </div>
               </div>
@@ -442,14 +413,14 @@ export default function OPDTokenQueue() {
                 }}
               />
               <div className="opd-pb-avatar-fallback">
-                {(selectedPatient.name || selectedPatient.firstName || "P")[0].toUpperCase()}
+                {(selectedPatient.full_name || selectedPatient.name || selectedPatient.first_name || "P")[0].toUpperCase()}
               </div>
             </div>
 
             <div className="opd-pb-info-grid">
               <div className="opd-pb-name-row">
                 <h2 className="opd-pb-name">
-                  {selectedPatient.name || `${selectedPatient.firstName || ""} ${selectedPatient.lastName || ""}`.trim()}
+                  {selectedPatient.full_name || selectedPatient.name || `${selectedPatient.first_name || ""} ${selectedPatient.last_name || ""}`.trim()}
                 </h2>
               </div>
 
@@ -650,15 +621,11 @@ export default function OPDTokenQueue() {
                     <button
                       type="button"
                       className="other-cancel-btn"
->>>>>>> upstream/main
                       onClick={() => {
                         setShowOtherInput(false);
                         setOtherComplaintText("");
                       }}
                     >
-<<<<<<< HEAD
-                      <strong>{name}</strong> ({p.uhid}) • Age: {age}Y • {p.phone || "—"}
-=======
                       ✕
                     </button>
                   </div>
@@ -711,8 +678,6 @@ export default function OPDTokenQueue() {
                   </div>
                 </div>
               )}
-
-              
 
               {/* Additional Symptoms / Notes */}
               <div className="opd-field-group">
@@ -791,15 +756,12 @@ export default function OPDTokenQueue() {
                           <span className="opd-doc-room">Room : {doc.room}</span>
                         </div>
                       </div>
->>>>>>> upstream/main
                     </div>
                   );
                 })}
               </div>
             </div>
           </div>
-
-         
         </div>
 
         {/* ── RIGHT COLUMN ── */}

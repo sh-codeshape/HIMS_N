@@ -80,9 +80,19 @@ export class OpdRepository {
 
   async getQueue(facilityId: string, practitionerId?: string, date?: string) {
     let query = `
-      SELECT e.*, p.first_name, p.last_name, p.uhid
+      SELECT 
+        e.*, 
+        p.first_name, 
+        p.last_name, 
+        p.uhid,
+        s.first_name as doc_first_name,
+        s.last_name as doc_last_name,
+        d.name as department_name
       FROM encounters e
       JOIN patients p ON e.patient_id = p.id
+      LEFT JOIN practitioners pr ON e.primary_practitioner_id = pr.id
+      LEFT JOIN staff s ON pr.staff_id = s.id
+      LEFT JOIN departments d ON e.department_id = d.id
       WHERE e.facility_id = $1
         AND e.encounter_type = 'opd'
     `;

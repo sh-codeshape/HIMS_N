@@ -1,20 +1,41 @@
 import React, { useState, useEffect } from "react";
 import Icon from "../../../components/common/Icon.jsx";
-import { mockStore } from "../../../mock/mockStore";
+import opdService from "../../../api/services/opdService";
 
 export default function OPDReportsView() {
   const [opdQueue, setOpdQueue] = useState([]);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    setOpdQueue(mockStore.getOPDQueue());
+    loadOpdQueue();
   }, []);
+
+  const loadOpdQueue = async () => {
+    try {
+      const queue = await opdService.getQueue();
+      
+      const mappedQueue = queue.map((item) => ({
+        id: item.id,
+        tokenNo: item.custom_fields?.opd_token || item.encounter_no,
+        patientName: [item.first_name, item.last_name].filter(Boolean).join(" ") || "Unknown",
+        uhid: item.uhid,
+        doctor: [item.doc_first_name, item.doc_last_name].filter(Boolean).join(" ") || "Unknown Doc",
+        department: item.department_name || "General",
+        time: new Date(item.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        status: item.status === 'arrived' ? 'In Consultation' : (item.status === 'completed' ? 'Completed' : 'Waiting')
+      }));
+      setOpdQueue(mappedQueue);
+    } catch (err) {
+      console.error("Failed to load OPD queue:", err);
+    }
+  };
 
   const filtered = opdQueue.filter(
     (item) =>
       item.patientName?.toLowerCase().includes(search.toLowerCase()) ||
       item.uhid?.toLowerCase().includes(search.toLowerCase()) ||
-      item.doctor?.toLowerCase().includes(search.toLowerCase())
+      item.doctor?.toLowerCase().includes(search.toLowerCase()) ||
+      item.tokenNo?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (

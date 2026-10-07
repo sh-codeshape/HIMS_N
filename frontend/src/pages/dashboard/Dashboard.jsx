@@ -14,27 +14,37 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   const [appointments, setAppointments] = useState([]);
+  const [patients, setPatients] = useState([]);
+  const [opdQueue, setOpdQueue] = useState([]);
+  const [beds, setBeds] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+  const [doctors, setDoctors] = useState([]);
 
   useEffect(() => {
-<<<<<<< HEAD
     const loadDashboardData = async () => {
       if (isMockMode()) {
-        setPatients(mockStore.getPatients());
-        setOpdQueue(mockStore.getOPDQueue());
-        setBeds(mockStore.getBeds());
-        setInvoices(mockStore.getInvoices());
-        setDoctors(mockStore.getDoctors());
+        setAppointments(mockStore.getAppointments() || []);
+        setPatients(mockStore.getPatients() || []);
+        setOpdQueue(mockStore.getOPDQueue() || []);
+        setBeds(mockStore.getBeds() || []);
+        setInvoices(mockStore.getInvoices() || []);
+        setDoctors(mockStore.getDoctors() || []);
         return;
       }
 
       try {
-        const [patientList, queueList, bedList] = await Promise.all([
+        const results = await Promise.allSettled([
           patientService.getAll(),
           opdService.getQueue(),
           ipdService.getBedMatrix(),
         ]);
 
+        const patientList = results[0].status === "fulfilled" ? results[0].value : [];
+        const queueList = results[1].status === "fulfilled" ? results[1].value : [];
+        const bedList = results[2].status === "fulfilled" ? results[2].value : [];
+
         setPatients(patientList || []);
+        
         setOpdQueue((queueList || []).map((item) => ({
           tokenNo: item.tokenNo || item.token_no || item.id || "—",
           patientName: item.patientName || item.patient_name || item.full_name || `${item.first_name || ""} ${item.last_name || ""}`.trim() || "Patient",
@@ -44,6 +54,7 @@ export default function Dashboard() {
           time: item.time || new Date(item.created_at || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           status: item.status || "Waiting",
         })));
+        
         setBeds((bedList || []).map((bed) => ({
           id: bed.id,
           bedNo: bed.bed_no || bed.bedNo || "—",
@@ -51,8 +62,25 @@ export default function Dashboard() {
           room: bed.room_name || bed.room || "General",
           status: bed.current_status || bed.status || "Available",
         })));
+        
         setInvoices([]);
         setDoctors([]);
+
+        // Generate appointments from patientList since we don't have a dedicated appointments API
+        const apptsMapped = (patientList || []).map((item) => ({
+          id: item.id || Math.random().toString(),
+          patientName: item.patientName || item.patient_name || item.full_name || `${item.first_name || ""} ${item.last_name || ""}`.trim() || "Patient",
+          uhid: item.uhid || item.id?.substring(0, 8) || "—",
+          phone: item.phone || item.mobile || "—",
+          patientType: item.visit_type || item.patientType || "OPD",
+          category: item.department || "Consultation",
+          doctor: item.doctor || item.referred_by || "—",
+          date: item.created_at ? new Date(item.created_at).toLocaleDateString() : new Date().toLocaleDateString(),
+          token: item.tokenNo || item.token_no || "T-" + Math.floor(Math.random() * 1000),
+          status: item.status || "Confirmed",
+        }));
+        
+        setAppointments(apptsMapped.length > 0 ? apptsMapped : (mockStore.getAppointments() || []));
       } catch (err) {
         console.error("Dashboard live data load failed:", err);
         setPatients([]);
@@ -60,13 +88,11 @@ export default function Dashboard() {
         setBeds([]);
         setInvoices([]);
         setDoctors([]);
+        setAppointments(mockStore.getAppointments() || []);
       }
     };
 
     loadDashboardData();
-=======
-    setAppointments(mockStore.getAppointments() || []);
->>>>>>> upstream/main
   }, []);
 
   // Filter state

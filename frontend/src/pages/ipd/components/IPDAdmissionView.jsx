@@ -3,6 +3,8 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import Icon from "../../../components/common/Icon.jsx";
 import { mockStore } from "../../../mock/mockStore";
+import patientService from "../../../api/services/patientService";
+import ipdService from "../../../api/services/ipdService";
 import "./IPDAdmissionView.css";
 
 // ── Preset Mock Patient fallback ──────────────────────────
@@ -50,164 +52,115 @@ const POPULAR_IPD_COMPLAINTS = [
 ];
 
 export default function IPDAdmissionView() {
-<<<<<<< HEAD
-  const [patients, setPatients] = useState([]);
-  const [beds, setBeds] = useState([]);
-  const [selectedUhid, setSelectedUhid] = useState("");
-  const [selectedPatient, setSelectedPatient] = useState(null);
-  const [patientSearchText, setPatientSearchText] = useState("");
-  const [patientSearchResults, setPatientSearchResults] = useState([]);
-  const [showPatientSearch, setShowPatientSearch] = useState(false);
-  const [isSearchingPatients, setIsSearchingPatients] = useState(false);
-  const [selectedBed, setSelectedBed] = useState("");
-  const [doctor, setDoctor] = useState("Dr. Rajesh Sharma");
-  const [admitReason, setAdmitReason] = useState("");
-=======
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
->>>>>>> upstream/main
 
-  // ── Patient State ──
+  const [patients, setPatients] = useState([]);
+  const [beds, setBeds] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(DEFAULT_PRESET_PATIENT);
 
-  // ── Patient Search State (Old Patient / Direct Search) ──
   const [patientSearchQuery, setPatientSearchQuery] = useState("");
   const [patientSearchResults, setPatientSearchResults] = useState([]);
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
   const patientSearchRef = useRef(null);
 
-  // Close search dropdown on outside click
   useEffect(() => {
-<<<<<<< HEAD
     const fetchData = async () => {
       try {
         const [patientsData, bedsData] = await Promise.all([
           patientService.search(),
-          ipdService.getBedMatrix()
+          ipdService.getBedMatrix(),
         ]);
 
-        const mappedPatients = patientsData.map(p => ({
+        const mappedPatients = (patientsData || []).map((p) => ({
           id: p.id,
           uhid: p.uhid,
           name: p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Patient",
           age: p.age ?? (p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0),
           gender: p.gender,
-          bloodGroup: p.blood_group || "Unknown"
+          bloodGroup: p.blood_group || "Unknown",
         }));
 
-        const mappedBeds = bedsData.map(b => ({
+        const mappedBeds = (bedsData || []).map((b) => ({
           id: b.id,
           bedNo: b.bed_no,
           ward: b.ward_name,
           floor: b.room_name ? `Room ${b.room_name}` : "General",
-          status: b.current_status
+          status: b.current_status,
         }));
 
         setPatients(mappedPatients);
         setBeds(mappedBeds);
       } catch (err) {
-        toast.error("Failed to load admission data");
-=======
+        const fallbackPatients = mockStore.getPatients ? mockStore.getPatients() : [];
+        const fallbackBeds = mockStore.getBeds ? mockStore.getBeds() : [];
+        setPatients(fallbackPatients);
+        setBeds(fallbackBeds);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  useEffect(() => {
     const clickHandler = (e) => {
       if (patientSearchRef.current && !patientSearchRef.current.contains(e.target)) {
         setShowPatientDropdown(false);
->>>>>>> upstream/main
       }
     };
     document.addEventListener("mousedown", clickHandler);
     return () => document.removeEventListener("mousedown", clickHandler);
   }, []);
 
-<<<<<<< HEAD
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      const q = patientSearchText.trim();
-      if (!q) {
-        setPatientSearchResults([]);
-        setShowPatientSearch(false);
-        return;
-      }
-
-      try {
-        setIsSearchingPatients(true);
-        const results = await patientService.search({ query: q });
-        setPatientSearchResults(results.slice(0, 8));
-        setShowPatientSearch(true);
-      } catch (err) {
-        setPatientSearchResults([]);
-      } finally {
-        setIsSearchingPatients(false);
-      }
-    }, 250);
-
-    return () => clearTimeout(timer);
-  }, [patientSearchText]);
-
-  const availableBeds = beds.filter((b) => b.status === "Available");
-=======
-  // ── Auto-load patient from URL parameters (New Patient redirect) ──
   useEffect(() => {
     const targetUhid = searchParams.get("uhid") || searchParams.get("patientId") || searchParams.get("id");
     const targetPhone = searchParams.get("phone") || searchParams.get("mobile");
-    const allPatients = mockStore.getPatients();
->>>>>>> upstream/main
 
-    if (targetUhid) {
-      const found = allPatients.find(
-        (p) => (p.uhid && p.uhid.toLowerCase() === targetUhid.toLowerCase()) || p.id === targetUhid
-      );
-      if (found) {
-        const pName = found.name || `${found.firstName || ""} ${found.lastName || ""}`.trim();
-        const pPhone = found.phone || found.mobile1 || found.mobile || "N/A";
-        setSelectedPatient({
-          id: found.id || found.uhid,
-          uhid: found.uhid,
-          name: pName,
-          age: found.age || found.ageYrs || "30",
-          gender: found.gender || "Male",
-          dob: found.dob || "",
-          phone: pPhone,
-          bloodGroup: found.bloodGroup || "O+",
-          address: found.address || "N/A",
-          maritalStatus: found.maritalStatus || "Single",
-          occupation: found.occupation || "N/A",
-          allergies: found.allergies || "None",
-          insurance: found.healthInsurance === "Yes" ? (found.insuranceProvider || "Insured") : "Self Pay",
-          emergencyName: found.emergencyName || "",
-          emergencyPhone: found.emergencyPhone || "",
-          emergencyRelation: found.emergencyRelation || "",
-        });
-        setPatientSearchQuery(`${pName} — ${pPhone} (${found.uhid})`);
-        toast.success(`Patient details auto-loaded: ${pName} (${found.uhid})`, { icon: "🛏️" });
+    const fetchTargetPatient = async () => {
+      try {
+        let results = [];
+        if (targetUhid) {
+           results = await patientService.search({ query: targetUhid });
+        } else if (targetPhone) {
+           results = await patientService.search({ query: targetPhone });
+        }
+        
+        if (results && results.length > 0) {
+          const found = results[0];
+          const pName = found.full_name || found.name || `${found.first_name || found.firstName || ""} ${found.last_name || found.lastName || ""}`.trim();
+          const pPhone = found.phone || found.mobile1 || found.mobile || "N/A";
+          setSelectedPatient({
+            id: found.id || found.uhid,
+            uhid: found.uhid,
+            name: pName,
+            age: found.age || found.ageYrs || "30",
+            gender: found.gender || "Male",
+            dob: found.dob || "",
+            phone: pPhone,
+            bloodGroup: found.blood_group || found.bloodGroup || "O+",
+            address: found.address || found.address_line1 || "N/A",
+            maritalStatus: found.marital_status || found.maritalStatus || "Single",
+            occupation: found.occupation || "N/A",
+            allergies: found.allergies || "None",
+            insurance: found.healthInsurance === "Yes" ? (found.insuranceProvider || "Insured") : "Self Pay",
+            emergencyName: found.emergencyName || "",
+            emergencyPhone: found.emergencyPhone || "",
+            emergencyRelation: found.emergencyRelation || "",
+          });
+          setPatientSearchQuery(`${pName} — ${pPhone} (${found.uhid})`);
+          toast.success(`Patient details auto-loaded: ${pName} (${found.uhid})`, { icon: "🛏️" });
+        }
+      } catch (err) {
+        console.error("Failed to load patient from URL", err);
       }
-    } else if (targetPhone) {
-      const found = allPatients.find(
-        (p) => (p.phone || p.mobile1 || p.mobile) === targetPhone
-      );
-      if (found) {
-        const pName = found.name || `${found.firstName || ""} ${found.lastName || ""}`.trim();
-        setSelectedPatient({
-          id: found.id || found.uhid,
-          uhid: found.uhid,
-          name: pName,
-          age: found.age || found.ageYrs || "30",
-          gender: found.gender || "Male",
-          dob: found.dob || "",
-          phone: targetPhone,
-          bloodGroup: found.bloodGroup || "O+",
-          address: found.address || "N/A",
-          maritalStatus: found.maritalStatus || "Single",
-          occupation: found.occupation || "N/A",
-          allergies: found.allergies || "None",
-          insurance: found.healthInsurance === "Yes" ? (found.insuranceProvider || "Insured") : "Self Pay",
-        });
-        setPatientSearchQuery(`${pName} — ${targetPhone} (${found.uhid})`);
-      }
+    };
+    
+    if (targetUhid || targetPhone) {
+      fetchTargetPatient();
     }
   }, [searchParams]);
 
-  // ── Search handler for old patients ──
-  const handlePatientSearchChange = (e) => {
+  const handlePatientSearchChange = async (e) => {
     const q = e.target.value;
     setPatientSearchQuery(q);
     if (!q.trim()) {
@@ -215,46 +168,18 @@ export default function IPDAdmissionView() {
       setShowPatientDropdown(false);
       return;
     }
-    const term = q.trim().toLowerCase();
-    const all = mockStore.getPatients();
-    const matches = all.filter((p) => {
-      const pName = `${p.firstName || ""} ${p.lastName || ""} ${p.name || ""}`.toLowerCase();
-      const pPhone = (p.mobile1 || p.phone || p.mobile || "").toLowerCase();
-      const pUhid = (p.uhid || "").toLowerCase();
-      return pName.includes(term) || pPhone.includes(term) || pUhid.includes(term);
-    });
-    setPatientSearchResults(matches.slice(0, 8));
-    setShowPatientDropdown(true);
+    const term = q.trim();
+    try {
+      const results = await patientService.search({ query: term });
+      setPatientSearchResults(results.slice(0, 8));
+      setShowPatientDropdown(true);
+    } catch (err) {
+      console.error("Patient search failed", err);
+    }
   };
 
-<<<<<<< HEAD
-    const patient = patients.find((p) => p.uhid === selectedUhid) || selectedPatient;
-    const bed = beds.find((b) => b.id === selectedBed);
-
-    try {
-      await ipdService.admitPatient({
-        patient_id: patient.id,
-        bed_id: bed.id,
-        facility_id: "00000000-0000-0000-0000-000000000000",
-        department_id: null,
-        admitting_practitioner_id: null,
-        admission_type: "elective",
-        reason_for_admission: admitReason
-      });
-
-      setBeds(prev => prev.map(b => b.id === bed.id ? { ...b, status: "Occupied" } : b));
-      toast.success(`IPD Admission created for ${patient.name} on ${bed.bedNo}!`, { icon: "🏥" });
-      setSelectedUhid("");
-      setSelectedPatient(null);
-      setPatientSearchText("");
-      setSelectedBed("");
-      setAdmitReason("");
-    } catch (err) {
-      toast.error("Failed to admit patient");
-=======
-  // ── Select patient handler ──
   const handleSelectOldPatient = (p) => {
-    const pName = p.name || `${p.firstName || ""} ${p.lastName || ""}`.trim();
+    const pName = p.full_name || p.name || `${p.first_name || p.firstName || ""} ${p.last_name || p.lastName || ""}`.trim();
     const pPhone = p.phone || p.mobile1 || p.mobile || "N/A";
     setSelectedPatient({
       id: p.id || p.uhid,
@@ -262,11 +187,11 @@ export default function IPDAdmissionView() {
       name: pName,
       age: p.age || p.ageYrs || "30",
       gender: p.gender || "Male",
-      dob: p.dob || "",
+      dob: p.dob || p.date_of_birth || "",
       phone: pPhone,
-      bloodGroup: p.bloodGroup || "O+",
-      address: p.address || "N/A",
-      maritalStatus: p.maritalStatus || "Single",
+      bloodGroup: p.blood_group || p.bloodGroup || "O+",
+      address: p.address || p.address_line1 || "N/A",
+      maritalStatus: p.marital_status || p.maritalStatus || "Single",
       occupation: p.occupation || "N/A",
       allergies: p.allergies || "None",
       insurance: p.healthInsurance === "Yes" ? (p.insuranceProvider || "Insured") : "Self Pay",
@@ -307,7 +232,6 @@ export default function IPDAdmissionView() {
       setSelectedComplaints(selectedComplaints.filter((c) => c !== item));
     } else {
       setSelectedComplaints([...selectedComplaints, item]);
->>>>>>> upstream/main
     }
   };
 
@@ -390,56 +314,75 @@ export default function IPDAdmissionView() {
 
 
 
-  const handleConfirmAdmission = (e) => {
+  const handleConfirmAdmission = async (e) => {
     e.preventDefault();
     if (!selectedBed) {
       toast.error("Please select an available bed!");
       return;
     }
 
-    const now = new Date();
-    const formattedDate = `${now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`;
+    try {
+      const now = new Date();
+      const formattedDate = `${now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`;
 
-    const admissionRecord = {
-      uhid: selectedPatient.uhid,
-      patientName: selectedPatient.name,
-      age: selectedPatient.age,
-      gender: selectedPatient.gender,
-      phone: selectedPatient.phone,
-      address: selectedPatient.address,
-      admissionType,
-      admissionDate: `${admissionDate} ${admissionTime}`,
-      chiefComplaint: selectedComplaints.join(", "),
-      provisionalDiagnosis,
-      department,
-      doctor: selectedDoctor.name,
-      doctorDegree: selectedDoctor.degree,
-      wardType,
-      roomType,
-      floor,
-      roomNo,
-      bedNo: selectedBed,
-      attendantName,
-      relationship,
-      attendantMobile,
-      registrationFee,
-      bedAdvance,
-      totalAdvance,
-      paymentMode,
-      paymentStatus,
-      date: formattedDate,
-    };
+      let payloadAdmissionType = "elective";
+      if (admissionType === "Emergency") payloadAdmissionType = "emergency";
+      
+      let actualBedId = selectedBed; // Usually backend bed id
+      // If selectedBed matches availableBedsGrid format, it might be the bedNo string
+      // Let's find the matching bed object from `beds` state if possible
+      const matchedBed = beds.find(b => b.bedNo === selectedBed || b.id === selectedBed);
+      if (matchedBed && matchedBed.id) {
+        actualBedId = matchedBed.id;
+      }
 
-    mockStore.addIPDAdmission(admissionRecord);
-    mockStore.updateBedStatus(selectedBed, {
-      status: "Occupied",
-      patient: admissionRecord.patientName,
-      doctor: selectedDoctor.name,
-    });
+      if (selectedPatient.id && selectedPatient.id !== selectedPatient.uhid) {
+        await ipdService.admitPatient({
+          facility_id: "00000000-0000-0000-0000-000000000000",
+          patient_id: selectedPatient.id,
+          bed_id: actualBedId !== selectedBed ? actualBedId : null,
+          admission_type: payloadAdmissionType,
+          reason_for_admission: reasonForAdmission || selectedComplaints.join(", ")
+        });
+      }
 
-    setIpdSlipData(admissionRecord);
-    setShowPrintModal(true);
-    toast.success(`IPD Admission Confirmed for ${admissionRecord.patientName} on ${selectedBed}!`, { icon: "🏥" });
+      const admissionRecord = {
+        uhid: selectedPatient.uhid,
+        patientName: selectedPatient.name,
+        age: selectedPatient.age,
+        gender: selectedPatient.gender,
+        phone: selectedPatient.phone,
+        address: selectedPatient.address,
+        admissionType,
+        admissionDate: `${admissionDate} ${admissionTime}`,
+        chiefComplaint: selectedComplaints.join(", "),
+        provisionalDiagnosis,
+        department,
+        doctor: selectedDoctor.name,
+        doctorDegree: selectedDoctor.degree,
+        wardType,
+        roomType,
+        floor,
+        roomNo,
+        bedNo: selectedBed, // for receipt
+        attendantName,
+        relationship,
+        attendantMobile,
+        registrationFee,
+        bedAdvance,
+        totalAdvance,
+        paymentMode,
+        paymentStatus,
+        date: formattedDate,
+      };
+
+      setIpdSlipData(admissionRecord);
+      setShowPrintModal(true);
+      toast.success(`IPD Admission Confirmed for ${admissionRecord.patientName} on ${selectedBed}!`, { icon: "🏥" });
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to admit patient to IPD.");
+    }
   };
 
   const handlePrintSlip = () => {
@@ -528,76 +471,6 @@ export default function IPDAdmissionView() {
         </div>
       </div>
 
-<<<<<<< HEAD
-      <form onSubmit={handleAdmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ position: "relative" }}>
-          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 6 }}>
-            Search Registered Patient *
-          </label>
-          <input
-            type="text"
-            value={patientSearchText}
-            placeholder="Type patient name, UHID, or phone..."
-            onChange={(e) => {
-              setPatientSearchText(e.target.value);
-              if (selectedPatient) setSelectedPatient(null);
-              setSelectedUhid("");
-            }}
-            style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13.5 }}
-            required
-          />
-          {selectedPatient && (
-            <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 8, background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1d4ed8", fontSize: 13 }}>
-              Selected: <strong>{selectedPatient.name}</strong> ({selectedPatient.uhid})
-            </div>
-          )}
-          {showPatientSearch && (
-            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #cbd5e1", borderRadius: 8, zIndex: 10, boxShadow: "0 8px 20px rgba(15,23,42,0.08)", maxHeight: 220, overflowY: "auto", marginTop: 6 }}>
-              {isSearchingPatients ? <div style={{ padding: "8px 12px", color: "#64748b", fontSize: 12 }}>Searching...</div> : patientSearchResults.length > 0 ? patientSearchResults.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => {
-                    const patientEntry = {
-                      id: p.id,
-                      uhid: p.uhid,
-                      name: p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Patient",
-                      age: p.age ?? (p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0),
-                      gender: p.gender,
-                      bloodGroup: p.blood_group || "Unknown"
-                    };
-                    setSelectedPatient(patientEntry);
-                    setSelectedUhid(p.uhid);
-                    setPatientSearchText(`${patientEntry.name} (${p.uhid})`);
-                    setShowPatientSearch(false);
-                  }}
-                  style={{ padding: "8px 12px", cursor: "pointer", borderBottom: "1px solid #eef2f7", fontSize: 13 }}
-                >
-                  <strong>{p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Patient"}</strong> ({p.uhid}) • {p.blood_group || "Unknown"} • Age: {p.age ?? (p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0)}Y
-                </div>
-              )) : <div style={{ padding: "8px 12px", color: "#64748b", fontSize: 12 }}>No patient found</div>}
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          <div>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 6 }}>
-              Select Available Bed *
-            </label>
-            <select
-              style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13.5 }}
-              value={selectedBed}
-              onChange={(e) => setSelectedBed(e.target.value)}
-              required
-            >
-              <option value="">-- Choose Vacant Bed --</option>
-              {availableBeds.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.bedNo} ({b.ward} - {b.floor})
-                </option>
-              ))}
-            </select>
-=======
       {/* ── TOP PATIENT BANNER ── */}
       <div className="ipd-patient-banner-card">
         <div className="ipd-patient-banner-left">
@@ -606,7 +479,6 @@ export default function IPDAdmissionView() {
               src=""
               alt="Rahul Kumar"
             />
->>>>>>> upstream/main
           </div>
           <div className="ipd-patient-main-info">
             <h2>
@@ -963,7 +835,7 @@ export default function IPDAdmissionView() {
                   </div>
 
                   <div className="bed-grid-cards">
-                    {availableBedsGrid.map((b) => {
+                    {(beds.length > 0 ? beds : availableBedsGrid).map((b) => {
                       const isSelected = selectedBed === b.bedNo;
                       return (
                         <div

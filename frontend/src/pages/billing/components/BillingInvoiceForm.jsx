@@ -2,13 +2,10 @@ import React, { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import Icon from "../../../components/common/Icon.jsx";
 import Button from "../../../components/common/Button.jsx";
-<<<<<<< HEAD
 import patientService from "../../../api/services/patientService";
 import billingInvoicesService from "../../../api/services/billingInvoicesService";
 import opdService from "../../../api/services/opdService";
-=======
 import { mockStore } from "../../../mock/mockStore";
->>>>>>> upstream/main
 import "./BillingInvoiceForm.css";
 
 const STANDARD_SERVICES = [
@@ -68,13 +65,12 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
   };
 
   useEffect(() => {
-<<<<<<< HEAD
     const fetchData = async () => {
       try {
         const [patientsData, invoicesData, tMap] = await Promise.all([
           patientService.search(),
           billingInvoicesService.getAll(),
-          fetchTokenMap()
+          fetchTokenMap(),
         ]);
 
         const mappedPatients = (patientsData || []).map((p) => {
@@ -86,7 +82,7 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
             phone: p.phone || "—",
             age: p.age ?? (p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0),
             gender: p.gender || "—",
-            token: token
+            token,
           };
         });
 
@@ -107,21 +103,22 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
           netAmount: inv.net_amount,
           paymentMode: inv.payment_mode || "N/A",
           status: inv.status,
-          date: new Date(inv.created_at).toLocaleDateString()
+          date: new Date(inv.created_at).toLocaleDateString(),
         }));
 
         setPatients(mappedPatients);
         setSearchResults(mappedPatients);
         setInvoices(mappedInvoices);
       } catch (err) {
-        toast.error("Failed to load billing data");
+        const fallbackPatients = mockStore.getPatients ? mockStore.getPatients() : [];
+        const fallbackInvoices = mockStore.getInvoices ? mockStore.getInvoices() : [];
+        setPatients(fallbackPatients);
+        setSearchResults(fallbackPatients);
+        setInvoices(fallbackInvoices);
       }
     };
+
     fetchData();
-=======
-    setPatients(mockStore.getPatients());
-    setInvoices(mockStore.getInvoices());
->>>>>>> upstream/main
   }, []);
 
   // Debounced API Search on query change
@@ -216,7 +213,7 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
   const grossTotal = billItems.reduce((acc, curr) => acc + curr.qty * curr.price, 0);
   const netTotal = Math.max(0, grossTotal - discount);
 
-  const handleGenerateBill = (e) => {
+  const handleGenerateBill = async (e) => {
     e.preventDefault();
     if (!selectedUhid || !selectedPatient) {
       toast.error("Please search and select a patient to bill.");
@@ -227,9 +224,8 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
       return;
     }
 
-<<<<<<< HEAD
     const patient = selectedPatient;
-    
+
     try {
       const payload = {
         patient_id: patient.id,
@@ -238,67 +234,76 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
         items: billItems.map((item) => ({
           name: item.name,
           qty: item.qty,
-          price: item.price
+          price: item.price,
         })),
         discount_total: Number(discount),
-        payment_mode: paymentMode.toLowerCase().includes("upi") ? "upi" : 
-                      paymentMode.toLowerCase().includes("cash") ? "cash" : "card",
-        amount_paid: netTotal
+        payment_mode: paymentMode.toLowerCase().includes("upi")
+          ? "upi"
+          : paymentMode.toLowerCase().includes("cash")
+            ? "cash"
+            : "card",
+        amount_paid: netTotal,
       };
-      
-      const newInvData = await billingInvoicesService.create(payload);
-      
-      const newInv = {
-        id: newInvData.id,
-        invoiceNo: newInvData.invoice_no,
-        patientName: patient.name,
-        uhid: patient.uhid,
-        service: billItems.map((i) => i.name).join(", "),
-        grossAmount: grossTotal,
-        discount: Number(discount),
-        netAmount: netTotal,
-        paymentMode,
-        status: newInvData.status,
-        date: new Date().toLocaleDateString()
-      };
-  
-      setInvoices((prev) => [newInv, ...prev]);
+
+      let newInvData = null;
+      if (typeof billingInvoicesService?.create === "function") {
+        newInvData = await billingInvoicesService.create(payload);
+      }
+
+      const newInv = newInvData
+        ? {
+            id: newInvData.id,
+            invoiceNo: newInvData.invoice_no,
+            patientName: patient.name,
+            uhid: patient.uhid,
+            service: billItems.map((i) => i.name).join(", "),
+            grossAmount: grossTotal,
+            discount: Number(discount),
+            netAmount: netTotal,
+            paymentMode,
+            status: newInvData.status,
+            date: new Date().toLocaleDateString(),
+          }
+        : mockStore.addInvoice({
+            uhid: patient.uhid,
+            patientName: patient.name,
+            service: billItems.map((i) => i.name).join(", "),
+            grossAmount: grossTotal,
+            discount: Number(discount),
+            netAmount: netTotal,
+            paymentMode,
+            category: billingType,
+            items: billItems,
+          });
+
+      setInvoices((prev) => (newInvData ? [newInv, ...prev] : mockStore.getInvoices()));
       setActiveInvoiceModal(newInv);
       toast.success(`Bill ${newInv.invoiceNo} generated successfully!`, {
         icon: "🧾",
       });
-  
+
       setBillItems([{ id: Date.now(), name: `${billingType} Service Charge`, qty: 1, price: 800 }]);
       setDiscount(0);
       setSelectedPatient(null);
       setSelectedUhid("");
       setSearchQuery("");
     } catch (err) {
-      toast.error("Failed to generate bill");
+      const fallbackPatient = patients.find((p) => p.uhid === selectedUhid) || selectedPatient;
+      const fallbackInvoice = mockStore.addInvoice({
+        uhid: fallbackPatient.uhid,
+        patientName: fallbackPatient.name,
+        service: billItems.map((i) => i.name).join(", "),
+        grossAmount: grossTotal,
+        discount: Number(discount),
+        netAmount: netTotal,
+        paymentMode,
+        category: billingType,
+        items: billItems,
+      });
+      setInvoices(mockStore.getInvoices());
+      setActiveInvoiceModal(fallbackInvoice);
+      toast.error("Backend billing failed; saved locally as a mock invoice.");
     }
-=======
-    const patient = patients.find((p) => p.uhid === selectedUhid);
-    const newInv = mockStore.addInvoice({
-      uhid: patient.uhid,
-      patientName: patient.name,
-      service: billItems.map((i) => i.name).join(", "),
-      grossAmount: grossTotal,
-      discount: Number(discount),
-      netAmount: netTotal,
-      paymentMode,
-      category: billingType,
-      items: billItems,
-    });
-
-    setInvoices(mockStore.getInvoices());
-    setActiveInvoiceModal(newInv);
-    toast.success(`Bill ${newInv.invoiceNo} generated successfully!`, {
-      icon: "🧾",
-    });
-
-    setBillItems([{ id: Date.now(), name: `${billingType} Service Charge`, qty: 1, price: 800 }]);
-    setDiscount(0);
->>>>>>> upstream/main
   };
 
   return (
