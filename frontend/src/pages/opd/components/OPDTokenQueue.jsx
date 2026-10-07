@@ -753,7 +753,6 @@ export default function OPDTokenQueue() {
                           >
                             {doc.status}
                           </span>
-                          <span className="opd-doc-room">Room : {doc.room}</span>
                         </div>
                       </div>
                     </div>

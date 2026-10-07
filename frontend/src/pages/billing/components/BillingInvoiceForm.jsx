@@ -6,6 +6,7 @@ import patientService from "../../../api/services/patientService";
 import billingInvoicesService from "../../../api/services/billingInvoicesService";
 import opdService from "../../../api/services/opdService";
 import { mockStore } from "../../../mock/mockStore";
+import { isMockMode } from "../../../config/appConfig";
 import "./BillingInvoiceForm.css";
 
 const STANDARD_SERVICES = [
@@ -66,6 +67,12 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
 
   useEffect(() => {
     const fetchData = async () => {
+      if (isMockMode) {
+        setPatients(mockStore.getPatients());
+        setSearchResults(mockStore.getPatients());
+        setInvoices(mockStore.getInvoices());
+        return;
+      }
       try {
         const [patientsData, invoicesData, tMap] = await Promise.all([
           patientService.search(),
@@ -110,6 +117,9 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
         setSearchResults(mappedPatients);
         setInvoices(mappedInvoices);
       } catch (err) {
+        setPatients(mockStore.getPatients());
+        setSearchResults(mockStore.getPatients());
+        setInvoices(mockStore.getInvoices());
         const fallbackPatients = mockStore.getPatients ? mockStore.getPatients() : [];
         const fallbackInvoices = mockStore.getInvoices ? mockStore.getInvoices() : [];
         setPatients(fallbackPatients);
@@ -214,6 +224,7 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
   const netTotal = Math.max(0, grossTotal - discount);
 
   const handleGenerateBill = async (e) => {
+  const handleGenerateBill = async (e) => {
     e.preventDefault();
     if (!selectedUhid || !selectedPatient) {
       toast.error("Please search and select a patient to bill.");
@@ -221,6 +232,31 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
     }
     if (billItems.length === 0) {
       toast.error("Please add at least one bill item.");
+      return;
+    }
+
+    if (isMockMode) {
+      const patient = selectedPatient || patients.find((p) => p.uhid === selectedUhid);
+      const newInv = mockStore.addInvoice({
+        uhid: patient?.uhid || selectedUhid,
+        patientName: patient?.name || "Patient",
+        service: billItems.map((i) => i.name).join(", "),
+        grossAmount: grossTotal,
+        discount: Number(discount),
+        netAmount: netTotal,
+        paymentMode,
+        category: billingType,
+        items: billItems,
+      });
+
+      setInvoices(mockStore.getInvoices());
+      setActiveInvoiceModal(newInv);
+      toast.success(`Bill ${newInv.invoiceNo} generated successfully!`, { icon: "🧾" });
+      setBillItems([{ id: Date.now(), name: `${billingType} Service Charge`, qty: 1, price: 800 }]);
+      setDiscount(0);
+      setSelectedPatient(null);
+      setSelectedUhid("");
+      setSearchQuery("");
       return;
     }
 
@@ -288,6 +324,8 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
       setSelectedUhid("");
       setSearchQuery("");
     } catch (err) {
+      toast.error("Failed to generate bill");
+    }
       const fallbackPatient = patients.find((p) => p.uhid === selectedUhid) || selectedPatient;
       const fallbackInvoice = mockStore.addInvoice({
         uhid: fallbackPatient.uhid,

@@ -15,6 +15,11 @@ import ScanReports from "../../pages/radiology/ScanReports.jsx";
 import WardOPDRegistration from "../../pages/ward/WardOPDRegistration.jsx";
 import WardIPDAdmission from "../../pages/ward/WardIPDAdmission.jsx";
 import FloorBedMap from "../../pages/ward/FloorBedMap.jsx";
+import BedAllotment from "../../pages/ward/BedAllotment.jsx";
+import BedTransfer from "../../pages/ward/BedTransfer.jsx";
+import BedAvailability from "../../pages/ward/BedAvailability.jsx";
+import DischargeManagement from "../../pages/ward/DischargeManagement.jsx";
+import DischargeSummary from "../../pages/ward/DischargeSummary.jsx";
 import NursingStationLog from "../../pages/ward/NursingStationLog.jsx";
 
 // Billing & Invoices
@@ -105,6 +110,51 @@ export const otherRoutes = [
     element={
       <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION]}>
         <FloorBedMap />
+      </ProtectedRoute>
+    }
+  />,
+  <Route
+    key="ward-bed-allotment"
+    path="/ward/bed-allotment"
+    element={
+      <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION]}>
+        <BedAllotment />
+      </ProtectedRoute>
+    }
+  />,
+  <Route
+    key="ward-bed-transfer"
+    path="/ward/bed-transfer"
+    element={
+      <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION]}>
+        <BedTransfer />
+      </ProtectedRoute>
+    }
+  />,
+  <Route
+    key="ward-bed-availability"
+    path="/ward/bed-availability"
+    element={
+      <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION]}>
+        <BedAvailability />
+      </ProtectedRoute>
+    }
+  />,
+  <Route
+    key="ward-discharge-management"
+    path="/ward/discharge-management"
+    element={
+      <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION]}>
+        <DischargeManagement />
+      </ProtectedRoute>
+    }
+  />,
+  <Route
+    key="ward-discharge-summary"
+    path="/ward/discharge-summary"
+    element={
+      <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION]}>
+        <DischargeSummary />
       </ProtectedRoute>
     }
   />,
