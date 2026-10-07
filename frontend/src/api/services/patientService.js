@@ -69,6 +69,13 @@ const patientService = {
       ? records.map(normalizePatientRecord)
       : normalizePatientRecord(records);
   },
+  getFamilyMembers: async (id) => {
+    const res = await axiosInstance.get(`${ENDPOINTS.PATIENTS.BASE}/${id}/family`);
+    const records = res.data?.data ?? res.data ?? [];
+    return Array.isArray(records)
+      ? records.map(normalizePatientRecord)
+      : normalizePatientRecord(records);
+  },
 };
 
 export default patientService;

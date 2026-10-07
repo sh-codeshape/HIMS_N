@@ -28,21 +28,16 @@ async function seed() {
     `, [facilityId, orgId]);
 
     const adminUsername = 'admin@narayanhospital.com';
+    const superAdminUsername = 'superadmin@narayanhospital.com';
     const password = 'password123';
     const passwordHash = await bcrypt.hash(password, 10);
 
     await client.query(`
       INSERT INTO users (
-        organization_id,
-        username,
-        email,
-        password_hash,
-        full_name,
-        is_active,
-        is_superadmin,
-        default_facility_id,
-        phone
-      ) VALUES ($1, $2, $3, $4, $5, true, true, $6, '+91-0000000000')
+        organization_id, username, email, password_hash, full_name, is_active, is_superadmin, default_facility_id, phone
+      ) VALUES 
+        ($1, $2, $3, $4, 'HIMS Administrator', true, false, $5, '+91-0000000000'),
+        ($1, $6, $7, $4, 'Super Administrator', true, true, $5, '+91-0000000001')
       ON CONFLICT (organization_id, username) DO UPDATE SET
         email = EXCLUDED.email,
         password_hash = EXCLUDED.password_hash,
@@ -51,10 +46,13 @@ async function seed() {
         is_superadmin = EXCLUDED.is_superadmin,
         default_facility_id = EXCLUDED.default_facility_id,
         phone = EXCLUDED.phone;
-    `, [orgId, adminUsername, adminUsername, passwordHash, 'HIMS Administrator', facilityId]);
+    `, [orgId, adminUsername, adminUsername, passwordHash, facilityId, superAdminUsername, superAdminUsername]);
 
-    const userResult = await client.query(`SELECT id FROM users WHERE username = $1`, [adminUsername]);
-    const adminUserId = userResult.rows[0].id;
+    const adminUserResult = await client.query(`SELECT id FROM users WHERE username = $1`, [adminUsername]);
+    const adminUserId = adminUserResult.rows[0].id;
+
+    const superAdminUserResult = await client.query(`SELECT id FROM users WHERE username = $1`, [superAdminUsername]);
+    const superAdminUserId = superAdminUserResult.rows[0].id;
 
     // ---------------------------------------------------------
     // ROLES AND PERMISSIONS
@@ -98,6 +96,9 @@ async function seed() {
     const superAdminRoleRes = await client.query(`SELECT id FROM roles WHERE code = 'super_admin' AND organization_id = $1`, [orgId]);
     const superAdminRoleId = superAdminRoleRes.rows[0]?.id;
 
+    const adminRoleRes = await client.query(`SELECT id FROM roles WHERE code = 'admin' AND organization_id = $1`, [orgId]);
+    const adminRoleId = adminRoleRes.rows[0]?.id;
+
     if (superAdminRoleId) {
       for (const p of permissionsToSeed) {
         const permRes = await client.query(`SELECT id FROM permissions WHERE code = $1`, [p.code]);
@@ -111,13 +112,24 @@ async function seed() {
         }
       }
 
-      // Assign Super Admin role to the default admin user
-      const checkUr = await client.query(`SELECT id FROM user_roles WHERE user_id = $1 AND role_id = $2`, [adminUserId, superAdminRoleId]);
-      if (checkUr.rows.length === 0) {
+      // Assign Super Admin role to the super admin user
+      const checkSuperAdminUr = await client.query(`SELECT id FROM user_roles WHERE user_id = $1 AND role_id = $2`, [superAdminUserId, superAdminRoleId]);
+      if (checkSuperAdminUr.rows.length === 0) {
         await client.query(`
           INSERT INTO user_roles (user_id, role_id, facility_id)
           VALUES ($1, $2, $3)
-        `, [adminUserId, superAdminRoleId, facilityId]);
+        `, [superAdminUserId, superAdminRoleId, facilityId]);
+      }
+    }
+
+    if (adminRoleId) {
+      // Assign Admin role to the admin user
+      const checkAdminUr = await client.query(`SELECT id FROM user_roles WHERE user_id = $1 AND role_id = $2`, [adminUserId, adminRoleId]);
+      if (checkAdminUr.rows.length === 0) {
+        await client.query(`
+          INSERT INTO user_roles (user_id, role_id, facility_id)
+          VALUES ($1, $2, $3)
+        `, [adminUserId, adminRoleId, facilityId]);
       }
     }
 
@@ -231,8 +243,8 @@ async function seed() {
     }
 
     await client.query('COMMIT');
-    logger.info('Database seeded successfully with default organization, facility, and admin credentials.');
-    logger.info({ username: adminUsername, password }, 'Default admin login');
+    logger.info('Database seeded successfully with default organization, facility, and admin/superadmin credentials.');
+    logger.info({ admin: adminUsername, superAdmin: superAdminUsername, password }, 'Default logins');
   } catch (error) {
     await client.query('ROLLBACK');
     logger.error({ err: error }, 'Failed to seed database');

@@ -30,7 +30,7 @@ export class RolesController {
 
   getRolePermissions = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const roleId = req.params.roleId;
+      const roleId = req.params.roleId as string;
       const permissions = await this.service.getRolePermissions(roleId);
       sendSuccess(res, permissions, 'Role permissions retrieved successfully', 200);
     } catch (error) {
@@ -40,7 +40,7 @@ export class RolesController {
 
   updateRolePermissions = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const roleId = req.params.roleId;
+      const roleId = req.params.roleId as string;
       const { permissionIds } = req.body;
       await this.service.updateRolePermissions(roleId, permissionIds);
       sendSuccess(res, null, 'Role permissions updated successfully', 200);

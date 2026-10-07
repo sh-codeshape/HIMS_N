@@ -21,6 +21,12 @@ export class PatientController {
     const patient = await patientService.getPatient(String(req.params.id), organizationId);
     sendSuccess(res, patient);
   }
+
+  async getFamilyMembers(req: Request, res: Response) {
+    const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
+    const familyMembers = await patientService.getFamilyMembers(String(req.params.id), organizationId);
+    sendSuccess(res, familyMembers);
+  }
 }
 
 export const patientController = new PatientController();

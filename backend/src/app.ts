@@ -25,6 +25,7 @@ import { ipdRoutes } from './modules/ipd/ipd.routes';
 import { billingRoutes } from './modules/billing/billing.routes';
 import { bedRoutes } from './modules/bed/bed.routes';
 import { staffRoutes } from './modules/staff/staff.routes';
+import { practitionerRoutes } from './modules/staff/practitioner.routes';
 import { labRoutes } from './modules/laboratory/lab.routes';
 import { pharmacyRoutes } from './modules/pharmacy/pharmacy.routes';
 
@@ -43,6 +44,7 @@ app.use('/api/v1/ipd', ipdRoutes);
 app.use('/api/v1/billing', billingRoutes);
 app.use('/api/v1/beds', bedRoutes);
 app.use('/api/v1/staff', staffRoutes);
+app.use('/api/v1/practitioners', practitionerRoutes);
 app.use('/api/v1/laboratory', labRoutes);
 app.use('/api/v1/pharmacy', pharmacyRoutes);
 app.use('/api/v1/roles', rolesRoutes);

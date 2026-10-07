@@ -32,7 +32,7 @@ export class StaffController {
   getStaffById = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const organizationId = req.user?.organizationId as string;
-      const staffId = req.params.staffId;
+      const staffId = req.params.staffId as string;
       const staff = await this.service.getStaffById(organizationId, staffId);
       if (!staff) {
         res.status(404).json({ success: false, error: { message: 'Staff not found' } });
@@ -58,7 +58,7 @@ export class StaffController {
   updateStaff = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const organizationId = req.user?.organizationId as string;
-      const staffId = req.params.staffId;
+      const staffId = req.params.staffId as string;
       const data = req.body;
       const staff = await this.service.updateStaff(organizationId, staffId, data);
       sendSuccess(res, staff, 'Staff updated successfully', 200);

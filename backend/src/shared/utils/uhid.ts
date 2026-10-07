@@ -15,7 +15,7 @@ export function buildUHID(date: Date, serial: number): string {
   }
 
   const mmyy = `${String(month).padStart(2, '0')}${String(yearSuffix).padStart(2, '0')}`;
-  return `UHID-${mmyy}-${String(serial).padStart(6, '0')}`;
+  return `${mmyy}-${String(serial).padStart(4, '0')}`;
 }
 
 export function nextUHIDSerial(currentSerial: number): number {
@@ -29,10 +29,13 @@ export function parseUHID(value: string): ParsedUHID | null {
   const trimmed = value?.trim();
   if (!trimmed) return null;
 
-  const match = /^(\d{2})(\d{2})-(\d{4})$/.exec(trimmed);
+  const match = /^(\d{4})-(\d{4})$/.exec(trimmed);
   if (!match) return null;
 
-  const [, monthText, yearSuffixText, serialText] = match;
+  const mmyyText = match[1];
+  const monthText = mmyyText.substring(0, 2);
+  const yearSuffixText = mmyyText.substring(2, 4);
+  const serialText = match[2];
   const month = Number(monthText);
   const yearSuffix = Number(yearSuffixText);
   const serial = Number(serialText);

@@ -63,6 +63,8 @@ const INITIAL_FORM = {
   paymentType: "", healthInsurance: "No",
   insuranceProvider: "", insuranceNumber: "",
   confirmed: false,
+  familyHeadId: "",
+  relationToHead: "",
 };
 
 // ─── component ───────────────────────────────────────────────────────────────
@@ -75,6 +77,7 @@ export default function RegisterPatient() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedPatientForFamily, setSelectedPatientForFamily] = useState(null);
   const searchRef = useRef(null);
 
   // Close dropdown on outside click
@@ -109,6 +112,13 @@ export default function RegisterPatient() {
 
   // ── Auto-fill form on patient select ────────────────────────────────────
   const handleSelectPatient = (p) => {
+    setSelectedPatientForFamily(p);
+    setShowDropdown(false);
+  };
+
+  const handleLoadSelectedPatient = () => {
+    const p = selectedPatientForFamily;
+    if (!p) return;
     const fullName = p.full_name || p.name || `${p.first_name || p.firstName || ""} ${p.last_name || p.lastName || ""}`.trim();
     const firstName = p.first_name || p.firstName || (fullName || "").split(" ")[0] || "";
     const lastName = p.last_name || p.lastName || (fullName || "").split(" ").slice(1).join(" ") || "";
@@ -141,10 +151,40 @@ export default function RegisterPatient() {
       department: p.department || "",
       visitType: "OPD",
       confirmed: false,
+      familyHeadId: "",
+      relationToHead: "",
     });
     setSearchQuery(`${fullName || "Patient"} — ${p.mobile1 || p.phone || p.mobile || "—"} (${p.uhid})`);
-    setShowDropdown(false);
+    setSelectedPatientForFamily(null);
     showToast(`✅ Patient loaded: ${fullName || "Patient"} (${p.uhid})`);
+  };
+
+  const handleAddFamilyMember = (relation) => {
+    const p = selectedPatientForFamily;
+    if (!p) return;
+    const fullName = p.full_name || p.name || `${p.first_name || p.firstName || ""} ${p.last_name || p.lastName || ""}`.trim();
+    const addrParts = (p.address || p.address_line1 || "").split(",");
+    
+    // Auto-fill address and phone number, but leave personal details blank
+    setFormData({
+      ...INITIAL_FORM,
+      mobile: p.phone || p.mobile1 || p.mobile || "",
+      altMobile: p.alternate_phone || p.mobile2 || p.altMobile || "",
+      address1: addrParts[0]?.trim() || p.address_line1 || p.address || "",
+      address2: addrParts[1]?.trim() || "",
+      city: p.city || "",
+      state: p.state || "",
+      pincode: p.postal_code || p.pin || p.pincode || "",
+      country: p.country || "India",
+      emgName: fullName, // Emergency contact can be the family head
+      emgNumber: p.phone || p.mobile1 || p.mobile || "",
+      emgRelation: "Other", 
+      familyHeadId: p.family_head_id || p.id, // Link to the same head if they are a dependent, else to them
+      relationToHead: relation || "Dependent",
+    });
+    setSearchQuery(`Adding family member for ${fullName || "Patient"} (${p.uhid})`);
+    setSelectedPatientForFamily(null);
+    showToast(`👨‍👩‍👧‍👦 Adding family member for: ${fullName || "Patient"}`);
   };
 
   const clearSearch = () => { setSearchQuery(""); setSearchResults([]); setShowDropdown(false); };
@@ -217,7 +257,11 @@ export default function RegisterPatient() {
       // Insurance
       health_insurance: formData.healthInsurance || undefined,
       insurance_provider: formData.insuranceProvider || undefined,
-      insurance_number: formData.insuranceNumber || undefined
+      insurance_number: formData.insuranceNumber || undefined,
+
+      // Family
+      family_head_id: formData.familyHeadId || undefined,
+      relation_to_head: formData.relationToHead || undefined
     };
   };
 
@@ -227,6 +271,7 @@ export default function RegisterPatient() {
     if (!formData.gender) { showToast("⚠️ Please select Gender.", "error"); return false; }
     if (!formData.mobile || formData.mobile.length < 10) { showToast("⚠️ Valid 10-digit Mobile is required.", "error"); return false; }
     if (!formData.address1.trim()) { showToast("⚠️ Address Line 1 is required.", "error"); return false; }
+    if (formData.familyHeadId && !formData.relationToHead) { showToast("⚠️ Please select relationship to family head.", "error"); return false; }
     if (!formData.confirmed) { showToast("⚠️ Please confirm the information.", "error"); return false; }
     return true;
   };
@@ -269,6 +314,53 @@ export default function RegisterPatient() {
         >
           <LuCircleCheck size={16} />
           {toast.msg}
+        </div>
+      )}
+
+      {/* FAMILY MODAL */}
+      {selectedPatientForFamily && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-bold text-slate-800 text-lg">Patient Selected</h3>
+              <button onClick={() => setSelectedPatientForFamily(null)} className="text-slate-400 hover:text-slate-600">
+                <LuX size={20} />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-slate-600 mb-6">
+                You selected <strong>{selectedPatientForFamily.full_name || selectedPatientForFamily.first_name}</strong>. What would you like to do?
+              </p>
+              
+              <div className="space-y-3">
+                <button 
+                  onClick={handleLoadSelectedPatient}
+                  className="w-full flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50 transition-all text-left group"
+                >
+                  <div className="p-2 bg-blue-100 text-blue-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <LuUser size={20} />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-800 text-sm">Load Patient Profile</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">Auto-fill form to update details or proceed to OPD/IPD.</p>
+                  </div>
+                </button>
+
+                <button 
+                  onClick={() => handleAddFamilyMember("Spouse")}
+                  className="w-full flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 transition-all text-left group"
+                >
+                  <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                    <LuUserPlus size={20} />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-800 text-sm">Add New Family Member</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">Register a dependent under this patient's profile.</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -428,9 +520,35 @@ export default function RegisterPatient() {
              
              
              
-              
             </div>
           </div>
+
+          {/* ── SECTION 1.5: FAMILY LINKING (Optional) ── */}
+          {formData.familyHeadId && (
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mt-4">
+              <h3 className="flex items-center gap-2 text-blue-800 font-bold text-sm mb-4">
+                <LuUserPlus size={16} /> Family Linking
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+                <div className="md:col-span-2">
+                  <label className={labelCls}>Family Head ID (Hidden)</label>
+                  <input type="text" name="familyHeadId"
+                    className={`${inputCls} bg-slate-100 cursor-not-allowed text-slate-500`} 
+                    value={formData.familyHeadId} disabled />
+                </div>
+                <div className="md:col-span-2">
+                  <label className={labelCls}>Relationship to Family Head <span className="text-red-500">*</span></label>
+                  <select name="relationToHead" className={selectCls}
+                    value={formData.relationToHead} onChange={handleChange}>
+                    <option value="">Select relationship</option>
+                    {["Spouse","Parent","Child","Sibling","Dependent","Other"].map((r) => (
+                      <option key={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── SECTION 2: CONTACT INFORMATION ── */}
           <div>

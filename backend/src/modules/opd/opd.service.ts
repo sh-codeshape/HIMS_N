@@ -20,7 +20,10 @@ export class OpdService {
       data.department_id,
       data.referred_by,
       data.chief_complaint,
-      nextToken
+      nextToken,
+      data.attendant_name,
+      data.attendant_relation,
+      data.attendant_phone
     );
 
     // If there were vitals, we would insert into observations here...

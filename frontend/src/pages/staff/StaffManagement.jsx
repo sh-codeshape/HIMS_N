@@ -21,6 +21,7 @@ export default function StaffManagement() {
     phone: "",
     staff_type: "other",
     designation: "",
+    password: "",
     create_user: true,
     role_ids: []
   });
@@ -68,6 +69,7 @@ export default function StaffManagement() {
         last_name: "",
         email: "",
         phone: "",
+        password: "",
         staff_type: "other",
         designation: "",
         create_user: true,
@@ -247,6 +249,32 @@ export default function StaffManagement() {
                   <label htmlFor="create_user" className="text-sm text-gray-700 font-medium">
                     Create User Account (Requires Email)
                   </label>
+                </div>
+              )}
+
+              {(formData.create_user && !editingStaff) && (
+                <div className="mt-4 p-4 border rounded-lg bg-gray-50">
+                  <Input
+                    label="Initial Password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required={formData.create_user}
+                    placeholder="Enter a secure password for the user"
+                  />
+                </div>
+              )}
+
+              {(formData.create_user && !editingStaff) && (
+                <div className="mt-4 p-4 border rounded-lg bg-gray-50">
+                  <Input
+                    label="Initial Password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required={formData.create_user}
+                    placeholder="Enter a secure password for the user"
+                  />
                 </div>
               )}
 

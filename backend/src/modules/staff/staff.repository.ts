@@ -70,15 +70,15 @@ export class StaffRepository {
       // 1. Create User
       if (data.create_user && data.email) {
         const username = data.email.split('@')[0]; // Simple username generation
-        const fullName = \`\${data.first_name} \${data.last_name || ''}\`.trim();
+        const fullName = `${data.first_name} ${data.last_name || ''}`.trim();
         const defaultPassword = data.password || 'Password@123';
         const passwordHash = await bcrypt.hash(defaultPassword, 10);
         
-        const userQuery = \`
+        const userQuery = `
           INSERT INTO users (organization_id, username, email, full_name, password_hash, default_facility_id)
           VALUES ($1, $2, $3, $4, $5, $6)
           RETURNING id
-        \`;
+        `;
         
         const userResult = await client.query(userQuery, [
           organizationId, 
@@ -93,8 +93,8 @@ export class StaffRepository {
         
         // Assign Roles
         if (data.role_ids && data.role_ids.length > 0) {
-          const roleValues = data.role_ids.map((roleId: string, index: number) => \`($1, $\${index + 2})\`).join(', ');
-          const roleQuery = \`INSERT INTO user_roles (user_id, role_id) VALUES \${roleValues}\`;
+          const roleValues = data.role_ids.map((roleId: string, index: number) => `($1, $${index + 2})`).join(', ');
+          const roleQuery = `INSERT INTO user_roles (user_id, role_id) VALUES ${roleValues}`;
           await client.query(roleQuery, [userId, ...data.role_ids]);
         }
       }
@@ -105,17 +105,17 @@ export class StaffRepository {
       if (!staffCode) {
          const countResult = await client.query('SELECT COUNT(*) FROM staff WHERE organization_id = $1', [organizationId]);
          const count = parseInt(countResult.rows[0].count) + 1;
-         staffCode = \`EMP-\${count.toString().padStart(4, '0')}\`;
+         staffCode = `EMP-${count.toString().padStart(4, '0')}`;
       }
 
-      const staffQuery = \`
+      const staffQuery = `
         INSERT INTO staff (
           organization_id, user_id, department_id, staff_code, first_name, last_name, 
           staff_type, designation, phone, email, joined_on, is_active
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING *
-      \`;
+      `;
       
       const staffResult = await client.query(staffQuery, [
         organizationId,
@@ -156,21 +156,21 @@ export class StaffRepository {
       
       for (const field of allowedFields) {
         if (data[field] !== undefined) {
-          updates.push(\`\${field} = $\${paramIndex}\`);
+          updates.push(`${field} = $${paramIndex}`);
           values.push(data[field]);
           paramIndex++;
         }
       }
       
-      updates.push(\`updated_at = NOW()\`);
+      updates.push(`updated_at = NOW()`);
       
       if (updates.length > 0) {
-        const query = \`
+        const query = `
           UPDATE staff 
-          SET \${updates.join(', ')}
+          SET ${updates.join(', ')}
           WHERE organization_id = $1 AND id = $2
           RETURNING *
-        \`;
+        `;
         await client.query(query, values);
       }
 
@@ -182,8 +182,8 @@ export class StaffRepository {
         if (userId) {
           await client.query('DELETE FROM user_roles WHERE user_id = $1', [userId]);
           if (data.role_ids && data.role_ids.length > 0) {
-            const roleValues = data.role_ids.map((roleId: string, index: number) => \`($1, $\${index + 2})\`).join(', ');
-            const roleQuery = \`INSERT INTO user_roles (user_id, role_id) VALUES \${roleValues}\`;
+            const roleValues = data.role_ids.map((roleId: string, index: number) => `($1, $${index + 2})`).join(', ');
+            const roleQuery = `INSERT INTO user_roles (user_id, role_id) VALUES ${roleValues}`;
             await client.query(roleQuery, [userId, ...data.role_ids]);
           }
         }

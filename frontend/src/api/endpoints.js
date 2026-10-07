@@ -45,6 +45,9 @@ export const ENDPOINTS = {
     CONSULTANT_COMMISSION: "/staff/consultant-commission",
     LEAVE_APPLICATIONS: "/staff/leave-applications",
   },
+  PRACTITIONERS: {
+    BASE: "/practitioners",
+  },
   ROLES: {
     BASE: "/roles",
   },

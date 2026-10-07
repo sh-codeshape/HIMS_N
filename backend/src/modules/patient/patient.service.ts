@@ -172,7 +172,9 @@ export class PatientService {
         marital_status: normalizedData.marital_status,
         occupation: normalizedData.occupation,
         nationality: normalizeCountryCode(normalizedData.nationality) ?? 'IN',
-        alternate_phone: normalizedData.alternate_phone
+        alternate_phone: normalizedData.alternate_phone,
+        family_head_id: data.family_head_id,
+        relation_to_head: data.relation_to_head
       });
 
       const patientAge = getPatientAge(newPatient.date_of_birth);
@@ -243,6 +245,10 @@ export class PatientService {
       throw new NotFoundError('Patient not found');
     }
     return patient;
+  }
+
+  async getFamilyMembers(familyHeadId: string, organizationId: string) {
+    return await patientRepository.getFamilyMembers(familyHeadId, organizationId);
   }
 }
 

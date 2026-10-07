@@ -12,5 +12,6 @@ const router = Router();
 router.post('/', validate(createPatientSchema), patientController.createPatient);
 router.get('/', validate(searchPatientSchema), patientController.searchPatients);
 router.get('/:id', validate(getPatientSchema), patientController.getPatient);
+router.get('/:id/family', validate(getPatientSchema), patientController.getFamilyMembers);
 
 export default router;

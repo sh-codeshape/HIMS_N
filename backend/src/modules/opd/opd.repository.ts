@@ -9,7 +9,10 @@ export class OpdRepository {
     departmentId?: string | null,
     referredBy?: string | null,
     chiefComplaint?: string,
-    tokenNumber?: string
+    tokenNumber?: string,
+    attendantName?: string | null,
+    attendantRelation?: string | null,
+    attendantPhone?: string | null
   ) {
     const customFields = tokenNumber ? { opd_token: tokenNumber } : {};
 
@@ -25,8 +28,11 @@ export class OpdRepository {
         status, 
         chief_complaint,
         custom_fields,
-        encounter_no
-      ) VALUES ($1, $2, $3, $4, $5, $6, 'opd', 'arrived', $7, $8, $9)
+        encounter_no,
+        attendant_name,
+        attendant_relation,
+        attendant_phone
+      ) VALUES ($1, $2, $3, $4, $5, $6, 'opd', 'arrived', $7, $8, $9, $10, $11, $12)
       RETURNING *;
     `;
     const encounterNo = `OPD-${Date.now()}`; // Temporary till we fix sequence
@@ -40,7 +46,10 @@ export class OpdRepository {
       referredBy || null,
       chiefComplaint,
       JSON.stringify(customFields),
-      encounterNo
+      encounterNo,
+      attendantName || null,
+      attendantRelation || null,
+      attendantPhone || null
     ]);
     return result.rows[0];
   }

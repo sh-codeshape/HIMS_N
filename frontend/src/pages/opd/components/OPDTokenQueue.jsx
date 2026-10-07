@@ -91,6 +91,7 @@ export default function OPDTokenQueue() {
   const navigate = useNavigate();
 
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [familyMembers, setFamilyMembers] = useState([]);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -112,6 +113,11 @@ export default function OPDTokenQueue() {
   const [durationUnit, setDurationUnit] = useState("Days");
   const [symptoms, setSymptoms] = useState("");
   const complaintRef = useRef(null);
+
+  // Attendant Details (Optional)
+  const [attendantName, setAttendantName] = useState("");
+  const [attendantRelation, setAttendantRelation] = useState("");
+  const [attendantPhone, setAttendantPhone] = useState("");
 
   // Form Section 3: Department & Doctor
   const [department, setDepartment] = useState("General Medicine");
@@ -162,12 +168,20 @@ export default function OPDTokenQueue() {
             if (found.department && DOCTOR_LIST[found.department]) {
               setDepartment(found.department);
             }
+            try {
+              const headId = found.family_head_id || found.id;
+              const family = await patientService.getFamilyMembers(headId);
+              setFamilyMembers(family);
+            } catch (err) {
+              console.error("Failed to fetch family members:", err);
+            }
           }
         } catch (error) {
           console.error("Failed to fetch patient by UHID:", error);
         }
       } else {
         setSelectedPatient(null);
+        setFamilyMembers([]);
       }
     };
     loadFromUrl();
@@ -204,11 +218,18 @@ export default function OPDTokenQueue() {
     }
   };
 
-  const handleSelectPatient = (p) => {
+  const handleSelectPatient = async (p) => {
     setSelectedPatient(p);
     setSearchQuery(`${p.full_name || p.name || p.first_name} (${p.uhid})`);
     setShowDropdown(false);
     toast.success(`Patient selected: ${p.full_name || p.name || p.first_name}`);
+    try {
+      const headId = p.family_head_id || p.id;
+      const family = await patientService.getFamilyMembers(headId);
+      setFamilyMembers(family);
+    } catch (err) {
+      console.error("Failed to fetch family members:", err);
+    }
   };
 
   // Complaint Selection Handlers
@@ -291,6 +312,9 @@ export default function OPDTokenQueue() {
       totalAmount,
       paymentMode,
       paymentStatus,
+      attendantName,
+      attendantRelation,
+      attendantPhone
     };
 
     mockStore.addOPDToken({
@@ -305,6 +329,9 @@ export default function OPDTokenQueue() {
       paymentStatus,
       status: "Waiting",
       roomNo: selectedDoctor.room,
+      attendantName,
+      attendantRelation,
+      attendantPhone
     });
 
     setOpdSlipData(slipInfo);
@@ -463,6 +490,40 @@ export default function OPDTokenQueue() {
         </div>
       )}
 
+      {/* ── FAMILY MEMBER SELECTOR ── */}
+      {familyMembers.length > 1 && (
+        <div className="opd-card mb-4 p-4 border border-blue-100 bg-blue-50/30 rounded-xl">
+          <h4 className="text-sm font-semibold text-slate-700 mb-2">Book Appointment For:</h4>
+          <div className="flex gap-2 flex-wrap">
+            {familyMembers.map(member => (
+              <button
+                key={member.id}
+                type="button"
+                className={`px-4 py-2 rounded-lg text-sm border transition-colors ${
+                  selectedPatient?.id === member.id 
+                    ? 'bg-blue-600 text-white border-blue-600' 
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300'
+                }`}
+                onClick={async () => {
+                  try {
+                    const fullMember = await patientService.getById(member.id);
+                    setSelectedPatient(fullMember);
+                    toast.success(`Switched patient to ${fullMember.full_name || fullMember.first_name}`);
+                  } catch(e) {
+                    setSelectedPatient(member);
+                  }
+                }}
+              >
+                {member.first_name} {member.last_name || ''} 
+                <span className="text-xs opacity-75 ml-1">
+                  ({member.relation_to_head || (member.id === (member.family_head_id || member.id) ? 'Head' : 'Self')})
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── MAIN FORM CONTAINER: 2 COLUMNS ── */}
       <form onSubmit={handleRegisterOPD} className="opd-form-grid">
         {/* ── LEFT COLUMN ── */}
@@ -503,6 +564,50 @@ export default function OPDTokenQueue() {
                   className="opd-input"
                   value={visitDate}
                   onChange={(e) => setVisitDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="opd-form-row col-3" style={{ marginTop: '16px' }}>
+              <div className="opd-field-group">
+                <label className="opd-label">
+                  Attendant Name <span className="font-normal text-slate-400">· परिचारक (Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  className="opd-input"
+                  placeholder="Enter attendant name"
+                  value={attendantName}
+                  onChange={(e) => setAttendantName(e.target.value)}
+                />
+              </div>
+              <div className="opd-field-group">
+                <label className="opd-label">Relation <span className="font-normal text-slate-400">· संबंध</span></label>
+                <select 
+                  className="opd-select"
+                  value={attendantRelation}
+                  onChange={(e) => setAttendantRelation(e.target.value)}
+                >
+                  <option value="">-- Select Relation --</option>
+                  <option value="Father">Father</option>
+                  <option value="Mother">Mother</option>
+                  <option value="Spouse">Spouse</option>
+                  <option value="Son">Son</option>
+                  <option value="Daughter">Daughter</option>
+                  <option value="Brother">Brother</option>
+                  <option value="Sister">Sister</option>
+                  <option value="Friend">Friend</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div className="opd-field-group">
+                <label className="opd-label">Attendant Phone <span className="font-normal text-slate-400">· मोबाइल</span></label>
+                <input
+                  type="text"
+                  className="opd-input"
+                  placeholder="10-digit mobile"
+                  value={attendantPhone}
+                  onChange={(e) => setAttendantPhone(e.target.value)}
                 />
               </div>
             </div>

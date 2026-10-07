@@ -33,7 +33,9 @@ export const createPatientSchema = z.object({
     payment_type: z.string().optional(),
     health_insurance: z.boolean().or(z.string()).optional(),
     insurance_provider: z.string().optional(),
-    insurance_number: z.string().optional()
+    insurance_number: z.string().optional(),
+    family_head_id: z.string().uuid().optional(),
+    relation_to_head: z.string().optional()
   }),
 });
 

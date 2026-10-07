@@ -37,14 +37,17 @@ export class PatientRepository {
       occupation?: string;
       nationality?: string;
       alternate_phone?: string;
+      family_head_id?: string;
+      relation_to_head?: string;
     }
   ) {
     const query = `
       INSERT INTO patients (
         organization_id, uhid, first_name, middle_name, last_name, 
         gender, date_of_birth, phone, email, blood_group,
-        marital_status, occupation, nationality, alternate_phone
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        marital_status, occupation, nationality, alternate_phone,
+        family_head_id, relation_to_head
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *
     `;
     const values = [
@@ -61,7 +64,9 @@ export class PatientRepository {
       data.marital_status || null,
       data.occupation || null,
       data.nationality || null,
-      data.alternate_phone || null
+      data.alternate_phone || null,
+      data.family_head_id || null,
+      data.relation_to_head || null
     ];
     const result = await client.query(query, values);
     return result.rows[0];
@@ -179,6 +184,16 @@ export class PatientRepository {
     `;
     const result = await db.query(query, [id, organization_id]);
     return result.rows[0] || null;
+  }
+
+  async getFamilyMembers(family_head_id: string, organization_id: string) {
+    const query = `
+      SELECT id, uhid, first_name, last_name, relation_to_head, phone
+      FROM patients
+      WHERE (id = $1 OR family_head_id = $1) AND organization_id = $2
+    `;
+    const result = await db.query(query, [family_head_id, organization_id]);
+    return result.rows;
   }
 }
 
