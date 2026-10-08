@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { mockStore } from "../../../mock/mockStore";
 import { useAuth } from "../../../auth";
+import patientService from "../../../api/services/patientService";
 import { ROLES } from "../../../auth/roles";
 import {
   LuSearch, LuX, LuDownload, LuFilter,
@@ -142,28 +143,73 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
     });
   };
 
-  const saveEdit = () => {
-    const updated = mockStore.updatePatient(editP.uhid, editForm);
-    setPatients(updated);
-    setEditP(null);
-    showToast(`✅ ${editP.name || editP.uhid} record updated.`);
+  const saveEdit = async () => {
+    try {
+      const custom_fields = typeof editP.custom_fields === 'object' ? editP.custom_fields : {};
+      const updatedData = {
+        first_name: editForm.name?.split(" ")[0] || "",
+        last_name: editForm.name?.split(" ").slice(1).join(" ") || "",
+        gender: editForm.gender,
+        age: editForm.age,
+        blood_group: editForm.bloodGroup,
+        phone: editForm.phone,
+        city: editForm.city,
+        state: editForm.state,
+        country: editForm.country,
+        address: editForm.address,
+        custom_fields: {
+          ...custom_fields,
+          visit_type: editForm.category,
+          department: editForm.department,
+          referred_by: editForm.doctor,
+        }
+      };
+      
+      const updatedRecord = await patientService.update(editP.id, updatedData);
+      setPatients(prev => prev.map(p => p.id === editP.id ? updatedRecord : p));
+      setEditP(null);
+      showToast(`✅ ${editP.name || editP.uhid} record updated.`);
+    } catch (error) {
+      console.error(error);
+      showToast("❌ Failed to update record", "error");
+    }
   };
 
-  const saveStatus = () => {
-    const updated = mockStore.updatePatient(statusP.uhid, { status: newStatus });
-    setPatients(updated);
-    setStatusP(null);
-    showToast(`🔄 Status updated to "${newStatus}"`);
+  const saveStatus = async () => {
+    try {
+      const custom_fields = typeof statusP.custom_fields === 'object' ? statusP.custom_fields : {};
+      const updatedRecord = await patientService.update(statusP.id, {
+        custom_fields: { ...custom_fields, status: newStatus }
+      });
+      setPatients(prev => prev.map(p => p.id === statusP.id ? updatedRecord : p));
+      setStatusP(null);
+      showToast(`🔄 Status updated to "${newStatus}"`);
+    } catch (error) {
+      console.error(error);
+      showToast("❌ Failed to update status", "error");
+    }
   };
 
-  const confirmCancel = () => {
-    const updated = mockStore.updatePatient(cancelP.uhid, {
-      status: "Cancelled",
-      statusRemarks: "Cancelled at registration counter",
-    });
-    setPatients(updated);
-    setCancelP(null);
-    showToast(`⚠️ Registration cancelled for ${cancelP.name || cancelP.uhid}`);
+  const confirmCancel = async () => {
+    try {
+      if (canDelete) {
+        await patientService.remove(cancelP.id);
+        setPatients(prev => prev.filter(p => p.id !== cancelP.id));
+        setCancelP(null);
+        showToast(`🗑️ Record deleted for ${cancelP.name || cancelP.uhid}`);
+      } else {
+        const custom_fields = typeof cancelP.custom_fields === 'object' ? cancelP.custom_fields : {};
+        const updatedRecord = await patientService.update(cancelP.id, {
+          custom_fields: { ...custom_fields, status: "Cancelled", statusRemarks: "Cancelled at registration counter" }
+        });
+        setPatients(prev => prev.map(p => p.id === cancelP.id ? updatedRecord : p));
+        setCancelP(null);
+        showToast(`⚠️ Registration cancelled for ${cancelP.name || cancelP.uhid}`);
+      }
+    } catch (error) {
+      console.error(error);
+      showToast("❌ Failed to cancel registration", "error");
+    }
   };
 
   // ─── Styles ───────────────────────────────────────────────────────────────

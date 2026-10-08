@@ -20,6 +20,7 @@ const normalizePatientRecord = (patient) => {
       .join(" ")
       .trim();
 
+  const customFields = typeof patient.custom_fields === 'string' ? JSON.parse(patient.custom_fields || '{}') : (patient.custom_fields || {});
   return {
     ...patient,
     full_name: fullName || patient.name || "",
@@ -30,6 +31,12 @@ const normalizePatientRecord = (patient) => {
       null,
     age: calculatedAge,
     blood_group: patient.blood_group || patient.bloodGroup || null,
+    category: customFields.visit_type || patient.category || "OPD",
+    status: customFields.status || patient.status || "Waiting",
+    department: customFields.department || patient.department || "",
+    paymentMode: customFields.payment_type || patient.paymentMode || "",
+    doctor: customFields.referred_by || patient.doctor || "",
+    custom_fields: customFields
   };
 };
 
