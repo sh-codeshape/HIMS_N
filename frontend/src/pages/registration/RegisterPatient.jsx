@@ -714,7 +714,7 @@ export default function RegisterPatient() {
               <LuRefreshCw size={15} /> Reset
             </button>
 
-            <button type="button" onClick={() => handleRegisterAndNavigate("/opd/queue")}
+            <button type="button" onClick={() => handleRegisterAndNavigate("/opd/registration")}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-all shadow-md shadow-emerald-100 active:scale-95">
               <LuStethoscope size={15} /> Save & Process to OPD
             </button>

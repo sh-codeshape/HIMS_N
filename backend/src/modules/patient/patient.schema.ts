@@ -52,10 +52,15 @@ export const updatePatientSchema = z.object({
     phone: z.string().min(10).optional(),
     email: z.string().email().optional(),
     address_line1: z.string().optional(),
+    address: z.string().optional(),
     city: z.string().optional(),
     state: z.string().optional(),
     postal_code: z.string().optional(),
+    country: z.string().optional(),
     blood_group: z.string().optional(),
+    age: z.string().or(z.number()).optional(),
+    custom_fields: z.any().optional(),
+    status: z.enum(['active', 'inactive', 'merged', 'deceased']).optional(),
   }),
 });
 

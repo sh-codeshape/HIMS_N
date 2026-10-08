@@ -27,6 +27,17 @@ export class PatientController {
     const familyMembers = await patientService.getFamilyMembers(String(req.params.id), organizationId);
     sendSuccess(res, familyMembers);
   }
+  async updatePatient(req: Request, res: Response) {
+    const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
+    const patient = await patientService.updatePatient(String(req.params.id), organizationId, req.body);
+    sendSuccess(res, patient);
+  }
+
+  async deletePatient(req: Request, res: Response) {
+    const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
+    const result = await patientService.deletePatient(String(req.params.id), organizationId);
+    sendSuccess(res, result);
+  }
 }
 
 export const patientController = new PatientController();

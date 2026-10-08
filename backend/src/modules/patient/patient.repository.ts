@@ -139,9 +139,9 @@ export class PatientRepository {
   async searchPatients(organization_id: string, params: { query?: string; phone?: string; uhid?: string; limit: number; offset: number }) {
     let query = `
       SELECT id, uhid, first_name, middle_name, last_name, full_name, gender, date_of_birth,
-             EXTRACT(YEAR FROM AGE(date_of_birth))::int AS age, phone, email, blood_group, created_at, custom_fields
+             EXTRACT(YEAR FROM AGE(date_of_birth))::int AS age, phone, email, blood_group, created_at, custom_fields, status
       FROM patients
-      WHERE organization_id = $1
+      WHERE organization_id = $1 AND deleted_at IS NULL
     `;
     const values: any[] = [organization_id];
     let count = 2;
@@ -182,7 +182,7 @@ export class PatientRepository {
              EXTRACT(YEAR FROM AGE(p.date_of_birth))::int AS age,
              (SELECT json_agg(a.*) FROM patient_addresses a WHERE a.patient_id = p.id) as addresses
       FROM patients p
-      WHERE p.id = $1 AND p.organization_id = $2
+      WHERE p.id = $1 AND p.organization_id = $2 AND p.deleted_at IS NULL
     `;
     const result = await db.query(query, [id, organization_id]);
     return result.rows[0] || null;
@@ -192,10 +192,51 @@ export class PatientRepository {
     const query = `
       SELECT id, uhid, first_name, last_name, relation_to_head, phone
       FROM patients
-      WHERE (id = $1 OR family_head_id = $1) AND organization_id = $2
+      WHERE (id = $1 OR family_head_id = $1) AND organization_id = $2 AND deleted_at IS NULL
     `;
     const result = await db.query(query, [family_head_id, organization_id]);
     return result.rows;
+  }
+
+  async updatePatient(id: string, organization_id: string, data: Partial<any>) {
+    const fields: string[] = [];
+    const values: any[] = [id, organization_id];
+    let count = 3;
+
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        if (key === 'custom_fields') {
+            fields.push(`${key} = $${count}::jsonb`);
+            values.push(JSON.stringify(value));
+        } else {
+            fields.push(`${key} = $${count}`);
+            values.push(value);
+        }
+        count++;
+      }
+    }
+
+    if (fields.length === 0) return this.getPatientById(id, organization_id);
+
+    const query = `
+      UPDATE patients
+      SET ${fields.join(', ')}, updated_at = NOW()
+      WHERE id = $1 AND organization_id = $2 AND deleted_at IS NULL
+      RETURNING *
+    `;
+    const result = await db.query(query, values);
+    return result.rows[0] || null;
+  }
+
+  async deletePatient(id: string, organization_id: string) {
+    const query = `
+      UPDATE patients 
+      SET deleted_at = NOW(), updated_at = NOW() 
+      WHERE id = $1 AND organization_id = $2 AND deleted_at IS NULL 
+      RETURNING id
+    `;
+    const result = await db.query(query, [id, organization_id]);
+    return (result.rowCount ?? 0) > 0;
   }
 }
 

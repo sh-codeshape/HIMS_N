@@ -256,6 +256,28 @@ export class PatientService {
   async getFamilyMembers(familyHeadId: string, organizationId: string) {
     return await patientRepository.getFamilyMembers(familyHeadId, organizationId);
   }
+
+  async updatePatient(id: string, organizationId: string, data: Partial<any>) {
+    let updateData = { ...data };
+    
+    // Normalize basic fields if they exist
+    if (updateData.gender) updateData.gender = normalizeGender(updateData.gender);
+    if (updateData.nationality) updateData.nationality = normalizeCountryCode(updateData.nationality);
+
+    const patient = await patientRepository.updatePatient(id, organizationId, updateData);
+    if (!patient) {
+      throw new NotFoundError('Patient not found');
+    }
+    return patient;
+  }
+
+  async deletePatient(id: string, organizationId: string) {
+    const success = await patientRepository.deletePatient(id, organizationId);
+    if (!success) {
+      throw new NotFoundError('Patient not found');
+    }
+    return { message: 'Patient deleted successfully' };
+  }
 }
 
 export const patientService = new PatientService();
