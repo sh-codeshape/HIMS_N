@@ -39,6 +39,7 @@ export class PatientRepository {
       alternate_phone?: string;
       family_head_id?: string;
       relation_to_head?: string;
+      custom_fields?: any;
     }
   ) {
     const query = `
@@ -46,8 +47,8 @@ export class PatientRepository {
         organization_id, uhid, first_name, middle_name, last_name, 
         gender, date_of_birth, phone, email, blood_group,
         marital_status, occupation, nationality, alternate_phone,
-        family_head_id, relation_to_head
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        family_head_id, relation_to_head, custom_fields
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *
     `;
     const values = [
@@ -66,7 +67,8 @@ export class PatientRepository {
       data.nationality || null,
       data.alternate_phone || null,
       data.family_head_id || null,
-      data.relation_to_head || null
+      data.relation_to_head || null,
+      data.custom_fields ? JSON.stringify(data.custom_fields) : '{}'
     ];
     const result = await client.query(query, values);
     return result.rows[0];
@@ -137,7 +139,7 @@ export class PatientRepository {
   async searchPatients(organization_id: string, params: { query?: string; phone?: string; uhid?: string; limit: number; offset: number }) {
     let query = `
       SELECT id, uhid, first_name, middle_name, last_name, full_name, gender, date_of_birth,
-             EXTRACT(YEAR FROM AGE(date_of_birth))::int AS age, phone, email, blood_group, created_at
+             EXTRACT(YEAR FROM AGE(date_of_birth))::int AS age, phone, email, blood_group, created_at, custom_fields
       FROM patients
       WHERE organization_id = $1
     `;

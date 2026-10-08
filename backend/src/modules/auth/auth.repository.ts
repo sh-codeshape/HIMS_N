@@ -18,7 +18,7 @@ export class AuthRepository {
     const query = `
       SELECT id, organization_id, username, email, password_hash, full_name, is_active, is_superadmin
       FROM public.users
-      WHERE username = $1
+      WHERE username = $1 OR email = $1
     `;
     const result = await db.query(query, [username]);
     return result.rows[0] || null;

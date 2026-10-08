@@ -174,7 +174,13 @@ export class PatientService {
         nationality: normalizeCountryCode(normalizedData.nationality) ?? 'IN',
         alternate_phone: normalizedData.alternate_phone,
         family_head_id: data.family_head_id,
-        relation_to_head: data.relation_to_head
+        relation_to_head: data.relation_to_head,
+        custom_fields: {
+          visit_type: data.visit_type,
+          department: data.department,
+          referred_by: data.referred_by,
+          payment_type: data.payment_type
+        }
       });
 
       const patientAge = getPatientAge(newPatient.date_of_birth);
