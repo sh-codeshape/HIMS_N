@@ -515,15 +515,15 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                       </tr>
                       <tr className="border-b border-slate-200">
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Date of Birth</td>
-                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{viewP.dob || "—"}</td>
+                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{viewP.dob || viewP.date_of_birth || "—"}</td>
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Blood Group</td>
-                        <td className="p-2.5 font-bold text-rose-600">{viewP.bloodGroup || "—"}</td>
+                        <td className="p-2.5 font-bold text-rose-600">{viewP.bloodGroup || viewP.blood_group || "—"}</td>
                       </tr>
                       <tr>
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Nationality</td>
                         <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{viewP.nationality || "Indian"}</td>
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Aadhaar / ID</td>
-                        <td className="p-2.5 font-medium text-slate-900">{viewP.idNo || viewP.aadhaar || "—"}</td>
+                        <td className="p-2.5 font-medium text-slate-900">{viewP.idNo || viewP.aadhaar || viewP.custom_fields?.aadhaar || viewP.custom_fields?.idNo || "—"}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -569,13 +569,13 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                     <tbody>
                       <tr className="border-b border-slate-200">
                         <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Contact Person</td>
-                        <td className="w-1/4 p-2.5 font-bold text-slate-900 border-r border-slate-200">{viewP.emergencyName || "—"}</td>
+                        <td className="w-1/4 p-2.5 font-bold text-slate-900 border-r border-slate-200">{viewP.emergencyName || viewP.custom_fields?.guardian_name || viewP.custom_fields?.emergencyName || "—"}</td>
                         <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Relationship</td>
-                        <td className="w-1/4 p-2.5 font-medium text-slate-900">{viewP.emergencyRelation || "—"}</td>
+                        <td className="w-1/4 p-2.5 font-medium text-slate-900">{viewP.emergencyRelation || viewP.custom_fields?.emergencyRelation || "—"}</td>
                       </tr>
                       <tr>
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Emergency Phone</td>
-                        <td colSpan={3} className="p-2.5 font-bold text-slate-900">{viewP.emergencyPhone || "—"}</td>
+                        <td colSpan={3} className="p-2.5 font-bold text-slate-900">{viewP.emergencyPhone || viewP.custom_fields?.emergency_contact || viewP.custom_fields?.emergencyPhone || "—"}</td>
                       </tr>
                     </tbody>
                   </table>

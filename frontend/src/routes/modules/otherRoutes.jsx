@@ -15,7 +15,7 @@ import ScanReports from "../../pages/radiology/ScanReports.jsx";
 import WardOPDRegistration from "../../pages/ward/WardOPDRegistration.jsx";
 import WardIPDAdmission from "../../pages/ward/WardIPDAdmission.jsx";
 import FloorBedMap from "../../pages/ward/FloorBedMap.jsx";
-import BedAllotment from "../../pages/ward/BedAllotment.jsx";
+import BedMatrixGrid from "../../pages/ipd/components/BedMatrixGrid.jsx";
 import BedTransfer from "../../pages/ward/BedTransfer.jsx";
 import BedAvailability from "../../pages/ward/BedAvailability.jsx";
 import DischargeManagement from "../../pages/ward/DischargeManagement.jsx";
@@ -118,7 +118,7 @@ export const otherRoutes = [
     path="/ward/bed-allotment"
     element={
       <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION]}>
-        <BedAllotment />
+        <BedMatrixGrid />
       </ProtectedRoute>
     }
   />,

@@ -138,10 +138,11 @@ export class PatientRepository {
 
   async searchPatients(organization_id: string, params: { query?: string; phone?: string; uhid?: string; limit: number; offset: number }) {
     let query = `
-      SELECT id, uhid, first_name, middle_name, last_name, full_name, gender, date_of_birth,
-             EXTRACT(YEAR FROM AGE(date_of_birth))::int AS age, phone, email, blood_group, created_at, custom_fields, status
-      FROM patients
-      WHERE organization_id = $1 AND deleted_at IS NULL
+      SELECT p.*,
+             EXTRACT(YEAR FROM AGE(p.date_of_birth))::int AS age,
+             (SELECT json_agg(a.*) FROM patient_addresses a WHERE a.patient_id = p.id AND a.is_primary = true) as addresses
+      FROM patients p
+      WHERE p.organization_id = $1 AND p.deleted_at IS NULL
     `;
     const values: any[] = [organization_id];
     let count = 2;

@@ -66,6 +66,13 @@ export default function PatientRegistrationForm({ onRegistered }) {
         gender: form.gender.toLowerCase(),
         phone: form.phone,
         date_of_birth: new Date(new Date().setFullYear(new Date().getFullYear() - Number(form.age))).toISOString().split('T')[0],
+        blood_group: form.bloodGroup,
+        address: form.address,
+        custom_fields: {
+          guardian_name: form.guardianName,
+          emergency_contact: form.emergencyContact,
+          notes: form.notes,
+        }
       };
 
       const newPatientData = await patientService.create(payload);

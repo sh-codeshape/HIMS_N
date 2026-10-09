@@ -201,7 +201,16 @@ export default function RegisterPatient() {
   };
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    let { name, value, type, checked } = e.target;
+    
+    // Restrict digits and lengths for phone and aadhaar
+    if (["mobile", "altMobile", "emgNumber"].includes(name)) {
+      value = value.replace(/\D/g, "").slice(0, 10);
+    }
+    if (name === "aadhaar") {
+      value = value.replace(/\D/g, "").slice(0, 12);
+    }
+
     setFormData((p) => ({ ...p, [name]: type === "checkbox" ? checked : value }));
   };
 
@@ -269,7 +278,8 @@ export default function RegisterPatient() {
   const validate = () => {
     if (!formData.firstName.trim()) { showToast("⚠️ First Name is required.", "error"); return false; }
     if (!formData.gender) { showToast("⚠️ Please select Gender.", "error"); return false; }
-    if (!formData.mobile || formData.mobile.length < 10) { showToast("⚠️ Valid 10-digit Mobile is required.", "error"); return false; }
+    if (!formData.mobile || !/^\d{10}$/.test(formData.mobile)) { showToast("⚠️ Valid 10-digit Mobile is required.", "error"); return false; }
+    if (formData.aadhaar && !/^\d{12}$/.test(formData.aadhaar)) { showToast("⚠️ Aadhaar must be exactly 12 digits.", "error"); return false; }
     if (!formData.address1.trim()) { showToast("⚠️ Address Line 1 is required.", "error"); return false; }
     if (formData.familyHeadId && !formData.relationToHead) { showToast("⚠️ Please select relationship to family head.", "error"); return false; }
     if (!formData.confirmed) { showToast("⚠️ Please confirm the information.", "error"); return false; }
@@ -514,8 +524,8 @@ export default function RegisterPatient() {
 
               <div>
                 <label className={labelCls}>Aadhaar Number</label>
-                <input type="text" name="aadhaar" placeholder="Enter aadhaar number"
-                  className={inputCls} value={formData.aadhaar} onChange={handleChange} />
+                <input type="text" name="aadhaar" placeholder="12-digit aadhaar"
+                  className={inputCls} value={formData.aadhaar} onChange={handleChange} maxLength={12} />
               </div>
              
              

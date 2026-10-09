@@ -21,6 +21,12 @@ const normalizePatientRecord = (patient) => {
       .trim();
 
   const customFields = typeof patient.custom_fields === 'string' ? JSON.parse(patient.custom_fields || '{}') : (patient.custom_fields || {});
+  
+  let primaryAddress = {};
+  if (Array.isArray(patient.addresses) && patient.addresses.length > 0) {
+    primaryAddress = patient.addresses.find(a => a.is_primary) || patient.addresses[0];
+  }
+
   return {
     ...patient,
     full_name: fullName || patient.name || "",
@@ -36,7 +42,12 @@ const normalizePatientRecord = (patient) => {
     department: customFields.department || patient.department || "",
     paymentMode: customFields.payment_type || patient.paymentMode || "",
     doctor: customFields.referred_by || patient.doctor || "",
-    custom_fields: customFields
+    custom_fields: customFields,
+    address: primaryAddress.line1 || patient.address || "",
+    city: primaryAddress.city || patient.city || "",
+    state: primaryAddress.state || patient.state || "",
+    pincode: primaryAddress.postal_code || patient.pincode || patient.pin || "",
+    country: primaryAddress.country || patient.country || "India",
   };
 };
 

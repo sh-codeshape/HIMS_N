@@ -54,7 +54,7 @@ export default function BedMatrixGrid() {
       await ipdService.admitPatient({
         patient_id: assignPatientId,
         bed_id: selectedBed.id,
-        attending_practitioner_id: assignDoctorId,
+        admitting_practitioner_id: assignDoctorId,
         admission_type: "elective"
       });
       toast.success(`Bed ${selectedBed.bed_no} allotted successfully!`, { icon: "🛏️" });
