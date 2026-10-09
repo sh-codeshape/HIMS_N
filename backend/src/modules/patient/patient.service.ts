@@ -186,13 +186,24 @@ export class PatientService {
       const patientAge = getPatientAge(newPatient.date_of_birth);
       const patientName = newPatient.full_name || [newPatient.first_name, newPatient.middle_name, newPatient.last_name].filter(Boolean).join(' ').trim();
 
+      const addresses = [];
       if (normalizedData.address_line1 || normalizedData.city || normalizedData.state) {
-        await patientRepository.createPatientAddress(client, newPatient.id, {
+        const addressData = {
           address_line1: normalizedData.address_line1,
           city: normalizedData.city,
           state: normalizedData.state,
           postal_code: normalizedData.postal_code,
           country: normalizeCountryCode(normalizedData.country) ?? 'IN'
+        };
+        await patientRepository.createPatientAddress(client, newPatient.id, addressData);
+        addresses.push({
+          line1: addressData.address_line1,
+          city: addressData.city,
+          state: addressData.state,
+          postal_code: addressData.postal_code,
+          country: addressData.country,
+          is_primary: true,
+          address_type: 'home'
         });
       }
 
@@ -213,6 +224,7 @@ export class PatientService {
         ...newPatient,
         age: patientAge,
         full_name: patientName,
+        addresses: addresses.length > 0 ? addresses : null,
       };
     } catch (error) {
       await client.query('ROLLBACK');
