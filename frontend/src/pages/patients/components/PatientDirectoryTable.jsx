@@ -182,6 +182,8 @@ export default function PatientDirectoryTable() {
   const [viewMode, setViewMode] = useState("list"); // list or grid
   const [selectedPatients, setSelectedPatients] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [printPatient, setPrintPatient] = useState(null);
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   useEffect(() => {
     const fetchPatients = async () => {
@@ -638,6 +640,17 @@ export default function PatientDirectoryTable() {
                         <button
                           type="button"
                           className="pd-icon-btn"
+                          title="Print Slip"
+                          onClick={() => {
+                            setPrintPatient(p);
+                            setShowPrintModal(true);
+                          }}
+                        >
+                          <Icon name="LuPrinter" size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          className="pd-icon-btn"
                           title="More Options"
                         >
                           <Icon name="LuMoreVertical" size={16} />
@@ -756,6 +769,104 @@ export default function PatientDirectoryTable() {
               >
                 <Icon name="LuPrinter" size={15} />
                 <span>Print Medical Summary</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Print Patient Modal */}
+      {showPrintModal && printPatient && (
+        <div className="pd-modal-overlay">
+          <div className="opd-print-modal" style={{ maxWidth: '800px', width: '90%', background: '#fff', borderRadius: '12px', overflow: 'hidden', margin: '20px auto', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+            <div className="opd-print-header" style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 24px', background: '#0b1e36', color: '#fff' }}>
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Icon name="LuPrinter" size={20} /> Patient Information Slip
+              </h3>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setShowPrintModal(false)}
+                style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}
+              >
+                <Icon name="LuX" size={20} />
+              </button>
+            </div>
+
+            <div className="printable-slip" id="patient-printable-receipt" style={{ padding: '24px', overflowY: 'auto' }}>
+              {/* Slip Header */}
+              <div className="slip-hospital-header" style={{ borderBottom: '2px solid #e2e8f0', paddingBottom: '16px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <h2 style={{ margin: '0 0 8px 0', color: '#0f172a' }}>HIMS Central Hospital</h2>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>Patient Directory & Records</p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>UHID</div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0b1e36', fontFamily: 'monospace' }}>{printPatient.uhid}</div>
+                </div>
+              </div>
+
+              {/* Patient Info Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '32px' }}>
+                <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Personal Details</h4>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', fontSize: '14px' }}>
+                    <div style={{ color: '#64748b' }}>Patient Name:</div>
+                    <div style={{ fontWeight: '600', color: '#0f172a' }}>{printPatient.name}</div>
+                    
+                    <div style={{ color: '#64748b' }}>Age / Gender:</div>
+                    <div style={{ color: '#0f172a' }}>{printPatient.age} Yrs / {printPatient.gender}</div>
+                    
+                    <div style={{ color: '#64748b' }}>Blood Group:</div>
+                    <div style={{ color: '#ef4444', fontWeight: '600' }}>{printPatient.bloodGroup}</div>
+                    
+                    <div style={{ color: '#64748b' }}>Contact No:</div>
+                    <div style={{ color: '#0f172a' }}>{printPatient.phone}</div>
+                  </div>
+                </div>
+
+                <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Visit Information</h4>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', fontSize: '14px' }}>
+                    <div style={{ color: '#64748b' }}>Patient Type:</div>
+                    <div style={{ fontWeight: '600', color: '#0f172a' }}>{printPatient.type}</div>
+                    
+                    <div style={{ color: '#64748b' }}>Department:</div>
+                    <div style={{ color: '#0f172a' }}>{printPatient.department}</div>
+                    
+                    <div style={{ color: '#64748b' }}>Last Visit:</div>
+                    <div style={{ color: '#0f172a' }}>{printPatient.lastVisitDate}</div>
+                    
+                    <div style={{ color: '#64748b' }}>Current Status:</div>
+                    <div style={{ color: '#0f172a', fontWeight: '600' }}>{printPatient.status}</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px dashed #cbd5e1', display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b' }}>
+                <div>Printed on: {new Date().toLocaleString()}</div>
+                <div>Authorized Signatory</div>
+              </div>
+            </div>
+
+            <div className="opd-modal-footer" style={{ padding: '16px 24px', background: '#f1f5f9', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                type="button"
+                className="pd-btn-outline"
+                onClick={() => setShowPrintModal(false)}
+                style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="pd-btn-search"
+                onClick={() => window.print()}
+                style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: '#0b1e36', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+              >
+                <Icon name="LuPrinter" size={16} /> Print Document
               </button>
             </div>
           </div>

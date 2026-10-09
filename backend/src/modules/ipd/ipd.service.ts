@@ -26,8 +26,8 @@ export class IpdService {
     );
   }
 
-  async getAdmissions(facilityId: string) {
-    return this.repository.getAdmissions(facilityId);
+  async getAdmissions(facilityId: string, search?: string) {
+    return this.repository.getAdmissions(facilityId, search);
   }
 
   async dischargePatient(facilityId: string, admissionId: string, dischargeType: string, dischargeCondition?: string) {

@@ -13,4 +13,11 @@ router.post('/', validate(createInvoiceSchema), controller.createInvoice);
 router.get('/', controller.listInvoices);
 router.get('/:id', controller.getInvoice);
 
+// IPD Running Bill routes
+router.post('/charges', controller.addCharge);
+router.delete('/charges/:id', controller.removeCharge);
+router.get('/running-bill/:encounterId', controller.getRunningBill);
+router.post('/payments/advance', controller.recordAdvancePayment);
+router.get('/payments/encounter/:encounterId', controller.getEncounterPayments);
+
 export const billingRoutes = router;

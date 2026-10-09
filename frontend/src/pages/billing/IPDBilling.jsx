@@ -1,79 +1,9 @@
-import React, { useState } from "react";
+import ipdService from "../../api/services/ipdService";
+import billingService from "../../api/services/billingService";
 import toast from "react-hot-toast";
 import Icon from "../../components/common/Icon.jsx";
 import "./IPDBilling.css";
 
-// Comprehensive Sample IPD Patient Data
-const SAMPLE_IPD_PATIENTS = [
-  {
-    admissionNo: "IPD20260929001",
-    uhid: "UHID12345",
-    name: "Rohit Kumar",
-    age: 28,
-    gender: "Male",
-    mobile: "9876543210",
-    city: "Varanasi, Uttar Pradesh",
-    bloodGroup: "B+",
-    allergies: "NKA",
-    history: "Hypertension, Diabetes",
-    admissionDate: "29-09-2026 10:30 AM",
-    department: "General Medicine",
-    consultant: "Dr. Amit Sharma",
-    ward: "General Ward",
-    roomNo: "GW-102",
-    bedNo: "B-12",
-    expectedDischarge: "02-10-2026",
-    status: "Admitted (3 Days)",
-    admissionType: "Routine",
-    ratePlan: "General Ward (₹ 1,500 / day)",
-    initialDeposit: 2000,
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-    historyPayments: [
-      { id: 1, date: "29-09-2026", amount: 2000, mode: "Cash", type: "Advance", remarks: "Initial deposit" },
-      { id: 2, date: "30-09-2026", amount: 1000, mode: "UPI", type: "Payment", remarks: "Day 2 payment" },
-    ],
-    items: [
-      { id: 1, date: "29-09-2026", name: "General Ward (Per Day)", category: "Room", rate: 1500, qty: 1, amount: 1500, selected: true },
-      { id: 2, date: "29-09-2026", name: "Doctor Visit (Dr. Amit Sharma)", category: "Consultation", rate: 800, qty: 1, amount: 800, selected: false },
-      { id: 3, date: "30-09-2026", name: "Room Charges (Day 2)", category: "Room", rate: 1500, qty: 1, amount: 1500, selected: false },
-      { id: 4, date: "30-09-2026", name: "CBC (Complete Blood Count)", category: "Lab Test", rate: 300, qty: 1, amount: 300, selected: false },
-      { id: 5, date: "30-09-2026", name: "X-Ray Chest PA View", category: "Radiology", rate: 400, qty: 1, amount: 400, selected: false },
-      { id: 6, date: "30-09-2026", name: "Antibiotics Injection", category: "Pharmacy", rate: 250, qty: 3, amount: 750, selected: false },
-      { id: 7, date: "01-10-2026", name: "Room Charges (Day 3)", category: "Room", rate: 1500, qty: 1, amount: 1500, selected: false },
-    ],
-  },
-  {
-    admissionNo: "IPD20260928004",
-    uhid: "UHID67890",
-    name: "Priya Sharma",
-    age: 32,
-    gender: "Female",
-    mobile: "9876512345",
-    city: "Lucknow, Uttar Pradesh",
-    bloodGroup: "O+",
-    allergies: "Penicillin",
-    history: "Asthma",
-    admissionDate: "28-09-2026 08:15 AM",
-    department: "Cardiology",
-    consultant: "Dr. R. Singh",
-    ward: "ICU",
-    roomNo: "ICU-02",
-    bedNo: "ICU-B2",
-    expectedDischarge: "03-10-2026",
-    status: "Admitted (4 Days)",
-    admissionType: "Emergency",
-    ratePlan: "ICU Bed (₹ 4,500 / day)",
-    initialDeposit: 5000,
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
-    historyPayments: [
-      { id: 1, date: "28-09-2026", amount: 5000, mode: "Card", type: "Advance", remarks: "Emergency ICU Deposit" },
-    ],
-    items: [
-      { id: 1, date: "28-09-2026", name: "ICU Bed Charge (Day 1)", category: "Room", rate: 4500, qty: 1, amount: 4500, selected: false },
-      { id: 2, date: "28-09-2026", name: "Specialist Doctor Visit", category: "Consultation", rate: 1200, qty: 1, amount: 1200, selected: false },
-    ],
-  },
-];
 
 const CATEGORY_SERVICE_LIST = {
   "Room Charges": [
@@ -148,55 +78,124 @@ export default function IPDBilling() {
 
   // Bed Form State
   const [bedForm, setBedForm] = useState({
-    ward: SAMPLE_IPD_PATIENTS[0].ward,
-    roomNo: SAMPLE_IPD_PATIENTS[0].roomNo,
-    bedNo: SAMPLE_IPD_PATIENTS[0].bedNo,
+    ward: "General Ward",
+    roomNo: "GW-102",
+    bedNo: "B-12",
   });
 
+  // Helper to map backend patient to IPD display format
+  const mapBackendPatientToIPD = (bp) => ({
+    id: bp.id,
+    encounterId: bp.encounter_id || bp.id,
+    admissionNo: bp.admission_number || (bp.id ? `IPD-${bp.id.slice(-6).toUpperCase()}` : "IPD20260929001"),
+    uhid: bp.uhid || bp.id || "N/A",
+    name: bp.patient_name || bp.name || `${bp.first_name || bp.firstName || ""} ${bp.last_name || bp.lastName || ""}`.trim() || "Unknown",
+    age: bp.age || 30,
+    gender: bp.gender || "Unknown",
+    mobile: bp.patient_mobile || bp.phone || bp.mobile || "N/A",
+    city: bp.city || bp.address || "Unknown",
+    bloodGroup: bp.blood_group || bp.bloodGroup || "O+",
+    allergies: bp.allergies || "NKA",
+    history: bp.history || "None",
+    admissionDate: bp.admission_date ? new Date(bp.admission_date).toLocaleDateString("en-GB").replace(/\//g, "-") + " 10:00 AM" : new Date().toLocaleDateString("en-GB").replace(/\//g, "-") + " 10:00 AM",
+    department: bp.department_name || bp.department || "General Medicine",
+    consultant: bp.doctor_name || bp.consultant || "Dr. Assigned",
+    ward: bp.ward_name || bp.ward || "General Ward",
+    roomNo: bp.room_number || bp.roomNo || "GW-102",
+    bedNo: bp.bed_number || bp.bedNo || "B-12",
+    expectedDischarge: "N/A",
+    status: bp.status || "Admitted",
+    admissionType: bp.admission_type || "Routine",
+    ratePlan: "General Ward (₹ 1,500 / day)",
+    initialDeposit: 2000,
+    avatar: bp.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+    historyPayments: [],
+    items: [],
+  });
+
+  const fetchPatientBilling = async (p) => {
+    try {
+      const encounterId = p.encounterId || p.id;
+      const [itemsData, paymentsData] = await Promise.all([
+        billingService.getRunningBill(encounterId),
+        billingService.getEncounterPayments(encounterId)
+      ]);
+      
+      const mappedItems = itemsData.map(i => ({ 
+        id: i.id,
+        date: new Date(i.created_at || new Date()).toLocaleDateString("en-GB").replace(/\//g, "-"),
+        category: i.item_category, 
+        name: i.item_name, 
+        qty: i.quantity, 
+        rate: Number(i.rate), 
+        amount: Number(i.total_amount),
+        selected: false
+      }));
+      
+      const mappedPayments = paymentsData.map(pay => ({ 
+        id: pay.id,
+        date: new Date(pay.payment_date).toLocaleDateString("en-GB").replace(/\//g, "-"), 
+        amount: Number(pay.amount), 
+        mode: pay.payment_method, 
+        type: pay.payment_type, 
+        remarks: pay.notes 
+      }));
+
+      setPatient((prev) => ({
+        ...p,
+        items: mappedItems,
+        historyPayments: mappedPayments
+      }));
+    } catch (err) {
+      console.error("Failed to load billing data", err);
+      toast.error("Failed to load billing details");
+      setPatient(p);
+    }
+  };
+
   // Handle Search Change
-  const handleSearchChange = (e) => {
+  const handleSearchChange = async (e) => {
     const query = e.target.value;
     setSearchTerm(query);
     if (query.trim().length > 0) {
-      const filtered = SAMPLE_IPD_PATIENTS.filter(
-        (p) =>
-          p.admissionNo.toLowerCase().includes(query.toLowerCase()) ||
-          p.uhid.toLowerCase().includes(query.toLowerCase()) ||
-          p.name.toLowerCase().includes(query.toLowerCase()) ||
-          p.mobile.includes(query)
-      );
-      setSuggestions(filtered);
+      try {
+        const results = await ipdService.getAdmissions({ search: query.trim() });
+        const mappedResults = results.map(mapBackendPatientToIPD);
+        setSuggestions(mappedResults);
+      } catch (err) {
+        console.error("Search failed", err);
+      }
     } else {
       setSuggestions([]);
     }
   };
 
-  const handleSelectPatient = (p) => {
-    setPatient(p);
+  const handleSelectPatient = async (p) => {
+    setPatient(p); // Set patient immediately so UI updates
     setSearchTerm(p.admissionNo);
     setSuggestions([]);
     setBedForm({ ward: p.ward, roomNo: p.roomNo, bedNo: p.bedNo });
+    await fetchPatientBilling(p);
     toast.success(`Loaded IPD record for ${p.name}`);
   };
 
-  const handleSearchSubmit = (e) => {
+  const handleSearchSubmit = async (e) => {
     if (e) e.preventDefault();
-    const query = searchTerm.trim().toLowerCase();
+    const query = searchTerm.trim();
     if (!query) {
       setPatient(null);
       return;
     }
-    const found = SAMPLE_IPD_PATIENTS.find(
-      (p) =>
-        p.admissionNo.toLowerCase() === query ||
-        p.uhid.toLowerCase() === query ||
-        p.name.toLowerCase().includes(query) ||
-        p.mobile.includes(query)
-    );
-    if (found) {
-      handleSelectPatient(found);
-    } else {
-      toast.error("No IPD patient found with provided details.");
+    try {
+      const results = await ipdService.getAdmissions({ search: query });
+      if (results && results.length > 0) {
+        handleSelectPatient(mapBackendPatientToIPD(results[0]));
+      } else {
+        toast.error("No IPD patient found with provided details.");
+      }
+    } catch (err) {
+      console.error("Search submit failed", err);
+      toast.error("Failed to search patients.");
     }
   };
 
@@ -228,38 +227,44 @@ export default function IPDBilling() {
   };
 
   // Add Item to Bill Items Table
-  const handleAddServiceItem = () => {
+  const handleAddServiceItem = async () => {
     if (!patient) {
       toast.error("Please search and select a patient first.");
       return;
     }
     const rate = Number(rateInput) || 0;
     const qty = Number(qtyInput) || 1;
-    const newItem = {
-      id: Date.now(),
-      date: new Date().toLocaleDateString("en-GB").replace(/\//g, "-"),
-      name: selectedServiceName,
-      category: activeCategory === "Room Charges" ? "Room" : activeCategory,
-      rate,
-      qty,
-      amount: rate * qty,
-      selected: false,
-    };
-
-    setPatient((prev) => ({
-      ...prev,
-      items: [...prev.items, newItem],
-    }));
-    toast.success(`Added ${selectedServiceName} to IPD Bill.`);
+    const amount = rate * qty;
+    
+    try {
+        const encounterId = patient.encounterId || patient.id;
+        await billingService.addCharge({
+            encounter_id: encounterId,
+            item_name: selectedServiceName,
+            item_category: activeCategory === "Room Charges" ? "Room" : activeCategory,
+            quantity: qty,
+            rate: rate,
+            total_amount: amount
+        });
+        await fetchPatientBilling(patient); // Re-fetch billing data
+        toast.success(`Added ${selectedServiceName} to IPD Bill.`);
+    } catch(err) {
+        console.error("Failed to add charge", err);
+        toast.error("Failed to add charge.");
+    }
   };
 
   // Remove Individual Bill Item
-  const handleRemoveItem = (id) => {
+  const handleRemoveItem = async (id) => {
     if (!patient) return;
-    setPatient((prev) => ({
-      ...prev,
-      items: prev.items.filter((item) => item.id !== id),
-    }));
+    try {
+       await billingService.removeCharge(id, { modified_by: 'system' });
+       await fetchPatientBilling(patient);
+       toast.success("Charge removed.");
+    } catch(err) {
+       console.error("Failed to remove charge", err);
+       toast.error("Failed to remove charge.");
+    }
   };
 
   // Toggle Item Checkbox
@@ -274,22 +279,28 @@ export default function IPDBilling() {
   };
 
   // Remove Selected Checked Items
-  const handleRemoveSelected = () => {
+  const handleRemoveSelected = async () => {
     if (!patient) return;
-    const selectedCount = patient.items.filter((i) => i.selected).length;
-    if (selectedCount === 0) {
+    const selectedItems = patient.items.filter((i) => i.selected);
+    if (selectedItems.length === 0) {
       toast.error("Please select items to remove.");
       return;
     }
-    setPatient((prev) => ({
-      ...prev,
-      items: prev.items.filter((item) => !item.selected),
-    }));
-    toast.success(`Removed ${selectedCount} selected items.`);
+    
+    try {
+        for (const item of selectedItems) {
+            await billingService.removeCharge(item.id, { modified_by: 'system' });
+        }
+        await fetchPatientBilling(patient);
+        toast.success(`Removed ${selectedItems.length} selected items.`);
+    } catch(err) {
+        console.error("Failed to remove some charges", err);
+        toast.error("Failed to remove some charges.");
+    }
   };
 
   // Submit Receive Payment Modal
-  const handleSavePayment = (e) => {
+  const handleSavePayment = async (e) => {
     e.preventDefault();
     if (!patient) return;
     const amt = Number(paymentForm.amount) || 0;
@@ -298,22 +309,29 @@ export default function IPDBilling() {
       return;
     }
 
-    const newPay = {
-      id: Date.now(),
-      date: new Date().toLocaleDateString("en-GB").replace(/\//g, "-"),
-      amount: amt,
-      mode: paymentForm.mode,
-      type: paymentForm.type,
-      remarks: paymentForm.remarks || "Payment deposit",
-    };
-
-    setPatient((prev) => ({
-      ...prev,
-      historyPayments: [...prev.historyPayments, newPay],
-    }));
-
-    setShowReceivePayModal(false);
-    toast.success(`Payment of ₹ ${amt} recorded successfully!`, { icon: "💳" });
+    try {
+        const encounterId = patient.encounterId || patient.id;
+        await billingService.recordAdvancePayment({
+            encounter_id: encounterId,
+            amount: amt,
+            payment_method: paymentForm.mode,
+            payment_type: paymentForm.type,
+            notes: paymentForm.remarks || "Payment deposit"
+        });
+        
+        await fetchPatientBilling(patient);
+        setShowReceivePayModal(false);
+        setPaymentForm({
+          amount: "1000",
+          mode: "Cash",
+          type: "Payment",
+          remarks: "Advance payment",
+        });
+        toast.success(`Payment of ₹ ${amt} recorded successfully!`, { icon: "💳" });
+    } catch(err) {
+        console.error("Failed to record payment", err);
+        toast.error("Failed to record payment.");
+    }
   };
 
   // Submit Change Bed Modal
@@ -959,7 +977,13 @@ export default function IPDBilling() {
                 type="button"
                 className="ipd-btn-outline"
                 style={{ color: "#16a34a", borderColor: "#bbf7d0" }}
-                onClick={() => toast.success("Refreshed IPD Charges")}
+                onClick={() => {
+                  if (patient) {
+                    fetchPatientBilling(patient).then(() => {
+                      toast.success("Refreshed IPD Charges");
+                    });
+                  }
+                }}
               >
                 <Icon name="LuRefreshCw" size={14} /> Refresh
               </button>

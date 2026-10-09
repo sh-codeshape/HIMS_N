@@ -143,4 +143,102 @@ export class BillingRepository {
 
     return invoice;
   }
+
+  async addCharge(data: any) {
+    const query = `
+      INSERT INTO charges (
+        organization_id, facility_id, patient_id, encounter_id,
+        service_id, item_id, description, department_id,
+        quantity, unit_price, discount_percent, discount_amount,
+        taxable_amount, tax_amount, net_amount, status, created_by
+      ) VALUES (
+        $1, $2, $3, $4,
+        $5, $6, $7, $8,
+        $9, $10, $11, $12,
+        $13, $14, $15, 'billable', $16
+      ) RETURNING *;
+    `;
+    const qty = data.quantity || 1;
+    const price = data.unit_price;
+    const gross = qty * price;
+    const discPct = data.discount_percent || 0;
+    const discAmt = data.discount_amount || (gross * discPct / 100);
+    const taxable = gross - discAmt;
+    const taxAmt = data.tax_amount || 0;
+    const net = taxable + taxAmt;
+
+    const res = await db.query(query, [
+      data.organization_id, data.facility_id, data.patient_id, data.encounter_id,
+      data.service_id || null, data.item_id || null, data.description, data.department_id || null,
+      qty, price, discPct, discAmt,
+      taxable, taxAmt, net, data.user_id
+    ]);
+    return res.rows[0];
+  }
+
+  async removeCharge(id: string, facilityId: string) {
+    const query = `
+      UPDATE charges 
+      SET status = 'cancelled', updated_at = NOW()
+      WHERE id = $1 AND facility_id = $2 AND status = 'billable'
+      RETURNING *;
+    `;
+    const res = await db.query(query, [id, facilityId]);
+    return res.rows[0];
+  }
+
+  async getRunningBill(encounterId: string, facilityId: string) {
+    const query = `
+      SELECT c.*, s.name as service_name, i.name as item_name
+      FROM charges c
+      LEFT JOIN services s ON c.service_id = s.id
+      LEFT JOIN items i ON c.item_id = i.id
+      WHERE c.encounter_id = $1 AND c.facility_id = $2 AND c.status = 'billable'
+      ORDER BY c.charged_at DESC
+    `;
+    const res = await db.query(query, [encounterId, facilityId]);
+    return res.rows;
+  }
+
+  async recordAdvancePayment(data: any) {
+    const receiptNo = \`ADV-\${Date.now()}\`;
+    
+    // Fallback payment method logic
+    let methodId = data.payment_method_id;
+    if (!methodId) {
+       const methodRes = await db.query('SELECT id FROM payment_methods WHERE name ILIKE $1 OR method_type ILIKE $1 LIMIT 1', [\`%\${data.payment_mode}%\`]);
+       methodId = methodRes.rows[0]?.id;
+       if (!methodId) {
+         const anyMethodRes = await db.query('SELECT id FROM payment_methods LIMIT 1');
+         methodId = anyMethodRes.rows[0]?.id;
+       }
+    }
+
+    const query = `
+      INSERT INTO payments (
+        organization_id, facility_id, receipt_no, patient_id, encounter_id,
+        direction, payment_type, payment_method_id, amount, status, received_by
+      ) VALUES (
+        $1, $2, $3, $4, $5,
+        'in', 'advance', $6, $7, 'completed', $8
+      ) RETURNING *;
+    `;
+    const res = await db.query(query, [
+      data.organization_id, data.facility_id, receiptNo, data.patient_id, data.encounter_id,
+      methodId, data.amount, data.user_id
+    ]);
+    return res.rows[0];
+  }
+
+  async getEncounterPayments(encounterId: string, facilityId: string) {
+    const query = `
+      SELECT p.*, pm.name as payment_method_name
+      FROM payments p
+      LEFT JOIN payment_methods pm ON p.payment_method_id = pm.id
+      WHERE p.encounter_id = $1 AND p.facility_id = $2 AND p.payment_type = 'advance'
+      ORDER BY p.paid_at DESC
+    `;
+    const res = await db.query(query, [encounterId, facilityId]);
+    return res.rows;
+  }
 }

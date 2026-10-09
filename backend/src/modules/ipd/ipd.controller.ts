@@ -24,8 +24,9 @@ export class IpdController {
 
   getAdmissions = async (req: Request, res: Response) => {
     const facilityId = req.user?.facilityId ?? (req.query.facilityId as string) ?? '';
+    const search = req.query.search as string | undefined;
 
-    const queue = await this.service.getAdmissions(facilityId);
+    const queue = await this.service.getAdmissions(facilityId, search);
     
     sendSuccess(res, queue, 'Admissions retrieved successfully');
   };

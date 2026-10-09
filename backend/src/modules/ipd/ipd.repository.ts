@@ -121,9 +121,9 @@ export class IpdRepository {
     }
   }
 
-  async getAdmissions(facilityId: string) {
-    const query = `
-      SELECT a.*, e.encounter_no, p.first_name, p.last_name, p.uhid,
+  async getAdmissions(facilityId: string, search?: string) {
+    let query = `
+      SELECT a.*, e.encounter_no, p.first_name, p.last_name, p.uhid, p.phone,
              b.bed_no as bed_name, w.name as ward_name
       FROM admissions a
       JOIN encounters e ON a.encounter_id = e.id
@@ -132,9 +132,22 @@ export class IpdRepository {
       LEFT JOIN beds b ON ba.bed_id = b.id
       LEFT JOIN wards w ON b.ward_id = w.id
       WHERE a.facility_id = $1 AND a.status = 'admitted'
-      ORDER BY a.admitted_at DESC;
     `;
-    const result = await db.query(query, [facilityId]);
+    const params: any[] = [facilityId];
+
+    if (search) {
+      query += ` AND (
+        p.first_name ILIKE $2 OR
+        p.last_name ILIKE $2 OR
+        p.uhid ILIKE $2 OR
+        p.phone ILIKE $2 OR
+        e.encounter_no ILIKE $2
+      )`;
+      params.push(`%${search}%`);
+    }
+
+    query += ` ORDER BY a.admitted_at DESC;`;
+    const result = await db.query(query, params);
     return result.rows;
   }
 

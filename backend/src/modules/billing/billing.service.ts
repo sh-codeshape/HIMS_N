@@ -37,4 +37,36 @@ export class BillingService {
     }
     return invoice;
   }
+
+  async addCharge(data: any, organizationId: string, userId: string) {
+    return this.repository.addCharge({
+      ...data,
+      organization_id: organizationId,
+      user_id: userId
+    });
+  }
+
+  async removeCharge(id: string, facilityId: string) {
+    const charge = await this.repository.removeCharge(id, facilityId);
+    if (!charge) {
+      throw new NotFoundError('Charge not found or already cancelled');
+    }
+    return charge;
+  }
+
+  async getRunningBill(encounterId: string, facilityId: string) {
+    return this.repository.getRunningBill(encounterId, facilityId);
+  }
+
+  async recordAdvancePayment(data: any, organizationId: string, userId: string) {
+    return this.repository.recordAdvancePayment({
+      ...data,
+      organization_id: organizationId,
+      user_id: userId
+    });
+  }
+
+  async getEncounterPayments(encounterId: string, facilityId: string) {
+    return this.repository.getEncounterPayments(encounterId, facilityId);
+  }
 }
