@@ -30,7 +30,7 @@ export class BillingController {
 
   addCharge = async (req: Request, res: Response) => {
     const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
-    const userId = req.user?.id || '00000000-0000-0000-0000-000000000000';
+    const userId = req.user?.userId || '00000000-0000-0000-0000-000000000000';
     
     if (!req.body.facility_id) req.body.facility_id = req.user?.facilityId;
     
@@ -54,7 +54,7 @@ export class BillingController {
 
   recordAdvancePayment = async (req: Request, res: Response) => {
     const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
-    const userId = req.user?.id || '00000000-0000-0000-0000-000000000000';
+    const userId = req.user?.userId || '00000000-0000-0000-0000-000000000000';
     
     if (!req.body.facility_id) req.body.facility_id = req.user?.facilityId;
     

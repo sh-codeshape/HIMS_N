@@ -1,6 +1,39 @@
 import { db } from '../../config/database';
+import { ValidationError } from '../../shared/errors/AppError';
 
 export class BillingRepository {
+  private async resolvePaymentMethodId(data: any, client: any = db): Promise<string> {
+    const explicitMethodId = data.payment_method_id || data.paymentMethodId;
+    if (explicitMethodId) {
+      const existingMethod = await client.query(
+        'SELECT id FROM payment_methods WHERE id = $1 AND is_active = TRUE LIMIT 1',
+        [explicitMethodId]
+      );
+
+      if (existingMethod.rows[0]?.id) {
+        return existingMethod.rows[0].id;
+      }
+
+      throw new ValidationError('Selected payment method is not active or does not exist.');
+    }
+
+    const paymentMode = String(data.payment_mode || data.paymentMethod || '').trim();
+    if (!paymentMode) {
+      throw new ValidationError('Payment method is required when recording a payment.');
+    }
+
+    const methodRes = await client.query(
+      'SELECT id FROM payment_methods WHERE is_active = TRUE AND (name ILIKE $1 OR method_type ILIKE $1 OR code ILIKE $1) LIMIT 1',
+      [`%${paymentMode}%`]
+    );
+
+    if (!methodRes.rows[0]?.id) {
+      throw new ValidationError('No active payment method found for this payment mode. Please create or activate one first.');
+    }
+
+    return methodRes.rows[0].id;
+  }
+
   async createInvoice(data: any) {
     const client = await db.getClient();
     try {
@@ -53,40 +86,32 @@ export class BillingRepository {
       }
 
       if (data.payment_mode && data.total_amount > 0) {
-        const methodRes = await client.query('SELECT id FROM payment_methods WHERE name ILIKE $1 OR method_type ILIKE $1 LIMIT 1', [`%${data.payment_mode}%`]);
-        let methodId = methodRes.rows[0]?.id;
-        
-        if (!methodId) {
-          const anyMethodRes = await client.query('SELECT id FROM payment_methods LIMIT 1');
-          methodId = anyMethodRes.rows[0]?.id;
-        }
-        
-        if (methodId) {
-          const receiptNo = `REC-${Date.now()}`;
-          const paymentQuery = `
-            INSERT INTO payments (
-              organization_id, facility_id, receipt_no, patient_id, direction, payment_type, payment_method_id,
-              amount, allocated_amount, status
-            ) VALUES (
-              $1, $2, $3, $4, 'in', 'invoice_payment', $5,
-              $6, $6, 'completed'
-            ) RETURNING *;
-          `;
-          const payRes = await client.query(paymentQuery, [
-            data.organization_id,
-            data.facility_id,
-            receiptNo,
-            data.patient_id,
-            methodId,
-            data.total_amount
-          ]);
-          const payment = payRes.rows[0];
-          
-          await client.query(`
-            INSERT INTO payment_allocations (payment_id, invoice_id, amount)
-            VALUES ($1, $2, $3)
-          `, [payment.id, invoice.id, data.total_amount]);
-        }
+        const methodId = await this.resolvePaymentMethodId(data, client);
+
+        const receiptNo = `REC-${Date.now()}`;
+        const paymentQuery = `
+          INSERT INTO payments (
+            organization_id, facility_id, receipt_no, patient_id, direction, payment_type, payment_method_id,
+            amount, allocated_amount, status
+          ) VALUES (
+            $1, $2, $3, $4, 'in', 'invoice_payment', $5,
+            $6, $6, 'completed'
+          ) RETURNING *;
+        `;
+        const payRes = await client.query(paymentQuery, [
+          data.organization_id,
+          data.facility_id,
+          receiptNo,
+          data.patient_id,
+          methodId,
+          data.total_amount
+        ]);
+        const payment = payRes.rows[0];
+
+        await client.query(`
+          INSERT INTO payment_allocations (payment_id, invoice_id, amount)
+          VALUES ($1, $2, $3)
+        `, [payment.id, invoice.id, data.total_amount]);
 
         // Update invoice status to paid after lines and payment allocations are created
         const updateInvoiceRes = await client.query(`
@@ -201,18 +226,8 @@ export class BillingRepository {
   }
 
   async recordAdvancePayment(data: any) {
-    const receiptNo = \`ADV-\${Date.now()}\`;
-    
-    // Fallback payment method logic
-    let methodId = data.payment_method_id;
-    if (!methodId) {
-       const methodRes = await db.query('SELECT id FROM payment_methods WHERE name ILIKE $1 OR method_type ILIKE $1 LIMIT 1', [\`%\${data.payment_mode}%\`]);
-       methodId = methodRes.rows[0]?.id;
-       if (!methodId) {
-         const anyMethodRes = await db.query('SELECT id FROM payment_methods LIMIT 1');
-         methodId = anyMethodRes.rows[0]?.id;
-       }
-    }
+    const receiptNo = `ADV-${Date.now()}`;
+    const methodId = await this.resolvePaymentMethodId(data);
 
     const query = `
       INSERT INTO payments (

@@ -90,7 +90,7 @@ export default function BedMatrixGrid() {
     <div className="ipd-bed-module">
       <div className="ipd-bed-toolbar">
         <div className="ipd-ward-filters">
-          {["All", "ICU", "General", "Private"].map(
+          {["All", "General", "Semi-Private", "Private", "ICU", "Emergency"].map(
             (w) => (
               <button
                 key={w}

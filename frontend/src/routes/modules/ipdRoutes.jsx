@@ -29,7 +29,7 @@ export const ipdRoutes = [
     key="ipd-discharge"
     path="/ipd/discharge"
     element={
-      <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, DOCTOR]}>
+      <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION]}>
         <IPDDischarge />
       </ProtectedRoute>
     }
@@ -38,7 +38,7 @@ export const ipdRoutes = [
     key="ipd-reports"
     path="/ipd/reports"
     element={
-      <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, DOCTOR]}>
+      <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION]}>
         <IPDReports />
       </ProtectedRoute>
     }

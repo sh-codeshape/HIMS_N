@@ -26,8 +26,8 @@ export class IpdService {
     );
   }
 
-  async getAdmissions(facilityId: string, search?: string) {
-    return this.repository.getAdmissions(facilityId, search);
+  async getAdmissions(facilityId: string, search?: string, status?: string) {
+    return this.repository.getAdmissions(facilityId, search, status);
   }
 
   async dischargePatient(facilityId: string, admissionId: string, dischargeType: string, dischargeCondition?: string) {
@@ -36,5 +36,17 @@ export class IpdService {
       throw new NotFoundError('Admission not found');
     }
     return admission;
+  }
+
+  async getDischargeSummary(admissionId: string) {
+    return this.repository.getDischargeSummary(admissionId);
+  }
+
+  async saveDischargeSummary(admissionId: string, data: any) {
+    return this.repository.saveDischargeSummary(admissionId, data);
+  }
+
+  async getIpdReportStats(facilityId: string) {
+    return this.repository.getIpdReportStats(facilityId);
   }
 }

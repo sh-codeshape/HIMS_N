@@ -25,8 +25,9 @@ export class IpdController {
   getAdmissions = async (req: Request, res: Response) => {
     const facilityId = req.user?.facilityId ?? (req.query.facilityId as string) ?? '';
     const search = req.query.search as string | undefined;
+    const status = req.query.status as string | undefined;
 
-    const queue = await this.service.getAdmissions(facilityId, search);
+    const queue = await this.service.getAdmissions(facilityId, search, status);
     
     sendSuccess(res, queue, 'Admissions retrieved successfully');
   };
@@ -39,5 +40,23 @@ export class IpdController {
     const result = await this.service.dischargePatient(facilityId, String(id), String(discharge_type), discharge_condition);
 
     sendSuccess(res, result, 'Patient discharged successfully');
+  };
+
+  getDischargeSummary = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const summary = await this.service.getDischargeSummary(String(id));
+    sendSuccess(res, summary, 'Discharge summary retrieved successfully');
+  };
+
+  saveDischargeSummary = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const summary = await this.service.saveDischargeSummary(String(id), req.body);
+    sendSuccess(res, summary, 'Discharge summary saved successfully');
+  };
+
+  getIpdReportStats = async (req: Request, res: Response) => {
+    const facilityId = req.user?.facilityId ?? (req.query.facilityId as string) ?? '';
+    const stats = await this.service.getIpdReportStats(facilityId);
+    sendSuccess(res, stats, 'IPD report statistics retrieved successfully');
   };
 }

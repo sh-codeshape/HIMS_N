@@ -1,0 +1,306 @@
+/* IPD Reports & Analytics Module Styles */
+
+.ipd-reports-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
+/* Header & Controls */
+.ipd-reports-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: #ffffff;
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.ipd-reports-title-area {
+  display: flex;
+  flex-direction: column;
+}
+
+.ipd-reports-title-area h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.ipd-reports-title-area p {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.ipd-reports-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ipd-range-btn-group {
+  display: flex;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 8px;
+  gap: 3px;
+}
+
+.ipd-range-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-range-btn--active {
+  background: #ffffff;
+  color: #2563eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.ipd-print-report-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  padding: 7px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.ipd-print-report-btn:hover {
+  background: #1d4ed8;
+}
+
+/* KPI Overview Grid */
+.ipd-rep-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+}
+
+.ipd-rep-kpi-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.ipd-rep-kpi-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+
+.ipd-rep-kpi-card--blue::before { background: #3b82f6; }
+.ipd-rep-kpi-card--emerald::before { background: #10b981; }
+.ipd-rep-kpi-card--amber::before { background: #f59e0b; }
+.ipd-rep-kpi-card--purple::before { background: #8b5cf6; }
+
+.ipd-rep-kpi-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.ipd-rep-kpi-val {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 6px 0 2px;
+}
+
+.ipd-rep-kpi-footnote {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
+}
+
+.ipd-rep-kpi-footnote strong {
+  color: #0f172a;
+}
+
+/* Two-Column Analytics Layout */
+.ipd-analytics-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .ipd-analytics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ipd-rep-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.ipd-rep-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Ward Occupancy Progress List */
+.ipd-ward-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ipd-ward-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ipd-ward-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.ipd-ward-title {
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ipd-ward-stats-badge {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.ipd-progress-track {
+  width: 100%;
+  height: 10px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.ipd-progress-bar {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.4s ease;
+}
+
+.ipd-progress-bar--green { background: #10b981; }
+.ipd-progress-bar--yellow { background: #f59e0b; }
+.ipd-progress-bar--red { background: #ef4444; }
+
+/* Discharge Outcomes Distribution */
+.ipd-outcomes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ipd-outcome-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.ipd-outcome-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ipd-outcome-count {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+/* Tabular Sections */
+.ipd-rep-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.ipd-rep-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.ipd-rep-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+}
+
+.ipd-rep-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+/* Print Overrides */
+@media print {
+  .ipd-reports-header button,
+  .ipd-range-btn-group,
+  .ipd-action-toolbar {
+    display: none !important;
+  }
+  .ipd-rep-card {
+    box-shadow: none !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+}

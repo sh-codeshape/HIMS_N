@@ -17,6 +17,18 @@ const ipdService = {
   dischargePatient: async (id, payload) => {
     const res = await axiosInstance.post(`/ipd/admissions/${id}/discharge`, payload);
     return res.data?.data ?? res.data ?? null;
+  },
+  getDischargeSummary: async (admissionId) => {
+    const res = await axiosInstance.get(`/ipd/admissions/${admissionId}/discharge-summary`);
+    return res.data?.data ?? res.data ?? null;
+  },
+  saveDischargeSummary: async (admissionId, payload) => {
+    const res = await axiosInstance.post(`/ipd/admissions/${admissionId}/discharge-summary`, payload);
+    return res.data?.data ?? res.data ?? null;
+  },
+  getReportStats: async () => {
+    const res = await axiosInstance.get(`/ipd/reports/stats`);
+    return res.data?.data ?? res.data ?? null;
   }
 };
 
