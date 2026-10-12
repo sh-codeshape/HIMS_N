@@ -5,11 +5,15 @@ import Icon from "../../components/common/Icon.jsx";
 import ipdService from "../../api/services/ipdService";
 import "./IPDReports.css";
 
+const PAGE_SIZE_OPTIONS = [10, 30, 50, 100];
+
 export default function IPDReports() {
   const [dateRange, setDateRange] = useState("all"); // 'today' | 'week' | 'month' | 'all'
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [recentCensus, setRecentCensus] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const loadReportData = async () => {
     setLoading(true);
@@ -57,6 +61,22 @@ export default function IPDReports() {
     if (rate >= 60) return "ipd-progress-bar--yellow";
     return "ipd-progress-bar--green";
   };
+
+  const totalPages = Math.max(1, Math.ceil(recentCensus.length / rowsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * rowsPerPage;
+  const paginatedCensus = recentCensus.slice(startIndex, startIndex + rowsPerPage);
+  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [rowsPerPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   return (
     <PageContainer
@@ -297,14 +317,14 @@ export default function IPDReports() {
                 </tr>
               </thead>
               <tbody>
-                {recentCensus.length === 0 ? (
+                {paginatedCensus.length === 0 ? (
                   <tr>
                     <td colSpan={7} style={{ textAlign: "center", color: "#64748b", padding: 20 }}>
                       No inpatient records available.
                     </td>
                   </tr>
                 ) : (
-                  recentCensus.map((adm) => (
+                  paginatedCensus.map((adm) => (
                     <tr key={adm.id}>
                       <td style={{ fontWeight: 700, color: "#2563eb" }}>{adm.uhid || "—"}</td>
                       <td style={{ fontWeight: 600, color: "#0f172a" }}>
@@ -342,6 +362,102 @@ export default function IPDReports() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginTop: 18, flexWrap: "wrap" }}>
+            <div style={{ color: "#475569", fontSize: 12, fontWeight: 600 }}>
+              Showing {recentCensus.length === 0 ? 0 : startIndex + 1} to {Math.min(startIndex + rowsPerPage, recentCensus.length)} of {recentCensus.length} records
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safeCurrentPage === 1}
+                style={{
+                  border: "1px solid #cbd5e1",
+                  background: safeCurrentPage === 1 ? "#f8fafc" : "#fff",
+                  color: safeCurrentPage === 1 ? "#94a3b8" : "#334155",
+                  borderRadius: 8,
+                  width: 32,
+                  height: 32,
+                  cursor: safeCurrentPage === 1 ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}
+              >
+                <Icon name="LuChevronLeft" size={15} />
+              </button>
+
+              {pageNumbers.map((page) => (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  style={{
+                    minWidth: 34,
+                    height: 32,
+                    borderRadius: 8,
+                    border: "1px solid #cbd5e1",
+                    background: page === safeCurrentPage ? "#0f172a" : "#fff",
+                    color: page === safeCurrentPage ? "#fff" : "#334155",
+                    fontWeight: 700,
+                    fontSize: 12,
+                    cursor: "pointer",
+                    padding: "0 10px"
+                  }}
+                >
+                  {page}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safeCurrentPage === totalPages}
+                style={{
+                  border: "1px solid #cbd5e1",
+                  background: safeCurrentPage === totalPages ? "#f8fafc" : "#fff",
+                  color: safeCurrentPage === totalPages ? "#94a3b8" : "#334155",
+                  borderRadius: 8,
+                  width: 32,
+                  height: 32,
+                  cursor: safeCurrentPage === totalPages ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}
+              >
+                <Icon name="LuChevronRight" size={15} />
+              </button>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <label htmlFor="ipd-report-page-size" style={{ fontSize: 12, color: "#475569", fontWeight: 600 }}>
+                Rows per page
+              </label>
+              <select
+                id="ipd-report-page-size"
+                value={rowsPerPage}
+                onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                style={{
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 8,
+                  background: "#fff",
+                  color: "#0f172a",
+                  padding: "6px 10px",
+                  fontSize: 12,
+                  fontWeight: 600
+                }}
+              >
+                {PAGE_SIZE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option} / page
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </div>

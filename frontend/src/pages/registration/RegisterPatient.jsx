@@ -688,7 +688,7 @@ export default function RegisterPatient() {
               </div>
 
              
-              <div>
+              {/* <div>
                 <label className={labelCls}>Health Insurance</label>
                 <div className="flex items-center gap-6 mt-2">
                   {["Yes","No"].map((v) => (
@@ -700,7 +700,7 @@ export default function RegisterPatient() {
                     </label>
                   ))}
                 </div>
-              </div>
+              </div> */}
              
              
             </div>

@@ -1,7 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import Icon from "../../components/common/Icon.jsx";
+import ipdService from "../../api/services/ipdService";
 import "./BedAllotment.css";
+
+const normalizeBedStatus = (status) => {
+  const normalized = typeof status === "string" ? status.trim().toLowerCase() : "available";
+  if (["available", "occupied", "reserved", "cleaning", "maintenance", "blocked"].includes(normalized)) {
+    return normalized;
+  }
+  return "available";
+};
 
 export default function BedAllotment() {
   const [searchQuery, setSearchQuery] = useState("UHID12345");
@@ -13,13 +22,28 @@ export default function BedAllotment() {
   const [selectedRoom, setSelectedRoom] = useState("GW-101 (4 Beds)");
   const [viewMode, setViewMode] = useState("Floor Map");
 
+  const [realBeds, setRealBeds] = useState([]);
+
+  useEffect(() => {
+    const fetchBeds = async () => {
+      try {
+        const data = await ipdService.getBedMatrix();
+        setRealBeds(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Failed to load real bed matrix:", err);
+      }
+    };
+
+    fetchBeds();
+  }, []);
+
   // Selected Bed for Allotment
   const [selectedBed, setSelectedBed] = useState({
     bedNo: "GW-101-B1",
     room: "GW-101",
     ward: "General Ward",
     floor: "Ground Floor",
-    status: "Available",
+    status: "available",
   });
 
   // Admission Form state
@@ -33,16 +57,26 @@ export default function BedAllotment() {
   });
 
   // Bed matrix in selected room (GW-101)
-  const roomBeds = [
-    { id: 1, bedNo: "GW-101-B1", patientName: "-", uhid: "-", genderAge: "-", admissionDate: "-", status: "Available" },
-    { id: 2, bedNo: "GW-101-B2", patientName: "-", uhid: "-", genderAge: "-", admissionDate: "-", status: "Available" },
-    { id: 3, bedNo: "GW-101-B3", patientName: "Suman Yadav", uhid: "UHID12348", genderAge: "36 Y / Female", admissionDate: "27-09-2026", status: "Occupied" },
-    { id: 4, bedNo: "GW-101-B4", patientName: "-", uhid: "-", genderAge: "-", admissionDate: "-", status: "Maintenance" },
-  ];
+  const roomBeds = realBeds.length
+    ? realBeds.map((bed) => ({
+        id: bed.id,
+        bedNo: bed.bed_no || bed.bedNo,
+        patientName: bed.patient_first_name ? `${bed.patient_first_name} ${bed.patient_last_name || ""}`.trim() : "-",
+        uhid: bed.patient_uhid || "-",
+        genderAge: bed.gender ? `${bed.gender}` : "-",
+        admissionDate: bed.admitted_at ? new Date(bed.admitted_at).toLocaleDateString("en-GB") : "-",
+        status: normalizeBedStatus(bed.current_status || bed.status || "available"),
+      }))
+    : [
+        { id: 1, bedNo: "GW-101-B1", patientName: "-", uhid: "-", genderAge: "-", admissionDate: "-", status: "available" },
+        { id: 2, bedNo: "GW-101-B2", patientName: "-", uhid: "-", genderAge: "-", admissionDate: "-", status: "available" },
+        { id: 3, bedNo: "GW-101-B3", patientName: "Suman Yadav", uhid: "UHID12348", genderAge: "36 Y / Female", admissionDate: "27-09-2026", status: "occupied" },
+        { id: 4, bedNo: "GW-101-B4", patientName: "-", uhid: "-", genderAge: "-", admissionDate: "-", status: "maintenance" },
+      ];
 
   const handleAllocateBed = () => {
-    if (!selectedBed || selectedBed.status !== "Available") {
-      toast.error("Please select an Available bed first!");
+    if (!selectedBed || normalizeBedStatus(selectedBed.status) !== "available") {
+      toast.error("Please select an available bed first!");
       return;
     }
     toast.success(`Bed ${selectedBed.bedNo} successfully allotted to Rohit Kumar (UHID12345)!`, {
@@ -666,12 +700,12 @@ export default function BedAllotment() {
                     <td>{rb.genderAge}</td>
                     <td>{rb.admissionDate}</td>
                     <td>
-                      <span className={`status-badge status-badge--${rb.status.toLowerCase()}`}>
-                        {rb.status}
+                      <span className={`status-badge status-badge--${normalizeBedStatus(rb.status)}`}>
+                        {normalizeBedStatus(rb.status) === "available" ? "Available" : normalizeBedStatus(rb.status) === "occupied" ? "Occupied" : normalizeBedStatus(rb.status) === "maintenance" ? "Maintenance" : normalizeBedStatus(rb.status) === "blocked" ? "Blocked" : "Reserved"}
                       </span>
                     </td>
                     <td>
-                      {rb.status === "Available" ? (
+                      {normalizeBedStatus(rb.status) === "available" ? (
                         <button
                           type="button"
                           className="search-btn-primary"
@@ -682,13 +716,13 @@ export default function BedAllotment() {
                               room: "GW-101",
                               ward: "General Ward",
                               floor: "Ground Floor",
-                              status: "Available",
+                              status: rb.status,
                             })
                           }
                         >
                           <Icon name="LuUserCheck" size={12} /> Allocate
                         </button>
-                      ) : rb.status === "Occupied" ? (
+                      ) : normalizeBedStatus(rb.status) === "occupied" ? (
                         <button
                           type="button"
                           className="search-btn-primary"

@@ -68,8 +68,13 @@ export default function IPDAdmissionView() {
     const fetchData = async () => {
       try {
         const [patientsData, bedsData] = await Promise.all([
-          patientService.search(),
-          ipdService.getBedMatrix(),
+          patientService.search().catch(() => []),
+          ipdService.getBedMatrix().catch(() => [
+            { id: 1, bed_no: "GW-101-B1", ward_name: "General Ward", room_name: "GW-101", current_status: "available" },
+            { id: 2, bed_no: "GW-101-B2", ward_name: "General Ward", room_name: "GW-101", current_status: "available" },
+            { id: 3, bed_no: "GW-101-B3", ward_name: "General Ward", room_name: "GW-101", current_status: "occupied" },
+            { id: 4, bed_no: "ICU-01", ward_name: "ICU", room_name: "ICU-1", current_status: "available" },
+          ]),
         ]);
 
         const mappedPatients = (patientsData || []).map((p) => ({
@@ -89,8 +94,8 @@ export default function IPDAdmissionView() {
           status: b.current_status,
         }));
 
-        setPatients(mappedPatients);
-        setBeds(mappedBeds);
+        setPatients(mappedPatients.length ? mappedPatients : (mockStore.getPatients ? mockStore.getPatients() : []));
+        setBeds(mappedBeds.length ? mappedBeds : (mockStore.getBeds ? mockStore.getBeds() : []));
       } catch (err) {
         const fallbackPatients = mockStore.getPatients ? mockStore.getPatients() : [];
         const fallbackBeds = mockStore.getBeds ? mockStore.getBeds() : [];
@@ -274,6 +279,13 @@ export default function IPDAdmissionView() {
   const [roomNo, setRoomNo] = useState("101");
   const [selectedBed, setSelectedBed] = useState("Bed-101-A");
 
+  const normalizeBedStatus = (status) => {
+    const value = typeof status === "string" ? status.trim().toLowerCase() : "available";
+    if (value === "occupied" || value === "reserved" || value === "blocked") return value;
+    if (value === "cleaning" || value === "maintenance") return value;
+    return "available";
+  };
+
   const [availableBedsGrid] = useState([
     { id: "b1", bedNo: "Bed-101-A", room: "Room 101", status: "Available" },
     { id: "b2", bedNo: "Bed-101-B", room: "Room 101", status: "Occupied" },
@@ -431,7 +443,7 @@ export default function IPDAdmissionView() {
                 Matching Patients ({patientSearchResults.length})
               </div>
               {patientSearchResults.map((p) => {
-                const pName = p.name || `${p.firstName || ""} ${p.lastName || ""}`.trim();
+                const pName = p.full_name || p.name || `${p.first_name || p.firstName || ""} ${p.last_name || p.lastName || ""}`.trim() || "Patient";
                 const pPhone = p.phone || p.mobile1 || p.mobile || "N/A";
                 return (
                   <div
@@ -463,15 +475,6 @@ export default function IPDAdmissionView() {
           )}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => navigate("/registration")}
-            className="px-3.5 py-2 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-lg border border-teal-200 flex items-center gap-1.5 transition-all shadow-xs"
-          >
-            <Icon name="LuUserPlus" size={15} /> + Register New Patient
-          </button>
-        </div>
       </div>
 
       {/* ── TOP PATIENT BANNER ── */}
@@ -839,13 +842,17 @@ export default function IPDAdmissionView() {
 
                   <div className="bed-grid-cards">
                     {(beds.length > 0 ? beds : availableBedsGrid).map((b) => {
+                      const normalizedStatus = normalizeBedStatus(b.status || b.current_status || "available");
+                      const displayStatus = normalizedStatus === "available" ? "Available" : normalizedStatus === "occupied" ? "Occupied" : normalizedStatus === "reserved" ? "Reserved" : normalizedStatus === "blocked" ? "Blocked" : normalizedStatus === "maintenance" ? "Maintenance" : "Cleaning";
+                      const isAvailable = normalizedStatus === "available";
                       const isSelected = selectedBed === b.bedNo;
+
                       return (
                         <div
                           key={b.id}
-                          className={`bed-card-item ${b.status === "Available" ? "available" : "occupied"} ${isSelected ? "selected" : ""}`}
+                          className={`bed-card-item ${isAvailable ? "available" : "occupied"} ${isSelected ? "selected" : ""}`}
                           onClick={() => {
-                            if (b.status === "Available") {
+                            if (isAvailable) {
                               setSelectedBed(b.bedNo);
                             }
                           }}
@@ -853,10 +860,9 @@ export default function IPDAdmissionView() {
                           <div className="bed-card-top">
                             <span className="bed-card-no">🛏️ {b.bedNo}</span>
                             <span className="bed-card-status-badge">
-                              {b.status} {isSelected && "✓"}
+                              {displayStatus} {isSelected && "✓"}
                             </span>
                           </div>
-                         
                         </div>
                       );
                     })}

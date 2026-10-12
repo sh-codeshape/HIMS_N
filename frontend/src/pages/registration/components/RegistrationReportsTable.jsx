@@ -23,12 +23,13 @@ const getStatus = (val) => STATUSES.find(s => s.value === val) || STATUSES[0];
 
 // ─── Excel Export ─────────────────────────────────────────────────────────────
 const exportToExcel = (rows, showToast) => {
+  // Health insurance i am removing as of now 
   if (!rows.length) { showToast("⚠️ No records to export!", "warn"); return; }
   const headers = [
     "Reg. Date","UHID / Patient ID","Full Name","Gender","Age","Blood Group",
     "Mobile","Alternate Mobile","Email","City","State","Address",
     "Category","Department","Doctor / Referred By",
-    "Payment Type","Fee (₹)","Health Insurance","Insurance No.",
+    "Payment Type","Fee (₹)",,,
     "Emergency Contact","Emergency Phone","Aadhaar / ID","Status"
   ];
   const data = rows.map(p => [
