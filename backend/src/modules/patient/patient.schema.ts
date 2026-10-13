@@ -47,7 +47,10 @@ export const updatePatientSchema = z.object({
     first_name: z.string().min(1).optional(),
     middle_name: z.string().optional(),
     last_name: z.string().optional(),
-    gender: z.enum(['male', 'female', 'other', 'unknown']).optional(),
+    gender: z.preprocess(
+      (val) => typeof val === 'string' ? val.trim().toLowerCase() : val,
+      z.enum(['male', 'female', 'other', 'unknown']).optional()
+    ),
     date_of_birth: z.string().optional(),
     phone: z.string().regex(/^\d{10}$/, "Phone number must be exactly 10 digits").optional(),
     email: z.string().email().optional(),

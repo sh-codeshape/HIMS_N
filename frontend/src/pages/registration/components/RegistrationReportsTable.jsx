@@ -147,17 +147,22 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
   const saveEdit = async () => {
     try {
       const custom_fields = typeof editP.custom_fields === 'object' ? editP.custom_fields : {};
+      const parsedAge = Number(editForm.age);
+      const sanitizedAge = Number.isFinite(parsedAge) && parsedAge >= 0 && parsedAge <= 120 ? parsedAge : null;
       const updatedData = {
         first_name: editForm.name?.split(" ")[0] || "",
         last_name: editForm.name?.split(" ").slice(1).join(" ") || "",
-        gender: editForm.gender,
-        age: editForm.age,
-        blood_group: editForm.bloodGroup,
+        gender: editForm.gender?.toLowerCase(),
+        date_of_birth: sanitizedAge !== null
+          ? new Date(Date.now() - sanitizedAge * 365.25 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+          : editP.date_of_birth || editP.dob || undefined,
+        blood_group: editForm.bloodGroup?.trim() ? editForm.bloodGroup.trim().toUpperCase() : undefined,
         phone: editForm.phone,
+        address_line1: editForm.address,
         city: editForm.city,
         state: editForm.state,
+        postal_code: editForm.pincode,
         country: editForm.country,
-        address: editForm.address,
         custom_fields: {
           ...custom_fields,
           visit_type: editForm.category,

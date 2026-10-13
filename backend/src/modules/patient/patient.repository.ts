@@ -229,6 +229,60 @@ export class PatientRepository {
     return result.rows[0] || null;
   }
 
+  async updatePatientAddress(patientId: string, data: { address_line1?: string; city?: string; state?: string; postal_code?: string; country?: string; }) {
+    const payload = {
+      address_line1: data.address_line1 ?? '',
+      city: data.city ?? '',
+      state: data.state ?? '',
+      postal_code: data.postal_code ?? '',
+      country: data.country ?? 'IN',
+    };
+
+    const hasAddressData = Object.values(payload).some((value) => String(value).trim().length > 0);
+    if (!hasAddressData) return null;
+
+    const countryCode = (() => {
+      const raw = payload.country.trim();
+      if (!raw) return 'IN';
+      const upper = raw.toUpperCase();
+      if (/^[A-Z]{2}$/.test(upper)) return upper;
+      return {
+        india: 'IN',
+        'united states': 'US',
+        'united states of america': 'US',
+        usa: 'US',
+        'united kingdom': 'GB',
+        uk: 'GB',
+        canada: 'CA',
+        australia: 'AU',
+      }[raw.toLowerCase()] ?? 'IN';
+    })();
+
+    const updateQuery = `
+      UPDATE patient_addresses
+      SET line1 = COALESCE(NULLIF($2, ''), line1),
+          city = COALESCE(NULLIF($3, ''), city),
+          state = COALESCE(NULLIF($4, ''), state),
+          postal_code = COALESCE(NULLIF($5, ''), postal_code),
+          country = COALESCE(NULLIF($6, ''), country),
+          updated_at = NOW()
+      WHERE patient_id = $1 AND is_primary = true
+      RETURNING *;
+    `;
+
+    const updateResult = await db.query(updateQuery, [patientId, payload.address_line1, payload.city, payload.state, payload.postal_code, countryCode]);
+    if ((updateResult.rowCount ?? 0) > 0) return updateResult.rows[0];
+
+    const insertQuery = `
+      INSERT INTO patient_addresses (patient_id, address_type, line1, city, state, postal_code, country, is_primary)
+      VALUES ($1, 'home', $2, $3, $4, $5, $6, true)
+      RETURNING *;
+    `;
+
+    const insertResult = await db.query(insertQuery, [patientId, payload.address_line1 || null, payload.city || null, payload.state || null, payload.postal_code || null, countryCode]);
+    return insertResult.rows[0] || null;
+  }
+
   async deletePatient(id: string, organization_id: string) {
     const query = `
       UPDATE patients 

@@ -74,6 +74,15 @@ export const normalizeGender = (value?: string): string | undefined => {
   return mapping[normalized] ?? normalized;
 };
 
+export const normalizeBloodGroup = (value?: string): string | undefined => {
+  if (!value) return undefined;
+
+  const normalized = value.trim().toUpperCase().replace(/\s+/g, '');
+  const allowed = new Set(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']);
+
+  return allowed.has(normalized) ? normalized : undefined;
+};
+
 export const getPatientAge = (dateOfBirth?: string | Date | null): number | null => {
   if (!dateOfBirth) return null;
 
@@ -122,6 +131,7 @@ export const normalizePatientRequest = <T extends {
     phone: data.phone?.trim() ?? data.phone,
     state: data.state?.trim() || undefined,
     city: data.city?.trim() || undefined,
+    blood_group: normalizeBloodGroup(data.blood_group as string | undefined),
     date_of_birth: normalizedDob,
     age: data.age ?? (normalizedDob ? String(getPatientAge(normalizedDob) ?? '') : undefined),
   } as T;
@@ -272,15 +282,54 @@ export class PatientService {
 
   async updatePatient(id: string, organizationId: string, data: Partial<any>) {
     let updateData = { ...data };
-    
-    // Normalize basic fields if they exist
+    const ageValue = updateData.age;
+
+    const addressData = {
+      address_line1: updateData.address_line1 ?? updateData.address,
+      city: updateData.city,
+      state: updateData.state,
+      postal_code: updateData.postal_code ?? updateData.pincode,
+      country: updateData.country,
+    };
+
+    delete updateData.age;
+    delete updateData.address;
+    delete updateData.address_line1;
+    delete updateData.city;
+    delete updateData.state;
+    delete updateData.postal_code;
+    delete updateData.pincode;
+    delete updateData.country;
+
+    if (updateData.blood_group !== undefined) {
+      const bloodGroup = normalizeBloodGroup(updateData.blood_group);
+      if (bloodGroup) {
+        updateData.blood_group = bloodGroup;
+      } else {
+        delete updateData.blood_group;
+      }
+    }
+
     if (updateData.gender) updateData.gender = normalizeGender(updateData.gender);
     if (updateData.nationality) updateData.nationality = normalizeCountryCode(updateData.nationality);
+
+    if (!updateData.date_of_birth && ageValue !== undefined) {
+      const derivedDob = deriveDateOfBirthFromAge(ageValue as string | number | null);
+      if (derivedDob) {
+        updateData.date_of_birth = derivedDob;
+      }
+    }
 
     const patient = await patientRepository.updatePatient(id, organizationId, updateData);
     if (!patient) {
       throw new NotFoundError('Patient not found');
     }
+
+    const hasAddressUpdate = Object.values(addressData).some((value) => value !== undefined && value !== null && String(value).trim() !== '');
+    if (hasAddressUpdate) {
+      await patientRepository.updatePatientAddress(id, addressData);
+    }
+
     return patient;
   }
 
