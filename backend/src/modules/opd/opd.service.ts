@@ -1,6 +1,6 @@
 import { OpdRepository } from './opd.repository';
 import { CreateOpdEncounterRequest } from './opd.schema';
-import { NotFoundError } from '../../shared/errors/AppError';
+import { ConflictError, NotFoundError } from '../../shared/errors/AppError';
 
 export type ReportQueryInput = {
   from?: string;
@@ -50,6 +50,13 @@ export class OpdService {
   }
 
   async issueToken(data: CreateOpdEncounterRequest, organizationId: string) {
+    if (data.patient_id) {
+      const alreadyRegisteredToday = await this.repository.hasOpdEncounterToday(data.patient_id);
+      if (alreadyRegisteredToday) {
+        throw new ConflictError('This patient already has an OPD registration today. Only one OPD registration is allowed per patient per day.');
+      }
+    }
+
     const nextToken = await this.repository.getNextToken(data.facility_id, data.primary_practitioner_id);
 
     const encounter = await this.repository.createEncounter(

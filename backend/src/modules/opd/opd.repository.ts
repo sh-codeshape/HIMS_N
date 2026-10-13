@@ -68,6 +68,20 @@ export class OpdRepository {
     return result.rows[0];
   }
 
+
+  async hasOpdEncounterToday(patientId: string): Promise<boolean> {
+    const query = `
+      SELECT 1
+      FROM encounters
+      WHERE patient_id = $1
+        AND encounter_type = 'opd'
+        AND DATE(started_at) = CURRENT_DATE
+      LIMIT 1
+    `;
+    const result = await db.query(query, [patientId]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
   async getNextToken(facilityId: string, practitionerId?: string | null): Promise<string> {
     if (!facilityId || facilityId === ZERO_UUID) {
       throw new ValidationError('Facility context is required to calculate the next OPD token.');
@@ -165,6 +179,7 @@ export class OpdRepository {
     let query = `
       SELECT 
         e.id,
+        e.patient_id,
         e.encounter_no,
         e.status,
         e.chief_complaint,

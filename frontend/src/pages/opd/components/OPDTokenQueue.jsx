@@ -335,7 +335,11 @@ export default function OPDTokenQueue() {
       toast.success(`OPD Token #${generatedToken} generated successfully!`);
     } catch (err) {
       console.error("Failed to generate OPD token:", err);
-      toast.error("Failed to generate OPD token. Please try again.");
+      const backendMessage =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.message ||
+        err?.message;
+      toast.error(backendMessage || "Failed to generate OPD token. Please try again.");
     }
   };
 
