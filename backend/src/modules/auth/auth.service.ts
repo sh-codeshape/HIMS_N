@@ -31,10 +31,22 @@ export class AuthService {
     // Default role logic to keep frontend compatibility for now
     const primaryRole = user.is_superadmin ? 'super_admin' : (assignedRoles[0] || 'admin');
 
+    const zeroUuid = '00000000-0000-0000-0000-000000000000';
+    const facilityId = user.default_facility_id && user.default_facility_id !== zeroUuid
+      ? user.default_facility_id
+      : undefined;
+
+    if (!facilityId) {
+      throw new UnauthorizedError('This user is not assigned to a valid facility. Please seed or assign a facility first.');
+    }
+
     const token = jwt.sign(
       {
         userId: user.id,
         organizationId: user.organization_id,
+        organization_id: user.organization_id,
+        facilityId,
+        facility_id: facilityId,
         roles: assignedRoles,
         permissions,
       },

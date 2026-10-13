@@ -870,115 +870,39 @@ export default function OPDTokenQueue() {
 
         {/* ── RIGHT COLUMN ── */}
         <div className="opd-right-col">
-          {/* SECTION 5: OPD FEE & CHARGES */}
           <div className="opd-card">
             <h3 className="opd-card-title">
-              <Icon name="LuDollarSign" size={16} className="title-icon" /> 5. OPD Fee & Charges
+              <Icon name="LuClipboardList" size={16} className="title-icon" /> 5. Quick Summary
             </h3>
             <div className="opd-billing-box">
               <div className="billing-row">
-                <span className="lbl">Registration Fee</span>
-                <span className="val">₹ {registrationFee.toFixed(2)}</span>
+                <span className="lbl">Patient</span>
+                <span className="val">{selectedPatient ? selectedPatient.full_name || `${selectedPatient.first_name || ''} ${selectedPatient.last_name || ''}`.trim() : 'Not selected'}</span>
               </div>
               <div className="billing-row">
-                <span className="lbl">Consultation Fee</span>
-                <span className="val">₹ {consultationFee.toFixed(2)}</span>
+                <span className="lbl">UHID</span>
+                <span className="val">{selectedPatient?.uhid || '—'}</span>
               </div>
-             
-
+              <div className="billing-row">
+                <span className="lbl">Department</span>
+                <span className="val">{department}</span>
+              </div>
+              <div className="billing-row">
+                <span className="lbl">Doctor</span>
+                <span className="val">{selectedDoctor?.name || 'Not selected'}</span>
+              </div>
+              <div className="billing-row">
+                <span className="lbl">Complaint</span>
+                <span className="val">{selectedComplaints.join(', ') || 'General Consultation'}</span>
+              </div>
               <div className="billing-divider" />
-
-              <div className="billing-row bold-row">
-                <span className="lbl">Sub Total</span>
-                <span className="val">₹ {subTotal.toFixed(2)}</span>
-              </div>
-
-              <div className="billing-row align-center">
-                <span className="lbl">Discount </span>
-                <div className="input-currency-wrapper">
-                  <input
-                    type="number"
-                    className="opd-input small"
-                    value={discount}
-                    onChange={(e) => setDiscount(Number(e.target.value))}
-                  />
-                  <span className="currency-sym">₹</span>
-                </div>
-              </div>
-
               <div className="total-amount-card">
-                <span className="total-title">Total Amount </span>
-                <span className="total-value">₹ {totalAmount.toFixed(2)}</span>
+                <span className="total-title">Visit Date</span>
+                <span className="total-value">{visitDate}</span>
               </div>
             </div>
           </div>
 
-          {/* SECTION 6: PAYMENT DETAILS */}
-          <div className="opd-card">
-            <h3 className="opd-card-title">
-              <Icon name="LuCreditCard" size={16} className="title-icon" /> 6. Payment Details
-            </h3>
-            <div className="opd-payment-form">
-              <label className="opd-label">Payment Mode <span className="req">*</span></label>
-              <div className="opd-radio-grid-3">
-                {["Cash", "UPI", "Insurance/TPA"].map((mode) => (
-                  <label key={mode} className="radio-label">
-                    <input
-                      type="radio"
-                      name="paymentMode"
-                      value={mode}
-                      checked={paymentMode === mode}
-                      onChange={(e) => setPaymentMode(e.target.value)}
-                    />
-                    {mode}
-                  </label>
-                ))}
-              </div>
-
-              <div className="payment-status-row">
-                <div className="opd-field-group">
-                  <label className="opd-label">Payment Status</label>
-                  <div className="opd-radio-inline">
-                    <label className="radio-label">
-                      <input
-                        type="radio"
-                        name="payStatus"
-                        value="Paid"
-                        checked={paymentStatus === "Paid"}
-                        onChange={(e) => setPaymentStatus(e.target.value)}
-                      />
-                      Paid 
-                    </label>
-                    <label className="radio-label">
-                      <input
-                        type="radio"
-                        name="payStatus"
-                        value="Pending"
-                        checked={paymentStatus === "Pending"}
-                        onChange={(e) => setPaymentStatus(e.target.value)}
-                      />
-                      Pending 
-                    </label>
-                  </div>
-                </div>
-
-                <div className="opd-field-group">
-                  <label className="opd-label">Received Amount</label>
-                  <div className="input-currency-wrapper">
-                    <input
-                      type="number"
-                      className="opd-input small"
-                      value={totalAmount}
-                      readOnly
-                    />
-                    <span className="currency-sym">₹</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* FOOTER ACTION BUTTONS */}
           <div className="opd-footer-actions">
             <button
               type="button"
@@ -986,13 +910,6 @@ export default function OPDTokenQueue() {
               onClick={() => navigate(-1)}
             >
               Cancel
-            </button>
-            <button
-              type="button"
-              className="opd-btn-draft"
-              onClick={() => toast.success("Draft saved successfully")}
-            >
-              Save as Draft
             </button>
             <button type="submit" className="opd-btn-register">
               Register OPD <Icon name="LuArrowRight" size={16} />

@@ -39,15 +39,19 @@ export class BillingRepository {
     try {
       await client.query('BEGIN');
 
-      const invoiceNo = `INV-${Date.now()}`;
+      const invoiceNoResult = await client.query(
+        'SELECT next_number($1, $2, $3) AS invoice_no',
+        [data.organization_id, data.facility_id, 'INVOICE']
+      );
+      const invoiceNo = invoiceNoResult.rows[0]?.invoice_no || `INV-${Date.now()}`;
       
       const invoiceQuery = `
         INSERT INTO invoices (
-          organization_id, facility_id, patient_id, invoice_no, invoice_type, status,
+          organization_id, facility_id, patient_id, encounter_id, invoice_no, invoice_type, status,
           subtotal, discount_total, total_amount, due_amount, paid_amount, issued_at
         ) VALUES (
-          $1, $2, $3, $4, $5, 'draft',
-          $6, $7, $8, $8, 0, NOW()
+          $1, $2, $3, $4, $5, $6, 'draft',
+          $7, $8, $9, $9, 0, NOW()
         ) RETURNING *;
       `;
 
@@ -55,6 +59,7 @@ export class BillingRepository {
         data.organization_id,
         data.facility_id,
         data.patient_id,
+        data.encounter_id || null,
         invoiceNo,
         data.invoice_type,
         data.subtotal,
@@ -88,7 +93,11 @@ export class BillingRepository {
       if (data.payment_mode && data.total_amount > 0) {
         const methodId = await this.resolvePaymentMethodId(data, client);
 
-        const receiptNo = `REC-${Date.now()}`;
+        const receiptNoResult = await client.query(
+          'SELECT next_number($1, $2, $3) AS receipt_no',
+          [data.organization_id, data.facility_id, 'RECEIPT']
+        );
+        const receiptNo = receiptNoResult.rows[0]?.receipt_no || `REC-${Date.now()}`;
         const paymentQuery = `
           INSERT INTO payments (
             organization_id, facility_id, receipt_no, patient_id, direction, payment_type, payment_method_id,
@@ -226,7 +235,11 @@ export class BillingRepository {
   }
 
   async recordAdvancePayment(data: any) {
-    const receiptNo = `ADV-${Date.now()}`;
+    const receiptNoResult = await db.query(
+      'SELECT next_number($1, $2, $3) AS receipt_no',
+      [data.organization_id, data.facility_id, 'RECEIPT']
+    );
+    const receiptNo = receiptNoResult.rows[0]?.receipt_no || `ADV-${Date.now()}`;
     const methodId = await this.resolvePaymentMethodId(data);
 
     const query = `

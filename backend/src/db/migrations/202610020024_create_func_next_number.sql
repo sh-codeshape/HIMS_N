@@ -21,6 +21,8 @@ BEGIN
         RAISE EXCEPTION 'number sequence % not configured (org %, facility %)', p_key, p_org, p_facility;
     END IF;
 
+    -- Calendar-year sequencing is the default policy. If the hospital uses a financial year,
+    -- the year token must be derived from a configured fiscal-year boundary instead of CURRENT_DATE.
     RETURN s.prefix
         || CASE WHEN s.include_year THEN to_char(CURRENT_DATE, 'YY') || '-' ELSE '' END
         || lpad(s.current_value::text, s.padding, '0')

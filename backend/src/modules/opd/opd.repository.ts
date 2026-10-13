@@ -1,4 +1,7 @@
 import { db } from '../../config/database';
+import { ValidationError } from '../../shared/errors/AppError';
+
+const ZERO_UUID = '00000000-0000-0000-0000-000000000000';
 
 export class OpdRepository {
   async createEncounter(
@@ -14,6 +17,13 @@ export class OpdRepository {
     attendantRelation?: string | null,
     attendantPhone?: string | null
   ) {
+    if (!facilityId || facilityId === ZERO_UUID) {
+      throw new ValidationError('Facility context is required to issue an OPD token.');
+    }
+    if (!organizationId || organizationId === ZERO_UUID) {
+      throw new ValidationError('Organization context is required to issue an OPD token.');
+    }
+
     const customFields = tokenNumber ? { opd_token: tokenNumber } : {};
 
     const query = `
@@ -35,7 +45,11 @@ export class OpdRepository {
       ) VALUES ($1, $2, $3, $4, $5, $6, 'opd', 'arrived', $7, $8, $9, $10, $11, $12)
       RETURNING *;
     `;
-    const encounterNo = `OPD-${Date.now()}`; // Temporary till we fix sequence
+    const sequenceResult = await db.query(
+      'SELECT next_number($1, $2, $3) AS encounter_no',
+      [organizationId, facilityId, 'ENCOUNTER']
+    );
+    const encounterNo = sequenceResult.rows[0]?.encounter_no || `OPD-${Date.now()}`;
 
     const result = await db.query(query, [
       facilityId,
@@ -55,6 +69,10 @@ export class OpdRepository {
   }
 
   async getNextToken(facilityId: string, practitionerId?: string | null): Promise<string> {
+    if (!facilityId || facilityId === ZERO_UUID) {
+      throw new ValidationError('Facility context is required to calculate the next OPD token.');
+    }
+
     const query = `
       SELECT COUNT(*) + 1 as next_token
       FROM encounters

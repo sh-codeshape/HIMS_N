@@ -10,6 +10,7 @@ import "./Login.css";
 
 export default function Login() {
   const [selectedRole, setSelectedRole] = useState(ROLES.ADMIN);
+  const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({
     username: LOGIN_ROLE_OPTIONS[0]?.email || "admin@narayanhospital.com",
     password: "password123",
@@ -117,15 +118,25 @@ export default function Login() {
               </div>
 
               <div>
-                <Input
-                  label="Password"
-                  type="password"
-                  name="password"
-                  value={form.password}
-                  onChange={handleChange}
-                  placeholder="Enter your password"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    label="Password"
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={form.password}
+                    onChange={handleChange}
+                    placeholder="Enter your password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3 top-[42px] text-xs font-semibold text-slate-600 hover:text-slate-900"
+                  >
+                    {showPassword ? "Hide" : "View"}
+                  </button>
+                </div>
               </div>
 
               <div className="pt-1">

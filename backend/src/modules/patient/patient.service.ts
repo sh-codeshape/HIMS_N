@@ -115,6 +115,7 @@ export const normalizePatientRequest = <T extends {
   phone?: string;
   state?: string;
   city?: string;
+  blood_group?: string;
   date_of_birth?: string;
   age?: string | number;
 }>(data: T): T => {

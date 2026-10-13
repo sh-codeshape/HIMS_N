@@ -38,6 +38,12 @@ export class IpdRepository {
       }
       
       // 1. Create Encounter
+      const encounterSequenceResult = await client.query(
+        'SELECT next_number($1, $2, $3) AS encounter_no',
+        [organizationId, facilityId, 'ENCOUNTER']
+      );
+      const encounterNo = encounterSequenceResult.rows[0]?.encounter_no || `IPD-${Date.now()}`;
+
       const encounterQuery = `
         INSERT INTO encounters (
           facility_id,
@@ -56,7 +62,6 @@ export class IpdRepository {
         ) VALUES ($1, $2, $3, $4, $5, $6, 'ipd', 'in_progress', $7, $8, $9, $10, $11)
         RETURNING *;
       `;
-      const encounterNo = `IPD-${Date.now()}`;
       const encounterResult = await client.query(encounterQuery, [
         facilityId,
         organizationId,
@@ -73,6 +78,12 @@ export class IpdRepository {
       const encounter = encounterResult.rows[0];
 
       // 2. Create Admission
+      const admissionSequenceResult = await client.query(
+        'SELECT next_number($1, $2, $3) AS admission_no',
+        [organizationId, facilityId, 'ADMISSION']
+      );
+      const admissionNo = admissionSequenceResult.rows[0]?.admission_no || `ADM-${Date.now()}`;
+
       const admissionQuery = `
         INSERT INTO admissions (
           organization_id,
@@ -92,7 +103,6 @@ export class IpdRepository {
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'admitted', NOW(), $10, $11, $12)
         RETURNING *;
       `;
-      const admissionNo = `ADM-${Date.now()}`;
       const admissionResult = await client.query(admissionQuery, [
         organizationId,
         facilityId,

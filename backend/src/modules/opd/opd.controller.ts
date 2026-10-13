@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import { OpdService } from './opd.service';
+import { ValidationError } from '../../shared/errors/AppError';
 import { sendSuccess, sendPaginated } from '../../shared/utils/response';
+
+const ZERO_UUID = '00000000-0000-0000-0000-000000000000';
 
 export class OpdController {
   private service: OpdService;
@@ -10,12 +13,18 @@ export class OpdController {
   }
 
   issueToken = async (req: Request, res: Response) => {
-    // Both facility_id and organization_id should come from the logged in user context
-    // For now we'll take facility_id from the body, but organization_id from user
-    const organizationId = req.user!.organizationId;
-    
-    const result = await this.service.issueToken(req.body, organizationId);
-    
+    const organizationId = req.user?.organizationId || (req.body?.organization_id as string) || (req.body?.organizationId as string);
+    const facilityId = req.user?.facilityId || (req.body?.facility_id as string) || (req.body?.facilityId as string);
+
+    if (!organizationId || organizationId === ZERO_UUID) {
+      throw new ValidationError('Authenticated organization is required for OPD token issuance.');
+    }
+    if (!facilityId || facilityId === ZERO_UUID) {
+      throw new ValidationError('A valid facility is required for OPD token issuance.');
+    }
+
+    const result = await this.service.issueToken({ ...req.body, facility_id: facilityId, organization_id: organizationId }, organizationId);
+
     sendSuccess(res, result, 'OPD token issued successfully', 201);
   };
 

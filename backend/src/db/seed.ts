@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import { randomUUID } from 'crypto';
 import { db } from '../config/database';
 import { logger } from '../config/logger';
 
@@ -7,7 +8,8 @@ async function seed() {
   try {
     await client.query('BEGIN');
 
-    const orgId = '00000000-0000-0000-0000-000000000000';
+    const orgId = randomUUID();
+    const facilityId = randomUUID();
     
     // Fix: role_permissions has no id column, so audit trigger fails. Drop it here.
     await client.query('DROP TRIGGER IF EXISTS trg_role_permissions_audit ON role_permissions');
@@ -18,7 +20,6 @@ async function seed() {
       ON CONFLICT (id) DO NOTHING;
     `, [orgId]);
 
-    const facilityId = orgId;
     await client.query(`
       INSERT INTO facilities (id, organization_id, code, name, facility_type)
       VALUES ($1, $2, 'MAIN', 'Main Hospital Branch', 'hospital')
@@ -26,6 +27,32 @@ async function seed() {
         name = EXCLUDED.name,
         facility_type = EXCLUDED.facility_type;
     `, [facilityId, orgId]);
+
+    const defaultSequenceRows = [
+      { seq_key: 'ENCOUNTER', prefix: 'OPD-', suffix: '', include_year: true, padding: 4, reset_policy: 'yearly' },
+      { seq_key: 'ADMISSION', prefix: 'ADM-', suffix: '', include_year: true, padding: 4, reset_policy: 'yearly' },
+      { seq_key: 'INVOICE', prefix: 'INV-', suffix: '', include_year: true, padding: 4, reset_policy: 'yearly' },
+      { seq_key: 'RECEIPT', prefix: 'REC-', suffix: '', include_year: true, padding: 4, reset_policy: 'yearly' },
+    ];
+
+    for (const row of defaultSequenceRows) {
+      await client.query(`
+        INSERT INTO number_sequences (
+          organization_id,
+          facility_id,
+          seq_key,
+          prefix,
+          suffix,
+          include_year,
+          padding,
+          current_value,
+          reset_policy,
+          last_reset_on
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, 0, $8, CURRENT_DATE)
+        ON CONFLICT (organization_id, COALESCE(facility_id, '00000000-0000-0000-0000-000000000000'::uuid), seq_key)
+        DO NOTHING;
+      `, [orgId, facilityId, row.seq_key, row.prefix, row.suffix, row.include_year, row.padding, row.reset_policy]);
+    }
 
     const adminUsername = 'admin@narayanhospital.com';
     const superAdminUsername = 'superadmin@narayanhospital.com';

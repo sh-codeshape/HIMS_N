@@ -4,6 +4,7 @@ export const createInvoiceSchema = z.object({
   body: z.object({
     facility_id: z.string().uuid(),
     patient_id: z.string().uuid(),
+    encounter_id: z.string().uuid().optional().nullable(),
     invoice_type: z.enum(['opd', 'ipd_interim', 'ipd_final', 'pharmacy', 'diagnostics', 'package', 'misc']).default('opd'),
     discount_total: z.number().min(0).default(0),
     payment_mode: z.string().optional(),
