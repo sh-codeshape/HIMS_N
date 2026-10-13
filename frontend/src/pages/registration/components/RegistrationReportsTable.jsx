@@ -80,7 +80,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
   const [statusFilter, setStat]       = useState("All");
   const [toast, setToast]             = useState(null);
   const [page, setPage]               = useState(1);
-  const PER_PAGE = 10;
+  const PER_PAGE = 50;
 
   // Modals
   const [viewP, setViewP]           = useState(null);

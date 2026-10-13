@@ -235,8 +235,9 @@ export class PatientService {
   }
 
   async searchPatients(organizationId: string, query: SearchPatientQuery) {
-    const page = parseInt(query.page || '1', 10);
-    const limit = parseInt(query.limit || '10', 10);
+    const page = Math.max(1, parseInt(query.page || '1', 10) || 1);
+    const requestedLimit = parseInt(query.limit || '500', 10) || 500;
+    const limit = Math.min(Math.max(requestedLimit, 1), 500);
     const offset = (page - 1) * limit;
 
     const data = await patientRepository.searchPatients(organizationId, {
@@ -252,7 +253,7 @@ export class PatientService {
       meta: {
         page,
         limit,
-        total: data.length // Note: real total count would require a second query
+        total: data.length,
       }
     };
   }

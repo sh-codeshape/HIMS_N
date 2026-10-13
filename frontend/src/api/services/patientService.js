@@ -20,11 +20,15 @@ const normalizePatientRecord = (patient) => {
       .join(" ")
       .trim();
 
-  const customFields = typeof patient.custom_fields === 'string' ? JSON.parse(patient.custom_fields || '{}') : (patient.custom_fields || {});
-  
+  const customFields =
+    typeof patient.custom_fields === "string"
+      ? JSON.parse(patient.custom_fields || "{}")
+      : patient.custom_fields || {};
+
   let primaryAddress = {};
   if (Array.isArray(patient.addresses) && patient.addresses.length > 0) {
-    primaryAddress = patient.addresses.find(a => a.is_primary) || patient.addresses[0];
+    primaryAddress =
+      patient.addresses.find((a) => a.is_primary) || patient.addresses[0];
   }
 
   return {
@@ -53,7 +57,10 @@ const normalizePatientRecord = (patient) => {
 
 const patientService = {
   getAll: async (params = {}) => {
-    const res = await axiosInstance.get(ENDPOINTS.PATIENTS.BASE, { params });
+    const queryParams = { page: 1, limit: 500, ...params };
+    const res = await axiosInstance.get(ENDPOINTS.PATIENTS.BASE, {
+      params: queryParams,
+    });
     const records = res.data?.data ?? res.data ?? [];
     return Array.isArray(records)
       ? records.map(normalizePatientRecord)
@@ -79,8 +86,9 @@ const patientService = {
     return normalizePatientRecord(res.data?.data ?? res.data);
   },
   search: async (params = {}) => {
+    const queryParams = { page: 1, limit: 500, ...params };
     const res = await axiosInstance.get(ENDPOINTS.PATIENTS.BASE, {
-      params,
+      params: queryParams,
     });
     const records = res.data?.data ?? res.data ?? [];
     return Array.isArray(records)
@@ -88,7 +96,9 @@ const patientService = {
       : normalizePatientRecord(records);
   },
   getFamilyMembers: async (id) => {
-    const res = await axiosInstance.get(`${ENDPOINTS.PATIENTS.BASE}/${id}/family`);
+    const res = await axiosInstance.get(
+      `${ENDPOINTS.PATIENTS.BASE}/${id}/family`,
+    );
     const records = res.data?.data ?? res.data ?? [];
     return Array.isArray(records)
       ? records.map(normalizePatientRecord)
