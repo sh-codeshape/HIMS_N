@@ -431,6 +431,13 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
       {/* ─── VIEW MODAL (Hospital Registration Form in Table Format) ─── */}
       {viewP && (() => {
         const vFullName = viewP.name || viewP.full_name || `${viewP.firstName || viewP.first_name || ""} ${viewP.lastName || viewP.last_name || ""}`.trim() || "Patient";
+        const rawDob = viewP.dob || viewP.date_of_birth || viewP.dateOfBirth || null;
+        const dobFormatted = rawDob ? new Date(rawDob).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+        const ageCalc = rawDob ? Math.floor((Date.now() - new Date(rawDob).getTime()) / 3.15576e10) : (viewP.age || viewP.ageYrs || null);
+        const ageDisplay = ageCalc ? `${ageCalc} Yrs` : "—";
+        const regDate = viewP.registeredAt || viewP.regDate || viewP.created_at
+          ? new Date(viewP.registeredAt || viewP.regDate || viewP.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+          : "—";
 
         return (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 print:p-0 print:bg-white"
@@ -487,7 +494,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                       <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-slate-500">
                         <span>UHID: <strong className="text-blue-700 font-mono font-bold">{viewP.uhid || "—"}</strong></span>
                         <span>•</span>
-                        <span>Patient ID: <strong className="text-slate-800 font-semibold">{viewP.patientId || viewP.id || "—"}</strong></span>
+                        <span>Reg. Date: <strong className="text-slate-800 font-semibold">{regDate}</strong></span>
                       </div>
                     </div>
                   </div>
@@ -509,22 +516,28 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                         <td className="w-1/4 p-2.5 font-mono font-bold text-blue-700">{viewP.uhid || "—"}</td>
                       </tr>
                       <tr className="border-b border-slate-200">
-                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Patient ID</td>
-                        <td className="p-2.5 font-bold text-slate-900 border-r border-slate-200">{viewP.patientId || viewP.id || "—"}</td>
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Registration Date</td>
+                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{regDate}</td>
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Gender / Age</td>
-                        <td className="p-2.5 font-semibold text-slate-900">{viewP.gender || "—"} / {viewP.age || viewP.ageYrs || "—"} Yrs</td>
+                        <td className="p-2.5 font-semibold text-slate-900">{viewP.gender || "—"} / {ageDisplay}</td>
                       </tr>
                       <tr className="border-b border-slate-200">
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Date of Birth</td>
-                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{viewP.dob || viewP.date_of_birth || "—"}</td>
+                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{dobFormatted}</td>
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Blood Group</td>
                         <td className="p-2.5 font-bold text-rose-600">{viewP.bloodGroup || viewP.blood_group || "—"}</td>
                       </tr>
-                      <tr>
+                      <tr className="border-b border-slate-200">
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Nationality</td>
-                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{viewP.nationality || "Indian"}</td>
+                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{viewP.nationality || "—"}</td>
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Aadhaar / ID</td>
                         <td className="p-2.5 font-medium text-slate-900">{viewP.idNo || viewP.aadhaar || viewP.custom_fields?.aadhaar || viewP.custom_fields?.idNo || "—"}</td>
+                      </tr>
+                      <tr>
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Patient Category</td>
+                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{viewP.category || viewP.patientType || "—"}</td>
+                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Department</td>
+                        <td className="p-2.5 font-medium text-slate-900">{viewP.department || "—"}</td>
                       </tr>
                     </tbody>
                   </table>

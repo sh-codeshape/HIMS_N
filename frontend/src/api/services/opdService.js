@@ -19,7 +19,9 @@ const opdService = {
   },
   getReports: async (params = {}) => {
     const res = await axiosInstance.get("/opd/reports", { params });
-    return res.data?.data ?? res.data ?? [];
+    // Paginated response: { success, data: [...], meta: { page, limit, total } }
+    const body = res.data ?? {};
+    return { data: body.data ?? [], meta: body.meta ?? {} };
   },
 };
 

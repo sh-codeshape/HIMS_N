@@ -128,6 +128,87 @@ export class OpdRepository {
     return result.rows;
   }
 
+  async getReports(
+    facilityId: string,
+    from?: string,
+    to?: string,
+    practitionerId?: string,
+    departmentId?: string,
+    page: number = 1,
+    limit: number = 50
+  ) {
+    let query = `
+      SELECT 
+        e.id,
+        e.encounter_no,
+        e.status,
+        e.chief_complaint,
+        e.started_at,
+        e.ended_at,
+        e.custom_fields,
+        p.first_name,
+        p.last_name,
+        p.uhid,
+        p.gender,
+        p.date_of_birth,
+        p.phone,
+        s.first_name as doc_first_name,
+        s.last_name as doc_last_name,
+        d.name as department_name
+      FROM encounters e
+      JOIN patients p ON e.patient_id = p.id
+      LEFT JOIN practitioners pr ON e.primary_practitioner_id = pr.id
+      LEFT JOIN staff s ON pr.staff_id = s.id
+      LEFT JOIN departments d ON e.department_id = d.id
+      WHERE e.facility_id = $1
+        AND e.encounter_type = 'opd'
+    `;
+    const params: any[] = [facilityId];
+    let paramCount = 1;
+
+    if (from) {
+      paramCount++;
+      query += ` AND DATE(e.started_at) >= $${paramCount}`;
+      params.push(from);
+    }
+    if (to) {
+      paramCount++;
+      query += ` AND DATE(e.started_at) <= $${paramCount}`;
+      params.push(to);
+    }
+    if (!from && !to) {
+      query += ` AND DATE(e.started_at) = CURRENT_DATE`;
+    }
+    if (practitionerId) {
+      paramCount++;
+      query += ` AND e.primary_practitioner_id = $${paramCount}`;
+      params.push(practitionerId);
+    }
+    if (departmentId) {
+      paramCount++;
+      query += ` AND e.department_id = $${paramCount}`;
+      params.push(departmentId);
+    }
+
+    // Count query for pagination
+    const countQuery = `SELECT COUNT(*) as total FROM (${query}) sub`;
+    const countResult = await db.query(countQuery, params);
+    const total = parseInt(countResult.rows[0].total, 10);
+
+    // Add ordering and pagination
+    const offset = (page - 1) * limit;
+    paramCount++;
+    query += ` ORDER BY e.started_at DESC`;
+    query += ` LIMIT $${paramCount}`;
+    params.push(limit);
+    paramCount++;
+    query += ` OFFSET $${paramCount}`;
+    params.push(offset);
+
+    const result = await db.query(query, params);
+    return { rows: result.rows, total };
+  }
+
   async updateStatus(encounterId: string, status: string, facilityId: string) {
     const query = `
       UPDATE encounters

@@ -32,7 +32,7 @@ export default function BedMatrixGrid() {
       const [bedsData, patientsData, staffData] = await Promise.all([
         ipdService.getBedMatrix().catch(() => FALLBACK_BEDS),
         patientService.getAll().catch(() => []),
-        staffService.getAll({ type: "doctor" }).catch(() => [])
+        staffService.getDoctors().catch(() => [])
       ]);
       setBeds(Array.isArray(bedsData) && bedsData.length ? bedsData : FALLBACK_BEDS);
       setPatients(Array.isArray(patientsData) ? patientsData : []);
@@ -65,14 +65,16 @@ export default function BedMatrixGrid() {
     // or the 'admitPatient' endpoint handles creating admission + bed assignment.
     try {
       await ipdService.admitPatient({
+        facility_id: "00000000-0000-0000-0000-000000000000",
         patient_id: assignPatientId,
         bed_id: selectedBed.id,
-        admitting_practitioner_id: assignDoctorId,
+        admitting_practitioner_id: assignDoctorId || null,
         admission_type: "elective"
       });
       toast.success(`Bed ${selectedBed.bed_no} allotted successfully!`, { icon: "🛏️" });
       setSelectedBed(null);
       setAssignPatientId("");
+      setAssignDoctorId("");
       loadData();
     } catch (err) {
       console.error(err);

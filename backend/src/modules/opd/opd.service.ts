@@ -38,6 +38,18 @@ export class OpdService {
     return this.repository.getQueue(facilityId, practitionerId, date);
   }
 
+  async getReports(
+    facilityId: string,
+    from?: string,
+    to?: string,
+    practitionerId?: string,
+    departmentId?: string,
+    page: number = 1,
+    limit: number = 50
+  ) {
+    return this.repository.getReports(facilityId, from, to, practitionerId, departmentId, page, limit);
+  }
+
   async updateStatus(encounterId: string, status: string, facilityId: string) {
     const updated = await this.repository.updateStatus(encounterId, status, facilityId);
     if (!updated) {

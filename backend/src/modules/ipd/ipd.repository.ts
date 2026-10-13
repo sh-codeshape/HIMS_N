@@ -1,4 +1,10 @@
 import { db } from '../../config/database';
+import { ConflictError } from '../../shared/errors/AppError';
+
+export const hasActiveIpdAdmission = (status: string | null | undefined) => {
+  const normalized = (status || '').trim().toLowerCase();
+  return ['pending', 'admitted', 'discharge_initiated'].includes(normalized);
+};
 
 export class IpdRepository {
   async admitPatient(
@@ -19,6 +25,17 @@ export class IpdRepository {
     
     try {
       await client.query('BEGIN');
+
+      const activeAdmissionCheck = await client.query(
+        `SELECT id, status FROM admissions
+         WHERE patient_id = $1 AND facility_id = $2 AND status IN ('pending', 'admitted', 'discharge_initiated')
+         LIMIT 1;`,
+        [patientId, facilityId]
+      );
+
+      if (activeAdmissionCheck.rows.length > 0) {
+        throw new ConflictError('Patient already has an active IPD admission.');
+      }
       
       // 1. Create Encounter
       const encounterQuery = `

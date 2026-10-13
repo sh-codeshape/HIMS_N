@@ -11,6 +11,7 @@ router.use(authenticate); // Require authentication for all OPD routes
 
 router.post('/tokens', validate(createOpdEncounterSchema), controller.issueToken);
 router.get('/queue', controller.getQueue);
+router.get('/reports', controller.getReports);
 router.patch('/tokens/:id/status', validate(updateOpdStatusSchema), controller.updateStatus);
 
 export const opdRoutes = router;
