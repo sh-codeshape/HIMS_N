@@ -18,8 +18,28 @@ const opdService = {
     return res.data?.data ?? res.data ?? null;
   },
   getReports: async (params = {}) => {
-    const res = await axiosInstance.get("/opd/reports", { params });
-    // Paginated response: { success, data: [...], meta: { page, limit, total } }
+    const {
+      from,
+      to,
+      page = 1,
+      limit = 50,
+      doctorId,
+      departmentId,
+      sortBy = "started_at",
+      sortOrder = "DESC",
+    } = params;
+    const query = {
+      from: from || undefined,
+      to: to || undefined,
+      page,
+      limit,
+      doctorId: doctorId || undefined,
+      departmentId: departmentId || undefined,
+      sortBy,
+      sortOrder,
+    };
+
+    const res = await axiosInstance.get("/opd/reports", { params: query });
     const body = res.data ?? {};
     return { data: body.data ?? [], meta: body.meta ?? {} };
   },

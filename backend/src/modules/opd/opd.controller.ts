@@ -37,10 +37,22 @@ export class OpdController {
     const departmentId = req.query.departmentId as string;
     const page = parseInt(req.query.page as string, 10) || 1;
     const limit = parseInt(req.query.limit as string, 10) || 50;
+    const sortBy = (req.query.sortBy as string) || 'started_at';
+    const sortOrder = (req.query.sortOrder as string) || 'DESC';
 
-    const result = await this.service.getReports(facilityId, from, to, practitionerId, departmentId, page, limit);
+    const result = await this.service.getReports(
+      facilityId,
+      from,
+      to,
+      practitionerId,
+      departmentId,
+      page,
+      limit,
+      sortBy,
+      sortOrder as 'ASC' | 'DESC'
+    );
 
-    sendPaginated(res, result.rows, { page, limit, total: result.total });
+    sendPaginated(res, result.rows, { page: result.page, limit: result.limit, total: result.total });
   };
 
   updateStatus = async (req: Request, res: Response) => {

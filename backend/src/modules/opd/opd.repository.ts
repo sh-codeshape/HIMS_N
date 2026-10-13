@@ -135,8 +135,15 @@ export class OpdRepository {
     practitionerId?: string,
     departmentId?: string,
     page: number = 1,
-    limit: number = 50
+    limit: number = 50,
+    sortBy: string = 'started_at',
+    sortOrder: 'ASC' | 'DESC' = 'DESC'
   ) {
+    const safePage = Math.max(1, Number.isFinite(page) ? Number(page) : 1);
+    const safeLimit = Math.max(1, Math.min(Number.isFinite(limit) ? Number(limit) : 50, 500));
+    const safeSortBy = sortBy && sortBy.trim() ? sortBy.trim() : 'started_at';
+    const safeSortOrder = sortOrder && /^(ASC|DESC)$/i.test(sortOrder) ? sortOrder.toUpperCase() as 'ASC' | 'DESC' : 'DESC';
+
     let query = `
       SELECT 
         e.id,
@@ -166,18 +173,18 @@ export class OpdRepository {
     const params: any[] = [facilityId];
     let paramCount = 1;
 
-    if (from) {
+    const normalizedFrom = from && to && from > to ? to : from;
+    const normalizedTo = from && to && from > to ? from : to;
+
+    if (normalizedFrom) {
       paramCount++;
       query += ` AND DATE(e.started_at) >= $${paramCount}`;
-      params.push(from);
+      params.push(normalizedFrom);
     }
-    if (to) {
+    if (normalizedTo) {
       paramCount++;
       query += ` AND DATE(e.started_at) <= $${paramCount}`;
-      params.push(to);
-    }
-    if (!from && !to) {
-      query += ` AND DATE(e.started_at) = CURRENT_DATE`;
+      params.push(normalizedTo);
     }
     if (practitionerId) {
       paramCount++;
@@ -190,23 +197,22 @@ export class OpdRepository {
       params.push(departmentId);
     }
 
-    // Count query for pagination
     const countQuery = `SELECT COUNT(*) as total FROM (${query}) sub`;
     const countResult = await db.query(countQuery, params);
     const total = parseInt(countResult.rows[0].total, 10);
 
-    // Add ordering and pagination
-    const offset = (page - 1) * limit;
+    const offset = (safePage - 1) * safeLimit;
+    const orderColumn = safeSortBy.startsWith('e.') ? safeSortBy : `e.${safeSortBy}`;
     paramCount++;
-    query += ` ORDER BY e.started_at DESC`;
+    query += ` ORDER BY ${orderColumn} ${safeSortOrder}`;
     query += ` LIMIT $${paramCount}`;
-    params.push(limit);
+    params.push(safeLimit);
     paramCount++;
     query += ` OFFSET $${paramCount}`;
     params.push(offset);
 
     const result = await db.query(query, params);
-    return { rows: result.rows, total };
+    return { rows: result.rows, total, page: safePage, limit: safeLimit };
   }
 
   async updateStatus(encounterId: string, status: string, facilityId: string) {

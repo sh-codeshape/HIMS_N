@@ -2,35 +2,49 @@ import React, { useState, useEffect, useCallback } from "react";
 import Icon from "../../../components/common/Icon.jsx";
 import opdService from "../../../api/services/opdService";
 
-const PAGE_SIZE_OPTIONS = [10, 30, 50, 100];
-
-function getTodayStr() {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
-}
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 250, 500];
 
 export default function OPDReportsView() {
   const [rows, setRows] = useState([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(30);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  const getTodayStr = () => new Date().toISOString().slice(0, 10);
+
   const [fromDate, setFromDate] = useState(getTodayStr());
   const [toDate, setToDate] = useState(getTodayStr());
+
+  const applyDateRange = useCallback(() => {
+    if (fromDate && toDate && fromDate > toDate) {
+      const swap = fromDate;
+      setFromDate(toDate);
+      setToDate(swap);
+    }
+    setCurrentPage(1);
+  }, [fromDate, toDate]);
+
+  const resetFilters = useCallback(() => {
+    const today = getTodayStr();
+    setFromDate(today);
+    setToDate(today);
+    setCurrentPage(1);
+  }, []);
 
   const loadReports = useCallback(async () => {
     try {
       setLoading(true);
       const res = await opdService.getReports({
-        from: fromDate,
-        to: toDate,
+        from: fromDate || undefined,
+        to: toDate || undefined,
         page: currentPage,
         limit: rowsPerPage,
+        sortBy: "started_at",
+        sortOrder: "DESC",
       });
 
-      // The backend returns { data: [...], meta: { total, page, limit } }
       const data = Array.isArray(res) ? res : res.data ?? res.rows ?? [];
       const meta = res.meta ?? {};
 
@@ -78,7 +92,7 @@ export default function OPDReportsView() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [fromDate, toDate, rowsPerPage]);
+  }, [rowsPerPage]);
 
   // Client-side search filter on top of server-paginated results
   const filtered = search
@@ -157,6 +171,40 @@ export default function OPDReportsView() {
               }}
             />
           </div>
+
+          <button
+            type="button"
+            onClick={applyDateRange}
+            style={{
+              background: "#0f172a",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              padding: "7px 14px",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Apply Range
+          </button>
+
+          <button
+            type="button"
+            onClick={resetFilters}
+            style={{
+              background: "#fff",
+              color: "#334155",
+              border: "1px solid #cbd5e1",
+              borderRadius: 8,
+              padding: "7px 14px",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Reset
+          </button>
 
           <div
             style={{
