@@ -221,6 +221,58 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
   // ─── Styles ───────────────────────────────────────────────────────────────
   const thCls = "px-5 py-3.5 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50/60 border-b border-slate-100";
 
+  const getPatientDisplayData = (patient) => {
+    if (!patient) return {};
+
+    const customFields = typeof patient.custom_fields === "object" && patient.custom_fields ? patient.custom_fields : {};
+    const primaryAddress = Array.isArray(patient.addresses) && patient.addresses.length
+      ? patient.addresses.find(a => a.is_primary) || patient.addresses[0]
+      : {};
+
+    const fullName = patient.name || patient.full_name || `${patient.firstName || patient.first_name || ""} ${patient.middleName || patient.middle_name || ""} ${patient.lastName || patient.last_name || ""}`.trim() || "Patient";
+    const addressLine = patient.address || primaryAddress.line1 || patient.address_line1 || "";
+    const city = patient.city || primaryAddress.city || "";
+    const state = patient.state || primaryAddress.state || "";
+    const postalCode = patient.pincode || patient.pin || primaryAddress.postal_code || "";
+    const country = patient.country || primaryAddress.country || "India";
+    const phone = patient.phone || patient.mobile1 || patient.mobile || "";
+    const bloodGroup = patient.bloodGroup || patient.blood_group || customFields.blood_group || "—";
+    const dobValue = patient.date_of_birth || patient.dob || patient.dateOfBirth || "";
+    const dobFormatted = dobValue ? new Date(dobValue).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+    const ageValue = patient.age ?? (dobValue ? Math.floor((Date.now() - new Date(dobValue).getTime()) / 3.15576e10) : null);
+    const ageDisplay = ageValue !== null && ageValue !== undefined && ageValue !== "" ? `${ageValue} Yrs` : "—";
+    const regDate = patient.registeredAt || patient.regDate || patient.created_at
+      ? new Date(patient.registeredAt || patient.regDate || patient.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+      : "—";
+
+    return {
+      fullName,
+      addressLine,
+      city,
+      state,
+      postalCode,
+      country,
+      phone,
+      bloodGroup,
+      dobValue,
+      dobFormatted,
+      ageDisplay,
+      regDate,
+      category: patient.category || customFields.visit_type || "OPD",
+      department: patient.department || customFields.department || "",
+      doctor: patient.doctor || customFields.referred_by || "",
+      status: patient.status || customFields.status || "Waiting",
+      emergencyName: patient.emergencyName || patient.emgName || customFields.emergency_name || customFields.guardian_name || "",
+      emergencyRelation: patient.emergencyRelation || patient.emgRelation || customFields.emergency_relation || "",
+      emergencyPhone: patient.emergencyPhone || patient.emgNumber || customFields.emergency_phone || customFields.emergency_contact || "",
+      idNumber: patient.idNo || patient.aadhaar || patient.aadhaar_number || customFields.aadhaar || customFields.idNo || "",
+      nationality: patient.nationality || customFields.nationality || "—",
+      gender: patient.gender || "—",
+      uhid: patient.uhid || "—",
+      customFields,
+    };
+  };
+
   return (
     <div className="font-sans text-slate-800">
 
@@ -435,14 +487,11 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
 
       {/* ─── VIEW MODAL (Hospital Registration Form in Table Format) ─── */}
       {viewP && (() => {
-        const vFullName = viewP.name || viewP.full_name || `${viewP.firstName || viewP.first_name || ""} ${viewP.lastName || viewP.last_name || ""}`.trim() || "Patient";
-        const rawDob = viewP.dob || viewP.date_of_birth || viewP.dateOfBirth || null;
-        const dobFormatted = rawDob ? new Date(rawDob).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
-        const ageCalc = rawDob ? Math.floor((Date.now() - new Date(rawDob).getTime()) / 3.15576e10) : (viewP.age || viewP.ageYrs || null);
-        const ageDisplay = ageCalc ? `${ageCalc} Yrs` : "—";
-        const regDate = viewP.registeredAt || viewP.regDate || viewP.created_at
-          ? new Date(viewP.registeredAt || viewP.regDate || viewP.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
-          : "—";
+        const displayData = getPatientDisplayData(viewP);
+        const vFullName = displayData.fullName;
+        const dobFormatted = displayData.dobFormatted;
+        const ageDisplay = displayData.ageDisplay;
+        const regDate = displayData.regDate;
 
         return (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 print:p-0 print:bg-white"
@@ -497,7 +546,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                         {vFullName}
                       </h2>
                       <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-slate-500">
-                        <span>UHID: <strong className="text-blue-700 font-mono font-bold">{viewP.uhid || "—"}</strong></span>
+                        <span>UHID: <strong className="text-blue-700 font-mono font-bold">{displayData.uhid}</strong></span>
                         <span>•</span>
                         <span>Reg. Date: <strong className="text-slate-800 font-semibold">{regDate}</strong></span>
                       </div>
@@ -518,31 +567,31 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                         <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Patient Full Name</td>
                         <td className="w-1/4 p-2.5 font-bold text-slate-900 border-r border-slate-200">{vFullName}</td>
                         <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">UHID Number</td>
-                        <td className="w-1/4 p-2.5 font-mono font-bold text-blue-700">{viewP.uhid || "—"}</td>
+                        <td className="w-1/4 p-2.5 font-mono font-bold text-blue-700">{displayData.uhid}</td>
                       </tr>
                       <tr className="border-b border-slate-200">
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Registration Date</td>
                         <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{regDate}</td>
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Gender / Age</td>
-                        <td className="p-2.5 font-semibold text-slate-900">{viewP.gender || "—"} / {ageDisplay}</td>
+                        <td className="p-2.5 font-semibold text-slate-900">{displayData.gender} / {ageDisplay}</td>
                       </tr>
                       <tr className="border-b border-slate-200">
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Date of Birth</td>
                         <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{dobFormatted}</td>
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Blood Group</td>
-                        <td className="p-2.5 font-bold text-rose-600">{viewP.bloodGroup || viewP.blood_group || "—"}</td>
+                        <td className="p-2.5 font-bold text-rose-600">{displayData.bloodGroup}</td>
                       </tr>
                       <tr className="border-b border-slate-200">
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Nationality</td>
-                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{viewP.nationality || "—"}</td>
+                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{displayData.nationality}</td>
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Aadhaar / ID</td>
-                        <td className="p-2.5 font-medium text-slate-900">{viewP.idNo || viewP.aadhaar || viewP.custom_fields?.aadhaar || viewP.custom_fields?.idNo || "—"}</td>
+                        <td className="p-2.5 font-medium text-slate-900">{displayData.idNumber || "—"}</td>
                       </tr>
                       <tr>
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Patient Category</td>
-                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{viewP.category || viewP.patientType || "—"}</td>
+                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{displayData.category}</td>
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Department</td>
-                        <td className="p-2.5 font-medium text-slate-900">{viewP.department || "—"}</td>
+                        <td className="p-2.5 font-medium text-slate-900">{displayData.department || "—"}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -559,19 +608,19 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                     <tbody>
                       <tr className="border-b border-slate-200">
                         <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Mobile No.</td>
-                        <td className="w-1/4 p-2.5 font-bold text-slate-900 border-r border-slate-200">{viewP.phone || viewP.mobile1 || "—"}</td>
+                        <td className="w-1/4 p-2.5 font-bold text-slate-900 border-r border-slate-200">{displayData.phone || "—"}</td>
                         <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">City / District</td>
-                        <td className="w-1/4 p-2.5 font-medium text-slate-900">{viewP.city || "—"}</td>
+                        <td className="w-1/4 p-2.5 font-medium text-slate-900">{displayData.city || "—"}</td>
                       </tr>
                       <tr className="border-b border-slate-200">
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">State</td>
-                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{viewP.state || "—"}</td>
+                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{displayData.state || "—"}</td>
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Pincode</td>
-                        <td className="p-2.5 font-medium text-slate-900">{viewP.country || "India"} {viewP.pincode ? `(${viewP.pincode})` : ""}</td>
+                        <td className="p-2.5 font-medium text-slate-900">{displayData.country || "India"} {displayData.postalCode ? `(${displayData.postalCode})` : ""}</td>
                       </tr>
                       <tr>
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Full Residential Address</td>
-                        <td colSpan={3} className="p-2.5 font-medium text-slate-900">{viewP.address || "—"}</td>
+                        <td colSpan={3} className="p-2.5 font-medium text-slate-900">{displayData.addressLine || "—"}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -588,13 +637,13 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                     <tbody>
                       <tr className="border-b border-slate-200">
                         <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Contact Person</td>
-                        <td className="w-1/4 p-2.5 font-bold text-slate-900 border-r border-slate-200">{viewP.emergencyName || viewP.custom_fields?.guardian_name || viewP.custom_fields?.emergencyName || "—"}</td>
+                        <td className="w-1/4 p-2.5 font-bold text-slate-900 border-r border-slate-200">{displayData.emergencyName || "—"}</td>
                         <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Relationship</td>
-                        <td className="w-1/4 p-2.5 font-medium text-slate-900">{viewP.emergencyRelation || viewP.custom_fields?.emergencyRelation || "—"}</td>
+                        <td className="w-1/4 p-2.5 font-medium text-slate-900">{displayData.emergencyRelation || "—"}</td>
                       </tr>
                       <tr>
                         <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Emergency Phone</td>
-                        <td colSpan={3} className="p-2.5 font-bold text-slate-900">{viewP.emergencyPhone || viewP.custom_fields?.emergency_contact || viewP.custom_fields?.emergencyPhone || "—"}</td>
+                        <td colSpan={3} className="p-2.5 font-bold text-slate-900">{displayData.emergencyPhone || "—"}</td>
                       </tr>
                     </tbody>
                   </table>
