@@ -23,7 +23,7 @@
 .opd-container {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 10px;
   width: 100%;
   max-width: 1560px;
   margin: 0 auto;
@@ -79,7 +79,7 @@
   background: #ffffff;
   border: 1px solid var(--opd-slate-200);
   border-radius: 16px;
-  padding: 20px 24px;
+  padding: 12px 16px;
   box-shadow: var(--opd-card-shadow);
   transition: all 0.25s ease;
 }
@@ -91,10 +91,10 @@
 
 .opd-search-label {
   display: block;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--opd-slate-700);
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -102,7 +102,7 @@
 .opd-search-row {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
 }
 
 .opd-search-input-wrapper {
@@ -125,7 +125,7 @@
 
 .opd-search-input {
   width: 100%;
-  padding: 11px 40px 11px 42px;
+  padding: 9px 40px 9px 42px;
   background: var(--opd-bg-light);
   border: 1.5px solid var(--opd-slate-200);
   border-radius: 10px;
@@ -289,7 +289,7 @@
   border: 1.5px solid #cbd5e1;
   border-left: 5px solid var(--opd-primary);
   border-radius: 16px;
-  padding: 22px 28px;
+  padding: 12px 16px;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -299,11 +299,11 @@
 .opd-banner-empty {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
   background: #f8fafc;
   border: 2px dashed var(--opd-slate-300, #cbd5e1);
   border-radius: 16px;
-  padding: 24px 30px;
+  padding: 12px 16px;
 }
 
 .empty-user-icon {
@@ -329,13 +329,13 @@
 
 .opd-pb-left {
   display: flex;
-  gap: 22px;
+  gap: 12px;
   flex: 1;
 }
 
 .opd-pb-avatar {
-  width: 80px;
-  height: 80px;
+  width: 56px;
+  height: 56px;
   border-radius: 14px;
   overflow: hidden;
   background: #f1f5f9;
@@ -370,12 +370,12 @@
 .opd-pb-name-row {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 6px;
 }
 
 .opd-pb-name {
-  font-size: 22px;
+  font-size: 17px;
   font-weight: 800;
   color: var(--opd-dark);
   margin: 0;
@@ -385,7 +385,7 @@
 .opd-pb-meta-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px 28px;
+  gap: 4px 14px;
 }
 
 .opd-meta-item {
@@ -440,7 +440,7 @@
 .opd-form-grid {
   display: grid;
   grid-template-columns: 1.8fr 1fr;
-  gap: 20px;
+  gap: 12px;
   align-items: start;
 }
 
@@ -455,8 +455,8 @@
   background: #ffffff;
   border: 1px solid var(--opd-slate-200);
   border-radius: 16px;
-  padding: 22px 24px;
-  margin-bottom: 20px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
   box-shadow: var(--opd-card-shadow);
   transition: all 0.2s ease;
 }
@@ -466,14 +466,14 @@
 }
 
 .opd-card-title {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 800;
   color: var(--opd-dark);
-  margin: 0 0 16px 0;
+  margin: 0 0 8px 0;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding-bottom: 12px;
+  gap: 8px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--opd-slate-100);
 }
 
@@ -487,7 +487,7 @@
 /* FORM ROWS & GROUPS */
 .opd-form-row {
   display: grid;
-  gap: 16px;
+  gap: 10px;
 }
 
 .opd-form-row.col-1 {
@@ -507,7 +507,7 @@
 .opd-field-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .opd-label {
@@ -539,7 +539,7 @@
 .opd-select,
 .opd-textarea {
   width: 100%;
-  padding: 10px 14px;
+  padding: 8px 12px;
   background: #ffffff;
   border: 1.5px solid var(--opd-slate-200);
   border-radius: 10px;
@@ -813,8 +813,8 @@
 .opd-doctors-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  margin-top: 8px;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 @media (max-width: 900px) {
@@ -832,8 +832,8 @@
 .opd-doctor-card {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: 10px;
+  padding: 8px 10px;
   background: #ffffff;
   border: 1.5px solid var(--opd-slate-200);
   border-radius: 12px;
@@ -919,7 +919,7 @@
 .opd-billing-box {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
 }
 
 .billing-row {
@@ -1043,9 +1043,9 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 14px;
-  margin-top: 10px;
-  margin-bottom: 30px;
+  gap: 10px;
+  margin-top: 6px;
+  margin-bottom: 12px;
 }
 
 .opd-btn-cancel {

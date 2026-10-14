@@ -103,6 +103,7 @@ export default function OPDTokenQueue() {
   // Form Section 1: Visit Details
   const [visitType, setVisitType] = useState("New Visit");
   const [visitDate, setVisitDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [visitDetailsOpen, setVisitDetailsOpen] = useState(false);
 
   // Form Section 2: Patient Complaint State
   const [selectedComplaints, setSelectedComplaints] = useState(["Fever", "Body Pain"]);
@@ -496,8 +497,8 @@ export default function OPDTokenQueue() {
 
       {/* ── FAMILY MEMBER SELECTOR ── */}
       {familyMembers.length > 1 && (
-        <div className="opd-card mb-4 p-4 border border-blue-100 bg-blue-50/30 rounded-xl">
-          <h4 className="text-sm font-semibold text-slate-700 mb-2">Book Appointment For:</h4>
+        <div className="opd-card mb-2 p-3 border border-blue-100 bg-blue-50/30 rounded-xl">
+          <h4 className="text-xs font-semibold text-slate-700 mb-1">Book Appointment For:</h4>
           <div className="flex gap-2 flex-wrap">
             {familyMembers.map(member => (
               <button
@@ -534,29 +535,31 @@ export default function OPDTokenQueue() {
         <div className="opd-left-col">
           {/* SECTION 1: VISIT DETAILS */}
           <div className="opd-card">
-            <h3 className="opd-card-title">
+            <h3
+              className="opd-card-title"
+              onClick={() => setVisitDetailsOpen((prev) => !prev)}
+              style={{ cursor: "pointer", userSelect: "none" }}
+            >
               <Icon name="LuCalendar" size={16} className="title-icon" /> 1. Visit Details
+              <span className="ml-auto text-xs font-medium text-slate-500">
+                {visitType} • {visitDate}
+              </span>
+              <span className="text-slate-400">{visitDetailsOpen ? "▲" : "▼"}</span>
             </h3>
+            {visitDetailsOpen && (
+              <>
             <div className="opd-form-row col-2">
               <div className="opd-field-group">
                 <label className="opd-label">Visit Type <span className="req">*</span></label>
-                <div className="opd-btn-group">
-                  {[
-                    { en: "New Visit", hi: "नया" },
-                    { en: "Follow-up", hi: "फॉलो-अप" },
-                    
-                    { en: "Emergency", hi: "आपात" }
-                  ].map((item) => (
-                    <button
-                      key={item.en}
-                      type="button"
-                      className={`opd-toggle-btn ${visitType === item.en ? "active" : ""}`}
-                      onClick={() => setVisitType(item.en)}
-                    >
-                      {item.en}
-                    </button>
-                  ))}
-                </div>
+                <select
+                  className="opd-select"
+                  value={visitType}
+                  onChange={(e) => setVisitType(e.target.value)}
+                >
+                  <option value="New Visit">New Visit</option>
+                  <option value="Follow-up">Follow-up</option>
+                  <option value="Emergency">Emergency</option>
+                </select>
               </div>
 
               <div className="opd-field-group">
@@ -616,6 +619,8 @@ export default function OPDTokenQueue() {
                 />
               </div>
             </div>
+              </>
+            )}
           </div>
 
           {/* SECTION 2: PATIENT COMPLAINT (SELECT & CHIPS DESIGN) */}

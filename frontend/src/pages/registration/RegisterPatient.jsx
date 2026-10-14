@@ -282,7 +282,6 @@ export default function RegisterPatient() {
     if (formData.aadhaar && !/^\d{12}$/.test(formData.aadhaar)) { showToast("⚠️ Aadhaar must be exactly 12 digits.", "error"); return false; }
     if (!formData.address1.trim()) { showToast("⚠️ Address Line 1 is required.", "error"); return false; }
     if (formData.familyHeadId && !formData.relationToHead) { showToast("⚠️ Please select relationship to family head.", "error"); return false; }
-    if (!formData.confirmed) { showToast("⚠️ Please confirm the information.", "error"); return false; }
     return true;
   };
 
@@ -709,14 +708,6 @@ export default function RegisterPatient() {
 
         {/* ── FOOTER ACTIONS ── */}
         <div className="bg-slate-50 rounded-b-2xl border-t border-slate-200 p-5 flex flex-wrap items-center justify-between gap-4">
-          {/* Confirmation Checkbox */}
-          <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer font-medium">
-            <input type="checkbox" name="confirmed"
-              checked={formData.confirmed} onChange={handleChange}
-              className="w-4 h-4 accent-blue-600 rounded border-slate-300" />
-            I confirm that the above information is correct.
-          </label>
-
           {/* Action Buttons */}
           <div className="flex items-center gap-3 flex-wrap">
             <button type="button" onClick={handleReset}
