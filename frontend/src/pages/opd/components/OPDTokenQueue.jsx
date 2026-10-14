@@ -611,7 +611,8 @@ export default function OPDTokenQueue() {
                   className="opd-input"
                   placeholder="10-digit mobile"
                   value={attendantPhone}
-                  onChange={(e) => setAttendantPhone(e.target.value)}
+                  maxLength={10}
+                  onChange={(e) => setAttendantPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                 />
               </div>
             </div>

@@ -208,8 +208,13 @@ export default function IPDAdmissionView() {
 
   // ── Card 1: Admission Details ──
   const [admissionType, setAdmissionType] = useState("Emergency");
-  const [admissionDate, setAdmissionDate] = useState("2026-09-29");
-  const [admissionTime, setAdmissionTime] = useState("10:32");
+  const getCurrentDateStr = () => new Date().toISOString().slice(0, 10);
+  const getCurrentTimeStr = () => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  };
+  const [admissionDate, setAdmissionDate] = useState(getCurrentDateStr());
+  const [admissionTime, setAdmissionTime] = useState(getCurrentTimeStr());
   const [admissionSource, setAdmissionSource] = useState("OPD");
 
   // ── Card 2: Department & Doctor ──
