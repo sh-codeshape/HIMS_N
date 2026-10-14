@@ -728,7 +728,7 @@ export default function OPDBilling() {
                   <option value="UPI">UPI / GPay / PhonePe</option>
                   <option value="Card">Debit / Credit Card</option>
                   <option value="Net Banking">Net Banking</option>
-                  <option value="TPA / Insurance">TPA / Health Insurance</option>
+                  {/* <option value="TPA / Insurance">TPA / Health Insurance</option> */}
                 </select>
               </div>
 
@@ -939,10 +939,10 @@ export default function OPDBilling() {
               <div className="opd-preview-ticket" style={{ boxShadow: "none", border: "1px dashed #cbd5e1" }}>
                 <div className="opd-ticket-header">
                   <div className="opd-ticket-logo-row">
-                    <Icon name="LuPlus" size={20} style={{ color: "#0284c7" }} /> K. G. Nanda Hospital
+                    <Icon name="LuPlus" size={20} style={{ color: "#0284c7" }} /> Narayan Hospital
                   </div>
-                  <div className="opd-ticket-address">Chandauli, Uttar Pradesh</div>
-                  <div className="opd-ticket-address">+91 9876543210</div>
+                  <div className="opd-ticket-address">Dafi, Uttar Pradesh</div>
+                  <div className="opd-ticket-address">+91 9xxxxx</div>
                   <div className="opd-ticket-title-tag">OPD BILL RECEIPT</div>
                 </div>
 

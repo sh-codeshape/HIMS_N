@@ -1340,9 +1340,9 @@ export default function IPDBilling() {
               <div className="ipd-printable-voucher">
                 <div className="ipd-voucher-header">
                   <div className="ipd-voucher-logo">
-                    <Icon name="LuPlus" size={20} /> K. G. Nanda Hospital
+                    <Icon name="LuPlus" size={20} /> Nrayan Hospital
                   </div>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>Chandauli, Uttar Pradesh</div>
+                  <div style={{ fontSize: 11, color: "#64748b" }}>Dafi, Uttar Pradesh</div>
                   <div className="ipd-voucher-tag">IPD ADMISSION INITIAL SLIP</div>
                 </div>
 
