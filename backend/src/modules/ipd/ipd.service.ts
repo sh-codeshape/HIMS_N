@@ -22,7 +22,12 @@ export class IpdService {
       data.reason_for_admission,
       data.attendant_name,
       data.attendant_relation,
-      data.attendant_phone
+      data.attendant_phone,
+      data.tariff_plan_id,
+      data.entitled_bed_category_id,
+      data.payer_type,
+      data.patient_coverage_id,
+      data.advance_deposit
     );
   }
 

@@ -19,7 +19,12 @@ export default function ProtectedRoute({ children, allowedRoles, allowedPermissi
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  const userRoles = user.roles || (user.role ? [user.role] : []);
+  const userRoles =
+    Array.isArray(user.roles) && user.roles.length > 0
+      ? user.roles
+      : user.role
+        ? [user.role]
+        : [];
   const userPermissions = user.permissions || [];
 
   // Check roles (if specified, user must have at least one allowed role)

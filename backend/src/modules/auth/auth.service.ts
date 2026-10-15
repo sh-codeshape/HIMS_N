@@ -27,9 +27,15 @@ export class AuthService {
     const assignedRoles = user.is_superadmin && !roles.includes('super_admin') 
       ? ['super_admin', ...roles] 
       : roles;
-      
+
     // Default role logic to keep frontend compatibility for now
     const primaryRole = user.is_superadmin ? 'super_admin' : (assignedRoles[0] || 'admin');
+
+    // Ensure the resolved primary role is always present in the assigned roles list,
+    // so role-based guards (frontend + token consumers) don't see an empty array.
+    if (!assignedRoles.includes(primaryRole)) {
+      assignedRoles.unshift(primaryRole);
+    }
 
     const zeroUuid = '00000000-0000-0000-0000-000000000000';
     const facilityId = user.default_facility_id && user.default_facility_id !== zeroUuid

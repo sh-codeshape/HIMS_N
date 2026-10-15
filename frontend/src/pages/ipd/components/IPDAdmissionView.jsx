@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import { jwtDecode } from "jwt-decode";
 import Icon from "../../../components/common/Icon.jsx";
 import { mockStore } from "../../../mock/mockStore";
 import patientService from "../../../api/services/patientService";
 import ipdService from "../../../api/services/ipdService";
+import axiosInstance from "../../../api/axiosInstance";
 import "./IPDAdmissionView.css";
 
 // ── Preset Mock Patient fallback ──────────────────────────
@@ -64,10 +66,15 @@ export default function IPDAdmissionView() {
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
   const patientSearchRef = useRef(null);
 
+  // ── Department & Doctor (real data from backend) ──
+  const [departments, setDepartments] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(true);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [patientsData, bedsData] = await Promise.all([
+        const [patientsData, bedsData, deptsData, docsData] = await Promise.all([
           patientService.search().catch(() => []),
           ipdService.getBedMatrix().catch(() => [
             { id: 1, bed_no: "GW-101-B1", ward_name: "General Ward", room_name: "GW-101", current_status: "available" },
@@ -75,6 +82,8 @@ export default function IPDAdmissionView() {
             { id: 3, bed_no: "GW-101-B3", ward_name: "General Ward", room_name: "GW-101", current_status: "occupied" },
             { id: 4, bed_no: "ICU-01", ward_name: "ICU", room_name: "ICU-1", current_status: "available" },
           ]),
+          axiosInstance.get("/staff/departments").then(r => r.data?.data || []).catch(() => []),
+          axiosInstance.get("/staff/doctors").then(r => r.data?.data || []).catch(() => []),
         ]);
 
         const mappedPatients = (patientsData || []).map((p) => ({
@@ -94,8 +103,38 @@ export default function IPDAdmissionView() {
           status: b.current_status,
         }));
 
+        // Map departments from backend
+        const mappedDepartments = (deptsData || []).map((d) => ({
+          id: d.id,
+          code: d.code,
+          name: d.name,
+          description: d.description,
+        }));
+
+        // Map doctors from backend and group by department
+        const mappedDoctors = (docsData || []).map((d) => ({
+          id: d.practitioner_id || d.id,
+          name: `${d.first_name || ''} ${d.last_name || ''}`.trim() || d.name || 'Doctor',
+          departmentId: d.department_id,
+          qualifications: d.qualifications,
+          registrationNo: d.registration_no,
+        }));
+
+        // Group doctors by department
+        const doctorsByDept = {};
+        (mappedDepartments || []).forEach((dept) => {
+          doctorsByDept[dept.id] = mappedDoctors.filter((doc) => doc.departmentId === dept.id);
+        });
+
         setPatients(mappedPatients.length ? mappedPatients : (mockStore.getPatients ? mockStore.getPatients() : []));
         setBeds(mappedBeds.length ? mappedBeds : (mockStore.getBeds ? mockStore.getBeds() : []));
+        setDepartments(mappedDepartments);
+        setDoctors(mappedDoctors);
+        // Initialize first department and doctor
+        if (mappedDepartments.length > 0 && !department) {
+          setDepartment(mappedDepartments[0]);
+        }
+        setDepartmentsLoading(false);
       } catch (err) {
         const fallbackPatients = mockStore.getPatients ? mockStore.getPatients() : [];
         const fallbackBeds = mockStore.getBeds ? mockStore.getBeds() : [];
@@ -218,8 +257,8 @@ export default function IPDAdmissionView() {
   const [admissionSource, setAdmissionSource] = useState("OPD");
 
   // ── Card 2: Department & Doctor ──
-  const [department, setDepartment] = useState("General Medicine");
-  const [selectedDoctor, setSelectedDoctor] = useState(DOCTORS_BY_DEPT["General Medicine"][0]);
+  const [department, setDepartment] = useState(null);
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
 
   // ── Card 3: Reason for Admission ──
   const [selectedComplaints, setSelectedComplaints] = useState(["Fever", "Breathing Difficulty"]);
@@ -325,9 +364,11 @@ export default function IPDAdmissionView() {
   const [ipdSlipData, setIpdSlipData] = useState(null);
 
   useEffect(() => {
-    const docs = DOCTORS_BY_DEPT[department] || DOCTORS_BY_DEPT["General Medicine"];
-    setSelectedDoctor(docs[0]);
-  }, [department]);
+    if (department && doctors.length > 0) {
+      const docs = doctors.filter((d) => d.departmentId === department.id);
+      setSelectedDoctor(docs.length > 0 ? docs[0] : null);
+    }
+  }, [department, doctors]);
 
 
 
@@ -339,12 +380,24 @@ export default function IPDAdmissionView() {
     }
 
     try {
+      // Resolve facility_id from JWT token (same pattern as billing pages)
+      let facilityId = "";
+      try {
+        const token = localStorage.getItem("hims_token");
+        const decoded = token ? jwtDecode(token) : null;
+        facilityId = decoded?.facilityId || decoded?.facility_id || facilityId;
+      } catch {
+        // keep empty; backend resolves from auth context
+      }
+
       const now = new Date();
       const formattedDate = `${now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`;
 
       let payloadAdmissionType = "elective";
       if (admissionType === "Emergency") payloadAdmissionType = "emergency";
-      
+      else if (admissionType === "Referral") payloadAdmissionType = "referral";
+      else if (admissionType === "Transfer") payloadAdmissionType = "transfer";
+
       let actualBedId = selectedBed; // Usually backend bed id
       // If selectedBed matches availableBedsGrid format, it might be the bedNo string
       // Let's find the matching bed object from `beds` state if possible
@@ -353,17 +406,56 @@ export default function IPDAdmissionView() {
         actualBedId = matchedBed.id;
       }
 
+      // Derive payer type from patient insurance info
+      const insuranceVal = String(selectedPatient.insurance || "").trim().toLowerCase();
+      let payerType = "self";
+      if (insuranceVal === "insured" || insuranceVal.includes("insurance") || insuranceVal === "tpa") {
+        payerType = "insurance";
+      } else if (insuranceVal === "corporate") {
+        payerType = "corporate";
+      } else if (insuranceVal === "government") {
+        payerType = "government";
+      }
+
+      // Build advance deposit from form fields
+      const advanceAmount = Number(registrationFee) + Number(bedAdvance || 0) + Number(otherCharges || 0);
+      const advanceDeposit = advanceAmount > 0
+        ? {
+            amount: advanceAmount,
+            payment_mode: paymentMode,
+            receipt_no: null, // backend will generate via number sequence if not provided
+          }
+        : null;
+
+      // Only send bed_id if it's a real UUID from the backend (not mock data like "b1", "b2")
+      const realBedId = actualBedId && actualBedId !== selectedBed && actualBedId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+        ? actualBedId
+        : null;
+
+      // Attempt backend admission (non-fatal — slip still shows with entered data)
       if (selectedPatient.id && selectedPatient.id !== selectedPatient.uhid) {
-        await ipdService.admitPatient({
-          facility_id: "00000000-0000-0000-0000-000000000000",
-          patient_id: selectedPatient.id,
-          bed_id: actualBedId !== selectedBed ? actualBedId : null,
-          admission_type: payloadAdmissionType,
-          reason_for_admission: reasonForAdmission || selectedComplaints.join(", "),
-          attendant_name: attendantName,
-          attendant_relation: relationship,
-          attendant_phone: attendantMobile
-        });
+        try {
+          await ipdService.admitPatient({
+            facility_id: facilityId,
+            patient_id: selectedPatient.id,
+            bed_id: realBedId,
+            department_id: department?.id || null,
+            admitting_practitioner_id: selectedDoctor?.id || null,
+            tariff_plan_id: null, // backend defaults to org default tariff plan
+            entitled_bed_category_id: null, // resolved by backend from bed category if needed
+            admission_type: payloadAdmissionType,
+            reason_for_admission: reasonForAdmission || selectedComplaints.join(", "),
+            attendant_name: attendantName,
+            attendant_relation: relationship,
+            attendant_phone: attendantMobile,
+            payer_type: payerType,
+            patient_coverage_id: null, // to be resolved post-admission via coverage lookup
+            advance_deposit: advanceDeposit
+          });
+        } catch (admitErr) {
+          console.error('Backend admission failed:', admitErr);
+          toast.error("Admission record saved locally. Backend sync may be pending.");
+        }
       }
 
       const admissionRecord = {
@@ -377,9 +469,9 @@ export default function IPDAdmissionView() {
         admissionDate: `${admissionDate} ${admissionTime}`,
         chiefComplaint: selectedComplaints.join(", "),
         provisionalDiagnosis,
-        department,
-        doctor: selectedDoctor.name,
-        doctorDegree: selectedDoctor.degree,
+        department: department?.name || '',
+        doctor: selectedDoctor?.name || '',
+        doctorDegree: selectedDoctor?.qualifications || '',
         wardType,
         roomType,
         floor,
@@ -390,9 +482,11 @@ export default function IPDAdmissionView() {
         attendantMobile,
         registrationFee,
         bedAdvance,
-        totalAdvance,
+        otherCharges,
+        totalAdvance: advanceAmount,
         paymentMode,
         paymentStatus,
+        payerType,
         date: formattedDate,
       };
 
@@ -571,7 +665,63 @@ export default function IPDAdmissionView() {
 
             
 
-            {/* CARD 3: REASON FOR ADMISSION */}
+            {/* CARD 2: DEPARTMENT & DOCTOR */}
+             <div className="ipd-sec-card">
+               <div className="ipd-sec-card-header">
+                 <div className="ipd-step-icon-num">2</div>
+                 <h3>Department & Doctor</h3>
+               </div>
+               <div className="ipd-sec-card-body">
+                 {departmentsLoading ? (
+                   <div className="flex items-center justify-center py-4">
+                     <span className="text-slate-500">Loading departments...</span>
+                   </div>
+                 ) : departments.length === 0 ? (
+                   <div className="p-4 bg-slate-50 rounded border border-slate-200">
+                     <p className="text-sm text-slate-600">No departments found.</p>
+                   </div>
+                 ) : (
+                   <div className="grid grid-cols-2 gap-4">
+                     <div className="ipd-field-group">
+                       <label className="ipd-label">Department <span className="req">*</span></label>
+                       <select
+                         className="ipd-select"
+                         value={department?.id || ""}
+                         onChange={(e) => {
+                           const selected = departments.find((d) => d.id === e.target.value);
+                           setDepartment(selected || null);
+                         }}
+                       >
+                         <option value="">Select Department</option>
+                         {departments.map((d) => (
+                           <option key={d.id} value={d.id}>{d.name}</option>
+                         ))}
+                       </select>
+                     </div>
+                     <div className="ipd-field-group">
+                       <label className="ipd-label">Attending Doctor <span className="req">*</span></label>
+                       <select
+                         className="ipd-select"
+                         value={selectedDoctor?.id || ""}
+                         onChange={(e) => {
+                           const selected = doctors.find((d) => d.id === e.target.value);
+                           setSelectedDoctor(selected || null);
+                         }}
+                       >
+                         <option value="">Select Doctor</option>
+                         {(department && doctors.filter((d) => d.departmentId === department.id)).map((doc) => (
+                           <option key={doc.id} value={doc.id}>
+                             {doc.name} ({doc.qualifications || ''})
+                           </option>
+                         ))}
+                       </select>
+                     </div>
+                   </div>
+                 )}
+               </div>
+             </div>
+
+             {/* CARD 3: REASON FOR ADMISSION */}
             <div className="ipd-sec-card">
               <div className="ipd-sec-card-header">
                 <div className="ipd-step-icon-num">2</div>
@@ -1023,9 +1173,19 @@ export default function IPDAdmissionView() {
                   <span>Bed Advance (Refundable)</span>
                   <span>₹ {Number(ipdSlipData.bedAdvance).toFixed(2)}</span>
                 </div>
+                {ipdSlipData.otherCharges && Number(ipdSlipData.otherCharges) > 0 && (
+                  <div className="fee-line">
+                    <span>Other Charges</span>
+                    <span>₹ {Number(ipdSlipData.otherCharges).toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="fee-line total">
                   <span>Total Advance Paid ({ipdSlipData.paymentMode})</span>
                   <span>₹ {Number(ipdSlipData.totalAdvance).toFixed(2)}</span>
+                </div>
+                <div className="fee-line">
+                  <span>Payer Type</span>
+                  <span>{ipdSlipData.payerType?.charAt(0).toUpperCase() + ipdSlipData.payerType?.slice(1) || "Self"}</span>
                 </div>
               </div>
 

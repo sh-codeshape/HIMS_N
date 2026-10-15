@@ -45,9 +45,13 @@ export class OpdRepository {
       ) VALUES ($1, $2, $3, $4, $5, $6, 'opd', 'arrived', $7, $8, $9, $10, $11, $12)
       RETURNING *;
     `;
+    // Nil/missing facility => organization-wide series (facility_id = NULL) so the
+    // org-wide number_sequences row (if any) matches; new orgs should run the
+    // repair-number-sequences script to pre-provision rows.
+    const seqFacility = facilityId && facilityId !== ZERO_UUID ? facilityId : null;
     const sequenceResult = await db.query(
       'SELECT next_number($1, $2, $3) AS encounter_no',
-      [organizationId, facilityId, 'ENCOUNTER']
+      [organizationId, seqFacility, 'ENCOUNTER']
     );
     const encounterNo = sequenceResult.rows[0]?.encounter_no || `OPD-${Date.now()}`;
 

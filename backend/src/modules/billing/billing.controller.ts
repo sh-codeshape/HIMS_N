@@ -11,6 +11,9 @@ export class BillingController {
 
   createInvoice = async (req: Request, res: Response) => {
     const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
+    if (!req.body.facility_id) {
+      req.body.facility_id = req.user?.facilityId;
+    }
     const result = await this.service.createInvoice(req.body, organizationId);
     sendSuccess(res, result, 'Invoice created successfully', 201);
   };

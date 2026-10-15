@@ -13,6 +13,19 @@ export const createIpdAdmissionSchema = z.object({
     attendant_name: z.string().optional().nullable(),
     attendant_relation: z.string().optional().nullable(),
     attendant_phone: z.string().optional().nullable(),
+    // ── Billing fields (optional, additive) ──
+    tariff_plan_id: z.string().uuid().optional().nullable(),
+    entitled_bed_category_id: z.string().uuid().optional().nullable(),
+    payer_type: z.enum(['self', 'insurance', 'corporate', 'government', 'tpa']).optional().nullable(),
+    patient_coverage_id: z.string().uuid().optional().nullable(),
+    advance_deposit: z
+      .object({
+        amount: z.number().positive(),
+        payment_mode: z.string().min(1),
+        receipt_no: z.string().optional().nullable(),
+      })
+      .optional()
+      .nullable(),
   })
 });
 

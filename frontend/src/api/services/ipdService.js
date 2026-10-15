@@ -14,6 +14,14 @@ const ipdService = {
     const res = await axiosInstance.get("/beds", { params });
     return res.data?.data ?? res.data ?? [];
   },
+  getBedWards: async (params = {}) => {
+    const res = await axiosInstance.get("/beds/wards", { params });
+    return res.data?.data ?? res.data ?? [];
+  },
+  getBedRooms: async (params = {}) => {
+    const res = await axiosInstance.get("/beds/rooms", { params });
+    return res.data?.data ?? res.data ?? [];
+  },
   dischargePatient: async (id, payload) => {
     const res = await axiosInstance.post(`/ipd/admissions/${id}/discharge`, payload);
     return res.data?.data ?? res.data ?? null;

@@ -37,6 +37,46 @@ export class BedRepository {
     return result.rows;
   }
 
+  async getWards(facilityId: string) {
+    const query = `
+      SELECT
+        w.id,
+        w.code,
+        w.name,
+        w.floor,
+        w.ward_type,
+        w.gender_policy,
+        bc.id as bed_category_id,
+        bc.code as bed_category_code,
+        bc.name as bed_category_name
+      FROM wards w
+      JOIN bed_categories bc ON w.bed_category_id = bc.id
+      WHERE w.facility_id = $1
+      ORDER BY w.floor NULLS LAST, w.name
+    `;
+    const result = await db.query(query, [facilityId]);
+    return result.rows;
+  }
+
+  async getRooms(facilityId: string) {
+    const query = `
+      SELECT
+        r.id,
+        r.room_no,
+        r.room_type,
+        r.ward_id,
+        w.name as ward_name,
+        w.floor,
+        w.ward_type
+      FROM rooms r
+      JOIN wards w ON r.ward_id = w.id
+      WHERE w.facility_id = $1
+      ORDER BY w.floor NULLS LAST, w.name, r.room_no
+    `;
+    const result = await db.query(query, [facilityId]);
+    return result.rows;
+  }
+
   async getBedById(bedId: string) {
     const query = `
       SELECT * FROM beds WHERE id = $1 AND is_active = true

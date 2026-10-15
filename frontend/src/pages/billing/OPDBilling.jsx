@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
+import { jwtDecode } from "jwt-decode";
 import Icon from "../../components/common/Icon.jsx";
 import patientService from "../../api/services/patientService";
 import billingInvoicesService from "../../api/services/billingInvoicesService";
@@ -322,7 +323,7 @@ export default function OPDBilling() {
   }, [netAmount]);
 
   // Handle Generate Bill
-  const handleGenerateBill = (e) => {
+  const handleGenerateBill = async (e) => {
     if (e) e.preventDefault();
     if (!selectedPatient) {
       toast.error("Please search and select a patient first.");
@@ -332,8 +333,66 @@ export default function OPDBilling() {
       toast.error("Please add at least one item to the bill.");
       return;
     }
+
+    // Persist the bill to the backend whenever the selected patient came from the
+    // real patient directory (has a backend id). Hardcoded sample patients have
+    // no id and therefore remain a local/UI-only preview.
+    const invoiceType = "opd";
+
+    let facilityId = "00000000-0000-0000-0000-000000000000";
+    try {
+      const token = localStorage.getItem("hims_token");
+      const decoded = token ? jwtDecode(token) : null;
+      facilityId = decoded?.facilityId || decoded?.facility_id || facilityId;
+    } catch (e) {
+      // keep fallback
+    }
+
+    const mapPaymentMode = (mode) => {
+      const lower = String(mode || "").toLowerCase();
+      if (lower.includes("cash")) return "cash";
+      if (lower.includes("upi")) return "upi";
+      if (lower.includes("card")) return "card";
+      if (lower.includes("net")) return "net_banking";
+      return "cash";
+    };
+
+    if (selectedPatient.id) {
+      const basePayload = {
+        patient_id: selectedPatient.id,
+        facility_id: facilityId,
+        invoice_type: invoiceType,
+        items: billItems.map((item) => ({
+          name: item.name,
+          qty: Number(item.qty) || 1,
+          price: Number(item.rate) || 0,
+        })),
+        discount_total: Number(totalDiscount) || 0,
+      };
+
+      try {
+        try {
+          await billingInvoicesService.create({
+            ...basePayload,
+            payment_mode: mapPaymentMode(paymentMode),
+          });
+        } catch (payErr) {
+          // If payment method is not configured, fall back to a draft invoice
+          // without payment allocation so the bill is still persisted.
+          console.warn("Payment-mode invoice save failed, retrying as draft:", payErr);
+          await billingInvoicesService.create(basePayload);
+          toast.success("Bill saved as draft (payment method not configured).", { icon: "🧾" });
+        }
+        toast.success(`Bill saved for ${selectedPatient.full_name || selectedPatient.name || selectedPatient.first_name}!`, { icon: "🧾" });
+      } catch (err) {
+        console.error("Failed to save OPD bill:", err);
+        toast.error("Could not save bill to backend, showing local preview only.");
+      }
+    } else {
+      toast("Preview mode: selected patient has no backend id, so the bill is not persisted.", { icon: "ℹ️" });
+    }
+
     setShowPrintModal(true);
-    toast.success(`Bill generated for ${selectedPatient.name}!`, { icon: "🧾" });
   };
 
   // Handle Create New Patient

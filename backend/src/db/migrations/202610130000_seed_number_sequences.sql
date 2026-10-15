@@ -6,13 +6,13 @@ WITH org_rows AS (
     FROM organizations o
     JOIN facilities f ON f.organization_id = o.id
 ), seq_rows AS (
-    SELECT organization_id, facility_id, 'ENCOUNTER'::text AS seq_key, 'OPD-'::text AS prefix, ''::text AS suffix, true AS include_year, 4 AS padding, 0::bigint AS current_value, 'yearly'::text AS reset_policy
+    SELECT 'ENCOUNTER'::text AS seq_key, 'OPD-'::text AS prefix, ''::text AS suffix, true AS include_year, 4 AS padding, 0::bigint AS current_value, 'yearly'::text AS reset_policy
     UNION ALL
-    SELECT organization_id, facility_id, 'ADMISSION', 'ADM-', '', true, 4, 0, 'yearly'
+    SELECT 'ADMISSION', 'ADM-', '', true, 4, 0, 'yearly'
     UNION ALL
-    SELECT organization_id, facility_id, 'INVOICE', 'INV-', '', true, 4, 0, 'yearly'
+    SELECT 'INVOICE', 'INV-', '', true, 4, 0, 'yearly'
     UNION ALL
-    SELECT organization_id, facility_id, 'RECEIPT', 'REC-', '', true, 4, 0, 'yearly'
+    SELECT 'RECEIPT', 'REC-', '', true, 4, 0, 'yearly'
 )
 INSERT INTO number_sequences (
     organization_id,

@@ -23,19 +23,66 @@ export default function BedAllotment() {
   const [viewMode, setViewMode] = useState("Floor Map");
 
   const [realBeds, setRealBeds] = useState([]);
+  const [wards, setWards] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [floors, setFloors] = useState([]);
+  const [wardsLoading, setWardsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchBeds = async () => {
+    const fetchData = async () => {
       try {
-        const data = await ipdService.getBedMatrix();
-        setRealBeds(Array.isArray(data) ? data : []);
+        const [bedsRes, wardsRes, roomsRes] = await Promise.all([
+          ipdService.getBedMatrix(),
+          ipdService.getBedWards(),
+          ipdService.getBedRooms(),
+        ]);
+        setRealBeds(Array.isArray(bedsRes) ? bedsRes : []);
+        const fetchedWards = Array.isArray(wardsRes) ? wardsRes : [];
+        setWards(fetchedWards);
+        // Derive distinct non-null floors from wards
+        const floorSet = new Set(fetchedWards.map((w) => w.floor).filter(Boolean));
+        setFloors(Array.from(floorSet).sort());
+        setRooms(Array.isArray(roomsRes) ? roomsRes : []);
       } catch (err) {
-        console.error("Failed to load real bed matrix:", err);
+        console.error("Failed to load real bed data:", err);
+      } finally {
+        setWardsLoading(false);
       }
     };
 
-    fetchBeds();
+    fetchData();
   }, []);
+
+  // Derived options for cascading Floor → Ward → Room dropdowns
+  const wardOptions = selectedFloor
+    ? wards.filter((w) => w.floor === selectedFloor)
+    : wards;
+  const roomOptions = selectedWard
+    ? rooms.filter((r) => r.ward_name === selectedWard)
+    : rooms;
+
+  // Reset downward selections when upstream changes
+  useEffect(() => {
+    if (wardsLoading || wards.length === 0) return;
+    if (!selectedFloor && floors.length > 0) {
+      setSelectedFloor(floors[0]);
+    }
+  }, [wardsLoading, wards, floors, selectedFloor]);
+
+  useEffect(() => {
+    if (wardsLoading || wardOptions.length === 0) return;
+    if (!wardOptions.some((w) => w.name === selectedWard)) {
+      setSelectedWard(wardOptions[0]?.name || "");
+      setSelectedRoom("");
+    }
+  }, [wardsLoading, wardOptions, selectedWard]);
+
+  useEffect(() => {
+    if (wardsLoading || roomOptions.length === 0) return;
+    if (!roomOptions.some((r) => r.room_no === selectedRoom)) {
+      setSelectedRoom(roomOptions[0]?.room_no || "");
+    }
+  }, [wardsLoading, roomOptions, selectedRoom]);
 
   // Selected Bed for Allotment
   const [selectedBed, setSelectedBed] = useState({
@@ -58,15 +105,21 @@ export default function BedAllotment() {
 
   // Bed matrix in selected room (GW-101)
   const roomBeds = realBeds.length
-    ? realBeds.map((bed) => ({
-        id: bed.id,
-        bedNo: bed.bed_no || bed.bedNo,
-        patientName: bed.patient_first_name ? `${bed.patient_first_name} ${bed.patient_last_name || ""}`.trim() : "-",
-        uhid: bed.patient_uhid || "-",
-        genderAge: bed.gender ? `${bed.gender}` : "-",
-        admissionDate: bed.admitted_at ? new Date(bed.admitted_at).toLocaleDateString("en-GB") : "-",
-        status: normalizeBedStatus(bed.current_status || bed.status || "available"),
-      }))
+    ? realBeds
+        .filter((bed) => !selectedRoom || bed.room_name === selectedRoom)
+        .filter((bed) => !selectedWard || bed.ward_name === selectedWard)
+        .map((bed) => ({
+            id: bed.id,
+            bedNo: bed.bed_no || bed.bedNo,
+            room: bed.room_name || "-",
+            ward: bed.ward_name || "-",
+            floor: "",
+            patientName: bed.patient_first_name ? `${bed.patient_first_name} ${bed.patient_last_name || ""}`.trim() : "-",
+            uhid: bed.patient_uhid || "-",
+            genderAge: bed.gender ? `${bed.gender}` : "-",
+            admissionDate: bed.admitted_at ? new Date(bed.admitted_at).toLocaleDateString("en-GB") : "-",
+            status: normalizeBedStatus(bed.current_status || bed.status || "available"),
+          }))
     : [
         { id: 1, bedNo: "GW-101-B1", patientName: "-", uhid: "-", genderAge: "-", admissionDate: "-", status: "available" },
         { id: 2, bedNo: "GW-101-B2", patientName: "-", uhid: "-", genderAge: "-", admissionDate: "-", status: "available" },
@@ -348,9 +401,12 @@ export default function BedAllotment() {
                   value={selectedFloor}
                   onChange={(e) => setSelectedFloor(e.target.value)}
                 >
-                  <option value="Ground Floor">Ground Floor</option>
-                  <option value="First Floor">First Floor</option>
-                  <option value="Second Floor">Second Floor</option>
+                  <option value="">All Floors</option>
+                  {floors.map((floor) => (
+                    <option key={floor} value={floor}>
+                      {floor}
+                    </option>
+                  ))}
                 </select>
 
                 <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b" }}>Select Ward</label>
@@ -359,9 +415,12 @@ export default function BedAllotment() {
                   value={selectedWard}
                   onChange={(e) => setSelectedWard(e.target.value)}
                 >
-                  <option value="General Ward">General Ward</option>
-                  <option value="ICU Ward">ICU Ward</option>
-                  <option value="Deluxe Ward">Deluxe Ward</option>
+                  <option value="">All Wards</option>
+                  {wardOptions.map((ward) => (
+                    <option key={ward.id} value={ward.name}>
+                      {ward.name} ({ward.floor})
+                    </option>
+                  ))}
                 </select>
 
                 <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b" }}>Select Room</label>
@@ -370,9 +429,12 @@ export default function BedAllotment() {
                   value={selectedRoom}
                   onChange={(e) => setSelectedRoom(e.target.value)}
                 >
-                  <option value="GW-101 (4 Beds)">GW-101 (4 Beds)</option>
-                  <option value="GW-102 (4 Beds)">GW-102 (4 Beds)</option>
-                  <option value="GW-103 (4 Beds)">GW-103 (4 Beds)</option>
+                  <option value="">All Rooms</option>
+                  {roomOptions.map((room) => (
+                    <option key={room.id} value={room.room_no}>
+                      {room.room_no}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -672,9 +734,11 @@ export default function BedAllotment() {
               }}
             >
               <h4 style={{ fontSize: "0.85rem", fontWeight: 700, margin: 0, color: "#0f172a" }}>
-                Available Beds in GW-101
+                Available Beds in {selectedRoom || "All Rooms"}
               </h4>
-              <span className="status-badge status-badge--available">2 Available</span>
+              <span className="status-badge status-badge--available">
+                {roomBeds.filter((b) => b.status === "available").length} Available
+              </span>
             </div>
 
             <table className="recent-admissions-table">
@@ -713,9 +777,9 @@ export default function BedAllotment() {
                           onClick={() =>
                             setSelectedBed({
                               bedNo: rb.bedNo,
-                              room: "GW-101",
-                              ward: "General Ward",
-                              floor: "Ground Floor",
+                              room: rb.room,
+                              ward: rb.ward,
+                              floor: rb.floor,
                               status: rb.status,
                             })
                           }

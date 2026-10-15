@@ -10,6 +10,8 @@ const controller = new BedController();
 router.use(authenticate);
 
 router.get('/', validate(getBedSchema), controller.getBeds);
+router.get('/wards', controller.getWards);
+router.get('/rooms', controller.getRooms);
 router.patch('/:id/status', validate(updateBedStatusSchema), controller.updateBedStatus);
 
 export const bedRoutes = router;

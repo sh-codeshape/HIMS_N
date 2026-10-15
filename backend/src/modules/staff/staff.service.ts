@@ -7,6 +7,10 @@ export class StaffService {
     this.repository = new StaffRepository();
   }
 
+  async getDepartments(organizationId: string) {
+    return await this.repository.getDepartments(organizationId);
+  }
+
   async getDoctors(facilityId: string) {
     return await this.repository.getDoctors(facilityId);
   }

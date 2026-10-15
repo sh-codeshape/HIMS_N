@@ -1,12 +1,67 @@
 import { db } from '../../config/database';
 import { ConflictError } from '../../shared/errors/AppError';
 
+const ZERO_UUID = '00000000-0000-0000-0000-000000000000';
+
 export const hasActiveIpdAdmission = (status: string | null | undefined) => {
   const normalized = (status || '').trim().toLowerCase();
   return ['pending', 'admitted', 'discharge_initiated'].includes(normalized);
 };
 
 export class IpdRepository {
+  /**
+   * Resolve the next number for a sequence key with just-in-time provisioning.
+   *
+   * A missing/nil facility_id is treated as the organization-wide series
+   * (facility_id = NULL). If no number_sequences row exists for this
+   * (org, facility, key), we provision an org-wide row and retry — the same
+   * pattern billing.repository.ts already uses for INVOICE/RECEIPT.
+   */
+    private async resolveSequenceNo(
+    client: any,
+    organizationId: string,
+    facilityId: string | null | undefined,
+    seqKey: string,
+    prefix: string,
+    fallbackPrefix: string
+  ): Promise<string> {
+    // Nil/missing facility => organization-wide series (facility_id = NULL).
+    const facility = facilityId && facilityId !== ZERO_UUID ? facilityId : null;
+
+    // Try to get the next number directly. next_number() already handles
+    // nil UUID -> NULL normalization internally (NULLIF in the function).
+    try {
+      const result = await client.query(
+        'SELECT next_number($1, $2, $3) AS no',
+        [organizationId, facility, seqKey]
+      );
+      return result.rows[0]?.no ||
+        `${fallbackPrefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    } catch (err: any) {
+      // Row doesn't exist yet - provision it with a plain INSERT
+      // (no ON CONFLICT to avoid nil UUID syntax issues).
+      try {
+        await client.query(
+          `INSERT INTO number_sequences (
+             organization_id, facility_id, seq_key, prefix, suffix, include_year, padding,
+             current_value, reset_policy, last_reset_on
+           ) VALUES ($1, $2, $3, $4, '', true, 4, 0, 'yearly', CURRENT_DATE)`,
+          [organizationId, facility, seqKey, prefix]
+        );
+      } catch (insertErr) {
+        // Concurrent transaction already provisioned the row; fall through to retry.
+      }
+
+      // Retry next_number() - now the row exists.
+      const result = await client.query(
+        'SELECT next_number($1, $2, $3) AS no',
+        [organizationId, facility, seqKey]
+      );
+      return result.rows[0]?.no ||
+        `${fallbackPrefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    }
+  }
+
   async admitPatient(
     facilityId: string,
     organizationId: string,
@@ -19,9 +74,15 @@ export class IpdRepository {
     reason?: string,
     attendantName?: string | null,
     attendantRelation?: string | null,
-    attendantPhone?: string | null
+    attendantPhone?: string | null,
+    tariffPlanId?: string | null,
+    entitledBedCategoryId?: string | null,
+    payerType?: string | null,
+    patientCoverageId?: string | null,
+    advanceDeposit?: { amount: number; payment_mode: string; receipt_no?: string | null } | null
   ) {
     const client = await db.getClient();
+    const zeroUuid = '00000000-0000-0000-0000-000000000000';
     
     try {
       await client.query('BEGIN');
@@ -36,13 +97,28 @@ export class IpdRepository {
       if (activeAdmissionCheck.rows.length > 0) {
         throw new ConflictError('Patient already has an active IPD admission.');
       }
-      
-      // 1. Create Encounter
-      const encounterSequenceResult = await client.query(
-        'SELECT next_number($1, $2, $3) AS encounter_no',
-        [organizationId, facilityId, 'ENCOUNTER']
+
+      // ── Resolve tariff plan: use provided one, else org default ──
+      let resolvedTariffPlanId = tariffPlanId || null;
+      if (!resolvedTariffPlanId) {
+        const defaultPlan = await client.query(
+          `SELECT id FROM tariff_plans
+           WHERE organization_id = $1 AND is_active = true AND is_default = true
+           LIMIT 1`,
+          [organizationId]
+        );
+        resolvedTariffPlanId = defaultPlan.rows[0]?.id || null;
+      }
+
+      // ── 1. Create Encounter (with tariff_plan_id for billing) ──
+      const encounterNo = await this.resolveSequenceNo(
+        client,
+        organizationId,
+        facilityId,
+        'ENCOUNTER',
+        'OPD-',
+        'IPD'
       );
-      const encounterNo = encounterSequenceResult.rows[0]?.encounter_no || `IPD-${Date.now()}`;
 
       const encounterQuery = `
         INSERT INTO encounters (
@@ -56,10 +132,11 @@ export class IpdRepository {
           status,
           chief_complaint,
           encounter_no,
+          tariff_plan_id,
           attendant_name,
           attendant_relation,
           attendant_phone
-        ) VALUES ($1, $2, $3, $4, $5, $6, 'ipd', 'in_progress', $7, $8, $9, $10, $11)
+        ) VALUES ($1, $2, $3, $4, $5, $6, 'ipd', 'in_progress', $7, $8, $9, $10, $11, $12)
         RETURNING *;
       `;
       const encounterResult = await client.query(encounterQuery, [
@@ -71,18 +148,22 @@ export class IpdRepository {
         referredBy || null,
         reason,
         encounterNo,
+        resolvedTariffPlanId,
         attendantName || null,
         attendantRelation || null,
         attendantPhone || null
       ]);
       const encounter = encounterResult.rows[0];
 
-      // 2. Create Admission
-      const admissionSequenceResult = await client.query(
-        'SELECT next_number($1, $2, $3) AS admission_no',
-        [organizationId, facilityId, 'ADMISSION']
+      // ── 2. Create Admission (with entitled_bed_category_id for billing) ──
+      const admissionNo = await this.resolveSequenceNo(
+        client,
+        organizationId,
+        facilityId,
+        'ADMISSION',
+        'ADM-',
+        'ADM'
       );
-      const admissionNo = admissionSequenceResult.rows[0]?.admission_no || `ADM-${Date.now()}`;
 
       const admissionQuery = `
         INSERT INTO admissions (
@@ -92,6 +173,7 @@ export class IpdRepository {
           encounter_id,
           admitting_practitioner_id,
           department_id,
+          entitled_bed_category_id,
           admission_no,
           admission_type,
           admission_diagnosis,
@@ -100,7 +182,7 @@ export class IpdRepository {
           attendant_name,
           attendant_relation,
           attendant_phone
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'admitted', NOW(), $10, $11, $12)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'admitted', NOW(), $11, $12, $13)
         RETURNING *;
       `;
       const admissionResult = await client.query(admissionQuery, [
@@ -110,6 +192,7 @@ export class IpdRepository {
         encounter.id,
         practitionerId || null,
         departmentId || null,
+        entitledBedCategoryId || null,
         admissionNo,
         admissionType || 'elective',
         reason || null,
@@ -119,7 +202,7 @@ export class IpdRepository {
       ]);
       const admission = admissionResult.rows[0];
 
-      // 3. Assign Bed (if provided)
+      // ── 3. Assign Bed (if provided) ──
       if (bedId) {
         const bedAssignQuery = `
           INSERT INTO bed_assignments (
@@ -130,7 +213,7 @@ export class IpdRepository {
           RETURNING *;
         `;
         await client.query(bedAssignQuery, [admission.id, bedId]);
-        
+
         // 4. Update Bed Status
         await client.query(
           `UPDATE beds SET status = 'occupied', updated_at = NOW() WHERE id = $1`,
@@ -138,8 +221,148 @@ export class IpdRepository {
         );
       }
 
+      // ── 5. Billing initialization: advance deposit charge + payment ──
+      let chargeResult: any = null;
+      let paymentResult: any = null;
+      if (advanceDeposit && Number(advanceDeposit.amount) > 0) {
+        // 5a. Charge row for the advance deposit (billable, patient responsibility)
+        const chargeQuery = `
+          INSERT INTO charges (
+            organization_id, facility_id, patient_id, encounter_id,
+            service_id, item_id, description, department_id,
+            quantity, unit_price, discount_percent, discount_amount,
+            taxable_amount, tax_amount, net_amount,
+            responsibility, patient_coverage_id, status, source_type,
+            custom_fields, created_by, updated_by
+          ) VALUES (
+            $1, $2, $3, $4,
+            NULL, NULL, $5, $6,
+            1, $7, 0, 0,
+            $7, 0, $7,
+            'patient', $8, 'billable', 'manual',
+            $9, NULL, NULL
+          ) RETURNING *;
+        `;
+        chargeResult = await client.query(chargeQuery, [
+          organizationId,
+          facilityId,
+          patientId,
+          encounter.id,
+          `Advance deposit (admission ${admissionNo})`,
+          departmentId || null,
+          Number(advanceDeposit.amount),
+          patientCoverageId || null,
+          JSON.stringify({ advance_deposit: true, receipt_no: advanceDeposit.receipt_no || null })
+        ]);
+        chargeResult = chargeResult.rows[0];
+
+        // 5b. Resolve payment method for the advance payment mode
+        let paymentMethodId: string | null = null;
+        const paymentMode = String(advanceDeposit.payment_mode || '').trim();
+        if (paymentMode) {
+          const methodQuery = `
+            SELECT id FROM payment_methods
+            WHERE is_active = TRUE
+              AND (organization_id = $1 OR organization_id IS NULL)
+              AND (name ILIKE $2 OR method_type ILIKE $2 OR code ILIKE $2)
+            LIMIT 1
+          `;
+          const methodRes = await client.query(methodQuery, [
+            organizationId !== zeroUuid ? organizationId : null,
+            `%${paymentMode}%`
+          ]);
+          paymentMethodId = methodRes.rows[0]?.id || null;
+        }
+
+        if (!paymentMethodId) {
+          throw new Error(`No active payment method found for mode "${paymentMode}". Please create or activate one first.`);
+        }
+
+        // 5c. Advance payment row (not yet allocated to an invoice)
+        let receiptNo = advanceDeposit.receipt_no || null;
+        if (!receiptNo) {
+          receiptNo = await this.resolveSequenceNo(
+            client,
+            organizationId,
+            facilityId,
+            'RECEIPT',
+            'REC-',
+            'REC'
+          );
+        }
+
+        // Use normalized facility_id (null for nil UUID) so it matches
+        // the sequence lookup in resolveSequenceNo, ensuring consistent
+        // (facility_id, receipt_no) uniqueness.
+        const paymentFacilityId = facilityId && facilityId !== ZERO_UUID ? facilityId : null;
+
+        const paymentQuery = `
+          INSERT INTO payments (
+            organization_id, facility_id, receipt_no, patient_id, encounter_id,
+            direction, payment_type, payment_method_id, amount, allocated_amount,
+            status, reference_no, method_details, received_by
+          ) VALUES (
+            $1, $2, $3, $4, $5,
+            'in', 'advance', $6, $7, 0,
+            'completed', $8, $9, NULL
+          ) RETURNING *;
+        `;
+        // Retry loop with savepoint: if receipt_no collides (duplicate key),
+        // rollback to savepoint, regenerate number, and retry.
+        let lastErr: any = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const savepointName = `sp_payment_${attempt}`;
+          try {
+            await client.query(`SAVEPOINT ${savepointName}`);
+            paymentResult = await client.query(paymentQuery, [
+              organizationId,
+              paymentFacilityId,
+              receiptNo,
+              patientId,
+              encounter.id,
+              paymentMethodId,
+              Number(advanceDeposit.amount),
+              advanceDeposit.receipt_no || null,
+              JSON.stringify({ payment_mode: paymentMode, advance_deposit: true })
+            ]);
+            paymentResult = paymentResult.rows[0];
+            await client.query(`RELEASE SAVEPOINT ${savepointName}`);
+            break;
+          } catch (err: any) {
+            lastErr = err;
+            if (err.code === '23505' && attempt < 2) {
+              // Rollback to savepoint, regenerate receipt number, retry
+              await client.query(`ROLLBACK TO SAVEPOINT ${savepointName}`);
+              receiptNo = await this.resolveSequenceNo(
+                client,
+                organizationId,
+                facilityId,
+                'RECEIPT',
+                'REC-',
+                'REC'
+              );
+              continue;
+            }
+            // Release savepoint before re-throwing
+            try { await client.query(`RELEASE SAVEPOINT ${savepointName}`); } catch {}
+            throw err;
+          }
+        }
+        if (!paymentResult) {
+          throw lastErr || new Error('Failed to create advance payment after retries');
+        }
+      }
+
       await client.query('COMMIT');
-      return { encounter, admission };
+      return {
+        encounter,
+        admission,
+        billing: {
+          tariff_plan_id: resolvedTariffPlanId,
+          charge: chargeResult,
+          payment: paymentResult
+        }
+      };
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -246,6 +469,133 @@ export class IpdRepository {
             SET status = 'cleaning', updated_at = NOW()
             WHERE id = $1
           `, [bedId]);
+        }
+
+        // ── Billing finalization at discharge ──
+        try {
+          const orgId = admission.organization_id;
+          const patId = admission.patient_id;
+          const encId = admission.encounter_id;
+
+          // 1. Mark all unbilled charges as billed
+          await client.query(
+            `UPDATE charges
+             SET status = 'billed', updated_at = NOW()
+             WHERE encounter_id = $1 AND status = 'billable'`,
+            [encId]
+          );
+
+          // 2. Sum all charges for the encounter
+          const chargeSum = await client.query(
+            `SELECT
+               COALESCE(SUM(net_amount), 0) as total_charges,
+               COALESCE(SUM(tax_amount), 0) as total_tax
+             FROM charges
+             WHERE encounter_id = $1 AND status = 'billed'`,
+            [encId]
+          );
+          const totalCharges = Number(chargeSum.rows[0]?.total_charges || 0);
+          const totalTax = Number(chargeSum.rows[0]?.total_tax || 0);
+
+          // 3. Get the advance payment for this encounter (unallocated)
+          const advancePayment = await client.query(
+            `SELECT id, amount, allocated_amount
+             FROM payments
+             WHERE encounter_id = $1 AND payment_type = 'advance' AND status = 'completed'
+             ORDER BY paid_at DESC
+             LIMIT 1`,
+            [encId]
+          );
+          const advance = advancePayment.rows[0] || null;
+          const advanceAllocatable = advance ? Number(advance.amount) - Number(advance.allocated_amount) : 0;
+
+          // 4. Create ipd_final invoice if there are charges or an advance to reconcile
+          if (totalCharges > 0 || (advance && advanceAllocatable > 0)) {
+            const invoiceNo = await this.resolveSequenceNo(
+              client,
+              orgId,
+              facilityId,
+              'INVOICE',
+              'INV-',
+              'INV'
+            );
+
+            const grandTotal = totalCharges + totalTax;
+            const dueAmount = Math.max(0, grandTotal - advanceAllocatable);
+
+            const invoiceRes = await client.query(
+              `INSERT INTO invoices (
+                 organization_id, facility_id, patient_id, encounter_id,
+                 invoice_no, invoice_type, status, bill_to,
+                 subtotal, tax_total, total_amount, paid_amount, due_amount,
+                 issued_at, is_final
+               ) VALUES (
+                 $1, $2, $3, $4, $5, 'ipd_final', 'issued',
+                 'patient', $6, $7, $8, $9, $10,
+                 NOW(), true
+               ) RETURNING *`,
+              [
+                orgId,
+                facilityId,
+                patId,
+                encId,
+                invoiceNo,
+                totalCharges,
+                totalTax,
+                grandTotal,
+                advanceAllocatable > 0 ? advanceAllocatable : 0,
+                dueAmount
+              ]
+            );
+            const invoice = invoiceRes.rows[0];
+
+            // 5. Create invoice line from charges summary
+            if (totalCharges > 0) {
+              await client.query(
+                `INSERT INTO invoice_lines (
+                   invoice_id, line_no, description, quantity, unit_price,
+                   taxable_amount, tax_amount, line_total
+                 ) VALUES ($1, 1, $2, 1, $3, $3, $4, $5)`,
+                [invoice.id, `IPD Final Bill - Encounter ${encId}`, totalCharges, totalTax, grandTotal]
+              );
+            }
+
+            // 6. Allocate advance payment to the invoice
+            if (advance && advanceAllocatable > 0) {
+              await client.query(
+                `INSERT INTO payment_allocations (payment_id, invoice_id, amount)
+                 VALUES ($1, $2, $3)`,
+                [advance.id, invoice.id, advanceAllocatable]
+              );
+
+              // Update payment allocated_amount
+              await client.query(
+                `UPDATE payments SET allocated_amount = allocated_amount + $1 WHERE id = $2`,
+                [advanceAllocatable, advance.id]
+              );
+
+              // Update invoice paid/due
+              await client.query(
+                `UPDATE invoices SET paid_amount = paid_amount + $1, due_amount = due_amount - $1 WHERE id = $2`,
+                [advanceAllocatable, invoice.id]
+              );
+            }
+
+            // 7. Update encounter billing status
+            await client.query(
+              `UPDATE encounters SET billing_status = $1 WHERE id = $2`,
+              [dueAmount > 0 ? 'finalized' : 'closed', encId]
+            );
+          } else if (advance) {
+            // No charges but advance exists: mark encounter as closed
+            await client.query(
+              `UPDATE encounters SET billing_status = 'closed' WHERE id = $1`,
+              [encId]
+            );
+          }
+        } catch (billingErr) {
+          // Billing finalization must not block discharge
+          console.error('Billing finalization failed at discharge:', billingErr);
         }
       }
 

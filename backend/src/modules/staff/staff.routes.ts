@@ -8,6 +8,7 @@ const controller = new StaffController();
 
 router.use(authenticate);
 
+router.get('/departments', controller.getDepartments);
 router.get('/doctors', controller.getDoctors);
 router.get('/', authorize(['staff.view', 'staff.manage']), controller.getStaffList);
 router.get('/:staffId', authorize(['staff.view', 'staff.manage']), controller.getStaffById);

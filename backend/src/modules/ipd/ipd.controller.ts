@@ -11,10 +11,17 @@ export class IpdController {
 
   admitPatient = async (req: Request, res: Response) => {
     const organizationId = req.user!.organizationId;
-    
-    // Defaulting facility_id from token if not in body
-    if (!req.body.facility_id) {
-        req.body.facility_id = req.user?.facilityId ?? req.body.facility_id;
+    const zeroUuid = '00000000-0000-0000-000000000000';
+
+    // Use facility from JWT token; never allow nil UUID to reach the service layer.
+    // If the frontend sends nil UUID or no facility_id, fall back to the user's facility.
+    const bodyFacilityId = req.body.facility_id;
+    const tokenFacilityId = req.user?.facilityId;
+    req.body.facility_id = tokenFacilityId || bodyFacilityId || undefined;
+
+    // Reject nil UUID explicitly
+    if (req.body.facility_id === zeroUuid) {
+      req.body.facility_id = tokenFacilityId || undefined;
     }
 
     const result = await this.service.admitPatient(req.body, organizationId);

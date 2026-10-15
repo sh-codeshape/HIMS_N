@@ -369,6 +369,215 @@ async function seed() {
       }
     }
 
+    // ---------------------------------------------------------
+    // DEPARTMENTS
+    // ---------------------------------------------------------
+    const existingDepts = await client.query(
+      'SELECT id, code FROM departments WHERE organization_id = $1',
+      [orgId]
+    );
+    if (existingDepts.rows.length === 0) {
+      await client.query(
+        `INSERT INTO departments (organization_id, facility_id, code, name, department_type, is_active)
+         VALUES ($1, $2, $3, $4, $5, true)`,
+        [orgId, facilityId, 'GEN-MED', 'General Medicine', 'clinical']
+      );
+      await client.query(
+        `INSERT INTO departments (organization_id, facility_id, code, name, department_type, is_active)
+         VALUES ($1, $2, $3, $4, $5, true)`,
+        [orgId, facilityId, 'CARD', 'Cardiology', 'clinical']
+      );
+      await client.query(
+        `INSERT INTO departments (organization_id, facility_id, code, name, department_type, is_active)
+         VALUES ($1, $2, $3, $4, $5, true)`,
+        [orgId, facilityId, 'PEDS', 'Pediatrics', 'clinical']
+      );
+      await client.query(
+        `INSERT INTO departments (organization_id, facility_id, code, name, department_type, is_active)
+         VALUES ($1, $2, $3, $4, $5, true)`,
+        [orgId, facilityId, 'ORTHO', 'Orthopedics', 'clinical']
+      );
+      await client.query(
+        `INSERT INTO departments (organization_id, facility_id, code, name, department_type, is_active)
+         VALUES ($1, $2, $3, $4, $5, true)`,
+        [orgId, facilityId, 'GYN', 'Gynecology', 'clinical']
+      );
+    }
+
+    const departments = await client.query(
+      'SELECT id, code FROM departments WHERE organization_id = $1',
+      [orgId]
+    );
+    const genMedId = departments.rows.find(r => r.code === 'GEN-MED')?.id;
+    const cardId = departments.rows.find(r => r.code === 'CARD')?.id;
+    const pedsId = departments.rows.find(r => r.code === 'PEDS')?.id;
+
+    // Bed categories are already declared earlier in seed.ts (genCatId, icuCatId, pvtCatId)
+    // ---------------------------------------------------------
+    // SERVICE CATEGORIES
+    // ---------------------------------------------------------
+    const existingCats = await client.query(
+      'SELECT id, code FROM service_categories WHERE organization_id = $1',
+      [orgId]
+    );
+    if (existingCats.rows.length === 0) {
+      await client.query(
+        `INSERT INTO service_categories (organization_id, code, name, category_type, sort_order)
+         VALUES ($1, $2, $3, $4, 1)`,
+        [orgId, 'CONSULT', 'Consultation', 'consultation']
+      );
+      await client.query(
+        `INSERT INTO service_categories (organization_id, code, name, category_type, sort_order)
+         VALUES ($1, $2, $3, $4, 2)`,
+        [orgId, 'BED', 'Bed Charges', 'bed_charge']
+      );
+    }
+    const serviceCats = await client.query(
+      'SELECT id, code FROM service_categories WHERE organization_id = $1',
+      [orgId]
+    );
+    const consultCatId = serviceCats.rows.find(r => r.code === 'CONSULT')?.id;
+    const bedCatId = serviceCats.rows.find(r => r.code === 'BED')?.id;
+
+    // ---------------------------------------------------------
+    // TAX GROUPS (GST slabs)
+    // ---------------------------------------------------------
+    const existingTaxes = await client.query(
+      'SELECT id, code FROM tax_groups WHERE organization_id = $1',
+      [orgId]
+    );
+    if (existingTaxes.rows.length === 0) {
+      await client.query(
+        `INSERT INTO tax_groups (organization_id, code, name, total_rate, is_exempt, is_active)
+         VALUES ($1, $2, $3, 5.00, false, true)`,
+        [orgId, 'GST-5', 'GST 5%']
+      );
+      await client.query(
+        `INSERT INTO tax_groups (organization_id, code, name, total_rate, is_exempt, is_active)
+         VALUES ($1, $2, $3, 12.00, false, true)`,
+        [orgId, 'GST-12', 'GST 12%']
+      );
+    }
+    const taxGroups = await client.query(
+      'SELECT id, code FROM tax_groups WHERE organization_id = $1',
+      [orgId]
+    );
+    const gst5Id = taxGroups.rows.find(r => r.code === 'GST-5')?.id;
+    const gst12Id = taxGroups.rows.find(r => r.code === 'GST-12')?.id;
+
+    // ---------------------------------------------------------
+    // SERVICES (Charge Master)
+    // ---------------------------------------------------------
+    const existingServices = await client.query(
+      'SELECT id, code FROM services WHERE organization_id = $1',
+      [orgId]
+    );
+    if (existingServices.rows.length === 0) {
+      await client.query(
+        `INSERT INTO services (organization_id, category_id, department_id, tax_group_id, code, name, description, service_type, billing_unit, default_rate, is_rate_editable)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 1500.00, true)`,
+        [orgId, bedCatId, genMedId, gst5Id, 'BED-GEN-DAY', 'General Ward Bed - Per Day', 'General ward bed charge per day', 'bed', 'per_day']
+      );
+      await client.query(
+        `INSERT INTO services (organization_id, category_id, department_id, tax_group_id, code, name, description, service_type, billing_unit, default_rate, is_rate_editable)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 5000.00, true)`,
+        [orgId, bedCatId, icuCatId, gst5Id, 'BED-ICU-DAY', 'ICU Bed - Per Day', 'ICU bed charge per day', 'bed', 'per_day']
+      );
+      await client.query(
+        `INSERT INTO services (organization_id, category_id, department_id, tax_group_id, code, name, description, service_type, billing_unit, default_rate, is_rate_editable)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 3000.00, true)`,
+        [orgId, bedCatId, pvtCatId, gst5Id, 'BED-PVT-DAY', 'Private Room - Per Day', 'Private room charge per day', 'bed', 'per_day']
+      );
+      await client.query(
+        `INSERT INTO services (organization_id, category_id, department_id, tax_group_id, code, name, description, service_type, billing_unit, default_rate, is_rate_editable)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 500.00, true)`,
+        [orgId, consultCatId, genMedId, gst12Id, 'CONS-GEN', 'General Physician Consultation', 'General physician consultation fee', 'consultation', 'per_visit']
+      );
+      await client.query(
+        `INSERT INTO services (organization_id, category_id, department_id, tax_group_id, code, name, description, service_type, billing_unit, default_rate, is_rate_editable)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 800.00, true)`,
+        [orgId, consultCatId, cardId, gst12Id, 'CONS-CARD', 'Cardiologist Consultation', 'Cardiologist consultation fee', 'consultation', 'per_visit']
+      );
+      await client.query(
+        `INSERT INTO services (organization_id, category_id, department_id, tax_group_id, code, name, description, service_type, billing_unit, default_rate, is_rate_editable)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 600.00, true)`,
+        [orgId, consultCatId, pedsId, gst12Id, 'CONS-PED', 'Pediatrician Consultation', 'Pediatrician consultation fee', 'consultation', 'per_visit']
+      );
+    }
+
+    const services = await client.query(
+      'SELECT id, code FROM services WHERE organization_id = $1',
+      [orgId]
+    );
+    const bedGenId = services.rows.find(r => r.code === 'BED-GEN-DAY')?.id;
+    const bedIcuId = services.rows.find(r => r.code === 'BED-ICU-DAY')?.id;
+    const bedPvtId = services.rows.find(r => r.code === 'BED-PVT-DAY')?.id;
+    const consGenId = services.rows.find(r => r.code === 'CONS-GEN')?.id;
+    const consCardId = services.rows.find(r => r.code === 'CONS-CARD')?.id;
+    const consPedId = services.rows.find(r => r.code === 'CONS-PED')?.id;
+
+    // ---------------------------------------------------------
+    // TARIFF PLAN (Default)
+    // ---------------------------------------------------------
+    const existingPlan = await client.query(
+      'SELECT id FROM tariff_plans WHERE organization_id = $1 AND is_default = true LIMIT 1',
+      [orgId]
+    );
+    let defaultTariffId = existingPlan.rows[0]?.id;
+    if (!defaultTariffId) {
+      await client.query(
+        `INSERT INTO tariff_plans (organization_id, code, name, plan_type, currency, is_default, is_active)
+         VALUES ($1, $2, $3, $4, $5, true, true) RETURNING id`,
+        [orgId, 'DEFAULT', 'Standard Tariff Plan', 'standard', 'INR']
+      );
+      defaultTariffId = (
+        await client.query(
+          'SELECT id FROM tariff_plans WHERE organization_id = $1 AND is_default = true LIMIT 1',
+          [orgId]
+        )
+      ).rows[0]?.id;
+    }
+
+    console.log('Tariff plan ID:', defaultTariffId);
+
+    // ---------------------------------------------------------
+    // TARIFF RATES
+    // ---------------------------------------------------------
+    if (defaultTariffId) {
+      await client.query('DELETE FROM tariff_rates WHERE tariff_plan_id = $1', [defaultTariffId]);
+
+      await client.query(
+        `INSERT INTO tariff_rates (tariff_plan_id, service_id, bed_category_id, facility_id, rate, effective_from)
+         VALUES ($1, $2, $3, $4, 1500.00, CURRENT_DATE)`,
+        [defaultTariffId, bedGenId, genCatId, facilityId]
+      );
+      await client.query(
+        `INSERT INTO tariff_rates (tariff_plan_id, service_id, bed_category_id, facility_id, rate, effective_from)
+         VALUES ($1, $2, $3, $4, 5000.00, CURRENT_DATE)`,
+        [defaultTariffId, bedIcuId, icuCatId, facilityId]
+      );
+      await client.query(
+        `INSERT INTO tariff_rates (tariff_plan_id, service_id, bed_category_id, facility_id, rate, effective_from)
+         VALUES ($1, $2, $3, $4, 3000.00, CURRENT_DATE)`,
+        [defaultTariffId, bedPvtId, pvtCatId, facilityId]
+      );
+      await client.query(
+        `INSERT INTO tariff_rates (tariff_plan_id, service_id, bed_category_id, facility_id, rate, effective_from)
+         VALUES ($1, $2, NULL, $3, 500.00, CURRENT_DATE)`,
+        [defaultTariffId, consGenId, facilityId]
+      );
+      await client.query(
+        `INSERT INTO tariff_rates (tariff_plan_id, service_id, bed_category_id, facility_id, rate, effective_from)
+         VALUES ($1, $2, NULL, $3, 800.00, CURRENT_DATE)`,
+        [defaultTariffId, consCardId, facilityId]
+      );
+      await client.query(
+        `INSERT INTO tariff_rates (tariff_plan_id, service_id, bed_category_id, facility_id, rate, effective_from)
+         VALUES ($1, $2, NULL, $3, 600.00, CURRENT_DATE)`,
+        [defaultTariffId, consPedId, facilityId]
+      );
+    }
+
     await client.query('COMMIT');
     logger.info('Database seeded successfully with default organization, facility, and admin/superadmin credentials.');
     logger.info({ admin: adminUsername, superAdmin: superAdminUsername, password }, 'Default logins');

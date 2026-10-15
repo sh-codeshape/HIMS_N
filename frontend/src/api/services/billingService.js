@@ -5,7 +5,8 @@ import { ENDPOINTS } from "../endpoints";
 const billingService = {
   ...createCrudService(ENDPOINTS.BILLING.OPD),
   createInvoice: async (payload) => {
-    const res = await axiosInstance.post("/billing/invoices", payload);
+    // Backend exposes invoice creation at POST /api/v1/billing (not /billing/invoices)
+    const res = await axiosInstance.post("/billing", payload);
     return res.data?.data ?? res.data ?? null;
   },
   getInvoices: async (params = {}) => {

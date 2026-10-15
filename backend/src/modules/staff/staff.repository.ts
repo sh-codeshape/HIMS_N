@@ -2,6 +2,17 @@ import { db } from '../../config/database';
 import bcrypt from 'bcryptjs';
 
 export class StaffRepository {
+  async getDepartments(organizationId: string) {
+    const query = `
+      SELECT id, code, name, department_type, is_active
+      FROM departments
+      WHERE organization_id = $1 AND is_active = true
+      ORDER BY name ASC
+    `;
+    const result = await db.query(query, [organizationId]);
+    return result.rows;
+  }
+
   async getDoctors(facilityId: string) {
     const query = `
       SELECT

@@ -11,6 +11,14 @@ export class BedService {
     return await this.repository.getBeds(facilityId);
   }
 
+  async getWards(facilityId: string) {
+    return await this.repository.getWards(facilityId);
+  }
+
+  async getRooms(facilityId: string) {
+    return await this.repository.getRooms(facilityId);
+  }
+
   async updateBedStatus(bedId: string, status: string, facilityId: string) {
     const updatedBed = await this.repository.updateBedStatus(bedId, status, facilityId);
     if (!updatedBed) {

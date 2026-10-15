@@ -22,9 +22,17 @@ export class BillingRepository {
       throw new ValidationError('Payment method is required when recording a payment.');
     }
 
+    const organizationId = data.organization_id || data.organizationId;
+    const zeroUuid = '00000000-0000-0000-0000-000000000000';
+    const hasOrg = organizationId && organizationId !== zeroUuid;
+
+    const methodQuery = hasOrg
+      ? 'SELECT id FROM payment_methods WHERE is_active = TRUE AND organization_id = $2 AND (name ILIKE $1 OR method_type ILIKE $1 OR code ILIKE $1) LIMIT 1'
+      : 'SELECT id FROM payment_methods WHERE is_active = TRUE AND (name ILIKE $1 OR method_type ILIKE $1 OR code ILIKE $1) LIMIT 1';
+
     const methodRes = await client.query(
-      'SELECT id FROM payment_methods WHERE is_active = TRUE AND (name ILIKE $1 OR method_type ILIKE $1 OR code ILIKE $1) LIMIT 1',
-      [`%${paymentMode}%`]
+      methodQuery,
+      hasOrg ? [`%${paymentMode}%`, organizationId] : [`%${paymentMode}%`]
     );
 
     if (!methodRes.rows[0]?.id) {
@@ -39,11 +47,33 @@ export class BillingRepository {
     try {
       await client.query('BEGIN');
 
-      const invoiceNoResult = await client.query(
-        'SELECT next_number($1, $2, $3) AS invoice_no',
-        [data.organization_id, data.facility_id, 'INVOICE']
-      );
-      const invoiceNo = invoiceNoResult.rows[0]?.invoice_no || `INV-${Date.now()}`;
+      let invoiceNo: string;
+      await client.query('SAVEPOINT sp_invoice');
+      try {
+        const invoiceNoResult = await client.query(
+          'SELECT next_number($1, $2, $3) AS invoice_no',
+          [data.organization_id, data.facility_id, 'INVOICE']
+        );
+        invoiceNo = invoiceNoResult.rows[0]?.invoice_no || `INV-${Date.now()}`;
+        await client.query('RELEASE SAVEPOINT sp_invoice');
+      } catch (seqErr: any) {
+        await client.query('ROLLBACK TO SAVEPOINT sp_invoice');
+        // Ensure an organization-level sequence row exists, then retry.
+        await client.query(
+          `INSERT INTO number_sequences (
+             organization_id, facility_id, seq_key, prefix, suffix, include_year, padding, current_value, reset_policy, last_reset_on
+           ) VALUES ($1, NULL, 'INVOICE', 'INV-', '', true, 4, 0, 'yearly', CURRENT_DATE)
+           ON CONFLICT (organization_id, COALESCE(facility_id, '00000000-0000-0000-0000-000000000000'::uuid), seq_key)
+           DO NOTHING`,
+          [data.organization_id]
+        );
+        const invoiceNoResult = await client.query(
+          'SELECT next_number($1, $2, $3) AS invoice_no',
+          [data.organization_id, null, 'INVOICE']
+        );
+        invoiceNo = invoiceNoResult.rows[0]?.invoice_no || `INV-${Date.now()}`;
+        await client.query('RELEASE SAVEPOINT sp_invoice');
+      }
       
       const invoiceQuery = `
         INSERT INTO invoices (
@@ -91,13 +121,40 @@ export class BillingRepository {
       }
 
       if (data.payment_mode && data.total_amount > 0) {
+        // Issue the invoice before allocating a payment (trigger forbids payment allocations on draft invoices).
+        await client.query(
+          `UPDATE invoices SET status = 'issued', issued_at = NOW() WHERE id = $1`,
+          [invoice.id]
+        );
+
         const methodId = await this.resolvePaymentMethodId(data, client);
 
-        const receiptNoResult = await client.query(
-          'SELECT next_number($1, $2, $3) AS receipt_no',
-          [data.organization_id, data.facility_id, 'RECEIPT']
-        );
-        const receiptNo = receiptNoResult.rows[0]?.receipt_no || `REC-${Date.now()}`;
+        let receiptNo: string;
+        await client.query('SAVEPOINT sp_receipt');
+        try {
+          const receiptNoResult = await client.query(
+            'SELECT next_number($1, $2, $3) AS receipt_no',
+            [data.organization_id, data.facility_id, 'RECEIPT']
+          );
+          receiptNo = receiptNoResult.rows[0]?.receipt_no || `REC-${Date.now()}`;
+          await client.query('RELEASE SAVEPOINT sp_receipt');
+        } catch (seqErr: any) {
+          await client.query('ROLLBACK TO SAVEPOINT sp_receipt');
+          await client.query(
+            `INSERT INTO number_sequences (
+               organization_id, facility_id, seq_key, prefix, suffix, include_year, padding, current_value, reset_policy, last_reset_on
+             ) VALUES ($1, NULL, 'RECEIPT', 'REC-', '', true, 4, 0, 'yearly', CURRENT_DATE)
+             ON CONFLICT (organization_id, COALESCE(facility_id, '00000000-0000-0000-0000-000000000000'::uuid), seq_key)
+             DO NOTHING`,
+            [data.organization_id]
+          );
+          const receiptNoResult = await client.query(
+            'SELECT next_number($1, $2, $3) AS receipt_no',
+            [data.organization_id, null, 'RECEIPT']
+          );
+          receiptNo = receiptNoResult.rows[0]?.receipt_no || `REC-${Date.now()}`;
+          await client.query('RELEASE SAVEPOINT sp_receipt');
+        }
         const paymentQuery = `
           INSERT INTO payments (
             organization_id, facility_id, receipt_no, patient_id, direction, payment_type, payment_method_id,
@@ -179,33 +236,58 @@ export class BillingRepository {
   }
 
   async addCharge(data: any) {
+    // Derive patient_id from the encounter when the caller (e.g. IPD billing UI)
+    // does not send it explicitly.
+    let patientId = data.patient_id;
+    if (!patientId && data.encounter_id) {
+      try {
+        const encounterRes = await db.query(
+          `SELECT patient_id FROM encounters WHERE id = $1 LIMIT 1`,
+          [data.encounter_id]
+        );
+        patientId = encounterRes.rows[0]?.patient_id;
+      } catch {
+        patientId = null;
+      }
+    }
+
+    const description =
+      data.item_name || data.description || data.itemName || 'Charge';
+
+    const qty = Number(data.quantity) || 1;
+    const price = Number(data.rate || data.unit_price || data.price || 0);
+    const totalAmount = Number(data.total_amount || data.amount || 0) || qty * price;
+    const gross = price * qty;
+    const discPct = Number(data.discount_percent || 0);
+    const discAmt = Number(data.discount_amount || 0);
+    const taxable = totalAmount - discAmt;
+    const taxAmt = Number(data.tax_amount || 0);
+    const net = taxable + taxAmt;
+
+    const customFields = data.custom_fields || {};
+    if (data.item_category || data.itemCategory) {
+      customFields.item_category = data.item_category || data.itemCategory;
+    }
+
     const query = `
       INSERT INTO charges (
         organization_id, facility_id, patient_id, encounter_id,
         service_id, item_id, description, department_id,
         quantity, unit_price, discount_percent, discount_amount,
-        taxable_amount, tax_amount, net_amount, status, created_by
+        taxable_amount, tax_amount, net_amount, status, created_by, custom_fields
       ) VALUES (
         $1, $2, $3, $4,
         $5, $6, $7, $8,
         $9, $10, $11, $12,
-        $13, $14, $15, 'billable', $16
+        $13, $14, $15, 'billable', $16, $17
       ) RETURNING *;
     `;
-    const qty = data.quantity || 1;
-    const price = data.unit_price;
-    const gross = qty * price;
-    const discPct = data.discount_percent || 0;
-    const discAmt = data.discount_amount || (gross * discPct / 100);
-    const taxable = gross - discAmt;
-    const taxAmt = data.tax_amount || 0;
-    const net = taxable + taxAmt;
-
     const res = await db.query(query, [
-      data.organization_id, data.facility_id, data.patient_id, data.encounter_id,
-      data.service_id || null, data.item_id || null, data.description, data.department_id || null,
+      data.organization_id, data.facility_id, patientId, data.encounter_id,
+      data.service_id || null, data.item_id || null, description, data.department_id || null,
       qty, price, discPct, discAmt,
-      taxable, taxAmt, net, data.user_id
+      taxable, taxAmt, net || totalAmount, data.user_id,
+      JSON.stringify(customFields)
     ]);
     return res.rows[0];
   }
@@ -223,7 +305,11 @@ export class BillingRepository {
 
   async getRunningBill(encounterId: string, facilityId: string) {
     const query = `
-      SELECT c.*, s.name as service_name, i.name as item_name
+      SELECT c.*, s.name as service_name,
+             COALESCE(i.name, c.description) as item_name,
+             c.unit_price as rate,
+             c.net_amount as total_amount,
+             c.custom_fields->>'item_category' as item_category
       FROM charges c
       LEFT JOIN services s ON c.service_id = s.id
       LEFT JOIN items i ON c.item_id = i.id
@@ -248,22 +334,25 @@ export class BillingRepository {
         direction, payment_type, payment_method_id, amount, status, received_by
       ) VALUES (
         $1, $2, $3, $4, $5,
-        'in', 'advance', $6, $7, 'completed', $8
+        'in', $6, $7, $8, 'completed', $9
       ) RETURNING *;
     `;
     const res = await db.query(query, [
       data.organization_id, data.facility_id, receiptNo, data.patient_id, data.encounter_id,
-      methodId, data.amount, data.user_id
+      data.payment_type || 'Payment', methodId, data.amount, data.user_id
     ]);
     return res.rows[0];
   }
 
   async getEncounterPayments(encounterId: string, facilityId: string) {
     const query = `
-      SELECT p.*, pm.name as payment_method_name
+      SELECT p.*, pm.name as payment_method_name,
+             pm.name as payment_method,
+             p.paid_at as payment_date,
+             p.notes as notes
       FROM payments p
       LEFT JOIN payment_methods pm ON p.payment_method_id = pm.id
-      WHERE p.encounter_id = $1 AND p.facility_id = $2 AND p.payment_type = 'advance'
+      WHERE p.encounter_id = $1 AND p.facility_id = $2
       ORDER BY p.paid_at DESC
     `;
     const res = await db.query(query, [encounterId, facilityId]);

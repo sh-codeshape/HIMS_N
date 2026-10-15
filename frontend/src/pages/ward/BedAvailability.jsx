@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import Icon from "../../components/common/Icon.jsx";
+import ipdService from "../../api/services/ipdService";
 import "./BedAvailability.css";
 
 export default function BedAvailability() {
@@ -17,6 +18,42 @@ export default function BedAvailability() {
     gender: "All",
     status: "All",
   });
+
+  // Real ward/room data for the filter dropdowns
+  const [wards, setWards] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [filterLoading, setFilterLoading] = useState(true);
+
+  useEffect(() => {
+    const loadFilters = async () => {
+      try {
+        const [wardsRes, roomsRes] = await Promise.all([
+          ipdService.getBedWards(),
+          ipdService.getBedRooms(),
+        ]);
+        setWards(Array.isArray(wardsRes) ? wardsRes : []);
+        setRooms(Array.isArray(roomsRes) ? roomsRes : []);
+      } catch (err) {
+        console.error("Failed to load ward/room filters:", err);
+      } finally {
+        setFilterLoading(false);
+      }
+    };
+
+    loadFilters();
+  }, []);
+
+  // Derived filter options from real data
+  const floorOptions = ["All Floors", ...Array.from(new Set(wards.map((w) => w.floor).filter(Boolean))).sort()];
+  const wardOptions = ["All Wards", ...wards.map((w) => w.name)];
+  const roomTypeOptions = [
+    "All Types",
+    ...Array.from(new Set(wards.map((w) => w.bed_category_name).filter(Boolean))).sort(),
+  ];
+  const bedTypeOptions = [
+    "All",
+    ...Array.from(new Set(wards.map((w) => w.ward_type).filter(Boolean))).sort(),
+  ];
 
   // Overall Stat Cards
   // These values are intentionally realistic so the page shows available beds.
@@ -286,9 +323,11 @@ export default function BedAvailability() {
               value={filters.floor}
               onChange={(e) => setFilters({ ...filters, floor: e.target.value })}
             >
-              <option value="All Floors">All Floors</option>
-              <option value="Ground Floor">Ground Floor</option>
-              <option value="First Floor">First Floor</option>
+              {floorOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -299,9 +338,11 @@ export default function BedAvailability() {
               value={filters.ward}
               onChange={(e) => setFilters({ ...filters, ward: e.target.value })}
             >
-              <option value="All Wards">All Wards</option>
-              <option value="General Ward">General Ward</option>
-              <option value="ICU Ward">ICU Ward</option>
+              {wardOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -312,9 +353,11 @@ export default function BedAvailability() {
               value={filters.roomType}
               onChange={(e) => setFilters({ ...filters, roomType: e.target.value })}
             >
-              <option value="All Types">All Types</option>
-              <option value="General Ward">General Ward</option>
-              <option value="Private">Private</option>
+              {roomTypeOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -325,9 +368,11 @@ export default function BedAvailability() {
               value={filters.bedType}
               onChange={(e) => setFilters({ ...filters, bedType: e.target.value })}
             >
-              <option value="All">All</option>
-              <option value="General">General</option>
-              <option value="ICU">ICU</option>
+              {bedTypeOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
             </select>
           </div>
 

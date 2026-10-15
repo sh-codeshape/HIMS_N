@@ -9,6 +9,16 @@ export class StaffController {
     this.service = new StaffService();
   }
 
+  getDepartments = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const organizationId = req.user?.organizationId as string;
+      const departments = await this.service.getDepartments(organizationId);
+      sendSuccess(res, departments, 'Departments retrieved successfully', 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getDoctors = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const facilityId = (req.user?.facilityId || req.query.facilityId || '00000000-0000-0000-0000-000000000000') as string;
