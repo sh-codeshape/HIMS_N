@@ -24,7 +24,7 @@ export default function IPDReports() {
       ]);
 
       setStats(reportStats);
-      setRecentCensus(admissionsList || []);
+      setRecentCensus(Array.isArray(admissionsList) ? admissionsList : admissionsList?.rows ?? []);
     } catch (err) {
       console.error("Error loading IPD reports:", err);
       toast.error("Could not load real-time IPD analytics.");

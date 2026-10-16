@@ -141,8 +141,8 @@
 /* ── 2-COLUMN MAIN CONTENT LAYOUT ── */
 .ipd-main-layout-grid {
   display: grid;
-  grid-template-columns: 2.1fr 1fr;
-  gap: 20px;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
   align-items: start;
 }
 

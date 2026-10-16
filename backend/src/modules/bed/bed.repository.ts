@@ -7,6 +7,7 @@ export class BedRepository {
         b.*, 
         r.room_no as room_name, 
         w.name as ward_name, 
+        w.ward_type as ward_type,
         b.status as current_status,
         bc.name as category_name,
         bc.is_icu,

@@ -371,13 +371,21 @@ export class IpdRepository {
     }
   }
 
-  async getAdmissions(facilityId: string, search?: string, status?: string) {
+  async getAdmissions(facilityId: string, search?: string, status?: string, page = 1, limit = 50) {
     let query = `
       SELECT a.*, e.encounter_no, p.first_name, p.last_name, p.uhid, p.phone,
              p.gender, p.date_of_birth,
              COALESCE(curr_b.bed_no, last_b.bed_no) as bed_name,
              COALESCE(curr_w.name, last_w.name) as ward_name,
-             s.first_name as doctor_first_name, s.last_name as doctor_last_name
+             s.first_name as doctor_first_name, s.last_name as doctor_last_name,
+             COALESCE((
+               SELECT SUM(c.net_amount) FROM charges c
+               WHERE c.encounter_id = e.id AND c.status = 'billable'
+             ), 0) as total_charges,
+             COALESCE((
+               SELECT SUM(p.amount) FROM payments p
+               WHERE p.encounter_id = e.id AND p.status = 'completed'
+             ), 0) as total_payments
       FROM admissions a
       JOIN encounters e ON a.encounter_id = e.id
       JOIN patients p ON e.patient_id = p.id
@@ -399,29 +407,49 @@ export class IpdRepository {
       WHERE a.facility_id = $1
     `;
     const params: any[] = [facilityId];
+    let paramIdx = 1;
 
     if (status && status !== 'all') {
+      paramIdx++;
       params.push(status);
-      query += ` AND a.status = $${params.length}`;
+      query += ` AND a.status = $${paramIdx}`;
     } else if (!status) {
-      query += ` AND a.status = 'admitted'`;
+      paramIdx++;
+      params.push('admitted');
+      query += ` AND a.status = $${paramIdx}`;
     }
 
     if (search) {
+      paramIdx++;
       params.push(`%${search}%`);
       query += ` AND (
-        p.first_name ILIKE $${params.length} OR
-        p.last_name ILIKE $${params.length} OR
-        p.uhid ILIKE $${params.length} OR
-        p.phone ILIKE $${params.length} OR
-        e.encounter_no ILIKE $${params.length} OR
-        a.admission_no ILIKE $${params.length}
+        p.first_name ILIKE $${paramIdx} OR
+        p.last_name ILIKE $${paramIdx} OR
+        p.uhid ILIKE $${paramIdx} OR
+        p.phone ILIKE $${paramIdx} OR
+        e.encounter_no ILIKE $${paramIdx} OR
+        a.admission_no ILIKE $${paramIdx}
       )`;
     }
 
-    query += ` ORDER BY a.admitted_at DESC;`;
+    query += ` ORDER BY a.admitted_at DESC`;
+
+    // Count query
+    const countQuery = `SELECT COUNT(*) FROM (${query.replace(/ORDER BY a\.admitted_at DESC/, '')}) AS sub`;
+    const countResult = await db.query(countQuery, params);
+    const totalCount = parseInt(countResult.rows[0]?.count ?? '0', 10);
+
+    // Pagination
+    const offset = (Math.max(1, page) - 1) * Math.max(1, limit);
+    paramIdx++;
+    params.push(limit);
+    query += ` LIMIT $${paramIdx}`;
+    paramIdx++;
+    params.push(offset);
+    query += ` OFFSET $${paramIdx}`;
+
     const result = await db.query(query, params);
-    return result.rows;
+    return { rows: result.rows, totalCount };
   }
 
   async dischargePatient(facilityId: string, admissionId: string, dischargeType: string, dischargeCondition?: string) {

@@ -99,6 +99,7 @@ export default function IPDAdmissionView() {
           id: b.id,
           bedNo: b.bed_no,
           ward: b.ward_name,
+          ward_type: b.ward_type,
           floor: b.room_name ? `Room ${b.room_name}` : "General",
           status: b.current_status,
         }));
@@ -339,6 +340,36 @@ export default function IPDAdmissionView() {
     { id: "b6", bedNo: "Bed-102-B", room: "Room 102", status: "Available" },
   ]);
 
+  // Map frontend ward type labels to backend ward_type values
+  const WARD_TYPE_MAP = {
+    "General Ward": "general",
+    "ICU": "icu",
+    "Private Room": "private",
+    "Semi-Private Room": "semi_private",
+  };
+
+  // Filter beds by selected ward type so the matrix updates when ward type changes
+  const filteredBeds = React.useMemo(() => {
+    if (!beds || beds.length === 0) return availableBedsGrid;
+    const targetType = WARD_TYPE_MAP[wardType];
+    if (!targetType) return beds;
+    return beds.filter((b) => {
+      const wt = (b.ward_type || "").toLowerCase();
+      const wn = (b.ward_name || "").toLowerCase();
+      return wt === targetType || wn === wardType.toLowerCase();
+    });
+  }, [beds, wardType]);
+
+  // Reset bed selection when ward type changes so the chosen bed stays valid
+  React.useEffect(() => {
+    if (filteredBeds.length > 0) {
+      const firstAvailable = filteredBeds.find((b) => normalizeBedStatus(b.status || b.current_status || "available") === "available");
+      setSelectedBed(firstAvailable ? firstAvailable.bedNo : filteredBeds[0].bedNo);
+    } else {
+      setSelectedBed("");
+    }
+  }, [wardType, filteredBeds]);
+
   // ── Card 5: Attendant Details ──
   const [attendantName, setAttendantName] = useState("Raj Kumar");
   const [relationship, setRelationship] = useState("Brother");
@@ -417,13 +448,14 @@ export default function IPDAdmissionView() {
         payerType = "government";
       }
 
-      // Build advance deposit from form fields
-      const advanceAmount = Number(registrationFee) + Number(bedAdvance || 0) + Number(otherCharges || 0);
-      const advanceDeposit = advanceAmount > 0
+      // Build payment from form fields. Record whatever amount is collected
+      // at admission — full or partial — as a payment against this encounter.
+      const paymentAmount = Number(registrationFee) + Number(bedAdvance || 0) + Number(otherCharges || 0);
+      const paymentPayload = paymentAmount > 0
         ? {
-            amount: advanceAmount,
+            amount: paymentAmount,
             payment_mode: paymentMode,
-            receipt_no: null, // backend will generate via number sequence if not provided
+            receipt_no: null,
           }
         : null;
 
@@ -450,7 +482,7 @@ export default function IPDAdmissionView() {
             attendant_phone: attendantMobile,
             payer_type: payerType,
             patient_coverage_id: null, // to be resolved post-admission via coverage lookup
-            advance_deposit: advanceDeposit
+            advance_deposit: paymentPayload
           });
         } catch (admitErr) {
           console.error('Backend admission failed:', admitErr);
@@ -609,12 +641,9 @@ export default function IPDAdmissionView() {
 
       {/* ── MAIN 2-COLUMN FORM LAYOUT ── */}
       <form onSubmit={handleConfirmAdmission}>
-        <div className="ipd-main-layout-grid">
-          
-          {/* ── LEFT COLUMN (~68% Width) ── */}
-          <div className="ipd-column-left">
-            
-            {/* CARD 1: ADMISSION DETAILS */}
+<div className="ipd-main-layout-grid">
+
+{/* CARD 1: ADMISSION DETAILS */}
             <div className="ipd-sec-card">
               <div className="ipd-sec-card-header">
                 <div className="ipd-step-icon-num">1</div>
@@ -665,7 +694,11 @@ export default function IPDAdmissionView() {
 
             
 
-            {/* CARD 2: DEPARTMENT & DOCTOR */}
+            
+
+
+
+{/* CARD 2: DEPARTMENT & DOCTOR */}
              <div className="ipd-sec-card">
                <div className="ipd-sec-card-header">
                  <div className="ipd-step-icon-num">2</div>
@@ -721,10 +754,14 @@ export default function IPDAdmissionView() {
                </div>
              </div>
 
-             {/* CARD 3: REASON FOR ADMISSION */}
+             
+
+
+
+{/* CARD 3: REASON FOR ADMISSION */}
             <div className="ipd-sec-card">
               <div className="ipd-sec-card-header">
-                <div className="ipd-step-icon-num">2</div>
+                <div className="ipd-step-icon-num">3</div>
                 <h3>Reason for Admission · भर्ती का कारण एवं विवरण</h3>
               </div>
               <div className="ipd-sec-card-body">
@@ -952,10 +989,42 @@ export default function IPDAdmissionView() {
               </div>
             </div>
 
-            {/* CARD 4: BED / ROOM ALLOCATION (WITH AVAILABLE BEDS MATRIX) */}
-            <div className="ipd-sec-card">
+            
+
+
+
+            {/* CARD 5: ATTENDANT DETAILS */}
+            <div className="ipd-sec-card card-attendant">
               <div className="ipd-sec-card-header">
-                <div className="ipd-step-icon-num">3</div>
+                <div className="ipd-step-icon-num">5</div>
+                <h3>Attendant Details <span className="font-normal text-slate-400 text-xs ml-2">साथी विवरण</span></h3>
+              </div>
+              <div className="ipd-sec-card-body">
+                <div className="ipd-field-group">
+                  <label className="ipd-label">Attendant Name <span className="req">*</span></label>
+                  <input type="text" className="ipd-input" value={attendantName} onChange={(e) => setAttendantName(e.target.value)} />
+                </div>
+                <div className="ipd-field-group">
+                  <label className="ipd-label">Relationship <span className="req">*</span></label>
+                  <input type="text" className="ipd-input" value={relationship} onChange={(e) => setRelationship(e.target.value)} />
+                </div>
+                <div className="ipd-field-group">
+                  <label className="ipd-label">Attendant Mobile <span className="req">*</span></label>
+                  <input type="tel" className="ipd-input" value={attendantMobile} onChange={(e) => setAttendantMobile(e.target.value)} />
+                </div>
+                <div className="ipd-field-group">
+                  <label className="ipd-label">Alternate Mobile</label>
+                  <input type="tel" className="ipd-input" value={alternateMobile} onChange={(e) => setAlternateMobile(e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+
+
+{/* CARD 4: BED / ROOM ALLOCATION (WITH AVAILABLE BEDS MATRIX) */}
+            <div className="ipd-sec-card md:col-span-2">
+              <div className="ipd-sec-card-header">
+                <div className="ipd-step-icon-num">4</div>
                 <h3>Bed / Room Allocation</h3>
               </div>
               <div className="ipd-sec-card-body">
@@ -996,7 +1065,7 @@ export default function IPDAdmissionView() {
                   </div>
 
                   <div className="bed-grid-cards">
-                    {(beds.length > 0 ? beds : availableBedsGrid).map((b) => {
+                    {(filteredBeds.length > 0 ? filteredBeds : availableBedsGrid).map((b) => {
                       const normalizedStatus = normalizeBedStatus(b.status || b.current_status || "available");
                       const displayStatus = normalizedStatus === "available" ? "Available" : normalizedStatus === "occupied" ? "Occupied" : normalizedStatus === "reserved" ? "Reserved" : normalizedStatus === "blocked" ? "Blocked" : normalizedStatus === "maintenance" ? "Maintenance" : "Cleaning";
                       const isAvailable = normalizedStatus === "available";
@@ -1034,8 +1103,66 @@ export default function IPDAdmissionView() {
           <div className="ipd-column-right">
             
 
-            {/* CARD 7: ADDITIONAL INFORMATION (OPTIONAL) */}
-            <div className="ipd-sec-card">
+            
+
+
+
+            {/* CARD 6: ADVANCE & PAYMENT */}
+            <div className="ipd-sec-card card-advance">
+              <div className="ipd-sec-card-header">
+                <div className="ipd-step-icon-num">6</div>
+                <h3>Advance & Payment <span className="font-normal text-slate-400 text-xs ml-2">अग्रिम भुगतान</span></h3>
+              </div>
+              <div className="ipd-sec-card-body">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="ipd-field-group">
+                    <label className="ipd-label">Registration Fee</label>
+                    <input type="number" className="ipd-input" value={registrationFee} readOnly />
+                  </div>
+                  <div className="ipd-field-group">
+                    <label className="ipd-label">Bed Advance</label>
+                    <input type="number" className="ipd-input" value={bedAdvance} onChange={(e) => setBedAdvance(e.target.value)} />
+                  </div>
+                  <div className="ipd-field-group">
+                    <label className="ipd-label">Other Charges</label>
+                    <input type="number" className="ipd-input" value={otherCharges} onChange={(e) => setOtherCharges(e.target.value)} />
+                  </div>
+                  <div className="ipd-field-group">
+                    <label className="ipd-label">Payment Mode</label>
+                    <select className="ipd-select" value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)}>
+                      <option value="Cash">Cash</option>
+                      <option value="Card">Card</option>
+                      <option value="UPI">UPI</option>
+                      <option value="Insurance">Insurance</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="total-advance-box">
+                  <div className="total-advance-header">
+                    <span className="dot"></span>
+                    <span className="lbl">Total Advance Payable</span>
+                  </div>
+                  <div className="amt">₹ {totalAdvance.toFixed(2)}</div>
+                </div>
+                <div className="ipd-field-group mt-3">
+                  <label className="ipd-label">Payment Status</label>
+                  <select className="ipd-select" value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)}>
+                    <option value="Paid">Paid</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Partial">Partial</option>
+                  </select>
+                </div>
+                <div className="ipd-field-group">
+                  <label className="ipd-label">Amount Received</label>
+                  <input type="number" className="ipd-input" value={amountReceived} onChange={(e) => setAmountReceived(e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+
+
+{/* CARD 7: ADDITIONAL INFORMATION (OPTIONAL) */}
+            <div className="ipd-sec-card card-additional">
               <div className="ipd-sec-card-header">
                 <div className="ipd-step-icon-num">7</div>
                 <h3>Additional Information <span className="font-normal text-slate-400 text-xs">(Optional)</span></h3>
@@ -1066,8 +1193,12 @@ export default function IPDAdmissionView() {
 
            
 
-            {/* BOTTOM ACTION BUTTONS */}
-            <div className="ipd-bottom-actions-row">
+            
+
+
+
+{/* BOTTOM ACTION BUTTONS */}
+            <div className="ipd-bottom-actions-row md:col-span-2 justify-center">
               <button
                 type="button"
                 className="btn-ipd-cancel"
@@ -1087,10 +1218,12 @@ export default function IPDAdmissionView() {
               </button>
             </div>
 
-          </div>
+
+        
+
 
         </div>
-      </form>
+</form>
 
       {/* ── PRINTABLE IPD ADMISSION SLIP MODAL ── */}
       {showPrintModal && ipdSlipData && (

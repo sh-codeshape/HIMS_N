@@ -6,6 +6,7 @@ import { useAuth } from "../../auth/AuthContext.jsx";
 import Icon from "../../components/common/Icon.jsx";
 import Input from "../../components/common/Input.jsx";
 import Button from "../../components/common/Button.jsx";
+import { required, email, validateField } from "../../utils/validation.js";
 import "./Login.css";
 
 export default function Login() {
@@ -15,10 +16,33 @@ export default function Login() {
     username: LOGIN_ROLE_OPTIONS[0]?.email || "admin@narayanhospital.com",
     password: "password123",
   });
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const setTouchedField = (name) => setTouched((p) => ({ ...p, [name]: true }));
+  const clearFieldError = (name) => setErrors((p) => { const next = { ...p }; delete next[name]; return next; });
+
+  const validateLoginField = (name, value) => {
+    let result = { isValid: true, message: null };
+    if (name === "username") {
+      result = validateField(value, [(v) => required(v, "Username / Email")]);
+      // If it looks like an email (contains @), validate the email format too.
+      if (result.isValid && value.includes("@")) {
+        result = email(value);
+      }
+    } else if (name === "password") {
+      result = validateField(value, [(v) => required(v, "Password")]);
+    }
+    if (result.isValid) clearFieldError(name);
+    else setErrors((p) => ({ ...p, [name]: result.message }));
+    return result.isValid;
+  };
+
+  const fieldError = (name) => (touched[name] ? errors[name] : null);
 
   const handleSelectRole = (roleOption) => {
     setSelectedRole(roleOption.role);
@@ -26,9 +50,32 @@ export default function Login() {
       username: roleOption.email || `${roleOption.role}@narayanhospital.com`,
       password: "password123",
     });
+    setErrors({});
+    setTouched({});
   };
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
+    clearFieldError(name);
+    if (touched[name]) validateLoginField(name, value);
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouchedField(name);
+    validateLoginField(name, value);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setTouchedField("username");
+    setTouchedField("password");
+    const usernameValid = validateLoginField("username", form.username);
+    const passwordValid = validateLoginField("password", form.password);
+    if (!usernameValid || !passwordValid) return;
+    executeLogin(selectedRole || ROLES.ADMIN, form.username, form.password);
+  };
 
   const executeLogin = async (role, username, password) => {
     setSubmitting(true);
@@ -49,11 +96,6 @@ export default function Login() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    executeLogin(selectedRole || ROLES.ADMIN, form.username, form.password);
   };
 
   const currentRoleConfig = LOGIN_ROLE_OPTIONS.find((r) => r.role === selectedRole) || LOGIN_ROLE_OPTIONS[0];
@@ -112,9 +154,17 @@ export default function Login() {
                   name="username"
                   value={form.username}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   placeholder="e.g. admin@narayanhospital.com"
                   required
+                  error={fieldError("username")}
                 />
+                {fieldError("username") && (
+                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
+                    <span className="w-[10px] h-[10px] rounded-full bg-rose-600 flex shrink-0"></span>
+                    {fieldError("username")}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -125,9 +175,17 @@ export default function Login() {
                     name="password"
                     value={form.password}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     placeholder="Enter your password"
                     required
+                    error={fieldError("password")}
                   />
+                  {fieldError("password") && (
+                    <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
+                      <span className="w-[10px] h-[10px] rounded-full bg-rose-600 flex shrink-0"></span>
+                      {fieldError("password")}
+                    </p>
+                  )}
                   <button
                     type="button"
                     aria-label={showPassword ? "Hide password" : "Show password"}

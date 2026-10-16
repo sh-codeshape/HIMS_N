@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import ipdService from "../../api/services/ipdService";
 import billingService from "../../api/services/billingService";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 import Icon from "../../components/common/Icon.jsx";
 import "./IPDBilling.css";
 
+const PAGE_SIZE = 10;
 
 const CATEGORY_SERVICE_LIST = {
   "Room Charges": [
@@ -14,7 +16,7 @@ const CATEGORY_SERVICE_LIST = {
     { name: "ICU Bed Charge (Per Day)", rate: 5500 },
   ],
   Consultation: [
-    { name: "Doctor Visit (Dr. Amit Sharma)", rate: 800 },
+    { name: "Doctor Visit", rate: 800 },
     { name: "Senior Consultant Round", rate: 1200 },
     { name: "Emergency Casualty Visit", rate: 1500 },
   ],
@@ -45,168 +47,188 @@ const CATEGORY_SERVICE_LIST = {
   ],
 };
 
+const formatDate = (d) => {
+  if (!d) return "—";
+  return new Date(d).toLocaleDateString("en-GB").replace(/\//g, "-");
+};
+
+const daysBetween = (start) => {
+  if (!start) return 0;
+  return Math.max(0, Math.ceil((Date.now() - new Date(start).getTime()) / (1000 * 60 * 60 * 24)));
+};
+
 export default function IPDBilling() {
-  // Navigation Tabs State
-  const [activeTab, setActiveTab] = useState("Patient Details");
+  const navigate = useNavigate();
 
-  // Search & Selected Patient State
+  // ── View mode: 'list' (patient list) or 'detail' (single patient billing) ──
+  const [viewMode, setViewMode] = useState("list");
+
+  // ── Patient list state ──
+  const [patients, setPatients] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
-  const [suggestions, setSuggestions] = useState([]);
-  const [patient, setPatient] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("admitted"); // admitted | discharged | all
+  const [listLoading, setListLoading] = useState(false);
 
-  // Service Selection Form State
+  // ── Selected patient detail state ──
+  const [patient, setPatient] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  // ── Service / Charge Form (detail view) ──
   const [activeCategory, setActiveCategory] = useState("Room Charges");
   const [selectedServiceName, setSelectedServiceName] = useState("General Ward (Per Day)");
   const [rateInput, setRateInput] = useState(1500);
   const [qtyInput, setQtyInput] = useState(1);
-
-  // Remarks State
   const [remarks, setRemarks] = useState("");
 
-  // Modal Dialog States
+  // ── Payment Modal ──
   const [showReceivePayModal, setShowReceivePayModal] = useState(false);
   const [showChangeBedModal, setShowChangeBedModal] = useState(false);
   const [showPrintBillModal, setShowPrintBillModal] = useState(false);
-  const [showAdmissionSlipModal, setShowAdmissionSlipModal] = useState(false);
 
-  // Payment Form State in Modal
   const [paymentForm, setPaymentForm] = useState({
-    amount: "1000",
+    amount: "",
     mode: "Cash",
-    type: "Payment",
-    remarks: "Advance payment",
+    type: "invoice_payment",
+    remarks: "Running bill payment",
   });
 
-  // Bed Form State
   const [bedForm, setBedForm] = useState({
     ward: "General Ward",
-    roomNo: "GW-102",
-    bedNo: "B-12",
+    roomNo: "",
+    bedNo: "",
   });
 
-  // Helper to map backend patient to IPD display format
-  const mapBackendPatientToIPD = (bp) => ({
-    id: bp.id,
-    encounterId: bp.encounter_id || bp.id,
-    admissionNo: bp.admission_number || (bp.id ? `IPD-${bp.id.slice(-6).toUpperCase()}` : "IPD20260929001"),
-    uhid: bp.uhid || bp.id || "N/A",
-    name: bp.patient_name || bp.name || `${bp.first_name || bp.firstName || ""} ${bp.last_name || bp.lastName || ""}`.trim() || "Unknown",
-    age: bp.age || 30,
-    gender: bp.gender || "Unknown",
-    mobile: bp.patient_mobile || bp.phone || bp.mobile || "N/A",
-    city: bp.city || bp.address || "Unknown",
-    bloodGroup: bp.blood_group || bp.bloodGroup || "O+",
-    allergies: bp.allergies || "NKA",
-    history: bp.history || "None",
-    admissionDate: bp.admission_date ? new Date(bp.admission_date).toLocaleDateString("en-GB").replace(/\//g, "-") + " 10:00 AM" : new Date().toLocaleDateString("en-GB").replace(/\//g, "-") + " 10:00 AM",
-    department: bp.department_name || bp.department || "General Medicine",
-    consultant: bp.doctor_name || bp.consultant || "Dr. Assigned",
-    ward: bp.ward_name || bp.ward || "General Ward",
-    roomNo: bp.room_number || bp.roomNo || "GW-102",
-    bedNo: bp.bed_number || bp.bedNo || "B-12",
-    expectedDischarge: "N/A",
-    status: bp.status || "Admitted",
-    admissionType: bp.admission_type || "Routine",
-    ratePlan: "General Ward (₹ 1,500 / day)",
-    initialDeposit: 2000,
-    avatar: bp.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-    historyPayments: [],
-    items: [],
-  });
+  // ── Fetch patient list (paginated) ──
+  const fetchPatientList = useCallback(async () => {
+    setListLoading(true);
+    try {
+      const res = await ipdService.getAdmissions({
+        search: searchTerm.trim() || undefined,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        page,
+        limit: PAGE_SIZE,
+      });
+      const data = res?.data ?? res ?? {};
+      const rows = Array.isArray(data) ? data : data.rows ?? [];
+      const count = Array.isArray(data) ? rows.length : (data.totalCount ?? data.count ?? rows.length);
+      setPatients(rows.map(mapListItem));
+      setTotalCount(count);
+    } catch (err) {
+      console.error("Failed to load patient list", err);
+      toast.error("Failed to load patient list");
+    } finally {
+      setListLoading(false);
+    }
+  }, [searchTerm, statusFilter, page]);
 
-  const fetchPatientBilling = async (p) => {
+  useEffect(() => {
+    fetchPatientList();
+  }, [fetchPatientList]);
+
+  // ── Map backend admission → list item ──
+  const mapListItem = (bp) => {
+    const first = bp.first_name || bp.firstName || "";
+    const last = bp.last_name || bp.lastName || "";
+    const name = bp.patient_name || bp.name || `${first} ${last}`.trim() || "Unknown Patient";
+    const admittedAt = bp.admitted_at || bp.admission_date;
+    return {
+      id: bp.id,
+      admissionId: bp.id,
+      encounterId: bp.encounter_id || bp.id,
+      admissionNo: bp.admission_no || bp.encounter_no || `IPD-${bp.id?.slice(-6).toUpperCase()}`,
+      uhid: bp.uhid || bp.id || "N/A",
+      name,
+      age: bp.age ?? (bp.date_of_birth ? Math.floor((Date.now() - new Date(bp.date_of_birth).getTime()) / 3.15576e+10) : 0),
+      gender: bp.gender || "Unknown",
+      mobile: bp.phone || bp.patient_mobile || bp.mobile || "N/A",
+      ward: bp.ward_name || bp.ward || "—",
+      bedNo: bp.bed_name || bp.bed_no || bp.bedNo || "—",
+      doctor:
+        bp.doctor_name ||
+        `${bp.doctor_first_name || ""} ${bp.doctor_last_name || ""}`.trim() ||
+        "Dr. Assigned",
+      admissionDate: formatDate(admittedAt),
+      daysStayed: daysBetween(admittedAt),
+      status: bp.status || "Admitted",
+    };
+  };
+
+  // ── Select patient → load detail view ──
+  const handleSelectPatient = async (p) => {
+    setPatient({ ...p, items: [], historyPayments: [] });
+    setViewMode("detail");
+    setBedForm({ ward: p.ward, roomNo: "", bedNo: p.bedNo });
+    await fetchPatientBilling(p);
+  };
+
+  // ── Fetch billing detail for selected patient ──
+  const fetchPatientBilling = useCallback(async (p) => {
+    if (!p) return;
+    setDetailLoading(true);
     try {
       const encounterId = p.encounterId || p.id;
       const [itemsData, paymentsData] = await Promise.all([
         billingService.getRunningBill(encounterId),
-        billingService.getEncounterPayments(encounterId)
+        billingService.getEncounterPayments(encounterId),
       ]);
-      
-      const mappedItems = itemsData.map(i => ({ 
+
+      const mappedItems = (itemsData || []).map((i) => ({
         id: i.id,
         date: new Date(i.created_at || new Date()).toLocaleDateString("en-GB").replace(/\//g, "-"),
-        category: i.item_category, 
-        name: i.item_name, 
-        qty: i.quantity, 
-        rate: Number(i.rate), 
-        amount: Number(i.total_amount),
-        selected: false
+        category: i.item_category || i.custom_fields?.item_category || "Others",
+        name: i.item_name || i.description || "Charge",
+        qty: Number(i.quantity) || 1,
+        rate: Number(i.rate || i.unit_price || 0),
+        amount: Number(i.total_amount || i.net_amount || 0),
+        selected: false,
       }));
-      
-      const mappedPayments = paymentsData.map(pay => ({ 
+
+      const mappedPayments = (paymentsData || []).map((pay) => ({
         id: pay.id,
-        date: new Date(pay.payment_date).toLocaleDateString("en-GB").replace(/\//g, "-"), 
-        amount: Number(pay.amount), 
-        mode: pay.payment_method, 
-        type: pay.payment_type, 
-        remarks: pay.notes 
+        date: new Date(pay.payment_date || pay.paid_at || new Date()).toLocaleDateString("en-GB").replace(/\//g, "-"),
+        amount: Number(pay.amount) || 0,
+        mode: pay.payment_method || pay.payment_method_name || "Cash",
+        type: pay.payment_type || "Payment",
+        remarks: pay.notes || "",
       }));
 
       setPatient((prev) => ({
-        ...p,
+        ...prev,
         items: mappedItems,
-        historyPayments: mappedPayments
+        historyPayments: mappedPayments,
       }));
     } catch (err) {
       console.error("Failed to load billing data", err);
       toast.error("Failed to load billing details");
-      setPatient(p);
+    } finally {
+      setDetailLoading(false);
     }
+  }, []);
+
+  // ── Search ──
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setPage(1);
   };
 
-  // Handle Search Change
-  const handleSearchChange = async (e) => {
-    const query = e.target.value;
-    setSearchTerm(query);
-    if (query.trim().length > 0) {
-      try {
-        const results = await ipdService.getAdmissions({ search: query.trim() });
-        const mappedResults = results.map(mapBackendPatientToIPD);
-        setSuggestions(mappedResults);
-      } catch (err) {
-        console.error("Search failed", err);
-      }
-    } else {
-      setSuggestions([]);
-    }
-  };
-
-  const handleSelectPatient = async (p) => {
-    setPatient(p); // Set patient immediately so UI updates
-    setSearchTerm(p.admissionNo);
-    setSuggestions([]);
-    setBedForm({ ward: p.ward, roomNo: p.roomNo, bedNo: p.bedNo });
-    await fetchPatientBilling(p);
-    toast.success(`Loaded IPD record for ${p.name}`);
-  };
-
-  const handleSearchSubmit = async (e) => {
-    if (e) e.preventDefault();
-    const query = searchTerm.trim();
-    if (!query) {
-      setPatient(null);
-      return;
-    }
-    try {
-      const results = await ipdService.getAdmissions({ search: query });
-      if (results && results.length > 0) {
-        handleSelectPatient(mapBackendPatientToIPD(results[0]));
-      } else {
-        toast.error("No IPD patient found with provided details.");
-      }
-    } catch (err) {
-      console.error("Search submit failed", err);
-      toast.error("Failed to search patients.");
-    }
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    setPage(1);
+    fetchPatientList();
   };
 
   const handleClearSearch = () => {
     setSearchTerm("");
-    setSuggestions([]);
-    setPatient(null);
+    setPage(1);
+    fetchPatientList();
   };
 
-  // Category Pill Selection
+  // ── Pagination ──
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  // ── Category / Service ──
   const handleCategoryClick = (cat) => {
     setActiveCategory(cat);
     const services = CATEGORY_SERVICE_LIST[cat] || [];
@@ -216,185 +238,118 @@ export default function IPDBilling() {
     }
   };
 
-  // Service Select Change
   const handleServiceChange = (e) => {
     const sName = e.target.value;
     setSelectedServiceName(sName);
     const services = CATEGORY_SERVICE_LIST[activeCategory] || [];
     const found = services.find((s) => s.name === sName);
-    if (found) {
-      setRateInput(found.rate);
-    }
+    if (found) setRateInput(found.rate);
   };
 
-  // Add Item to Bill Items Table
+  // ── Add charge ──
   const handleAddServiceItem = async () => {
-    if (!patient) {
-      toast.error("Please search and select a patient first.");
-      return;
-    }
+    if (!patient) return;
     const rate = Number(rateInput) || 0;
     const qty = Number(qtyInput) || 1;
     const amount = rate * qty;
-    
     try {
-        const encounterId = patient.encounterId || patient.id;
-        await billingService.addCharge({
-            encounter_id: encounterId,
-            item_name: selectedServiceName,
-            item_category: activeCategory === "Room Charges" ? "Room" : activeCategory,
-            quantity: qty,
-            rate: rate,
-            total_amount: amount
-        });
-        await fetchPatientBilling(patient); // Re-fetch billing data
-        toast.success(`Added ${selectedServiceName} to IPD Bill.`);
-    } catch(err) {
-        console.error("Failed to add charge", err);
-        toast.error("Failed to add charge.");
+      await billingService.addCharge({
+        encounter_id: patient.encounterId || patient.id,
+        item_name: selectedServiceName,
+        item_category: activeCategory === "Room Charges" ? "Room" : activeCategory,
+        quantity: qty,
+        rate,
+        total_amount: amount,
+      });
+      await fetchPatientBilling(patient);
+      setQtyInput(1);
+      toast.success(`Added ${selectedServiceName}.`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to add charge.");
     }
   };
 
-  // Remove Individual Bill Item
   const handleRemoveItem = async (id) => {
     if (!patient) return;
     try {
-       await billingService.removeCharge(id, { modified_by: 'system' });
-       await fetchPatientBilling(patient);
-       toast.success("Charge removed.");
-    } catch(err) {
-       console.error("Failed to remove charge", err);
-       toast.error("Failed to remove charge.");
+      await billingService.removeCharge(id, { modified_by: "system" });
+      await fetchPatientBilling(patient);
+      toast.success("Charge removed.");
+    } catch (err) {
+      toast.error("Failed to remove charge.");
     }
   };
 
-  // Toggle Item Checkbox
   const handleToggleSelectItem = (id) => {
     if (!patient) return;
     setPatient((prev) => ({
       ...prev,
-      items: prev.items.map((item) =>
-        item.id === id ? { ...item, selected: !item.selected } : item
-      ),
+      items: prev.items.map((i) => (i.id === id ? { ...i, selected: !i.selected } : i)),
     }));
   };
 
-  // Remove Selected Checked Items
   const handleRemoveSelected = async () => {
     if (!patient) return;
-    const selectedItems = patient.items.filter((i) => i.selected);
-    if (selectedItems.length === 0) {
-      toast.error("Please select items to remove.");
-      return;
-    }
-    
+    const sel = patient.items.filter((i) => i.selected);
+    if (sel.length === 0) return toast.error("Select items to remove.");
     try {
-        for (const item of selectedItems) {
-            await billingService.removeCharge(item.id, { modified_by: 'system' });
-        }
-        await fetchPatientBilling(patient);
-        toast.success(`Removed ${selectedItems.length} selected items.`);
-    } catch(err) {
-        console.error("Failed to remove some charges", err);
-        toast.error("Failed to remove some charges.");
+      for (const item of sel) await billingService.removeCharge(item.id, { modified_by: "system" });
+      await fetchPatientBilling(patient);
+      toast.success(`Removed ${sel.length} item(s).`);
+    } catch (err) {
+      toast.error("Failed to remove items.");
     }
   };
 
-  // Submit Receive Payment Modal
+  // ── Record payment ──
   const handleSavePayment = async (e) => {
     e.preventDefault();
     if (!patient) return;
     const amt = Number(paymentForm.amount) || 0;
-    if (amt <= 0) {
-      toast.error("Please enter a valid amount.");
-      return;
-    }
+    if (amt <= 0) return toast.error("Enter a valid amount.");
+    if (amt > pendingAmount) return toast.error(`Amount exceeds pending ₹${pendingAmount.toLocaleString("en-IN")}.`);
 
     try {
-        const encounterId = patient.encounterId || patient.id;
-        await billingService.recordAdvancePayment({
-            encounter_id: encounterId,
-            amount: amt,
-            payment_method: paymentForm.mode,
-            payment_type: paymentForm.type,
-            notes: paymentForm.remarks || "Payment deposit"
-        });
-        
-        await fetchPatientBilling(patient);
-        setShowReceivePayModal(false);
-        setPaymentForm({
-          amount: "1000",
-          mode: "Cash",
-          type: "Payment",
-          remarks: "Advance payment",
-        });
-        toast.success(`Payment of ₹ ${amt} recorded successfully!`, { icon: "💳" });
-    } catch(err) {
-        console.error("Failed to record payment", err);
-        toast.error("Failed to record payment.");
+      await billingService.recordAdvancePayment({
+        encounter_id: patient.encounterId || patient.id,
+        patient_id: patient.id,
+        amount: amt,
+        payment_mode: paymentForm.mode,
+        payment_type: paymentForm.type,
+        notes: paymentForm.remarks || "Running bill payment",
+      });
+      await fetchPatientBilling(patient);
+      setShowReceivePayModal(false);
+      setPaymentForm({ amount: "", mode: "Cash", type: "invoice_payment", remarks: "Running bill payment" });
+      toast.success(`₹${amt.toLocaleString("en-IN")} collected.`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to collect payment.");
     }
   };
 
-  // Submit Change Bed Modal
   const handleSaveBedChange = (e) => {
     e.preventDefault();
     if (!patient) return;
-    setPatient((prev) => ({
-      ...prev,
-      ward: bedForm.ward,
-      roomNo: bedForm.roomNo,
-      bedNo: bedForm.bedNo,
-    }));
+    setPatient((prev) => ({ ...prev, ward: bedForm.ward, roomNo: bedForm.roomNo, bedNo: bedForm.bedNo }));
     setShowChangeBedModal(false);
-    toast.success(`Bed changed to ${bedForm.ward} - ${bedForm.roomNo} (${bedForm.bedNo})`);
+    toast.success("Bed updated.");
   };
 
-  // Bill Calculations
-  const totalBills = patient ? patient.items.reduce((acc, curr) => acc + curr.amount, 0) : 0;
+  // ── Financial calculations ──
+  const totalBills = patient?.items?.reduce((a, c) => a + c.amount, 0) || 0;
+  const totalPayments = patient?.historyPayments?.reduce((a, c) => a + c.amount, 0) || 0;
+  const pendingAmount = Math.max(0, totalBills - totalPayments);
 
-  const totalAdvance = patient
-    ? patient.historyPayments
-        .filter((p) => p.type === "Advance")
-        .reduce((acc, curr) => acc + curr.amount, 0)
-    : 0;
+  const roomChargesTotal = patient ? patient.items.filter((i) => i.category === "Room").reduce((a, c) => a + c.amount, 0) : 0;
+  const consultationTotal = patient ? patient.items.filter((i) => i.category === "Consultation").reduce((a, c) => a + c.amount, 0) : 0;
+  const labTotal = patient ? patient.items.filter((i) => i.category === "Lab Test").reduce((a, c) => a + c.amount, 0) : 0;
+  const radiologyTotal = patient ? patient.items.filter((i) => i.category === "Radiology").reduce((a, c) => a + c.amount, 0) : 0;
 
-  const totalReceived = patient
-    ? patient.historyPayments
-        .filter((p) => p.type === "Payment")
-        .reduce((acc, curr) => acc + curr.amount, 0)
-    : 0;
-
-  const totalPaymentsReceivedAll = totalAdvance + totalReceived;
-  const pendingAmount = Math.max(0, totalBills - totalPaymentsReceivedAll);
-
-  // Category Summaries
-  const roomChargesTotal = patient
-    ? patient.items
-        .filter((i) => i.category === "Room")
-        .reduce((acc, curr) => acc + curr.amount, 0)
-    : 0;
-
-  const consultationTotal = patient
-    ? patient.items
-        .filter((i) => i.category === "Consultation")
-        .reduce((acc, curr) => acc + curr.amount, 0)
-    : 0;
-
-  const labTotal = patient
-    ? patient.items
-        .filter((i) => i.category === "Lab Test")
-        .reduce((acc, curr) => acc + curr.amount, 0)
-    : 0;
-
-  const radiologyTotal = patient
-    ? patient.items
-        .filter((i) => i.category === "Radiology")
-        .reduce((acc, curr) => acc + curr.amount, 0)
-    : 0;
-
-  return (
+  // ── List View ──
+  const renderList = () => (
     <div className="ipd-billing-page">
-      {/* Page Header & Breadcrumbs */}
       <div className="ipd-page-header">
         <div className="ipd-header-left">
           <div className="ipd-header-icon-box">
@@ -403,116 +358,194 @@ export default function IPDBilling() {
           <div>
             <h1 className="ipd-header-title">IPD Billing</h1>
             <p className="ipd-header-subtitle">
-              Manage inpatient services, charges, payments and generate final bill
+              Admitted patients ready for billing. Select a patient to create or view their bill.
             </p>
           </div>
         </div>
-
         <div className="ipd-header-right-actions">
-          <div className="ipd-breadcrumb">
-            <span className="ipd-breadcrumb-item">Home</span>
-            <span>&gt;</span>
-            <span className="ipd-breadcrumb-item">Billing</span>
-            <span>&gt;</span>
-            <span className="ipd-breadcrumb-active">IPD Billing</span>
-          </div>
-
-          <span className="ipd-badge-status-admitted">
-            <Icon name="LuCheckCircle" size={14} /> Admitted
-          </span>
-
-          <button type="button" className="ipd-more-btn" title="More Options">
-            <Icon name="LuMoreHorizontal" size={18} />
+          <button
+            type="button"
+            className="ipd-btn-add-patient"
+            onClick={() => navigate("/ipd/admission")}
+          >
+            <Icon name="LuUserPlus" size={16} /> Add New Patient
           </button>
         </div>
       </div>
 
-      
-
-      {/* Search Input Bar */}
-      <form onSubmit={handleSearchSubmit} className="ipd-search-bar-row">
-        <div className="ipd-search-input-wrap">
-          <Icon name="LuSearch" size={16} className="ipd-search-icon" />
-          <input
-            type="text"
-            className="ipd-search-input"
-            placeholder="Search Admitted Patient by UHID, Admission No, Name, or Mobile..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-          />
-          {suggestions.length > 0 && (
-            <div className="ipd-search-suggestions">
-              {suggestions.map((p) => (
-                <div
-                  key={p.admissionNo}
-                  className="ipd-suggestion-item"
-                  onClick={() => handleSelectPatient(p)}
-                >
-                  <div>
-                    <div style={{ fontWeight: 700, color: "#0f172a" }}>
-                      {p.name} ({p.admissionNo})
-                    </div>
-                    <div style={{ fontSize: 12, color: "#64748b" }}>
-                      Ward: {p.ward} • Bed: {p.bedNo} • {p.mobile}
-                    </div>
-                  </div>
-                  <span className="ipd-tag-uhid">{p.uhid}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <button type="submit" className="ipd-btn-search">
-          <Icon name="LuSearch" size={16} /> Search
-        </button>
-        {patient && (
-          <button
-            type="button"
-            className="ipd-btn-outline"
-            style={{ color: "#ef4444", borderColor: "#fca5a5" }}
-            onClick={handleClearSearch}
-          >
-            <Icon name="LuTrash2" size={14} /> Clear
+      {/* Search + Filters */}
+      <div className="ipd-search-filters-row">
+        <form onSubmit={handleSearchSubmit} className="ipd-search-bar-row">
+          <div className="ipd-search-input-wrap">
+            <Icon name="LuSearch" size={16} className="ipd-search-icon" />
+            <input
+              type="text"
+              className="ipd-search-input"
+              placeholder="Search by UHID, Admission No, Name, or Mobile..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+            />
+          </div>
+          <button type="submit" className="ipd-btn-search">
+            <Icon name="LuSearch" size={16} /> Search
           </button>
-        )}
-      </form>
+          {searchTerm && (
+            <button type="button" className="ipd-btn-outline" onClick={handleClearSearch}>
+              <Icon name="LuX" size={14} /> Clear
+            </button>
+          )}
+        </form>
 
-      {/* Upper Section Grid (Patient Information & Bed Details) */}
-      {patient && (
+        <div className="ipd-status-filters">
+          {["admitted", "discharged", "all"].map((s) => (
+            <button
+              key={s}
+              type="button"
+              className={`ipd-status-pill ${statusFilter === s ? "active" : ""}`}
+              onClick={() => { setStatusFilter(s); setPage(1); }}
+            >
+              {s.charAt(0).toUpperCase() + s.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Patient List */}
+      <div className="ipd-list-card">
+        {listLoading ? (
+          <div className="ipd-empty">Loading patients...</div>
+        ) : patients.length === 0 ? (
+          <div className="ipd-empty">
+            <Icon name="LuUser" size={32} />
+            <p>No patients found.</p>
+          </div>
+        ) : (
+          <table className="ipd-patient-table">
+            <thead>
+              <tr>
+                <th>UHID</th>
+                <th>Patient</th>
+                <th>Age / Gender</th>
+                <th>Ward / Bed</th>
+                <th>Doctor</th>
+                <th>Admitted</th>
+                <th>Days</th>
+                <th>Status</th>
+                <th style={{ textAlign: "right" }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {patients.map((p) => {
+                return (
+                  <tr key={p.id} className="ipd-patient-row">
+                    <td>
+                      <span className="ipd-tag-uhid">{p.uhid}</span>
+                    </td>
+                    <td>
+                      <div className="ipd-patient-name-cell">{p.name}</div>
+                      <div className="ipd-patient-admission-no">{p.admissionNo}</div>
+                    </td>
+                    <td>{p.age} Yrs / {p.gender}</td>
+                    <td>{p.ward} / {p.bedNo}</td>
+                    <td>{p.doctor}</td>
+                    <td>{p.admissionDate}</td>
+                    <td>{p.daysStayed}</td>
+                    <td>
+                      <span
+                        className={`ipd-status-badge ${p.status === "Admitted" ? "ipd-badge-active" : "ipd-badge-discharged"}`}
+                      >
+                        {p.status}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <button
+                        type="button"
+                        className="ipd-btn-view-billing"
+                        onClick={() => handleSelectPatient(p)}
+                      >
+                        <Icon name="LuCreditCard" size={14} /> Create Bill
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+
+        {/* Pagination */}
+        {totalCount > 0 && (
+          <div className="ipd-pagination">
+            <span>Page {page} of {totalPages} ({totalCount} patients)</span>
+            <div className="ipd-pagination-controls">
+              <button
+                type="button"
+                disabled={page === 1}
+                onClick={() => setPage(page - 1)}
+              >
+                ← Prev
+              </button>
+              <button
+                type="button"
+                disabled={page === totalPages}
+                onClick={() => setPage(page + 1)}
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // ── Detail View ──
+  const renderDetail = () => {
+    if (!patient) return null;
+    return (
+      <div className="ipd-billing-page ipd-detail-page">
+        {/* Header with back */}
+        <div className="ipd-page-header">
+          <div className="ipd-header-left">
+            <button type="button" className="ipd-btn-back" onClick={() => setViewMode("list")}>
+              <Icon name="LuArrowLeft" size={16} /> Back to Patient List
+            </button>
+            <div className="ipd-header-icon-box">
+              <Icon name="LuReceipt" size={24} />
+            </div>
+            <div>
+              <h1 className="ipd-header-title">Patient Billing</h1>
+              <p className="ipd-header-subtitle">
+                {patient.name} • UHID: {patient.uhid} • Admission: {patient.admissionNo}
+              </p>
+            </div>
+          </div>
+          <div className="ipd-header-right-actions">
+            <button
+              type="button"
+              className="ipd-btn-discharge"
+              onClick={() => toast.navigate ? null : null}
+            >
+              <Icon name="LuLogOut" size={14} /> Discharge Patient
+            </button>
+          </div>
+        </div>
+
+        {/* Patient Info Grid */}
         <div className="ipd-upper-grid">
-          {/* Patient Information Card */}
           <div className="ipd-card">
             <div className="ipd-card-header">
               <div className="ipd-card-title-group">
                 <Icon name="LuUserCheck" className="ipd-card-icon" />
                 <h2 className="ipd-card-title">Patient Information</h2>
               </div>
-              <button
-                type="button"
-                className="ipd-btn-outline"
-                onClick={() => setShowAdmissionSlipModal(true)}
-              >
-                <Icon name="LuEye" size={14} /> View Full Profile
-              </button>
             </div>
-
             <div className="ipd-patient-info-layout">
-              {/* Left Photo & Badges */}
               <div className="ipd-patient-photo-box">
-                <img
-                  src={patient.avatar}
-                  alt={patient.name}
-                  className="ipd-patient-img"
-                />
                 <span className="ipd-tag-uhid">{patient.uhid}</span>
               </div>
-
-              {/* Middle Bio */}
               <div className="ipd-patient-bio">
-                <div className="ipd-patient-name-title">
-                  <h3 className="ipd-patient-name">{patient.name}</h3>
-                </div>
-
+                <h3 className="ipd-patient-name">{patient.name}</h3>
                 <div className="ipd-bio-line">
                   <Icon name="LuUser" size={14} /> {patient.age} Years / {patient.gender}
                 </div>
@@ -520,286 +553,259 @@ export default function IPDBilling() {
                   <Icon name="LuPhone" size={14} /> {patient.mobile}
                 </div>
                 <div className="ipd-bio-line">
-                  <Icon name="LuMapPin" size={14} /> {patient.city}
+                  <Icon name="LuMapPin" size={14} /> {patient.ward} / {patient.bedNo}
+                </div>
+                <div className="ipd-bio-line">
+                  <Icon name="LuUser" size={14} /> Dr. {patient.doctor}
+                </div>
+                <div className="ipd-bio-line">
+                  <Icon name="LuCalendar" size={14} /> Admitted: {patient.admissionDate} ({patient.daysStayed} days)
                 </div>
               </div>
+            </div>
+          </div>
 
-            {/* Right Vitals & Admission Details Grid */}
-            <div className="ipd-admission-meta-grid">
-              <div>
-                <span className="ipd-meta-label">🩸 Blood Group:</span>{" "}
-                <span className="ipd-meta-val" style={{ color: "#ef4444" }}>
-                  {patient.bloodGroup}
-                </span>
+          <div className="ipd-card">
+            <div className="ipd-card-header">
+              <div className="ipd-card-title-group">
+                <Icon name="LuBed" className="ipd-card-icon" />
+                <h2 className="ipd-card-title">Bed & Admission Details</h2>
               </div>
-              <div>
-                <span className="ipd-meta-label">Admission No.:</span>{" "}
+              <button
+                type="button"
+                className="ipd-btn-outline"
+                onClick={() => setShowChangeBedModal(true)}
+              >
+                <Icon name="LuEdit3" size={14} /> Change Bed
+              </button>
+            </div>
+            <div className="ipd-bed-details-list">
+              <div className="ipd-bed-detail-row">
+                <span className="ipd-meta-label">Ward</span>
+                <span className="ipd-meta-val">{patient.ward}</span>
+              </div>
+              <div className="ipd-bed-detail-row">
+                <span className="ipd-meta-label">Bed No.</span>
+                <span className="ipd-meta-val">{patient.bedNo}</span>
+              </div>
+              <div className="ipd-bed-detail-row">
+                <span className="ipd-meta-label">Admission No.</span>
                 <span className="ipd-meta-val">{patient.admissionNo}</span>
               </div>
-
-             
-              <div>
-                <span className="ipd-meta-label">Admission Date:</span>{" "}
-                <span className="ipd-meta-val">{patient.admissionDate}</span>
-              </div>
-
-             
-              <div>
-                <span className="ipd-meta-label">Department:</span>{" "}
-                <span className="ipd-meta-val">{patient.department}</span>
-              </div>
-
-              <div>
-                <span className="ipd-meta-label">Consultant:</span>{" "}
-                <span className="ipd-meta-val">{patient.consultant}</span>
-              </div>
-              <div>
-                <span className="ipd-meta-label">Ward / Room:</span>{" "}
-                <span className="ipd-meta-val">
-                  {patient.ward} - {patient.roomNo} ({patient.bedNo})
-                </span>
-              </div>
-
-              <div>
-                <span className="ipd-meta-label">Expected Discharge:</span>{" "}
-                <span className="ipd-meta-val">{patient.expectedDischarge}</span>
-              </div>
-              <div>
-                <span className="ipd-meta-label">Status:</span>{" "}
-                <span
-                  className="ipd-badge-existing"
-                  style={{ backgroundColor: "#dcfce7", color: "#15803d" }}
-                >
-                  {patient.status}
-                </span>
+              <div className="ipd-bed-detail-row">
+                <span className="ipd-meta-label">Doctor</span>
+                <span className="ipd-meta-val">{patient.doctor}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Bed & Admission Details Card */}
-        <div className="ipd-card">
-          <div className="ipd-card-header">
-            <div className="ipd-card-title-group">
-              <Icon name="LuBed" className="ipd-card-icon" />
-              <h2 className="ipd-card-title">Bed & Admission Details</h2>
-            </div>
-            <button
-              type="button"
-              className="ipd-btn-outline"
-              onClick={() => setShowChangeBedModal(true)}
-            >
-              <Icon name="LuEdit3" size={14} /> Change Bed
-            </button>
-          </div>
-
-          <div className="ipd-bed-details-list">
-            <div className="ipd-bed-detail-row">
-              <span className="ipd-meta-label">Ward</span>
-              <span className="ipd-meta-val">{patient.ward}</span>
-            </div>
-            <div className="ipd-bed-detail-row">
-              <span className="ipd-meta-label">Room No.</span>
-              <span className="ipd-meta-val">{patient.roomNo}</span>
-            </div>
-            <div className="ipd-bed-detail-row">
-              <span className="ipd-meta-label">Bed No.</span>
-              <span className="ipd-meta-val">{patient.bedNo}</span>
-            </div>
-            <div className="ipd-bed-detail-row">
-              <span className="ipd-meta-label">Admission Type</span>
-              <span className="ipd-meta-val">{patient.admissionType}</span>
-            </div>
-            <div className="ipd-bed-detail-row">
-              <span className="ipd-meta-label">Rate Plan</span>
-              <span className="ipd-meta-val">{patient.ratePlan}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      )}
-
-      {/* Main Body Section Grid */}
-      <div className="ipd-main-grid">
-        {/* Left Column: Add Services & Bill Items */}
-        <div className="ipd-col-left">
-          {/* Add Services / Charges Card */}
-          <div className="ipd-card">
-            <div className="ipd-card-header">
-              <div className="ipd-card-title-group">
-                <Icon name="LuPlusCircle" className="ipd-card-icon" />
-                <h2 className="ipd-card-title">Add Services / Charges</h2>
+        {/* Main Body */}
+        <div className="ipd-main-grid">
+          {/* Left: Charges */}
+          <div className="ipd-col-left">
+            <div className="ipd-card">
+              <div className="ipd-card-header">
+                <div className="ipd-card-title-group">
+                  <Icon name="LuPlusCircle" className="ipd-card-icon" />
+                  <h2 className="ipd-card-title">Add Charges</h2>
+                </div>
               </div>
-            </div>
-
-            {/* Category Filter Pills */}
-            <div className="ipd-category-pills">
-              {Object.keys(CATEGORY_SERVICE_LIST).map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  className={`ipd-category-pill ${
-                    activeCategory === cat ? "active" : ""
-                  }`}
-                  onClick={() => handleCategoryClick(cat)}
-                >
-                  {cat}
+              <div className="ipd-category-pills">
+                {Object.keys(CATEGORY_SERVICE_LIST).map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    className={`ipd-category-pill ${activeCategory === cat ? "active" : ""}`}
+                    onClick={() => handleCategoryClick(cat)}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+              <div className="ipd-add-service-row">
+                <div className="ipd-form-field">
+                  <label className="ipd-field-label">Service</label>
+                  <select
+                    className="ipd-select-control"
+                    value={selectedServiceName}
+                    onChange={handleServiceChange}
+                  >
+                    {(CATEGORY_SERVICE_LIST[activeCategory] || []).map((s) => (
+                      <option key={s.name} value={s.name}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="ipd-form-field">
+                  <label className="ipd-field-label">Rate (₹)</label>
+                  <input
+                    type="number"
+                    className="ipd-input-control"
+                    value={rateInput}
+                    onChange={(e) => setRateInput(e.target.value)}
+                  />
+                </div>
+                <div className="ipd-form-field">
+                  <label className="ipd-field-label">Qty / Days</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="ipd-input-control"
+                    value={qtyInput}
+                    onChange={(e) => setQtyInput(e.target.value)}
+                  />
+                </div>
+                <div className="ipd-form-field">
+                  <label className="ipd-field-label">Amount (₹)</label>
+                  <input
+                    type="text"
+                    className="ipd-input-control ipd-input-readonly"
+                    readOnly
+                    value={(Number(rateInput) * Number(qtyInput)).toLocaleString("en-IN")}
+                  />
+                </div>
+                <button type="button" className="ipd-btn-add-item" onClick={handleAddServiceItem}>
+                  <Icon name="LuPlus" size={16} /> Add
                 </button>
-              ))}
+              </div>
             </div>
 
-            {/* Form Controls Row */}
-            <div className="ipd-add-service-row">
-              <div className="ipd-form-field">
-                <label className="ipd-field-label">Service</label>
-                <select
-                  className="ipd-select-control"
-                  value={selectedServiceName}
-                  onChange={handleServiceChange}
+            <div className="ipd-card">
+              <div className="ipd-card-header">
+                <div className="ipd-card-title-group">
+                  <Icon name="LuSlidersHorizontal" className="ipd-card-icon" />
+                  <h2 className="ipd-card-title">Bill Items</h2>
+                </div>
+                <button
+                  type="button"
+                  className="ipd-btn-remove-selected"
+                  onClick={handleRemoveSelected}
                 >
-                  {(CATEGORY_SERVICE_LIST[activeCategory] || []).map((s) => (
-                    <option key={s.name} value={s.name}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                  <Icon name="LuTrash2" size={14} /> Remove Selected
+                </button>
               </div>
-
+              <div className="ipd-bill-table-wrapper">
+                <table className="ipd-bill-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 30, textAlign: "center" }}><input type="checkbox" disabled /></th>
+                      <th style={{ width: 40 }}>#</th>
+                      <th>Date</th>
+                      <th>Service / Item</th>
+                      <th>Category</th>
+                      <th style={{ textAlign: "right" }}>Rate (₹)</th>
+                      <th style={{ textAlign: "center" }}>Qty</th>
+                      <th style={{ textAlign: "right" }}>Amount (₹)</th>
+                      <th style={{ textAlign: "center", width: 60 }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(!patient.items || patient.items.length === 0) ? (
+                      <tr><td colSpan="9" style={{ textAlign: "center", padding: 20, color: "#64748b" }}>No charges yet.</td></tr>
+                    ) : (
+                      patient.items.map((item, idx) => (
+                        <tr key={item.id}>
+                          <td style={{ textAlign: "center" }}>
+                            <input type="checkbox" checked={!!item.selected} onChange={() => handleToggleSelectItem(item.id)} />
+                          </td>
+                          <td>{idx + 1}</td>
+                          <td>{item.date}</td>
+                          <td style={{ fontWeight: 600 }}>{item.name}</td>
+                          <td>{item.category}</td>
+                          <td style={{ textAlign: "right" }}>{item.rate.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                          <td style={{ textAlign: "center" }}>{item.qty}</td>
+                          <td style={{ textAlign: "right", fontWeight: 700 }}>{item.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                          <td style={{ textAlign: "center" }}>
+                            <button type="button" className="ipd-btn-icon-delete" onClick={() => handleRemoveItem(item.id)}>
+                              <Icon name="LuTrash2" size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
               <div className="ipd-form-field">
-                <label className="ipd-field-label">Rate (₹)</label>
-                <input
-                  type="number"
-                  className="ipd-input-control"
-                  value={rateInput}
-                  onChange={(e) => setRateInput(e.target.value)}
-                />
+                <label className="ipd-field-label">Remarks</label>
+                <textarea className="ipd-remarks-area" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
               </div>
-
-              <div className="ipd-form-field">
-                <label className="ipd-field-label">Days / Qty</label>
-                <input
-                  type="number"
-                  min="1"
-                  className="ipd-input-control"
-                  value={qtyInput}
-                  onChange={(e) => setQtyInput(e.target.value)}
-                />
+              <div className="ipd-left-bottom-actions">
+                <button type="button" className="ipd-btn-outline" onClick={() => setShowPrintBillModal(true)}>
+                  <Icon name="LuPrinter" size={15} /> Print Bill
+                </button>
               </div>
-
-              <div className="ipd-form-field">
-                <label className="ipd-field-label">Amount (₹)</label>
-                <input
-                  type="text"
-                  className="ipd-input-control ipd-input-readonly"
-                  readOnly
-                  value={(Number(rateInput) * Number(qtyInput)).toLocaleString(
-                    "en-IN"
-                  )}
-                />
-              </div>
-
-              <button
-                type="button"
-                className="ipd-btn-add-item"
-                onClick={handleAddServiceItem}
-              >
-                <Icon name="LuPlus" size={16} /> Add
-              </button>
             </div>
           </div>
 
-          {/* Bill Items (Current Admission) Card */}
-          <div className="ipd-card">
-            <div className="ipd-card-header">
-              <div className="ipd-card-title-group">
-                <Icon name="LuSlidersHorizontal" className="ipd-card-icon" />
-                <h2 className="ipd-card-title">
-                  Bill Items (Current Admission)
-                </h2>
+          {/* Right: Payments + Summary */}
+          <div className="ipd-col-right">
+            <div className="ipd-card">
+              <div className="ipd-card-header">
+                <div className="ipd-card-title-group">
+                  <Icon name="LuShieldAlert" className="ipd-card-icon" />
+                  <h2 className="ipd-card-title">Payments</h2>
+                </div>
+                <button
+                  type="button"
+                  className="ipd-btn-receive-pay"
+                  onClick={() => {
+                    setPaymentForm({
+                      amount: pendingAmount.toString(),
+                      mode: "Cash",
+                      type: "invoice_payment",
+                      remarks: "Running bill payment",
+                    });
+                    setShowReceivePayModal(true);
+                  }}
+                >
+                  <Icon name="LuCreditCard" size={14} /> Collect Payment
+                </button>
               </div>
-              <button
-                type="button"
-                className="ipd-btn-remove-selected"
-                onClick={handleRemoveSelected}
-              >
-                <Icon name="LuTrash2" size={14} /> Remove Selected
-              </button>
+              <div className="ipd-advance-card-body">
+                <div className="ipd-advance-deposit-box">
+                  <span className="ipd-adv-label">Total Payments Received</span>
+                  <span className="ipd-adv-val">₹{totalPayments.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="ipd-adv-calculations">
+                  <div className="ipd-adv-calc-row">
+                    <span>Total Charges</span>
+                    <span style={{ fontWeight: 700, color: "#0f172a" }}>₹{totalBills.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="ipd-adv-calc-row">
+                    <span>Total Payments</span>
+                    <span className="ipd-text-green">(-) ₹{totalPayments.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="ipd-pending-banner">
+                    <span className="ipd-pending-label">{pendingAmount > 0 ? "Pending" : "Cleared"}</span>
+                    <span className="ipd-pending-val">₹{pendingAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Bill Items Table */}
-            <div className="ipd-bill-table-wrapper">
-              <table className="ipd-bill-table">
+            <div className="ipd-card">
+              <div className="ipd-card-header">
+                <div className="ipd-card-title-group">
+                  <Icon name="LuHistory" className="ipd-card-icon" />
+                  <h2 className="ipd-card-title">Payment History</h2>
+                </div>
+              </div>
+              <table className="ipd-history-mini-table">
                 <thead>
-                  <tr>
-                    <th style={{ width: 30, textAlign: "center" }}>
-                      <input type="checkbox" disabled />
-                    </th>
-                    <th style={{ width: 30 }}>#</th>
-                    <th>Date</th>
-                    <th>Service / Item</th>
-                    <th>Category</th>
-                    <th style={{ textAlign: "right" }}>Rate (₹)</th>
-                    <th style={{ textAlign: "center" }}>Days/Qty</th>
-                    <th style={{ textAlign: "right" }}>Amount (₹)</th>
-                    <th style={{ textAlign: "center", width: 60 }}>Action</th>
-                  </tr>
+                  <tr><th>#</th><th>Date</th><th>Amount</th><th>Mode</th><th>Remarks</th></tr>
                 </thead>
                 <tbody>
-                  {(!patient || !patient.items || patient.items.length === 0) ? (
-                    <tr>
-                      <td
-                        colSpan="9"
-                        style={{
-                          textAlign: "center",
-                          padding: 20,
-                          color: "#64748b",
-                        }}
-                      >
-                        No items added to current IPD bill yet.
-                      </td>
-                    </tr>
+                  {(!patient.historyPayments || patient.historyPayments.length === 0) ? (
+                    <tr><td colSpan="5" style={{ textAlign: "center", padding: 12, color: "#64748b" }}>No payments yet.</td></tr>
                   ) : (
-                    patient.items.map((item, idx) => (
-                      <tr key={item.id}>
-                        <td style={{ textAlign: "center" }}>
-                          <input
-                            type="checkbox"
-                            checked={!!item.selected}
-                            onChange={() => handleToggleSelectItem(item.id)}
-                          />
-                        </td>
+                    patient.historyPayments.map((p, idx) => (
+                      <tr key={p.id}>
                         <td>{idx + 1}</td>
-                        <td>{item.date}</td>
-                        <td style={{ fontWeight: 600 }}>{item.name}</td>
-                        <td>{item.category}</td>
-                        <td style={{ textAlign: "right" }}>
-                          {item.rate.toLocaleString("en-IN", {
-                            minimumFractionDigits: 2,
-                          })}
-                        </td>
-                        <td style={{ textAlign: "center" }}>{item.qty}</td>
-                        <td style={{ textAlign: "right", fontWeight: 700 }}>
-                          {item.amount.toLocaleString("en-IN", {
-                            minimumFractionDigits: 2,
-                          })}
-                        </td>
-                        <td style={{ textAlign: "center" }}>
-                          <button
-                            type="button"
-                            className="ipd-btn-icon-action"
-                            title="Edit"
-                          >
-                            <Icon name="LuEdit3" size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            className="ipd-btn-icon-action ipd-btn-icon-delete"
-                            title="Remove"
-                            onClick={() => handleRemoveItem(item.id)}
-                          >
-                            <Icon name="LuTrash2" size={14} />
-                          </button>
-                        </td>
+                        <td>{p.date}</td>
+                        <td style={{ fontWeight: 700 }}>{p.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                        <td>{p.mode}</td>
+                        <td style={{ color: "#64748b" }}>{p.remarks}</td>
                       </tr>
                     ))
                   )}
@@ -807,691 +813,132 @@ export default function IPDBilling() {
               </table>
             </div>
 
-            <div className="ipd-form-field">
-              <label className="ipd-field-label">Remarks (Optional)</label>
-              <textarea
-                className="ipd-remarks-area"
-                placeholder="Enter remarks about this billing..."
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-              />
-            </div>
-
-            <div className="ipd-left-bottom-actions">
-              <button
-                type="button"
-                className="ipd-btn-outline"
-                onClick={() => setShowPrintBillModal(true)}
-              >
-                <Icon name="LuPrinter" size={15} /> Print Provisional Bill
-              </button>
-              <button
-                type="button"
-                className="ipd-btn-outline"
-                onClick={() => toast.success("Changes saved successfully!")}
-              >
-                <Icon name="LuSave" size={15} /> Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Payments, History, Summary, Actions */}
-        <div className="ipd-col-right">
-          {/* Advance & Payment Details Card */}
-          <div className="ipd-card">
-            <div className="ipd-card-header">
-              <div className="ipd-card-title-group">
-                <Icon name="LuShieldAlert" className="ipd-card-icon" />
-                <h2 className="ipd-card-title">Advance & Payment Details</h2>
-              </div>
-              <button
-                type="button"
-                className="ipd-btn-receive-pay"
-                onClick={() => setShowReceivePayModal(true)}
-              >
-                <Icon name="LuCreditCard" size={14} /> Receive Payment
-              </button>
-            </div>
-
-            <div className="ipd-advance-card-body">
-              {/* Advance Deposit Box */}
-              <div className="ipd-advance-deposit-box">
-                <span className="ipd-adv-label">
-                  Advance Deposit (At Admission)
-                </span>
-                <span className="ipd-adv-val">
-                  ₹{" "}
-                  {totalAdvance.toLocaleString("en-IN", {
-                    minimumFractionDigits: 2,
-                  })}
-                </span>
-              </div>
-
-              {/* Calculations List */}
-              <div className="ipd-adv-calculations">
-                <div className="ipd-adv-calc-row">
-                  <span>Total Bills (Current)</span>
-                  <span style={{ fontWeight: 700, color: "#0f172a" }}>
-                    ₹{" "}
-                    {totalBills.toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </span>
-                </div>
-                <div className="ipd-adv-calc-row">
-                  <span>Total Advance</span>
-                  <span className="ipd-text-green">
-                    (-) ₹{" "}
-                    {totalAdvance.toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </span>
-                </div>
-                <div className="ipd-adv-calc-row">
-                  <span>Total Received Payments</span>
-                  <span className="ipd-text-green">
-                    (-) ₹{" "}
-                    {totalReceived.toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </span>
-                </div>
-
-                <div className="ipd-pending-banner">
-                  <span className="ipd-pending-label">Pending Amount</span>
-                  <span className="ipd-pending-val">
-                    ₹{" "}
-                    {pendingAmount.toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </span>
+            <div className="ipd-card">
+              <div className="ipd-card-header">
+                <div className="ipd-card-title-group">
+                  <Icon name="LuFileText" className="ipd-card-icon" />
+                  <h2 className="ipd-card-title">Summary</h2>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Payment History Card */}
-          <div className="ipd-card">
-            <div className="ipd-card-header">
-              <div className="ipd-card-title-group">
-                <Icon name="LuHistory" className="ipd-card-icon" />
-                <h2 className="ipd-card-title">Payment History</h2>
+              <div className="ipd-grand-summary-grid">
+                <div>
+                  <div className="ipd-grand-row"><span>Total Charges</span><span style={{ fontWeight: 700 }}>₹{totalBills.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></div>
+                  <div className="ipd-grand-row"><span>Total Payments</span><span className="ipd-text-green">₹{totalPayments.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></div>
+                </div>
+                <div>
+                  <div className="ipd-pending-banner" style={{ marginTop: 12 }}>
+                    <span className="ipd-pending-label">{pendingAmount > 0 ? "Pending Amount" : "Balance Cleared"}</span>
+                    <span className="ipd-pending-val">₹{pendingAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
               </div>
-            </div>
-
-            <table className="ipd-history-mini-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Date</th>
-                  <th>Amount (₹)</th>
-                  <th>Mode</th>
-                  <th>Type</th>
-                  <th>Remarks</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(!patient || !patient.historyPayments || patient.historyPayments.length === 0) ? (
-                  <tr>
-                    <td colSpan="6" style={{ textAlign: "center", padding: 12, color: "#64748b" }}>
-                      No payment history available.
-                    </td>
-                  </tr>
+              <div className="ipd-bottom-actions-row">
+                {pendingAmount > 0 ? (
+                  <button
+                    type="button"
+                    className="ipd-btn-green-final"
+                    onClick={() => {
+                      setPaymentForm({ amount: pendingAmount.toString(), mode: "Cash", type: "invoice_payment", remarks: "Running bill payment" });
+                      setShowReceivePayModal(true);
+                    }}
+                  >
+                    <Icon name="LuCreditCard" size={18} /> Collect Pending Payment
+                  </button>
                 ) : (
-                  patient.historyPayments.map((p, idx) => (
-                  <tr key={p.id}>
-                    <td>{idx + 1}</td>
-                    <td>{p.date}</td>
-                    <td style={{ fontWeight: 700 }}>
-                      {p.amount.toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </td>
-                    <td>{p.mode}</td>
-                    <td>
-                      <span
-                        className={
-                          p.type === "Advance"
-                            ? "ipd-pill-advance"
-                            : "ipd-pill-payment"
-                        }
-                      >
-                        {p.type}
-                      </span>
-                    </td>
-                    <td style={{ color: "#64748b" }}>{p.remarks}</td>
-                  </tr>
-                )))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Current Charges Summary Card */}
-          <div className="ipd-card">
-            <div className="ipd-card-header">
-              <div className="ipd-card-title-group">
-                <Icon name="LuBarChart2" className="ipd-card-icon" />
-                <h2 className="ipd-card-title">Current Charges Summary</h2>
-              </div>
-              <button
-                type="button"
-                className="ipd-btn-outline"
-                style={{ color: "#16a34a", borderColor: "#bbf7d0" }}
-                onClick={() => {
-                  if (patient) {
-                    fetchPatientBilling(patient).then(() => {
-                      toast.success("Refreshed IPD Charges");
-                    });
-                  }
-                }}
-              >
-                <Icon name="LuRefreshCw" size={14} /> Refresh
-              </button>
-            </div>
-
-            <div className="ipd-summary-cards-grid">
-              <div className="ipd-charge-card ipd-charge-card-blue">
-                <Icon
-                  name="LuBed"
-                  size={24}
-                  style={{ color: "#2563eb" }}
-                />
-                <div>
-                  <div className="ipd-charge-info-label">Room Charges</div>
-                  <div className="ipd-charge-info-val">
-                    ₹{" "}
-                    {roomChargesTotal.toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              <div className="ipd-charge-card ipd-charge-card-green">
-                <Icon
-                  name="LuUserCheck"
-                  size={24}
-                  style={{ color: "#16a34a" }}
-                />
-                <div>
-                  <div className="ipd-charge-info-label">Consultation</div>
-                  <div className="ipd-charge-info-val">
-                    ₹{" "}
-                    {consultationTotal.toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              <div className="ipd-charge-card ipd-charge-card-orange">
-                <Icon
-                  name="LuTestTube"
-                  size={24}
-                  style={{ color: "#ea580c" }}
-                />
-                <div>
-                  <div className="ipd-charge-info-label">Lab Tests</div>
-                  <div className="ipd-charge-info-val">
-                    ₹{" "}
-                    {labTotal.toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              <div className="ipd-charge-card ipd-charge-card-purple">
-                <Icon
-                  name="LuTv"
-                  size={24}
-                  style={{ color: "#9333ea" }}
-                />
-                <div>
-                  <div className="ipd-charge-info-label">Radiology</div>
-                  <div className="ipd-charge-info-val">
-                    ₹{" "}
-                    {radiologyTotal.toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </div>
-                </div>
+                  <button type="button" className="ipd-btn-purple-discharge" onClick={() => toast.success("Balance cleared. Ready for discharge.")}>
+                    <Icon name="LuArrowRight" size={18} /> Ready for Discharge
+                  </button>
+                )}
+                <button type="button" className="ipd-btn-outline" onClick={() => setShowPrintBillModal(true)}>
+                  <Icon name="LuPrinter" size={18} /> Generate Bill
+                </button>
               </div>
             </div>
-          </div>
-
-          {/* Grand Summary Card */}
-          <div className="ipd-card">
-            <div className="ipd-card-header">
-              <div className="ipd-card-title-group">
-                <Icon name="LuFileText" className="ipd-card-icon" />
-                <h2 className="ipd-card-title">Grand Summary</h2>
-              </div>
-              <button type="button" className="ipd-breadcrumb-item" style={{ background: "none", border: "none", fontSize: 12 }}>
-                View Detailed Breakup &gt;
-              </button>
-            </div>
-
-            <div className="ipd-grand-summary-grid">
-              <div>
-                <div className="ipd-grand-row">
-                  <span>Total Charges</span>
-                  <span style={{ fontWeight: 700 }}>
-                    ₹{" "}
-                    {totalBills.toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </span>
-                </div>
-                <div className="ipd-grand-row">
-                  <span>Total Discount</span>
-                  <span style={{ fontWeight: 700 }}>₹ 0.00</span>
-                </div>
-                <div className="ipd-grand-row" style={{ marginTop: 8 }}>
-                  <span style={{ fontWeight: 700, color: "#0f172a" }}>
-                    Net Bill Amount
-                  </span>
-                  <span className="ipd-grand-net-val">
-                    ₹{" "}
-                    {totalBills.toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <div className="ipd-grand-row">
-                  <span>Total Advance</span>
-                  <span className="ipd-text-green">
-                    ₹{" "}
-                    {totalAdvance.toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </span>
-                </div>
-                <div className="ipd-grand-row">
-                  <span>Total Received</span>
-                  <span className="ipd-text-green">
-                    ₹{" "}
-                    {totalReceived.toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </span>
-                </div>
-
-                <div className="ipd-pending-banner">
-                  <span className="ipd-pending-label">Pending Amount</span>
-                  <span className="ipd-pending-val">
-                    ₹{" "}
-                    {pendingAmount.toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Action Buttons Row */}
-          <div className="ipd-bottom-actions-row">
-            <button
-              type="button"
-              className="ipd-btn-green-final"
-              onClick={() => setShowPrintBillModal(true)}
-            >
-              <Icon name="LuPrinter" size={18} /> Generate Final Bill
-            </button>
-            <button
-              type="button"
-              className="ipd-btn-purple-discharge"
-              onClick={() => {
-                if (pendingAmount > 0) {
-                  toast.error(`Clear pending amount of ₹ ${pendingAmount} before discharge.`);
-                } else {
-                  toast.success(`Patient ${patient.name} cleared for discharge!`);
-                }
-              }}
-            >
-              <Icon name="LuArrowRight" size={18} /> Proceed to Discharge
-            </button>
           </div>
         </div>
       </div>
+    );
+  };
 
-      {/* Receive Payment / Advance Modal */}
+  // ── Modals ──
+  const renderModals = () => (
+    <>
       {showReceivePayModal && (
-        <div
-          className="ipd-modal-backdrop"
-          onClick={() => setShowReceivePayModal(false)}
-        >
+        <div className="ipd-modal-backdrop" onClick={() => setShowReceivePayModal(false)}>
           <div className="ipd-modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="ipd-modal-header">
-              <h3 className="ipd-modal-title">Record IPD Payment / Initial Charge</h3>
-              <button
-                type="button"
-                style={{ background: "none", border: "none", cursor: "pointer" }}
-                onClick={() => setShowReceivePayModal(false)}
-              >
+              <h3 className="ipd-modal-title">Collect Payment</h3>
+              <button type="button" style={{ background: "none", border: "none", cursor: "pointer" }} onClick={() => setShowReceivePayModal(false)}>
                 <Icon name="LuX" size={18} />
               </button>
             </div>
-
             <form onSubmit={handleSavePayment}>
               <div className="ipd-modal-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div className="ipd-form-field">
-                  <label className="ipd-field-label">Payment Type</label>
-                  <select
-                    className="ipd-select-control"
-                    value={paymentForm.type}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, type: e.target.value })}
-                  >
-                    <option value="Advance">Initial Advance Deposit (At Admission)</option>
-                    <option value="Payment">Running Bill Payment</option>
-                  </select>
+                  <label className="ipd-field-label">Amount (₹)</label>
+                  <input type="number" className="ipd-input-control" required value={paymentForm.amount} onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })} />
                 </div>
-
                 <div className="ipd-form-field">
-                  <label className="ipd-field-label">Amount (₹) *</label>
-                  <input
-                    type="number"
-                    className="ipd-input-control"
-                    required
-                    value={paymentForm.amount}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-                  />
-                </div>
-
-                <div className="ipd-form-field">
-                  <label className="ipd-field-label">Payment Mode</label>
-                  <select
-                    className="ipd-select-control"
-                    value={paymentForm.mode}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, mode: e.target.value })}
-                  >
+                  <label className="ipd-field-label">Mode</label>
+                  <select className="ipd-select-control" value={paymentForm.mode} onChange={(e) => setPaymentForm({ ...paymentForm, mode: e.target.value })}>
                     <option value="Cash">Cash</option>
                     <option value="UPI">UPI / GPay / PhonePe</option>
                     <option value="Card">Debit / Credit Card</option>
                     <option value="Net Banking">Net Banking</option>
-                    <option value="Insurance / TPA">TPA Claim</option>
                   </select>
                 </div>
-
                 <div className="ipd-form-field">
-                  <label className="ipd-field-label">Remarks / Note</label>
-                  <input
-                    type="text"
-                    className="ipd-input-control"
-                    placeholder="e.g. Initial deposit at admission"
-                    value={paymentForm.remarks}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, remarks: e.target.value })}
-                  />
+                  <label className="ipd-field-label">Remarks</label>
+                  <input type="text" className="ipd-input-control" placeholder="e.g. Partial payment" value={paymentForm.remarks} onChange={(e) => setPaymentForm({ ...paymentForm, remarks: e.target.value })} />
                 </div>
               </div>
-
               <div className="ipd-modal-footer">
-                <button
-                  type="button"
-                  className="ipd-btn-outline"
-                  onClick={() => setShowReceivePayModal(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="ipd-btn-search">
-                  <Icon name="LuSave" size={16} /> Collect & Save Deposit
-                </button>
+                <button type="button" className="ipd-btn-outline" onClick={() => setShowReceivePayModal(false)}>Cancel</button>
+                <button type="submit" className="ipd-btn-search"><Icon name="LuSave" size={16} /> Collect</button>
               </div>
             </form>
           </div>
         </div>
       )}
-
-      {/* Change Bed Modal */}
       {showChangeBedModal && (
-        <div
-          className="ipd-modal-backdrop"
-          onClick={() => setShowChangeBedModal(false)}
-        >
+        <div className="ipd-modal-backdrop" onClick={() => setShowChangeBedModal(false)}>
           <div className="ipd-modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="ipd-modal-header">
-              <h3 className="ipd-modal-title">Change Bed / Transfer Ward</h3>
-              <button
-                type="button"
-                style={{ background: "none", border: "none", cursor: "pointer" }}
-                onClick={() => setShowChangeBedModal(false)}
-              >
+              <h3 className="ipd-modal-title">Change Bed</h3>
+              <button type="button" style={{ background: "none", border: "none", cursor: "pointer" }} onClick={() => setShowChangeBedModal(false)}>
                 <Icon name="LuX" size={18} />
               </button>
             </div>
-
             <form onSubmit={handleSaveBedChange}>
               <div className="ipd-modal-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div className="ipd-form-field">
-                  <label className="ipd-field-label">Select Target Ward</label>
-                  <select
-                    className="ipd-select-control"
-                    value={bedForm.ward}
-                    onChange={(e) => setBedForm({ ...bedForm, ward: e.target.value })}
-                  >
-                    <option value="General Ward">General Ward (₹1,500/day)</option>
-                    <option value="Semi-Private Room">Semi-Private Room (₹2,500/day)</option>
-                    <option value="Private AC Room">Private AC Room (₹4,000/day)</option>
-                    <option value="ICU">ICU Bed (₹5,500/day)</option>
-                  </select>
+                  <label className="ipd-field-label">Ward</label>
+                  <input type="text" className="ipd-input-control" value={bedForm.ward} onChange={(e) => setBedForm({ ...bedForm, ward: e.target.value })} />
                 </div>
-
                 <div className="ipd-form-field">
-                  <label className="ipd-field-label">Room Number</label>
-                  <input
-                    type="text"
-                    className="ipd-input-control"
-                    value={bedForm.roomNo}
-                    onChange={(e) => setBedForm({ ...bedForm, roomNo: e.target.value })}
-                  />
+                  <label className="ipd-field-label">Room No.</label>
+                  <input type="text" className="ipd-input-control" value={bedForm.roomNo} onChange={(e) => setBedForm({ ...bedForm, roomNo: e.target.value })} />
                 </div>
-
                 <div className="ipd-form-field">
-                  <label className="ipd-field-label">Bed Number</label>
-                  <input
-                    type="text"
-                    className="ipd-input-control"
-                    value={bedForm.bedNo}
-                    onChange={(e) => setBedForm({ ...bedForm, bedNo: e.target.value })}
-                  />
+                  <label className="ipd-field-label">Bed No.</label>
+                  <input type="text" className="ipd-input-control" value={bedForm.bedNo} onChange={(e) => setBedForm({ ...bedForm, bedNo: e.target.value })} />
                 </div>
               </div>
-
               <div className="ipd-modal-footer">
-                <button
-                  type="button"
-                  className="ipd-btn-outline"
-                  onClick={() => setShowChangeBedModal(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="ipd-btn-search">
-                  Update Bed Location
-                </button>
+                <button type="button" className="ipd-btn-outline" onClick={() => setShowChangeBedModal(false)}>Cancel</button>
+                <button type="submit" className="ipd-btn-search">Update</button>
               </div>
             </form>
           </div>
         </div>
       )}
+    </>
+  );
 
-      {/* Full Profile & Admission Print Slip Modal */}
-      {showAdmissionSlipModal && patient && (
-        <div
-          className="ipd-modal-backdrop"
-          onClick={() => setShowAdmissionSlipModal(false)}
-        >
-          <div className="ipd-modal-box" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
-            <div className="ipd-modal-header">
-              <h3 className="ipd-modal-title">IPD Admission Print Slip</h3>
-              <button
-                type="button"
-                style={{ background: "none", border: "none", cursor: "pointer" }}
-                onClick={() => setShowAdmissionSlipModal(false)}
-              >
-                <Icon name="LuX" size={18} />
-              </button>
-            </div>
-
-            <div className="ipd-modal-body">
-              <div className="ipd-printable-voucher">
-                <div className="ipd-voucher-header">
-                  <div className="ipd-voucher-logo">
-                    <Icon name="LuPlus" size={20} /> Nrayan Hospital
-                  </div>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>Dafi, Uttar Pradesh</div>
-                  <div className="ipd-voucher-tag">IPD ADMISSION INITIAL SLIP</div>
-                </div>
-
-                <div className="ipd-voucher-meta">
-                  <div><strong>Admission No.</strong>: {patient.admissionNo}</div>
-                  <div><strong>Admission Date</strong>: {patient.admissionDate}</div>
-                  <div><strong>UHID</strong>: {patient.uhid}</div>
-                  <div><strong>Patient Name</strong>: {patient.name}</div>
-                  <div><strong>Age / Gender</strong>: {patient.age} Y / {patient.gender}</div>
-                  <div><strong>Mobile No.</strong>: {patient.mobile}</div>
-                  <div><strong>Doctor</strong>: {patient.consultant}</div>
-                  <div><strong>Ward / Bed</strong>: {patient.ward} ({patient.bedNo})</div>
-                </div>
-
-                <div className="ipd-voucher-grand">
-                  <div className="ipd-voucher-row">
-                    <span>Initial Deposit Paid:</span>
-                    <span style={{ fontWeight: 800, color: "#16a34a" }}>₹ {totalAdvance.toLocaleString("en-IN")}</span>
-                  </div>
-                </div>
-
-                <div className="ipd-voucher-footer">
-                  <div>--- Admission Slip Recorded ---</div>
-                  <div>Get Well Soon</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="ipd-modal-footer">
-              <button
-                type="button"
-                className="ipd-btn-outline"
-                onClick={() => setShowAdmissionSlipModal(false)}
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                className="ipd-btn-search"
-                onClick={() => window.print()}
-              >
-                <Icon name="LuPrinter" size={16} /> Print Slip
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Provisional / Final Bill Printable Receipt Modal */}
-      {showPrintBillModal && patient && (
-        <div
-          className="ipd-modal-backdrop"
-          onClick={() => setShowPrintBillModal(false)}
-        >
-          <div className="ipd-modal-box" style={{ maxWidth: 500 }} onClick={(e) => e.stopPropagation()}>
-            <div className="ipd-modal-header">
-              <h3 className="ipd-modal-title">IPD Provisional / Final Bill Voucher</h3>
-              <button
-                type="button"
-                style={{ background: "none", border: "none", cursor: "pointer" }}
-                onClick={() => setShowPrintBillModal(false)}
-              >
-                <Icon name="LuX" size={18} />
-              </button>
-            </div>
-
-            <div className="ipd-modal-body">
-              <div className="ipd-printable-voucher">
-                <div className="ipd-voucher-header">
-                  <div className="ipd-voucher-logo">
-                    <Icon name="LuPlus" size={20} /> K. G. Nanda Hospital
-                  </div>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>Chandauli, Uttar Pradesh • +91 9876543210</div>
-                  <div className="ipd-voucher-tag">INPATIENT (IPD) FINAL BILL</div>
-                </div>
-
-                <div className="ipd-voucher-meta">
-                  <div><strong>Admission No.</strong>: {patient.admissionNo}</div>
-                  <div><strong>UHID</strong>: {patient.uhid}</div>
-                  <div><strong>Patient Name</strong>: {patient.name}</div>
-                  <div><strong>Age / Gender</strong>: {patient.age} Y / {patient.gender}</div>
-                  <div><strong>Ward / Bed</strong>: {patient.ward} - {patient.bedNo}</div>
-                  <div><strong>Doctor</strong>: {patient.consultant}</div>
-                </div>
-
-                <table className="ipd-voucher-table">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Service Description</th>
-                      <th style={{ textAlign: "center" }}>Qty</th>
-                      <th style={{ textAlign: "right" }}>Amount (₹)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {patient.items.map((item, idx) => (
-                      <tr key={idx}>
-                        <td>{idx + 1}</td>
-                        <td>{item.name}</td>
-                        <td style={{ textAlign: "center" }}>{item.qty}</td>
-                        <td style={{ textAlign: "right" }}>{item.amount.toLocaleString("en-IN")}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                <div className="ipd-voucher-grand">
-                  <div className="ipd-voucher-row">
-                    <span>Total Charges:</span>
-                    <span>₹ {totalBills.toLocaleString("en-IN")}</span>
-                  </div>
-                  <div className="ipd-voucher-row">
-                    <span>Total Paid (Advance + Payments):</span>
-                    <span style={{ color: "#16a34a" }}>(-) ₹ {totalPaymentsReceivedAll.toLocaleString("en-IN")}</span>
-                  </div>
-                  <div className="ipd-voucher-row" style={{ fontWeight: 800, fontSize: 13, color: pendingAmount > 0 ? "#dc2626" : "#16a34a" }}>
-                    <span>Pending Due Amount:</span>
-                    <span>₹ {pendingAmount.toLocaleString("en-IN")}</span>
-                  </div>
-                </div>
-
-                <div className="ipd-voucher-footer">
-                  <div>--- Thank You ---</div>
-                  <div>Wish You A Speedy Recovery</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="ipd-modal-footer">
-              <button
-                type="button"
-                className="ipd-btn-outline"
-                onClick={() => setShowPrintBillModal(false)}
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                className="ipd-btn-green-final"
-                style={{ padding: "8px 16px" }}
-                onClick={() => window.print()}
-              >
-                <Icon name="LuPrinter" size={16} /> Print Bill
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+  return (
+    <div>
+      {viewMode === "list" ? renderList() : renderDetail()}
+      {renderModals()}
     </div>
   );
 }

@@ -17,7 +17,7 @@ export class BillingRepository {
       throw new ValidationError('Selected payment method is not active or does not exist.');
     }
 
-    const paymentMode = String(data.payment_mode || data.paymentMethod || '').trim();
+    const paymentMode = String(data.payment_mode || data.paymentMethod || data.payment_method || '').trim();
     if (!paymentMode) {
       throw new ValidationError('Payment method is required when recording a payment.');
     }
@@ -328,6 +328,23 @@ export class BillingRepository {
     const receiptNo = receiptNoResult.rows[0]?.receipt_no || `ADV-${Date.now()}`;
     const methodId = await this.resolvePaymentMethodId(data);
 
+    const paymentType = String(data.payment_type || 'advance').toLowerCase();
+
+    // Derive patient_id from encounter (the reliable source). Frontend may send
+    // admission id instead of patient uuid, so always resolve from encounter.
+    let patientId = null;
+    if (data.encounter_id) {
+      try {
+        const enc = await db.query(
+          'SELECT patient_id FROM encounters WHERE id = $1 LIMIT 1',
+          [data.encounter_id]
+        );
+        patientId = enc.rows[0]?.patient_id || null;
+      } catch {
+        patientId = null;
+      }
+    }
+
     const query = `
       INSERT INTO payments (
         organization_id, facility_id, receipt_no, patient_id, encounter_id,
@@ -338,8 +355,8 @@ export class BillingRepository {
       ) RETURNING *;
     `;
     const res = await db.query(query, [
-      data.organization_id, data.facility_id, receiptNo, data.patient_id, data.encounter_id,
-      data.payment_type || 'Payment', methodId, data.amount, data.user_id
+      data.organization_id, data.facility_id, receiptNo, patientId, data.encounter_id,
+      paymentType, methodId, data.amount, data.user_id
     ]);
     return res.rows[0];
   }

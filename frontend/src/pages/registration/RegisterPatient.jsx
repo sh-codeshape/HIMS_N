@@ -6,6 +6,13 @@ import {
   LuSearch, LuX, LuStethoscope, LuBed
 } from "react-icons/lu";
 import patientService from "../../api/services/patientService";
+import Input from "../../components/common/Input.jsx";
+import Select from "../../components/common/Select.jsx";
+import Button from "../../components/common/Button.jsx";
+import {
+  required, phone, email, pincode, aadhaar, age as ageValidator,
+  validateField, validateForm,
+} from "../../utils/validation.js";
 import "./RegisterPatient.css";
 
 const normalizeCountryCode = (value, fallback = "IN") => {
@@ -71,6 +78,8 @@ const INITIAL_FORM = {
 export default function RegisterPatient() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState(INITIAL_FORM);
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const [toast, setToast] = useState(null); // { msg, type }
 
   // ── Search state ────────────────────────────────────────────────────────
@@ -200,9 +209,70 @@ export default function RegisterPatient() {
     setFormData((p) => ({ ...p, dob, age }));
   };
 
+  const setFieldTouched = (name) => {
+    setTouched((p) => ({ ...p, [name]: true }));
+  };
+
+  const clearFieldError = (name) => {
+    setErrors((p) => { const next = { ...p }; delete next[name]; return next; });
+  };
+
+  const validateFieldOnChange = (name, value) => {
+    let result = { isValid: true, message: null };
+    switch (name) {
+      case "firstName":
+        result = validateField(value, [required]);
+        break;
+      case "gender":
+        result = validateField(value, [required]);
+        break;
+      case "age":
+        result = validateField(value, [ageValidator]);
+        break;
+      case "mobile":
+        result = validateField(value, [phone]);
+        break;
+      case "altMobile":
+        if (value.trim()) result = validateField(value, [phone]);
+        break;
+      case "emgNumber":
+        result = validateField(value, [phone]);
+        break;
+      case "emgName":
+        result = validateField(value, [required]);
+        break;
+      case "emgRelation":
+        result = validateField(value, [required]);
+        break;
+      case "address1":
+        result = validateField(value, [required]);
+        break;
+      case "state":
+        if (value.trim()) result = validateField(value, [required]);
+        break;
+      case "city":
+        if (value.trim()) result = validateField(value, [required]);
+        break;
+      case "pincode":
+        if (value.trim()) result = validateField(value, [pincode]);
+        break;
+      case "email":
+        if (value.trim()) result = validateField(value, [email]);
+        break;
+      case "aadhaar":
+        if (value.trim()) result = validateField(value, [aadhaar]);
+        break;
+      default:
+        break;
+    }
+    if (result.isValid) clearFieldError(name);
+    else setErrors((p) => ({ ...p, [name]: result.message }));
+    return result.isValid;
+  };
+
   const handleChange = (e) => {
     let { name, value, type, checked } = e.target;
-    
+
     // Restrict digits and lengths for phone and aadhaar
     if (["mobile", "altMobile", "emgNumber"].includes(name)) {
       value = value.replace(/\D/g, "").slice(0, 10);
@@ -212,10 +282,24 @@ export default function RegisterPatient() {
     }
 
     setFormData((p) => ({ ...p, [name]: type === "checkbox" ? checked : value }));
+
+    // Clear stale error as user types; run inline validation
+    if (name) {
+      clearFieldError(name);
+      if (touched[name]) validateFieldOnChange(name, value);
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setFieldTouched(name);
+    if (name) validateFieldOnChange(name, value);
   };
 
   const handleReset = () => {
     setFormData(INITIAL_FORM);
+    setErrors({});
+    setTouched({});
     showToast("Form cleared.", "info");
   };
 
@@ -274,18 +358,48 @@ export default function RegisterPatient() {
     };
   };
 
-  // ── Validation ───────────────────────────────────────────────────────────
+  // ── Final submission guard ──────────────────────────────────────────────
   const validate = () => {
+    // Mark every field as touched so inline errors show on submit attempt
+    const allFields = Object.keys(INITIAL_FORM);
+    allFields.forEach((f) => setFieldTouched(f));
+
+    // Run inline validation on all fields
+    const fieldMap = {
+      firstName: { value: formData.firstName, validators: [required] },
+      gender: { value: formData.gender, validators: [required] },
+      age: { value: formData.age, validators: [ageValidator] },
+      mobile: { value: formData.mobile, validators: [phone] },
+      emgNumber: { value: formData.emgNumber, validators: [phone] },
+      emgName: { value: formData.emgName, validators: [required] },
+      emgRelation: { value: formData.emgRelation, validators: [required] },
+      address1: { value: formData.address1, validators: [required] },
+      state: { value: formData.state, validators: [required] },
+      city: { value: formData.city, validators: [required] },
+      pincode: { value: formData.pincode, validators: formData.pincode.trim() ? [pincode] : [] },
+      email: { value: formData.email, validators: formData.email.trim() ? [email] : [] },
+      aadhaar: { value: formData.aadhaar, validators: formData.aadhaar.trim() ? [aadhaar] : [] },
+    };
+    if (formData.relationToHead && !formData.familyHeadId) {
+      // handled below
+    }
+
+    const { isValid, errors: nextErrors } = validateForm(fieldMap);
+    setErrors(nextErrors);
+
+    // Legacy message-based guards (kept as a user-friendly fallback)
     if (!formData.firstName.trim()) { showToast("⚠️ First Name is required.", "error"); return false; }
     if (!formData.gender) { showToast("⚠️ Please select Gender.", "error"); return false; }
     if (!formData.mobile || !/^\d{10}$/.test(formData.mobile)) { showToast("⚠️ Valid 10-digit Mobile is required.", "error"); return false; }
     if (formData.aadhaar && !/^\d{12}$/.test(formData.aadhaar)) { showToast("⚠️ Aadhaar must be exactly 12 digits.", "error"); return false; }
     if (!formData.address1.trim()) { showToast("⚠️ Address Line 1 is required.", "error"); return false; }
+    if (!formData.emgName.trim()) { showToast("⚠️ Emergency Contact Name is required.", "error"); return false; }
+    if (!formData.emgNumber || !/^\d{10}$/.test(formData.emgNumber)) { showToast("⚠️ Valid 10-digit Emergency Number is required.", "error"); return false; }
+    if (!formData.emgRelation) { showToast("⚠️ Please select relationship with patient.", "error"); return false; }
     if (formData.familyHeadId && !formData.relationToHead) { showToast("⚠️ Please select relationship to family head.", "error"); return false; }
-    return true;
+
+    return isValid;
   };
-
-
 
   // ── Register & Navigate ───────────────────────────────────────────
   const handleRegisterAndNavigate = async (path) => {
@@ -294,10 +408,10 @@ export default function RegisterPatient() {
       const payload = buildPatientRecord();
       const patient = await patientService.create(payload);
       showToast(`🎉 Patient Registered! UHID: ${patient.uhid}`);
-      handleReset();
       if (path) {
-        setTimeout(() => navigate(`${path}?uhid=${patient.uhid}`), 1000);
+        navigate(`${path}?uhid=${patient.uhid}`);
       }
+      handleReset();
     } catch (err) {
       showToast("Error registering patient: " + err.message, "error");
     }
@@ -312,6 +426,8 @@ export default function RegisterPatient() {
   const secHdrCls =
     "flex items-center gap-2 text-blue-700 font-bold text-sm mb-4 pb-2 border-b border-blue-100";
 
+  const fieldError = (name) => (touched[name] ? errors[name] : null);
+
   return (
     <div className="bg-slate-50 min-h-screen font-sans p-6">
 
@@ -319,7 +435,7 @@ export default function RegisterPatient() {
       {toast && (
         <div
           className={`fixed top-5 right-5 z-50 flex items-center gap-2 px-5 py-3 rounded-xl shadow-lg text-sm font-semibold text-white transition-all
-            ${toast.type === "error" ? "bg-red-500" : toast.type === "info" ? "bg-slate-600" : "bg-emerald-500"}`}
+            ${toast.type === "error" ? "bg-rose-500" : toast.type === "info" ? "bg-slate-600" : "bg-emerald-500"}`}
         >
           <LuCircleCheck size={16} />
           {toast.msg}
@@ -480,39 +596,74 @@ export default function RegisterPatient() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
 
               <div>
-                <label className={labelCls}>Full Name <span className="text-red-500">*</span></label>
-                <input type="text" name="firstName" placeholder="Enter first name"
-                  className={inputCls} value={formData.firstName} onChange={handleChange} />
+                <label className={labelCls}>First Name <span className="text-rose-500">*</span></label>
+                <Input
+                 
+                  name="firstName"
+                  placeholder="Enter first name"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  required
+                  error={fieldError("firstName")}
+                  helper={!touched.firstName ? "Enter the patient's legal first name." : null}
+                />
               </div>
              
-             
               <div>
-                <label className={labelCls}>Gender <span className="text-red-500">*</span></label>
+                <label className={labelCls}>Middle Name</label>
+                <input type="text" name="middleName" placeholder="Middle name"
+                  className={inputCls} value={formData.middleName} onChange={handleChange} onBlur={handleBlur} />
+              </div>
+              <div>
+                <label className={labelCls}>Last Name</label>
+                <input type="text" name="lastName" placeholder="Last name"
+                  className={inputCls} value={formData.lastName} onChange={handleChange} onBlur={handleBlur} />
+              </div>
+
+              <div>
+                <label className={labelCls}>Gender <span className="text-rose-500">*</span></label>
                 <div className="flex items-center gap-4 mt-2">
                   {["Male", "Female", "Other"].map((g) => (
                     <label key={g} className="flex items-center gap-1.5 text-sm text-slate-700 cursor-pointer">
                       <input type="radio" name="gender" value={g}
-                        checked={formData.gender === g} onChange={handleChange}
+                        checked={formData.gender === g} onChange={handleChange} onBlur={handleBlur}
                         className="accent-blue-600" />
                       {g}
                     </label>
                   ))}
+                  {touched.gender && errors.gender && (
+                    <p className="text-xs text-rose-600 mt-1 flex items-center gap-1 pl-0">
+                      <span className="w-[12px] h-[12px] rounded-full bg-rose-600 flex shrink-0"></span>
+                      {errors.gender}
+                    </p>
+                  )}
                 </div>
               </div>
 
-             
               <div>
-                <label className={labelCls}>Age <span className="text-red-500">*</span></label>
+                <label className={labelCls}>Age <span className="text-rose-500">*</span></label>
                 <div className="relative">
-                  <input type="number" name="age" placeholder="Age"
-                    className={inputCls} value={formData.age} onChange={handleChange} />
-                  <span className="absolute right-3 top-2 text-xs text-slate-400 font-medium">Years</span>
+                  <Input
+                   
+                    type="number"
+                    name="age"
+                    placeholder="Age"
+                    value={formData.age}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    required
+                    inputMode="numeric"
+                    error={fieldError("age")}
+                    helper={!touched.age ? "Enter age in years." : null}
+                  />
+                  <span className="absolute right-3 top-10 text-xs text-slate-400 font-medium">Years</span>
                 </div>
               </div>
               <div>
                 <label className={labelCls}>Blood Group</label>
                 <select name="bloodGroup" className={selectCls}
-                  value={formData.bloodGroup} onChange={handleChange}>
+                  value={formData.bloodGroup} onChange={handleChange} onBlur={handleBlur}>
                   <option value="">Select blood group</option>
                   {["A+","A-","B+","B-","O+","O-","AB+","AB-"].map((bg) => (
                     <option key={bg}>{bg}</option>
@@ -520,15 +671,21 @@ export default function RegisterPatient() {
                 </select>
               </div>
             
-
               <div>
                 <label className={labelCls}>Aadhaar Number</label>
-                <input type="text" name="aadhaar" placeholder="12-digit aadhaar"
-                  className={inputCls} value={formData.aadhaar} onChange={handleChange} maxLength={12} />
+                <Input
+                 
+                  name="aadhaar"
+                  placeholder="12-digit aadhaar"
+                  value={formData.aadhaar}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  maxLength={12}
+                  error={fieldError("aadhaar")}
+                  helper={!touched.aadhaar ? "Optional. 12 digits if provided." : null}
+                />
               </div>
-             
-             
-             
+            
             </div>
           </div>
 
@@ -546,14 +703,21 @@ export default function RegisterPatient() {
                     value={formData.familyHeadId} disabled />
                 </div>
                 <div className="md:col-span-2">
-                  <label className={labelCls}>Relationship to Family Head <span className="text-red-500">*</span></label>
-                  <select name="relationToHead" className={selectCls}
-                    value={formData.relationToHead} onChange={handleChange}>
+                  <label className={labelCls}>Relationship to Family Head <span className="text-rose-500">*</span></label>
+                  <Select
+                   
+                    name="relationToHead"
+                    value={formData.relationToHead}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    required
+                    error={fieldError("relationToHead")}
+                  >
                     <option value="">Select relationship</option>
                     {["Spouse","Parent","Child","Sibling","Dependent","Other"].map((r) => (
                       <option key={r}>{r}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               </div>
             </div>
@@ -565,52 +729,127 @@ export default function RegisterPatient() {
               <LuPhone size={16} /> Contact Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-              <div>
-                <label className={labelCls}>Mobile Number <span className="text-red-500">*</span></label>
-                <input type="tel" name="mobile" placeholder="10-digit mobile"
-                  className={inputCls} value={formData.mobile} onChange={handleChange}
-                  maxLength={10} />
+              <div className="md:col-span-3">
+                <label className={labelCls}>Mobile Number <span className="text-rose-500">*</span></label>
+                <Input
+                 
+                  type="tel"
+                  name="mobile"
+                  prefix="+91 "
+                  placeholder="10-digit mobile"
+                  value={formData.mobile}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  required
+                  inputMode="tel"
+                  maxLength={10}
+                  error={fieldError("mobile")}
+                  helper={!touched.mobile ? "Valid 10-digit Indian mobile number." : null}
+                />
               </div>
-             
-             
-              
-
+              <div>
+                <label className={labelCls}>Alternate Mobile</label>
+                <Input
+                 
+                  type="tel"
+                  name="altMobile"
+                  prefix="+91 "
+                  placeholder="Optional second number"
+                  value={formData.altMobile}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  inputMode="tel"
+                  maxLength={10}
+                  error={fieldError("altMobile")}
+                  helper={!touched.altMobile ? "Optional alternate contact number." : null}
+                />
+              </div>
               <div className="md:col-span-2">
-                <label className={labelCls}>Address <span className="text-red-500">*</span></label>
-                <input type="text" name="address1" placeholder="Street / House / Locality"
-                  className={inputCls} value={formData.address1} onChange={handleChange} />
+                <label className={labelCls}>Email Address</label>
+                <Input
+                 
+                  type="email"
+                  name="email"
+                  placeholder="name@example.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  error={fieldError("email")}
+                  helper={!touched.email ? "Optional email for appointment reminders." : null}
+                />
               </div>
-            
-
               <div>
-                <label className={labelCls}>Country <span className="text-red-500"></span></label>
-                <select name="country" className={selectCls}
-                  value={formData.country} onChange={handleChange}>
+                <label className={labelCls}>Country</label>
+                <Select
+                 
+                  name="country"
+                  value={formData.country}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                >
                   <option>India</option>
                   <option>Other</option>
-                </select>
+                </Select>
+              </div>
+              <div className="md:col-span-2">
+                <label className={labelCls}>Address <span className="text-rose-500">*</span></label>
+                <Input
+                 
+                  name="address1"
+                  placeholder="Street / House / Locality"
+                  value={formData.address1}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  required
+                  error={fieldError("address1")}
+                  helper={!touched.address1 ? "Street, house number, locality." : null}
+                />
               </div>
               <div>
-                <label className={labelCls}>State <span className="text-red-500"></span></label>
-                <select name="state" className={selectCls}
-                  value={formData.state} onChange={handleChange}>
+                <label className={labelCls}>State <span className="text-rose-500">*</span></label>
+                <Select
+                 
+                  name="state"
+                  value={formData.state}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  required
+                  error={fieldError("state")}
+                >
                   <option value="">Select state</option>
                   {["Uttar Pradesh","Delhi","Maharashtra","Karnataka","Rajasthan","Madhya Pradesh",
                     "Gujarat","Tamil Nadu","West Bengal","Bihar"].map((s) => (
                     <option key={s}>{s}</option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div>
-                <label className={labelCls}>City <span className="text-red-500"></span></label>
-                <input type="text" name="city" placeholder="Enter city"
-                  className={inputCls} value={formData.city} onChange={handleChange} />
+                <label className={labelCls}>City <span className="text-rose-500">*</span></label>
+                <Input
+                 
+                  name="city"
+                  placeholder="Enter city"
+                  value={formData.city}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  required
+                  error={fieldError("city")}
+                />
               </div>
               <div>
-                <label className={labelCls}>Pincode <span className="text-red-500"></span></label>
-                <input type="text" name="pincode" placeholder="6-digit pincode"
-                  className={inputCls} value={formData.pincode} onChange={handleChange}
-                  maxLength={6} />
+                <label className={labelCls}>Pincode</label>
+                <Input
+                 
+                  name="pincode"
+                  placeholder="6-digit pincode"
+                  value={formData.pincode}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  inputMode="numeric"
+                  maxLength={6}
+                  error={fieldError("pincode")}
+                  helper={!touched.pincode ? "Optional 6-digit pincode." : null}
+                />
               </div>
             </div>
           </div>
@@ -622,31 +861,62 @@ export default function RegisterPatient() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
               <div className="md:col-span-2">
-                <label className={labelCls}>Emergency Contact Name <span className="text-red-500">*</span></label>
-                <input type="text" name="emgName" placeholder="Emergency contact name"
-                  className={inputCls} value={formData.emgName} onChange={handleChange} />
+                <label className={labelCls}>Emergency Contact Name <span className="text-rose-500">*</span></label>
+                <Input
+                 
+                  name="emgName"
+                  placeholder="Emergency contact name"
+                  value={formData.emgName}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  required
+                  error={fieldError("emgName")}
+                />
               </div>
               <div>
-                <label className={labelCls}>Emergency Contact Number <span className="text-red-500">*</span></label>
-                <input type="tel" name="emgNumber" placeholder="Contact number"
-                  className={inputCls} value={formData.emgNumber} onChange={handleChange}
-                  maxLength={10} />
+                <label className={labelCls}>Emergency Contact Number <span className="text-rose-500">*</span></label>
+                <Input
+                 
+                  type="tel"
+                  name="emgNumber"
+                  prefix="+91 "
+                  placeholder="Contact number"
+                  value={formData.emgNumber}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  required
+                  inputMode="tel"
+                  maxLength={10}
+                  error={fieldError("emgNumber")}
+                />
               </div>
               <div>
-                <label className={labelCls}>Relationship with Patient <span className="text-red-500">*</span></label>
-                <select name="emgRelation" className={selectCls}
-                  value={formData.emgRelation} onChange={handleChange}>
+                <label className={labelCls}>Relationship with Patient <span className="text-rose-500">*</span></label>
+                <Select
+                 
+                  name="emgRelation"
+                  value={formData.emgRelation}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  required
+                  error={fieldError("emgRelation")}
+                >
                   <option value="">Select relationship</option>
                   {["Spouse","Parent","Child","Sibling","Friend","Other"].map((r) => (
                     <option key={r}>{r}</option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               <div>
                 <label className={labelCls}>Referred By</label>
-                <select name="referredBy" className={selectCls}
-                  value={formData.referredBy} onChange={handleChange}>
+                <Select
+                 
+                  name="referredBy"
+                  value={formData.referredBy}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                >
                   <option value="">Select doctor / source</option>
                   <option>Dr. Ranju Chaurasia</option>
                   <option>Dr. Manoj Chaurasia</option>
@@ -654,19 +924,24 @@ export default function RegisterPatient() {
                   <option>Dr. Priya Deshmukh</option>
                   <option>Self</option>
                   <option>Other Hospital</option>
-                </select>
+                </Select>
               </div>
               <div>
                 <label className={labelCls}>Department</label>
-                <select name="department" className={selectCls}
-                  value={formData.department} onChange={handleChange}>
+                <Select
+                 
+                  name="department"
+                  value={formData.department}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                >
                   <option value="">Select department</option>
                   {["General Medicine","Cardiology","Neurology","Orthopedics",
                     "Gynecology","Pediatrics","Dermatology","ENT","Ophthalmology",
                     "Urology","Surgery"].map((d) => (
                     <option key={d}>{d}</option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="md:col-span-2">
                 <label className={labelCls}>Visit Type</label>
@@ -674,7 +949,7 @@ export default function RegisterPatient() {
                   {["OPD","IPD"].map((vt) => (
                     <label key={vt} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer font-medium">
                       <input type="radio" name="visitType" value={vt}
-                        checked={formData.visitType === vt} onChange={handleChange}
+                        checked={formData.visitType === vt} onChange={handleChange} onBlur={handleBlur}
                         className="accent-blue-600 w-4 h-4" />
                       <span className={formData.visitType === vt
                         ? (vt === "OPD" ? "text-emerald-600 font-bold" : "text-rose-600 font-bold")
@@ -685,23 +960,6 @@ export default function RegisterPatient() {
                   ))}
                 </div>
               </div>
-
-             
-              {/* <div>
-                <label className={labelCls}>Health Insurance</label>
-                <div className="flex items-center gap-6 mt-2">
-                  {["Yes","No"].map((v) => (
-                    <label key={v} className="flex items-center gap-1.5 text-sm text-slate-700 cursor-pointer">
-                      <input type="radio" name="healthInsurance" value={v}
-                        checked={formData.healthInsurance === v} onChange={handleChange}
-                        className="accent-blue-600" />
-                      {v}
-                    </label>
-                  ))}
-                </div>
-              </div> */}
-             
-             
             </div>
           </div>
         </div>
