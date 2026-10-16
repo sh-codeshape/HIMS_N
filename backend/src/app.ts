@@ -8,8 +8,8 @@ export const app = express();
 
 app.use(helmet());
 app.use(cors({
-  // corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  // any origin allowed for now; restrict CORS later via CORS_ORIGIN
+  origin: process.env.CORS_ORIGIN || true,
   credentials: true
 }));
 app.use(express.json());
