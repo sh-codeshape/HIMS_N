@@ -5,6 +5,7 @@
   flex-direction: column;
   gap: 24px;
   width: 100%;
+  overflow-x: hidden;
 }
 
 /* Header & Controls */

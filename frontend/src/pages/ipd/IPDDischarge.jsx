@@ -63,7 +63,8 @@ export default function IPDDischarge() {
     setLoading(true);
     try {
       const data = await ipdService.getAdmissions({ status: "all" });
-      setAdmissions(data || []);
+      // Backend returns { rows: [...], totalCount } — normalize to an array
+      setAdmissions(Array.isArray(data) ? data : (data?.rows ?? []));
     } catch (err) {
       console.error("Failed to load admissions", err);
       toast.error("Could not load IPD admissions list.");
@@ -453,12 +454,33 @@ export default function IPDDischarge() {
                           <>
                             <td>
                               <div className="ipd-checklist-pills">
-                                <span className="ipd-chk-pill ipd-chk-pill--cleared">
-                                  <Icon name="LuCheckCircle" size={11} /> Bill
-                                </span>
-                                <span className="ipd-chk-pill ipd-chk-pill--cleared">
-                                  <Icon name="LuCheckCircle" size={11} /> Rx
-                                </span>
+                                {(() => {
+                                  const hasCharges = (row.total_charges ?? 0) > 0;
+                                  const billingCleared = hasCharges && (row.total_payments ?? 0) >= (row.total_charges ?? 0);
+                                  const pharmacyCleared = billingCleared;
+                                  return [
+                                    {
+                                      label: "Bill",
+                                      cleared: billingCleared,
+                                    },
+                                    {
+                                      label: "Rx",
+                                      cleared: pharmacyCleared,
+                                    },
+                                  ].map((item) => (
+                                    <span
+                                      key={item.label}
+                                      className={`ipd-chk-pill ${item.cleared ? "ipd-chk-pill--cleared" : "ipd-chk-pill--pending"}`}
+                                    >
+                                      {item.cleared ? (
+                                        <Icon name="LuCheckCircle" size={11} />
+                                      ) : (
+                                        <Icon name="LuAlertCircle" size={11} />
+                                      )}
+                                      {item.label}
+                                    </span>
+                                  ));
+                                })()}
                               </div>
                             </td>
                             <td>

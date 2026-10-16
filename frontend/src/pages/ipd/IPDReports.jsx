@@ -18,13 +18,27 @@ export default function IPDReports() {
   const loadReportData = async () => {
     setLoading(true);
     try {
-      const [reportStats, admissionsList] = await Promise.all([
+      // Use allSettled so bed-stats failure doesn't block admissions data
+      const [statsResult, admissionsResult] = await Promise.allSettled([
         ipdService.getReportStats(),
         ipdService.getAdmissions({ status: "all" })
       ]);
 
-      setStats(reportStats);
-      setRecentCensus(Array.isArray(admissionsList) ? admissionsList : admissionsList?.rows ?? []);
+      if (statsResult.status === "fulfilled") {
+        setStats(statsResult.value);
+      } else {
+        console.error("Failed to load IPD report stats:", statsResult.reason);
+        setStats(null);
+      }
+
+      if (admissionsResult.status === "fulfilled") {
+        setRecentCensus(Array.isArray(admissionsResult.value)
+          ? admissionsResult.value
+          : admissionsResult.value?.rows ?? []);
+      } else {
+        console.error("Failed to load admissions:", admissionsResult.reason);
+        setRecentCensus([]);
+      }
     } catch (err) {
       console.error("Error loading IPD reports:", err);
       toast.error("Could not load real-time IPD analytics.");
@@ -62,21 +76,41 @@ export default function IPDReports() {
     return "ipd-progress-bar--green";
   };
 
-  const totalPages = Math.max(1, Math.ceil(recentCensus.length / rowsPerPage));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const startIndex = (safeCurrentPage - 1) * rowsPerPage;
-  const paginatedCensus = recentCensus.slice(startIndex, startIndex + rowsPerPage);
-  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1);
+  // Apply selected date range filter to the census list
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const filteredCensus = recentCensus.filter((adm) => {
+    if (dateRange === "all") return true;
+    const admittedAt = new Date(adm.admitted_at);
+    if (dateRange === "today") return admittedAt >= startOfToday;
+    if (dateRange === "week") {
+      const weekAgo = new Date(startOfToday);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return admittedAt >= weekAgo;
+    }
+    if (dateRange === "month") {
+      const monthAgo = new Date(startOfToday);
+      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      return admittedAt >= monthAgo;
+    }
+    return true;
+  });
+
+  const filteredTotalPages = Math.max(1, Math.ceil(filteredCensus.length / rowsPerPage));
+  const filteredSafePage = Math.min(currentPage, filteredTotalPages);
+  const filteredStartIndex = (filteredSafePage - 1) * rowsPerPage;
+  const filteredPaginatedCensus = filteredCensus.slice(filteredStartIndex, filteredStartIndex + rowsPerPage);
+  const filteredPageNumbers = Array.from({ length: filteredTotalPages }, (_, index) => index + 1);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [rowsPerPage]);
+  }, [rowsPerPage, dateRange]);
 
   useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
+    if (currentPage > filteredTotalPages) {
+      setCurrentPage(filteredTotalPages);
     }
-  }, [currentPage, totalPages]);
+  }, [currentPage, filteredTotalPages]);
 
   return (
     <PageContainer
@@ -162,7 +196,7 @@ export default function IPDReports() {
             <div className="ipd-ward-list">
               {wardBreakdown.length === 0 ? (
                 <div style={{ color: "#64748b", padding: "20px 0", textAlign: "center" }}>
-                  Loading ward capacity data...
+                  No ward capacity data available.
                 </div>
               ) : (
                 wardBreakdown.map((w) => {
@@ -317,14 +351,14 @@ export default function IPDReports() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedCensus.length === 0 ? (
+                {filteredPaginatedCensus.length === 0 ? (
                   <tr>
                     <td colSpan={7} style={{ textAlign: "center", color: "#64748b", padding: 20 }}>
                       No inpatient records available.
                     </td>
                   </tr>
                 ) : (
-                  paginatedCensus.map((adm) => (
+                  filteredPaginatedCensus.map((adm) => (
                     <tr key={adm.id}>
                       <td style={{ fontWeight: 700, color: "#2563eb" }}>{adm.uhid || "—"}</td>
                       <td style={{ fontWeight: 600, color: "#0f172a" }}>
@@ -366,22 +400,22 @@ export default function IPDReports() {
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginTop: 18, flexWrap: "wrap" }}>
             <div style={{ color: "#475569", fontSize: 12, fontWeight: 600 }}>
-              Showing {recentCensus.length === 0 ? 0 : startIndex + 1} to {Math.min(startIndex + rowsPerPage, recentCensus.length)} of {recentCensus.length} records
+              Showing {filteredCensus.length === 0 ? 0 : filteredStartIndex + 1} to {Math.min(filteredStartIndex + rowsPerPage, filteredCensus.length)} of {filteredCensus.length} records
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <button
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={safeCurrentPage === 1}
+                disabled={filteredSafePage === 1}
                 style={{
                   border: "1px solid #cbd5e1",
-                  background: safeCurrentPage === 1 ? "#f8fafc" : "#fff",
-                  color: safeCurrentPage === 1 ? "#94a3b8" : "#334155",
+                  background: filteredSafePage === 1 ? "#f8fafc" : "#fff",
+                  color: filteredSafePage === 1 ? "#94a3b8" : "#334155",
                   borderRadius: 8,
                   width: 32,
                   height: 32,
-                  cursor: safeCurrentPage === 1 ? "not-allowed" : "pointer",
+                  cursor: filteredSafePage === 1 ? "not-allowed" : "pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center"
@@ -390,7 +424,7 @@ export default function IPDReports() {
                 <Icon name="LuChevronLeft" size={15} />
               </button>
 
-              {pageNumbers.map((page) => (
+              {filteredPageNumbers.map((page) => (
                 <button
                   key={page}
                   type="button"
@@ -400,8 +434,8 @@ export default function IPDReports() {
                     height: 32,
                     borderRadius: 8,
                     border: "1px solid #cbd5e1",
-                    background: page === safeCurrentPage ? "#0f172a" : "#fff",
-                    color: page === safeCurrentPage ? "#fff" : "#334155",
+                    background: page === filteredSafePage ? "#0f172a" : "#fff",
+                    color: page === filteredSafePage ? "#fff" : "#334155",
                     fontWeight: 700,
                     fontSize: 12,
                     cursor: "pointer",
@@ -414,16 +448,16 @@ export default function IPDReports() {
 
               <button
                 type="button"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={safeCurrentPage === totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(filteredTotalPages, p + 1))}
+                disabled={filteredSafePage === filteredTotalPages}
                 style={{
                   border: "1px solid #cbd5e1",
-                  background: safeCurrentPage === totalPages ? "#f8fafc" : "#fff",
-                  color: safeCurrentPage === totalPages ? "#94a3b8" : "#334155",
+                  background: filteredSafePage === filteredTotalPages ? "#f8fafc" : "#fff",
+                  color: filteredSafePage === filteredTotalPages ? "#94a3b8" : "#334155",
                   borderRadius: 8,
                   width: 32,
                   height: 32,
-                  cursor: safeCurrentPage === totalPages ? "not-allowed" : "pointer",
+                  cursor: filteredSafePage === filteredTotalPages ? "not-allowed" : "pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center"
