@@ -8,5 +8,5 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/hims_n_dev?sslmode=disable',
   jwtSecret: process.env.JWT_SECRET || 'super_secret_key_change_me_in_production',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  corsOrigin: process.env.CORS_ORIGIN || true,
 };

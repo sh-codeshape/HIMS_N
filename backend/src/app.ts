@@ -8,6 +8,7 @@ export const app = express();
 
 app.use(helmet());
 app.use(cors({
+  // corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   credentials: true
 }));
