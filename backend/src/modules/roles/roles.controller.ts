@@ -104,6 +104,23 @@ export class RolesController {
     }
   };
 
+  getUserById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { userId } = req.params as { userId: string };
+      const user = await this.service.getUserById(userId);
+      const roles = await this.service.getUserRoles(userId);
+      const permissions = await this.service.getUserPermissions(userId);
+      sendSuccess(
+        res,
+        { user, roles, permissions },
+        'User details retrieved successfully',
+        200
+      );
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getRoleUsers = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const roleId = req.params.roleId as string;

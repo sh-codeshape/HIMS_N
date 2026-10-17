@@ -21,6 +21,7 @@ router.put('/:roleId/permissions', authorize(['roles.manage']), controller.updat
 
 /* ---------- Users <-> Roles ---------- */
 router.get('/users', authorize(['roles.view', 'roles.manage']), controller.getUsersWithRoles);
+router.get('/users/:userId', authorize(['roles.view', 'roles.manage']), controller.getUserById);
 router.get('/:roleId/users', authorize(['roles.view', 'roles.manage']), controller.getRoleUsers);
 router.post('/users/:userId/roles', authorize(['roles.manage']), controller.assignUserRole);
 router.delete('/users/:userId/roles/:roleId', authorize(['roles.manage']), controller.removeUserRole);

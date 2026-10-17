@@ -180,6 +180,18 @@ export class RolesService {
     return result.rows;
   }
 
+  async getUserById(userId: string) {
+    const user = await db.query(
+      `SELECT id, username, email, full_name, is_active, is_superadmin, default_facility_id, organization_id
+       FROM users WHERE id = $1`,
+      [userId]
+    );
+    if (user.rows.length === 0) {
+      throw new NotFoundError('User not found');
+    }
+    return user.rows[0];
+  }
+
   async getRoleUsers(roleId: string) {
     const query = `
       SELECT u.id, u.username, u.email, u.full_name, u.is_active
@@ -189,6 +201,18 @@ export class RolesService {
       ORDER BY u.full_name ASC
     `;
     const result = await db.query(query, [roleId]);
+    return result.rows;
+  }
+
+  async getUserRoles(userId: string) {
+    const query = `
+      SELECT r.id, r.code, r.name, r.description, r.is_system
+      FROM user_roles ur
+      JOIN roles r ON r.id = ur.role_id
+      WHERE ur.user_id = $1
+      ORDER BY r.name ASC
+    `;
+    const result = await db.query(query, [userId]);
     return result.rows;
   }
 

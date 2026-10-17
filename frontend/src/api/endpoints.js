@@ -52,6 +52,7 @@ export const ENDPOINTS = {
   ROLES: {
     BASE: "/roles",
     USERS: "/roles/users",
+    USER_BY_ID: (userId) => `/roles/users/${userId}`,
     ROLE_USERS: (roleId) => `/roles/${roleId}/users`,
     ASSIGN_USER_ROLE: (userId) => `/roles/users/${userId}/roles`,
     USER_ROLE: (userId, roleId) => `/roles/users/${userId}/roles/${roleId}`,

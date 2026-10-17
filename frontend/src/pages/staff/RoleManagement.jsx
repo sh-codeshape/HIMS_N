@@ -20,20 +20,23 @@ export default function RoleManagement() {
 
   const [creatingRole, setCreatingRole] = useState(false);
   const [roleForm, setRoleForm] = useState({ code: "", name: "", description: "", is_system: false });
-  const [editingRole, setEditingRole] = useState(null); // role being edited inline
+  const [editingRole, setEditingRole] = useState(null);
   const [editForm, setEditForm] = useState({ name: "", description: "" });
 
   /* ---------- Users tab state ---------- */
   const [users, setUsers] = useState([]);
   const [allRoles, setAllRoles] = useState([]);
-  const [assigning, setAssigning] = useState(false);
-  const [assignUserId, setAssignUserId] = useState("");
-  const [assignRoleId, setAssignRoleId] = useState("");
 
-  /* ---------- User Permissions tab state ---------- */
+  /* edit-user modal */
+  const [editingUser, setEditingUser] = useState(null);   // user being edited (from list)
+  const [userDetail, setUserDetail] = useState(null);      // fetched detail: { user, roles, permissions }
+  const [assignRoleId, setAssignRoleId] = useState("");
+  const [savingUser, setSavingUser] = useState(false);
+  const [directPermissionIds, setDirectPermissionIds] = useState([]);
+
+  /* ---------- User Permissions tab state (legacy quick view) ---------- */
   const [selectedUser, setSelectedUser] = useState(null);
   const [userPermissions, setUserPermissions] = useState([]);
-  const [directPermissionIds, setDirectPermissionIds] = useState([]);
   const [granting, setGranting] = useState(false);
 
   /* ---------- init ---------- */
@@ -57,6 +60,7 @@ export default function RoleManagement() {
       const res = await axiosInstance.get(ENDPOINTS.ROLES.BASE);
       const fetchedRoles = res.data.data || [];
       setRoles(fetchedRoles);
+      setAllRoles(fetchedRoles);
       if (!selectedRole && fetchedRoles.length > 0) {
         setSelectedRole(fetchedRoles[0]);
       }
@@ -66,6 +70,21 @@ export default function RoleManagement() {
       setLoading(false);
     }
   };
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.ROLES.USERS);
+      setUsers(res.data.data || []);
+    } catch (error) {
+      toast.error("Failed to load users");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "users") {
+      fetchUsers();
+    }
+  }, [activeTab, fetchUsers]);
 
   const fetchRolePermissions = useCallback(async (roleId) => {
     try {
@@ -154,73 +173,70 @@ export default function RoleManagement() {
   };
 
   /* ---------- Users handlers ---------- */
-  useEffect(() => {
-    if (activeTab === "users") {
-      fetchUsers();
-    }
-  }, [activeTab]);
-
-  const fetchUsers = async () => {
+  const openEditUser = async (user) => {
+    setEditingUser(user);
+    setAssignRoleId("");
     try {
-      const [usersRes, rolesRes] = await Promise.all([
-        axiosInstance.get(ENDPOINTS.ROLES.USERS),
-        axiosInstance.get(ENDPOINTS.ROLES.BASE),
-      ]);
-      setUsers(usersRes.data.data || []);
-      setAllRoles(rolesRes.data.data || []);
+      const res = await axiosInstance.get(ENDPOINTS.ROLES.USER_BY_ID(user.id));
+      const data = res.data.data || {};
+      setUserDetail({
+        user: data.user || user,
+        roles: data.roles || [],
+        permissions: data.permissions || [],
+      });
+      setDirectPermissionIds(
+        (data.permissions || [])
+          .filter((p) => p.source === "direct")
+          .map((p) => p.id)
+      );
     } catch (error) {
-      toast.error("Failed to load users");
+      toast.error("Failed to load user details");
     }
   };
 
-  const rolesNotAssigned = (user) => {
-    const userRoleCodes = new Set(user.roles || []);
-    return allRoles.filter((r) => !userRoleCodes.includes(r.code));
+  const closeEditUser = () => {
+    setEditingUser(null);
+    setUserDetail(null);
+    setAssignRoleId("");
+    setDirectPermissionIds([]);
   };
 
-  const handleAssignRole = async () => {
-    if (!assignUserId || !assignRoleId) return;
+  const rolesNotAssigned = (detailRoles) => {
+    const assignedCodes = new Set(detailRoles.map((r) => r.code));
+    return allRoles.filter((r) => !assignedCodes.includes(r.code));
+  };
+
+  const handleAssignUserRole = async () => {
+    if (!editingUser || !assignRoleId) return;
     try {
-      setAssigning(true);
-      await axiosInstance.post(ENDPOINTS.ROLES.ASSIGN_USER_ROLE(assignUserId), {
+      setSavingUser(true);
+      await axiosInstance.post(ENDPOINTS.ROLES.ASSIGN_USER_ROLE(editingUser.id), {
         roleId: assignRoleId,
       });
       toast.success("Role assigned to user");
       setAssignRoleId("");
+      await openEditUser(editingUser);
       await fetchUsers();
     } catch (error) {
       toast.error("Failed to assign role");
     } finally {
-      setAssigning(false);
+      setSavingUser(false);
     }
   };
 
-  const handleRemoveUserRole = async (userId, roleId, roleName) => {
+  const handleRemoveUserRole = async (roleId, roleName) => {
+    if (!editingUser) return;
     if (!window.confirm(`Remove role "${roleName}" from this user?`)) return;
     try {
-      await axiosInstance.delete(ENDPOINTS.ROLES.USER_ROLE(userId, roleId));
+      setSavingUser(true);
+      await axiosInstance.delete(ENDPOINTS.ROLES.USER_ROLE(editingUser.id, roleId));
       toast.success("Role removed from user");
+      await openEditUser(editingUser);
       await fetchUsers();
     } catch (error) {
       toast.error("Failed to remove role");
-    }
-  };
-
-  /* ---------- User Permissions handlers ---------- */
-  useEffect(() => {
-    if (activeTab === "user-permissions" && selectedUser) {
-      fetchUserPermissions();
-    }
-  }, [activeTab, selectedUser]);
-
-  const fetchUserPermissions = async () => {
-    try {
-      const res = await axiosInstance.get(ENDPOINTS.ROLES.USER_PERMISSIONS(selectedUser.id));
-      const perms = res.data.data || [];
-      setUserPermissions(perms);
-      setDirectPermissionIds(perms.filter((p) => p.source === "direct").map((p) => p.id));
-    } catch (error) {
-      toast.error("Failed to load user permissions");
+    } finally {
+      setSavingUser(false);
     }
   };
 
@@ -233,30 +249,46 @@ export default function RoleManagement() {
   };
 
   const handleSaveUserPermissions = async () => {
-    if (!selectedUser) return;
+    if (!editingUser || !userDetail) return;
     try {
-      setGranting(true);
-      // Revoke deselected direct permissions
+      setSavingUser(true);
       const currentlyDirect = new Set(
-        userPermissions.filter((p) => p.source === "direct").map((p) => p.id)
+        userDetail.permissions.filter((p) => p.source === "direct").map((p) => p.id)
       );
       const toRevoke = [...currentlyDirect].filter((id) => !directPermissionIds.includes(id));
       for (const id of toRevoke) {
-        await axiosInstance.delete(ENDPOINTS.ROLES.REVOKE_USER_PERMISSION(selectedUser.id, id));
+        await axiosInstance.delete(ENDPOINTS.ROLES.REVOKE_USER_PERMISSION(editingUser.id, id));
       }
-      // Grant newly selected direct permissions
       const toGrant = directPermissionIds.filter((id) => !currentlyDirect.has(id));
       for (const id of toGrant) {
-        await axiosInstance.post(ENDPOINTS.ROLES.GRANT_USER_PERMISSION(selectedUser.id), {
+        await axiosInstance.post(ENDPOINTS.ROLES.GRANT_USER_PERMISSION(editingUser.id), {
           permissionId: id,
         });
       }
       toast.success("User permissions updated");
-      await fetchUserPermissions();
+      await openEditUser(editingUser);
+      await fetchUsers();
     } catch (error) {
       toast.error("Failed to update user permissions");
     } finally {
-      setGranting(false);
+      setSavingUser(false);
+    }
+  };
+
+  /* ---------- legacy User Permissions tab handlers ---------- */
+  useEffect(() => {
+    if (activeTab === "user-permissions" && selectedUser) {
+      fetchUserPermissions();
+    }
+  }, [activeTab, selectedUser]);
+
+  const fetchUserPermissions = async () => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.ROLES.USER_PERMISSIONS(selectedUser.id));
+      const perms = res.data.data || [];
+      setUserPermissions(perms);
+    } catch (error) {
+      toast.error("Failed to load user permissions");
     }
   };
 
@@ -436,37 +468,9 @@ export default function RoleManagement() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex justify-between items-end mb-6">
             <h3 className="font-semibold text-gray-700">Users &amp; Assigned Roles</h3>
-            <div className="flex gap-3">
-              <select
-                value={assignUserId}
-                onChange={(e) => setAssignUserId(e.target.value)}
-                className="border border-gray-300 rounded px-3 py-2 text-sm"
-              >
-                <option value="">-- Select user --</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.full_name} ({u.username})
-                  </option>
-                ))}
-              </select>
-              <select
-                value={assignRoleId}
-                onChange={(e) => setAssignRoleId(e.target.value)}
-                className="border border-gray-300 rounded px-3 py-2 text-sm"
-              >
-                <option value="">-- Select role --</option>
-                {allRoles.map((r) => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
-                ))}
-              </select>
-              <button
-                onClick={handleAssignRole}
-                disabled={assigning || !assignUserId || !assignRoleId}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-              >
-                {assigning ? "Assigning..." : "Assign Role"}
-              </button>
-            </div>
+            <p className="text-sm text-gray-500">
+              Click a user to view and update their roles and permissions.
+            </p>
           </div>
 
           <div className="overflow-x-auto">
@@ -481,7 +485,7 @@ export default function RoleManagement() {
               </thead>
               <tbody>
                 {users.map((user) => (
-                  <tr key={user.id} className="border-b last:border-0">
+                  <tr key={user.id} className="border-b last:border-0 hover:bg-gray-50 cursor-pointer" onClick={() => openEditUser(user)}>
                     <td className="p-3">
                       <div className="font-medium text-gray-900">{user.full_name}</div>
                       <div className="text-xs text-gray-500">{user.username}</div>
@@ -522,15 +526,12 @@ export default function RoleManagement() {
                       </span>
                     </td>
                     <td className="p-3">
-                      {(user.roles || []).map((code) => (
-                        <button
-                          key={code}
-                          onClick={() => handleRemoveUserRole(user.id, code, code)}
-                          className="text-xs text-red-600 hover:underline mr-2"
-                        >
-                          Remove {code}
-                        </button>
-                      ))}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openEditUser(user); }}
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -547,13 +548,13 @@ export default function RoleManagement() {
         </div>
       )}
 
-      {/* ================== TAB: USER PERMISSIONS ================== */}
+      {/* ================== TAB: USER PERMISSIONS (quick view) ================== */}
       {activeTab === "user-permissions" && (
         <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-280px)]">
           <div className="w-full md:w-1/3 bg-white rounded-lg shadow flex flex-col h-full overflow-hidden">
             <div className="p-4 border-b bg-gray-50">
               <h3 className="font-semibold text-gray-700">Select User</h3>
-              <p className="text-sm text-gray-500">Grant or revoke permissions directly to a user.</p>
+              <p className="text-sm text-gray-500">View a user's direct permissions.</p>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               {users.length === 0 ? (
@@ -564,7 +565,6 @@ export default function RoleManagement() {
                     key={user.id}
                     onClick={() => {
                       setSelectedUser(user);
-                      setDirectPermissionIds([]);
                     }}
                     className={`w-full text-left p-3 border-b transition-colors ${
                       selectedUser?.id === user.id ? "bg-blue-50 border-blue-200" : "hover:bg-gray-50"
@@ -590,47 +590,146 @@ export default function RoleManagement() {
                       Direct Permissions: {selectedUser.full_name}
                     </h3>
                     <p className="text-sm text-gray-500">
-                      These are granted directly to this user and apply in addition to role-inherited permissions.
+                      Permissions granted directly to this user (in addition to role-inherited ones).
                     </p>
                   </div>
                   <button
-                    onClick={handleSaveUserPermissions}
-                    disabled={granting}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    onClick={() => openEditUser(selectedUser)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                   >
-                    {granting ? "Saving..." : "Save Changes"}
+                    Edit Roles & Permissions
                   </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                  {/* Role-inherited (read-only context) */}
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-gray-50 px-4 py-2 border-b font-medium text-gray-700">
-                      Inherited via Roles
-                    </div>
+                  {userPermissions.length > 0 ? (
                     <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {userPermissions
-                        .filter((p) => p.source === "role")
-                        .map((perm) => (
-                          <span
-                            key={perm.id}
-                            className="inline-flex items-center px-3 py-1.5 rounded border border-gray-200 bg-gray-50 text-xs text-gray-600"
-                          >
-                            {PERMISSION_LABELS[perm.code] || perm.code}
-                          </span>
-                        ))}
+                      {userPermissions.map((perm) => (
+                        <span
+                          key={perm.id}
+                          className={`inline-flex items-center px-3 py-1.5 rounded border text-xs ${
+                            perm.source === "direct"
+                              ? "border-blue-200 bg-blue-50 text-blue-700"
+                              : "border-gray-200 bg-gray-50 text-gray-600"
+                          }`}
+                        >
+                          {PERMISSION_LABELS[perm.code] || perm.code}
+                          {perm.source === "direct" && <span className="ml-1 text-[10px] opacity-70">direct</span>}
+                        </span>
+                      ))}
                     </div>
-                  </div>
+                  ) : (
+                    <div className="p-8 text-center text-gray-500">No permissions.</div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                Select a user to view their direct permissions
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
-                  {/* Directly grantable */}
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-gray-50 px-4 py-2 border-b font-medium text-gray-700">
-                      Grant / Revoke Direct Permissions
+      {/* ============================ MODAL: EDIT USER (roles + permissions) ============================ */}
+      {editingUser && userDetail && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Edit User</h3>
+                <p className="text-sm text-gray-500">
+                  {userDetail.user.full_name} <span className="text-gray-400">({userDetail.user.username})</span>
+                </p>
+              </div>
+              <button
+                onClick={closeEditUser}
+                className="text-gray-500 hover:text-gray-900"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Roles section */}
+            <div className="mb-8">
+              <h4 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
+                <span className="text-blue-600">👤</span> Assigned Roles
+              </h4>
+              <div className="space-y-2">
+                {userDetail.roles.length > 0 ? (
+                  userDetail.roles.map((role) => (
+                    <div key={role.id} className="flex items-center justify-between p-3 bg-gray-50 rounded border border-gray-100">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`text-sm font-medium ${
+                            role.is_system ? "text-gray-700" : "text-gray-900"
+                          }`}
+                        >
+                          {role.name}
+                        </span>
+                        {role.is_system && (
+                          <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded">system</span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleRemoveUserRole(role.id, role.name)}
+                        disabled={savingUser}
+                        className="text-xs text-red-600 hover:text-red-800 hover:underline disabled:opacity-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-gray-500 text-center py-4">No roles assigned.</div>
+                )}
+              </div>
+
+              <div className="mt-4">
+                <h4 className="font-medium text-gray-700 mb-2">Assign a Role</h4>
+                <div className="flex gap-2 items-end">
+                  <select
+                    value={assignRoleId}
+                    onChange={(e) => setAssignRoleId(e.target.value)}
+                    disabled={savingUser}
+                    className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                  >
+                    <option value="">-- Select role --</option>
+                    {rolesNotAssigned(userDetail.roles).map((r) => (
+                      <option key={r.id} value={r.id}>{r.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleAssignUserRole}
+                    disabled={savingUser || !assignRoleId}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {savingUser ? "Assigning..." : "Assign"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Permissions section */}
+            <div className="mb-8">
+              <h4 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
+                <span className="text-purple-600">🔐</span> Direct Permissions
+              </h4>
+              <p className="text-sm text-gray-500 mb-4">
+                Grant or revoke permissions directly to this user. These apply in addition to role-inherited permissions.
+              </p>
+              <div className="space-y-4">
+                {Object.entries(groupedPermissions).map(([module, perms]) => (
+                  <div key={module} className="border rounded-lg overflow-hidden">
+                    <div className="bg-gray-50 px-4 py-2 border-b font-medium text-gray-700 capitalize">
+                      {module.replace(/_/g, " ")} Module
                     </div>
                     <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-0">
-                      {permissions.map((perm) => {
+                      {perms.map((perm) => {
                         const alreadyDirect = directPermissionIds.includes(perm.id);
-                        const inherited = userPermissions.some(
+                        const inherited = userDetail.permissions.some(
                           (p) => p.id === perm.id && p.source === "role"
                         );
                         return (
@@ -649,7 +748,8 @@ export default function RoleManagement() {
                                 {PERMISSION_LABELS[perm.code] || perm.code}
                               </div>
                               <div className="text-xs text-gray-500">
-                                {perm.code} {inherited ? "(also inherited via role)" : ""}
+                                {perm.code}
+                                {inherited ? <span className="ml-2 text-[10px] text-green-600">(inherited via role)</span> : null}
                               </div>
                             </div>
                           </label>
@@ -657,13 +757,25 @@ export default function RoleManagement() {
                       })}
                     </div>
                   </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
-                Select a user to manage their direct permissions
+                ))}
               </div>
-            )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
+              <button
+                onClick={closeEditUser}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              >
+                Close
+              </button>
+              <button
+                onClick={handleSaveUserPermissions}
+                disabled={savingUser}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                {savingUser ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
           </div>
         </div>
       )}
