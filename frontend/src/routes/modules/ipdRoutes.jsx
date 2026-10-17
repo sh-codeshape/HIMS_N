@@ -2,7 +2,7 @@ import React from "react";
 import { Route } from "react-router-dom";
 import ProtectedRoute from "../../auth/ProtectedRoute.jsx";
 import { ROLES } from "../../auth/roles";
-import { IPDAdmission, BedAllotment, IPDDischarge, IPDReports } from "../../pages/ipd";
+import { IPDAdmission, BedAllotment, IPDDischarge, IPDDischargeDetail, IPDReports } from "../../pages/ipd";
 
 const { SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION } = ROLES;
 
@@ -31,6 +31,15 @@ export const ipdRoutes = [
     element={
       <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION]}>
         <IPDDischarge />
+      </ProtectedRoute>
+    }
+  />,
+  <Route
+    key="ipd-discharge-detail"
+    path="/ipd/discharge/:id"
+    element={
+      <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION]}>
+        <IPDDischargeDetail />
       </ProtectedRoute>
     }
   />,

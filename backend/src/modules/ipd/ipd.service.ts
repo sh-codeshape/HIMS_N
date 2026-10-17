@@ -54,4 +54,8 @@ export class IpdService {
   async getIpdReportStats(facilityId: string) {
     return this.repository.getIpdReportStats(facilityId);
   }
+
+  async getPendingDues(encounterId: string) {
+    return this.repository.getPendingDues(encounterId);
+  }
 }

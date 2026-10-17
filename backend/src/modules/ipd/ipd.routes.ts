@@ -15,5 +15,6 @@ router.post('/admissions/:id/discharge', validate(dischargePatientSchema), contr
 router.get('/admissions/:id/discharge-summary', controller.getDischargeSummary);
 router.post('/admissions/:id/discharge-summary', controller.saveDischargeSummary);
 router.get('/reports/stats', controller.getIpdReportStats);
+router.get('/admissions/:id/pending-dues', controller.getPendingDues);
 
 export const ipdRoutes = router;

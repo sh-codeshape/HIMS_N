@@ -452,6 +452,111 @@ export class IpdRepository {
     return { rows: result.rows, totalCount };
   }
 
+  /**
+   * Bill phase: full pending dues for an encounter/encounter admission.
+   * Aggregates billable charges grouped by department × source_type, nets against
+   * completed payments, allocates payments deterministically, rolls up to a
+   * department-level breakdown, and flags per-group clearance for the IPD
+   * discharge workflow (clearance can be drilled into by fee type / source).
+   */
+  async getPendingDues(encounterId: string) {
+    // Full breakdown: billable charges grouped by department × source_type
+    const rows = await db.query(
+      `SELECT
+         d.id AS department_id,
+         COALESCE(d.name, 'Uncategorized') AS department,
+         COALESCE(d.department_type, 'other') AS department_type,
+         COALESCE(c.source_type, 'other') AS source_type,
+         COALESCE(SUM(c.net_amount), 0)::numeric AS charges,
+         COUNT(c.id) FILTER (WHERE c.status = 'billable') AS charge_count
+       FROM charges c
+       LEFT JOIN departments d ON d.id = c.department_id
+       WHERE c.encounter_id = $1 AND c.status = 'billable'
+       GROUP BY d.id, d.name, d.department_type, c.source_type
+       ORDER BY d.name, c.source_type`,
+      [encounterId]
+    );
+
+    // Total completed payments for this encounter
+    const paymentRows = await db.query(
+      `SELECT COALESCE(SUM(amount), 0)::numeric AS total_payments
+       FROM payments
+       WHERE encounter_id = $1 AND status = 'completed'`,
+      [encounterId]
+    );
+
+    const totalPayments = Number(paymentRows.rows[0]?.total_payments || 0);
+    const totalCharges = Number(
+      rows.rows.reduce((acc, r) => acc + Number(r.charges || 0), 0)
+    );
+    const pendingAmount = Math.max(0, totalCharges - totalPayments);
+
+    // Allocate payments across full groups deterministically:
+    // highest outstanding balance first (tie-break: department, then source type).
+    // A group is "cleared" only when its charges are fully covered.
+    const sortedRows = [...rows.rows].sort(
+      (a: any, b: any) =>
+        Number(b.charges || 0) - Number(a.charges || 0) ||
+        String(a.department || '').localeCompare(String(b.department || '')) ||
+        String(a.source_type || '').localeCompare(String(b.source_type || ''))
+    );
+
+    let paymentsRemaining = totalPayments;
+    const sourceGroups = sortedRows.map((row: any) => {
+      const charges = Number(row.charges || 0);
+      const covered = Math.min(paymentsRemaining, charges);
+      paymentsRemaining = Math.max(0, paymentsRemaining - covered);
+      const pending = Math.max(0, charges - covered);
+      return {
+        department_id: row.department_id,
+        department: row.department || 'Uncategorized',
+        type: row.department_type || 'other',
+        sourceType: row.source_type || 'other',
+        charges,
+        clearedAmount: covered,
+        pending,
+        cleared: pending === 0,
+      };
+    });
+
+    // Roll up to department-level breakdown for clearance gating / summary
+    const deptMap = new Map<string, any>();
+    for (const g of sourceGroups) {
+      const key = g.department_id || `dept-${g.department}`;
+      if (!deptMap.has(key)) {
+        deptMap.set(key, {
+          department_id: g.department_id,
+          department: g.department,
+          type: g.type,
+          charges: 0,
+          clearedAmount: 0,
+          pending: 0,
+          cleared: true,
+        });
+      }
+      const d = deptMap.get(key);
+      d.charges += g.charges;
+      d.clearedAmount += g.clearedAmount;
+      d.pending += g.pending;
+      d.cleared = d.pending === 0;
+    }
+    const breakdown = Array.from(deptMap.values()).sort((a, b) =>
+      String(a.department).localeCompare(String(b.department))
+    );
+
+    const allCleared = pendingAmount === 0;
+
+    return {
+      encounterId,
+      totalCharges,
+      totalPayments,
+      pendingAmount,
+      cleared: allCleared,
+      breakdown,
+      sourceBreakdown: sourceGroups,
+    };
+  }
+
   async dischargePatient(facilityId: string, admissionId: string, dischargeType: string, dischargeCondition?: string) {
     const client = await db.getClient();
     try {

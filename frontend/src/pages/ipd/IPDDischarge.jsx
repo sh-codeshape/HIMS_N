@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import PageContainer from "../../components/common/PageContainer.jsx";
 import Icon from "../../components/common/Icon.jsx";
@@ -58,6 +59,10 @@ export default function IPDDischarge() {
   // Printable Summary Modal State
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [currentSummary, setCurrentSummary] = useState(null);
+
+  // Pending dues (clearance) state — fetched per admission from backend
+  const [pendingDues, setPendingDues] = useState(null);
+  const [duesLoading, setDuesLoading] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -125,8 +130,14 @@ export default function IPDDischarge() {
       ).toFixed(1)
     : "3.2";
 
+  // Navigate to the dedicated discharge workflow page (clearance, billing, summary, print)
+  const navigate = useNavigate();
+  const handleStartDischarge = (admission) => {
+    navigate(`/ipd/discharge/${admission.id}`, { state: { admission } });
+  };
+
   // Open Discharge Modal
-  const handleOpenDischargeModal = (admission) => {
+  const handleOpenDischargeModal = async (admission) => {
     setSelectedAdmission(admission);
     const defaultFollowUp = new Date();
     defaultFollowUp.setDate(defaultFollowUp.getDate() + 5);
@@ -147,7 +158,35 @@ export default function IPDDischarge() {
         { name: "Cap Pantoprazole 40mg", dosage: "1 Cap", frequency: "OD (Morning Empty Stomach)", days: "5 Days" }
       ]
     });
+
+    // Fetch real pending dues from backend for clearance status
+    await fetchPendingDues(admission.encounter_id || admission.id);
     setDischargeModalOpen(true);
+  };
+
+  // Fetch pending dues per department for clearance
+  const fetchPendingDues = async (encounterId) => {
+    if (!encounterId) {
+      setPendingDues(null);
+      return;
+    }
+    setDuesLoading(true);
+    try {
+      const dues = await ipdService.getPendingDues(encounterId);
+      setPendingDues(dues);
+      // Seed the clearance checklist from real backend data
+      setClearanceChecklist({
+        billingCleared: dues.cleared || false,
+        pharmacyReturned: true, // operational, kept manual
+        nursingChartHandover: true, // operational, kept manual
+      });
+    } catch (err) {
+      console.error("Failed to fetch pending dues", err);
+      setPendingDues(null);
+      toast.warn("Could not fetch pending dues. Clearance shown as unverified.");
+    } finally {
+      setDuesLoading(false);
+    }
   };
 
   // Add Medication Row
@@ -181,8 +220,16 @@ export default function IPDDischarge() {
     e.preventDefault();
     if (!selectedAdmission) return;
 
-    if (!clearanceChecklist.billingCleared) {
-      toast.error("Please verify Billing & Dues clearance before discharge!");
+    // 1. Block if real backend dues are pending
+    if (pendingDues && !pendingDues.cleared) {
+      const pendingDept = pendingDues.breakdown?.filter((b) => !b.cleared).map((b) => b.department).join(", ") || "dues";
+      toast.error(`Cannot discharge — pending ${pendingDept} dues of ₹${pendingDues.pendingAmount.toLocaleString("en-IN")} not cleared.`);
+      return;
+    }
+
+    // 2. Block if operational clearances not confirmed
+    if (!clearanceChecklist.billingCleared || !clearanceChecklist.pharmacyReturned || !clearanceChecklist.nursingChartHandover) {
+      toast.error("Please verify all hospital clearances before discharge!");
       return;
     }
 
@@ -455,22 +502,26 @@ export default function IPDDischarge() {
                             <td>
                               <div className="ipd-checklist-pills">
                                 {(() => {
-                                  const hasCharges = (row.total_charges ?? 0) > 0;
-                                  const billingCleared = hasCharges && (row.total_payments ?? 0) >= (row.total_charges ?? 0);
-                                  const pharmacyCleared = billingCleared;
+                                  const rowCharges = Number(row.total_charges ?? 0);
+                                  const rowPayments = Number(row.total_payments ?? 0);
+                                  const rowPending = Math.max(0, rowCharges - rowPayments);
+                                  const billingCleared = rowPending === 0;
                                   return [
                                     {
                                       label: "Bill",
                                       cleared: billingCleared,
+                                      pending: rowPending,
                                     },
                                     {
                                       label: "Rx",
-                                      cleared: pharmacyCleared,
+                                      cleared: billingCleared, // pharmacy dues roll into bill pending
+                                      pending: rowPending,
                                     },
                                   ].map((item) => (
                                     <span
                                       key={item.label}
                                       className={`ipd-chk-pill ${item.cleared ? "ipd-chk-pill--cleared" : "ipd-chk-pill--pending"}`}
+                                      title={item.cleared ? "Cleared" : `Pending ₹${item.pending.toLocaleString("en-IN")}`}
                                     >
                                       {item.cleared ? (
                                         <Icon name="LuCheckCircle" size={11} />
@@ -478,6 +529,9 @@ export default function IPDDischarge() {
                                         <Icon name="LuAlertCircle" size={11} />
                                       )}
                                       {item.label}
+                                      {!item.cleared && (
+                                        <span style={{ fontSize: 10, marginLeft: 4, opacity: 0.9 }}>{item.pending.toLocaleString("en-IN")}</span>
+                                      )}
                                     </span>
                                   ));
                                 })()}
@@ -487,7 +541,7 @@ export default function IPDDischarge() {
                               <button
                                 type="button"
                                 className="ipd-btn-discharge"
-                                onClick={() => handleOpenDischargeModal(row)}
+                                onClick={() => handleStartDischarge(row)}
                               >
                                 <Icon name="LuLogOut" size={14} /> Discharge
                               </button>
@@ -535,8 +589,11 @@ export default function IPDDischarge() {
 
         {/* Discharge Action Modal */}
         {dischargeModalOpen && selectedAdmission && (
-          <div className="ipd-modal-overlay">
-            <div className="ipd-modal-card">
+          <div
+            className="ipd-modal-overlay"
+            onClick={() => setDischargeModalOpen(false)}
+          >
+            <div className="ipd-modal-card" onClick={(e) => e.stopPropagation()}>
               <div className="ipd-modal-header">
                 <div>
                   <h3 className="ipd-modal-title">Initiate Inpatient Discharge</h3>
@@ -558,7 +615,48 @@ export default function IPDDischarge() {
                   {/* Step 1: Clearance Verification */}
                   <div className="ipd-form-section">
                     <h4 className="ipd-form-section-title">1. Hospital Clearance Verification</h4>
-                    <div className="ipd-clearance-checklist">
+                    {/* Real pending dues from backend (pharmacy, IPD billing, lab) */}
+                    {duesLoading ? (
+                      <div className="ipd-dues-loading">Fetching pending dues from billing, pharmacy & lab…</div>
+                    ) : pendingDues ? (
+                      <div className="ipd-dues-breakdown">
+                        <div className="ipd-dues-summary-row">
+                          <span className="ipd-dues-label">IPD Billing Charges (Bed & Services)</span>
+                          <span className="ipd-dues-val">{`₹${pendingDues.totalCharges.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}</span>
+                        </div>
+                        <div className="ipd-dues-summary-row">
+                          <span className="ipd-dues-label">Payments Received</span>
+                          <span className="ipd-dues-val ipd-text-green">{`₹${pendingDues.totalPayments.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}</span>
+                        </div>
+                        <div className="ipd-dues-summary-row ipd-dues-summary-row--pending">
+                          <span className="ipd-dues-label">{pendingDues.cleared ? "Balance Cleared" : "Pending Dues (All Departments)"}</span>
+                          <span className="ipd-dues-val ipd-text-red">{`₹${pendingDues.pendingAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}</span>
+                        </div>
+                        <div className="ipd-dues-dept-list">
+                          {pendingDues.breakdown.map((dept) => (
+                            <div key={dept.department} className="ipd-dues-dept-row">
+                              <span className="ipd-dues-dept-name">{dept.department}</span>
+                              <span className={`ipd-dues-dept-status ${dept.cleared ? "ipd-dues-dept-cleared" : "ipd-dues-dept-pending"}`}>
+                                {dept.cleared ? (
+                                  <><Icon name="LuCheckCircle" size={12} /> Cleared</>
+                                ) : (
+                                  <><Icon name="LuAlertCircle" size={12} /> Pending ₹{dept.pending.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</>
+                                )}
+                              </span>
+                            </div>
+                          ))}
+                          {pendingDues.breakdown.length === 0 && (
+                            <div className="ipd-dues-dept-row ipd-dues-dept-row--empty">
+                              <span>No charge records found for this encounter.</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="ipd-dues-loading">Dues data unavailable.</div>
+                    )}
+
+                    <div className="ipd-operational-clearances">
                       <label className="ipd-checklist-label">
                         <input
                           type="checkbox"
@@ -566,8 +664,14 @@ export default function IPDDischarge() {
                           onChange={(e) =>
                             setClearanceChecklist({ ...clearanceChecklist, billingCleared: e.target.checked })
                           }
+                          disabled={pendingDues && !pendingDues.cleared}
                         />
-                        <span>Billing & Cash Dues Cleared</span>
+                        <span style={{ opacity: pendingDues && !pendingDues.cleared ? 0.6 : 1 }}>
+                          Billing & Cash Dues Cleared
+                        </span>
+                        {pendingDues && !pendingDues.cleared && (
+                          <span style={{ fontSize: 11, color: "#dc2626", marginLeft: 6 }}>Clear dues first</span>
+                        )}
                       </label>
                       <label className="ipd-checklist-label">
                         <input
@@ -779,8 +883,11 @@ export default function IPDDischarge() {
 
         {/* Printable Official Discharge Slip Modal */}
         {printModalOpen && selectedAdmission && currentSummary && (
-          <div className="ipd-modal-overlay">
-            <div className="ipd-modal-card ipd-print-modal-card">
+          <div
+            className="ipd-modal-overlay"
+            onClick={() => setPrintModalOpen(false)}
+          >
+            <div className="ipd-modal-card ipd-print-modal-card" onClick={(e) => e.stopPropagation()}>
               <div className="ipd-modal-header">
                 <h3 className="ipd-modal-title">Clinical Discharge Summary Document</h3>
                 <div style={{ display: "flex", gap: 10 }}>

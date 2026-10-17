@@ -347,7 +347,7 @@
   justify-content: center;
   z-index: 1000;
   padding: 16px;
-  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .ipd-modal-card {
@@ -650,4 +650,162 @@ textarea.ipd-form-control {
   .ipd-modal-header, .ipd-modal-footer {
     display: none !important;
   }
+}
+
+/* Pending Dues Breakdown (Clearance) */
+.ipd-dues-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  color: #64748b;
+  font-size: 13px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px dashed #cbd5e1;
+}
+
+.ipd-dues-breakdown {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.ipd-dues-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px dashed #cbd5e1;
+  font-size: 13px;
+}
+
+.ipd-dues-summary-row:last-child {
+  border-bottom: none;
+}
+
+.ipd-dues-summary-row--pending {
+  border-bottom: none;
+  padding-top: 10px;
+  font-weight: 700;
+  border-top: 2px solid #e2e8f0;
+  margin-top: 4px;
+  padding-top: 12px;
+}
+
+.ipd-dues-label {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.ipd-dues-val {
+  color: #0f172a;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ipd-dues-summary-row--pending .ipd-dues-val {
+  font-size: 16px;
+}
+
+.ipd-text-green { color: #15803d; }
+.ipd-text-red { color: #dc2626; }
+
+.ipd-dues-dept-list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ipd-dues-dept-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  font-size: 12.5px;
+}
+
+.ipd-dues-dept-row--empty {
+  background: #f8fafc;
+  border-style: dashed;
+  color: #64748b;
+  justify-content: center;
+}
+
+.ipd-dues-dept-name {
+  color: #334155;
+  font-weight: 600;
+}
+
+.ipd-dues-dept-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.ipd-dues-dept-cleared { color: #15803d; }
+.ipd-dues-dept-pending { color: #b91c1c; }
+
+/* Full breakdown — fee-wise (department × source_type) rows */
+.ipd-dues-sources {
+  margin-top: 12px;
+}
+.ipd-dues-sources-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+.ipd-dues-source-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #ffffff;
+  border: 1px dashed #e2e8f0;
+  border-radius: 8px;
+  font-size: 12.5px;
+}
+.ipd-dues-source-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.ipd-dues-source-dept {
+  color: #334155;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ipd-dues-source-type {
+  color: #475569;
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.ipd-operational-clearances {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed #cbd5e1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }

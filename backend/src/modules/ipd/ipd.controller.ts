@@ -66,4 +66,10 @@ export class IpdController {
     const stats = await this.service.getIpdReportStats(facilityId);
     sendSuccess(res, stats, 'IPD report statistics retrieved successfully');
   };
+
+  getPendingDues = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const result = await this.service.getPendingDues(String(id));
+    sendSuccess(res, result, 'Pending dues retrieved successfully');
+  };
 }

@@ -37,7 +37,12 @@ const ipdService = {
   getReportStats: async () => {
     const res = await axiosInstance.get(`/ipd/reports/stats`);
     return res.data?.data ?? res.data ?? null;
-  }
+  },
+
+  getPendingDues: async (encounterId) => {
+    const res = await axiosInstance.get(`/ipd/admissions/${encounterId}/pending-dues`);
+    return res.data?.data ?? res.data ?? null;
+  },
 };
 
 export default ipdService;
