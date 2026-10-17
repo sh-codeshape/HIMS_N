@@ -14,6 +14,13 @@ export interface UserRecord {
   phone?: string | null;
 }
 
+const rolesQueryText = `
+  SELECT r.code
+  FROM user_roles ur
+  JOIN roles r ON ur.role_id = r.id
+  WHERE ur.user_id = $1
+`;
+
 export class AuthRepository {
   async findByUsername(username: string): Promise<UserRecord | null> {
     const query = `
@@ -75,13 +82,7 @@ export class AuthRepository {
   }
 
   async getUserRolesAndPermissions(userId: string): Promise<{ roles: string[]; permissions: string[] }> {
-    const rolesQuery = `
-      SELECT r.code
-      FROM user_roles ur
-      JOIN roles r ON ur.role_id = r.id
-      WHERE ur.user_id = $1
-    `;
-    const rolesResult = await db.query(rolesQuery, [userId]);
+    const rolesResult = await db.query(rolesQueryText, [userId]);
     const roles = rolesResult.rows.map((row) => row.code);
 
     const permissionsQuery = `
@@ -90,6 +91,36 @@ export class AuthRepository {
       JOIN role_permissions rp ON ur.role_id = rp.role_id
       JOIN permissions p ON rp.permission_id = p.id
       WHERE ur.user_id = $1
+    `;
+    const permissionsResult = await db.query(permissionsQuery, [userId]);
+    const permissions = permissionsResult.rows.map((row) => row.code);
+
+    return { roles, permissions };
+  }
+
+  /**
+   * Effective permissions = role-inherited permissions UNION direct user grants.
+   * Direct grants are what a super admin assigns to a specific user so that
+   * the user can see certain pages regardless of their roles.
+   */
+  async getUserEffectivePermissions(userId: string): Promise<{ roles: string[]; permissions: string[] }> {
+    const rolesResult = await db.query(rolesQueryText, [userId]);
+    const roles = rolesResult.rows.map((row) => row.code);
+
+    const permissionsQuery = `
+      SELECT DISTINCT p.code
+      FROM (
+        SELECT rp.permission_id
+        FROM user_roles ur
+        JOIN role_permissions rp ON rp.role_id = ur.role_id
+        WHERE ur.user_id = $1
+        UNION
+        SELECT up.permission_id
+        FROM user_permissions up
+        WHERE up.user_id = $1
+          AND (up.expires_at IS NULL OR up.expires_at > now())
+      ) granted
+      JOIN permissions p ON p.id = granted.permission_id
     `;
     const permissionsResult = await db.query(permissionsQuery, [userId]);
     const permissions = permissionsResult.rows.map((row) => row.code);

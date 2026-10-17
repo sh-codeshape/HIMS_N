@@ -13,8 +13,38 @@ export default function Sidebar() {
 
   if (!user) return null;
 
-  // Only show menu items this role is allowed to see.
-  const visibleItems = sidebarConfig.filter((item) => item.allowedRoles.includes(user.role));
+  const userRoles = Array.isArray(user.roles) && user.roles.length > 0
+    ? user.roles
+    : user.role ? [user.role] : [];
+  const userPermissions = Array.isArray(user.permissions) ? user.permissions : [];
+
+  /**
+   * A menu item is visible when:
+   * - the user has one of its allowedRoles (role-based gating - the primary
+   *   control, so "whichever role is given to the user only that page shows"),
+   *   OR, when the page explicitly lists allowedPermissions, the user has one
+   *   of those permissions (super admin can grant a user access to a page via
+   *   permission even if their role is not listed).
+   * Pages without an explicit permission list fall back to role-only gating,
+   * so existing role-based behaviour is unchanged.
+   */
+  const itemVisible = (item) => {
+    const roleOk =
+      !item.allowedRoles || item.allowedRoles.length === 0
+        ? true
+        : item.allowedRoles.some((r) => userRoles.includes(r));
+
+    if (roleOk) return true;
+
+    const hasExplicitPerm =
+      item.allowedPermissions && item.allowedPermissions.length > 0;
+    if (!hasExplicitPerm) return false;
+
+    return item.allowedPermissions.some((p) => userPermissions.includes(p));
+  };
+
+  // Only show menu items this user is allowed to see.
+  const visibleItems = sidebarConfig.filter((item) => itemVisible(item));
 
   const handleConfirmLogout = () => {
     setShowLogoutModal(false);
@@ -41,7 +71,7 @@ export default function Sidebar() {
             {visibleItems.map((item) => {
               const hasChildren = !!item.children?.length;
               const visibleChildren = hasChildren
-                ? item.children.filter((c) => c.allowedRoles.includes(user.role))
+                ? item.children.filter((c) => itemVisible(c))
                 : [];
               const isOpen = openKey === item.key;
 

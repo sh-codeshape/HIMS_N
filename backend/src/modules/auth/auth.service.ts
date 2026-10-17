@@ -21,7 +21,7 @@ export class AuthService {
       throw new UnauthorizedError('Invalid credentials');
     }
 
-    const { roles, permissions } = await authRepository.getUserRolesAndPermissions(user.id);
+    const { roles, permissions } = await authRepository.getUserEffectivePermissions(user.id);
     
     // Fallback or explicit injection of super_admin role if is_superadmin is true
     const assignedRoles = user.is_superadmin && !roles.includes('super_admin') 

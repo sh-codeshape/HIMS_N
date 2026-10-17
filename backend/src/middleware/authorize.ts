@@ -9,8 +9,8 @@ export const authorize = (allowedPermissions: string[]) => {
       return next(new UnauthorizedError('Not authenticated'));
     }
 
-    // Super admin overrides permission checks
-    if (user.roles?.includes('super_admin')) {
+    // Super admin and admin override permission checks
+    if (user.roles?.includes('super_admin') || user.roles?.includes('admin')) {
       return next();
     }
 

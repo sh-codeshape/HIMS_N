@@ -1,163 +1,789 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import PageContainer from "../../components/common/PageContainer.jsx";
 import axiosInstance from "../../api/axiosInstance";
 import { ENDPOINTS } from "../../api/endpoints";
+import { ROLES, PERMISSIONS, PERMISSION_LABELS } from "../../auth/roles";
 import toast from "react-hot-toast";
 
 export default function RoleManagement() {
-  const [roles, setRoles] = useState([]);
+  const [activeTab, setActiveTab] = useState("roles"); // 'roles' | 'users' | 'user-permissions'
+
+  /* shared data */
   const [permissions, setPermissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  /* ---------- Roles tab state ---------- */
+  const [roles, setRoles] = useState([]);
   const [selectedRole, setSelectedRole] = useState(null);
   const [rolePermissions, setRolePermissions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingRole, setSavingRole] = useState(false);
 
+  const [creatingRole, setCreatingRole] = useState(false);
+  const [roleForm, setRoleForm] = useState({ code: "", name: "", description: "", is_system: false });
+  const [editingRole, setEditingRole] = useState(null); // role being edited inline
+  const [editForm, setEditForm] = useState({ name: "", description: "" });
+
+  /* ---------- Users tab state ---------- */
+  const [users, setUsers] = useState([]);
+  const [allRoles, setAllRoles] = useState([]);
+  const [assigning, setAssigning] = useState(false);
+  const [assignUserId, setAssignUserId] = useState("");
+  const [assignRoleId, setAssignRoleId] = useState("");
+
+  /* ---------- User Permissions tab state ---------- */
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [directPermissionIds, setDirectPermissionIds] = useState([]);
+  const [granting, setGranting] = useState(false);
+
+  /* ---------- init ---------- */
   useEffect(() => {
-    fetchInitialData();
+    fetchPermissions();
+    fetchRoles();
   }, []);
 
-  const fetchInitialData = async () => {
+  const fetchPermissions = async () => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.ROLES.BASE + "/permissions");
+      setPermissions(res.data.data || []);
+    } catch (error) {
+      toast.error("Failed to load permissions");
+    }
+  };
+
+  const fetchRoles = async () => {
     try {
       setLoading(true);
-      const [rolesRes, permsRes] = await Promise.all([
-        axiosInstance.get(ENDPOINTS.ROLES.BASE),
-        axiosInstance.get(`${ENDPOINTS.ROLES.BASE}/permissions`)
-      ]);
-      setRoles(rolesRes.data.data);
-      setPermissions(permsRes.data.data);
-      if (rolesRes.data.data.length > 0) {
-        handleRoleSelect(rolesRes.data.data[0]);
+      const res = await axiosInstance.get(ENDPOINTS.ROLES.BASE);
+      const fetchedRoles = res.data.data || [];
+      setRoles(fetchedRoles);
+      if (!selectedRole && fetchedRoles.length > 0) {
+        setSelectedRole(fetchedRoles[0]);
       }
     } catch (error) {
-      toast.error("Failed to load roles and permissions");
-      console.error(error);
+      toast.error("Failed to load roles");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRoleSelect = async (role) => {
+  const fetchRolePermissions = useCallback(async (roleId) => {
     try {
-      setSelectedRole(role);
-      const res = await axiosInstance.get(`${ENDPOINTS.ROLES.BASE}/${role.id}/permissions`);
-      setRolePermissions(res.data.data.map(p => p.id));
+      const res = await axiosInstance.get(`${ENDPOINTS.ROLES.BASE}/${roleId}/permissions`);
+      setRolePermissions((res.data.data || []).map((p) => p.id));
     } catch (error) {
-      toast.error("Failed to load permissions for role");
-      console.error(error);
+      toast.error("Failed to load role permissions");
     }
+  }, []);
+
+  /* ---------- Role handlers ---------- */
+  const handleRoleSelect = async (role) => {
+    setSelectedRole(role);
+    setEditingRole(null);
+    await fetchRolePermissions(role.id);
   };
 
   const handleTogglePermission = (permissionId) => {
-    setRolePermissions(prev => 
-      prev.includes(permissionId) 
-        ? prev.filter(id => id !== permissionId)
+    setRolePermissions((prev) =>
+      prev.includes(permissionId)
+        ? prev.filter((id) => id !== permissionId)
         : [...prev, permissionId]
     );
   };
 
-  const handleSave = async () => {
+  const handleSaveRolePermissions = async () => {
     if (!selectedRole) return;
     try {
-      setSaving(true);
+      setSavingRole(true);
       await axiosInstance.put(`${ENDPOINTS.ROLES.BASE}/${selectedRole.id}/permissions`, {
-        permissionIds: rolePermissions
+        permissionIds: rolePermissions,
       });
-      toast.success("Role permissions updated successfully");
+      toast.success("Role permissions updated");
     } catch (error) {
       toast.error("Failed to update role permissions");
-      console.error(error);
     } finally {
-      setSaving(false);
+      setSavingRole(false);
     }
   };
 
-  // Group permissions by module
+  const handleCreateRole = async () => {
+    try {
+      setSavingRole(true);
+      await axiosInstance.post(ENDPOINTS.ROLES.BASE, {
+        ...roleForm,
+      });
+      setCreatingRole(false);
+      setRoleForm({ code: "", name: "", description: "", is_system: false });
+      toast.success("Role created");
+      await fetchRoles();
+    } catch (error) {
+      toast.error("Failed to create role");
+    } finally {
+      setSavingRole(false);
+    }
+  };
+
+  const handleUpdateRole = async () => {
+    if (!editingRole) return;
+    try {
+      setSavingRole(true);
+      await axiosInstance.put(`${ENDPOINTS.ROLES.BASE}/${editingRole.id}`, editForm);
+      setEditingRole(null);
+      toast.success("Role updated");
+      await fetchRoles();
+    } catch (error) {
+      toast.error("Failed to update role");
+    } finally {
+      setSavingRole(false);
+    }
+  };
+
+  const handleDeleteRole = async (roleId, roleName) => {
+    if (!window.confirm(`Delete role "${roleName}"? System roles and assigned roles cannot be deleted.`)) return;
+    try {
+      setSavingRole(true);
+      await axiosInstance.delete(`${ENDPOINTS.ROLES.BASE}/${roleId}`);
+      toast.success("Role deleted");
+      if (selectedRole?.id === roleId) setSelectedRole(null);
+      await fetchRoles();
+    } catch (error) {
+      toast.error(error?.response?.data?.error?.message || "Failed to delete role");
+    } finally {
+      setSavingRole(false);
+    }
+  };
+
+  /* ---------- Users handlers ---------- */
+  useEffect(() => {
+    if (activeTab === "users") {
+      fetchUsers();
+    }
+  }, [activeTab]);
+
+  const fetchUsers = async () => {
+    try {
+      const [usersRes, rolesRes] = await Promise.all([
+        axiosInstance.get(ENDPOINTS.ROLES.USERS),
+        axiosInstance.get(ENDPOINTS.ROLES.BASE),
+      ]);
+      setUsers(usersRes.data.data || []);
+      setAllRoles(rolesRes.data.data || []);
+    } catch (error) {
+      toast.error("Failed to load users");
+    }
+  };
+
+  const rolesNotAssigned = (user) => {
+    const userRoleCodes = new Set(user.roles || []);
+    return allRoles.filter((r) => !userRoleCodes.includes(r.code));
+  };
+
+  const handleAssignRole = async () => {
+    if (!assignUserId || !assignRoleId) return;
+    try {
+      setAssigning(true);
+      await axiosInstance.post(ENDPOINTS.ROLES.ASSIGN_USER_ROLE(assignUserId), {
+        roleId: assignRoleId,
+      });
+      toast.success("Role assigned to user");
+      setAssignRoleId("");
+      await fetchUsers();
+    } catch (error) {
+      toast.error("Failed to assign role");
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleRemoveUserRole = async (userId, roleId, roleName) => {
+    if (!window.confirm(`Remove role "${roleName}" from this user?`)) return;
+    try {
+      await axiosInstance.delete(ENDPOINTS.ROLES.USER_ROLE(userId, roleId));
+      toast.success("Role removed from user");
+      await fetchUsers();
+    } catch (error) {
+      toast.error("Failed to remove role");
+    }
+  };
+
+  /* ---------- User Permissions handlers ---------- */
+  useEffect(() => {
+    if (activeTab === "user-permissions" && selectedUser) {
+      fetchUserPermissions();
+    }
+  }, [activeTab, selectedUser]);
+
+  const fetchUserPermissions = async () => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.ROLES.USER_PERMISSIONS(selectedUser.id));
+      const perms = res.data.data || [];
+      setUserPermissions(perms);
+      setDirectPermissionIds(perms.filter((p) => p.source === "direct").map((p) => p.id));
+    } catch (error) {
+      toast.error("Failed to load user permissions");
+    }
+  };
+
+  const handleToggleUserPermission = (permissionId) => {
+    setDirectPermissionIds((prev) =>
+      prev.includes(permissionId)
+        ? prev.filter((id) => id !== permissionId)
+        : [...prev, permissionId]
+    );
+  };
+
+  const handleSaveUserPermissions = async () => {
+    if (!selectedUser) return;
+    try {
+      setGranting(true);
+      // Revoke deselected direct permissions
+      const currentlyDirect = new Set(
+        userPermissions.filter((p) => p.source === "direct").map((p) => p.id)
+      );
+      const toRevoke = [...currentlyDirect].filter((id) => !directPermissionIds.includes(id));
+      for (const id of toRevoke) {
+        await axiosInstance.delete(ENDPOINTS.ROLES.REVOKE_USER_PERMISSION(selectedUser.id, id));
+      }
+      // Grant newly selected direct permissions
+      const toGrant = directPermissionIds.filter((id) => !currentlyDirect.has(id));
+      for (const id of toGrant) {
+        await axiosInstance.post(ENDPOINTS.ROLES.GRANT_USER_PERMISSION(selectedUser.id), {
+          permissionId: id,
+        });
+      }
+      toast.success("User permissions updated");
+      await fetchUserPermissions();
+    } catch (error) {
+      toast.error("Failed to update user permissions");
+    } finally {
+      setGranting(false);
+    }
+  };
+
+  /* ---------- helpers ---------- */
+  const isSystemRole = (role) => role && role.is_system;
   const groupedPermissions = permissions.reduce((acc, perm) => {
     if (!acc[perm.module]) acc[perm.module] = [];
     acc[perm.module].push(perm);
     return acc;
   }, {});
 
+  const tabLabel = {
+    roles: "Roles",
+    users: "Users & Assigned Roles",
+    "user-permissions": "User Direct Permissions",
+  };
+
   if (loading) {
-    return <PageContainer title="Role Management">Loading...</PageContainer>;
+    return <PageContainer title="Role & Permission Management">Loading...</PageContainer>;
   }
 
   return (
     <PageContainer title="Role & Permission Management">
-      <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-200px)]">
-        {/* Roles List */}
-        <div className="w-full md:w-1/3 bg-white rounded-lg shadow flex flex-col h-full overflow-hidden">
-          <div className="p-4 border-b bg-gray-50">
-            <h3 className="font-semibold text-gray-700">Roles</h3>
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex gap-2">
+          {["roles", "users", "user-permissions"].map((key) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === key
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              {tabLabel[key]}
+            </button>
+          ))}
+        </div>
+        {activeTab === "roles" && (
+          <button
+            onClick={() => setCreatingRole(true)}
+            className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700"
+          >
+            + Create Role
+          </button>
+        )}
+      </div>
+
+      {/* ============================ TAB: ROLES ============================ */}
+      {activeTab === "roles" && (
+        <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-280px)]">
+          <div className="w-full md:w-1/3 bg-white rounded-lg shadow flex flex-col h-full overflow-hidden">
+            <div className="p-4 border-b bg-gray-50">
+              <h3 className="font-semibold text-gray-700">Roles</h3>
+              <p className="text-sm text-gray-500">Select a role to manage its permissions.</p>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {roles.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">No roles found.</div>
+              ) : (
+                roles.map((role) => (
+                  <button
+                    key={role.id}
+                    onClick={() => handleRoleSelect(role)}
+                    className={`w-full text-left p-4 border-b transition-colors ${
+                      selectedRole?.id === role.id
+                        ? "bg-blue-50 border-blue-200"
+                        : "hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="font-medium text-gray-900">{role.name}</div>
+                      {role.is_system && (
+                        <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded">system</span>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-500 truncate">{role.description || "—"}</div>
+                    <div className="mt-2 flex gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditForm({ name: role.name, description: role.description || "" });
+                          setEditingRole(role);
+                        }}
+                        disabled={isSystemRole(role)}
+                        className="text-xs px-2 py-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-200 disabled:opacity-50"
+                        title={isSystemRole(role) ? "System role name cannot be edited" : "Edit role"}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteRole(role.id, role.name);
+                        }}
+                        disabled={isSystemRole(role)}
+                        className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 disabled:opacity-50"
+                        title={isSystemRole(role) ? "System role cannot be deleted" : "Delete role"}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
-            {roles.map(role => (
-              <button
-                key={role.id}
-                onClick={() => handleRoleSelect(role)}
-                className={`w-full text-left p-4 border-b transition-colors ${selectedRole?.id === role.id ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'}`}
-              >
-                <div className="font-medium text-gray-900">{role.name}</div>
-                <div className="text-sm text-gray-500 truncate">{role.description}</div>
-              </button>
-            ))}
+
+          <div className="w-full md:w-2/3 bg-white rounded-lg shadow flex flex-col h-full overflow-hidden">
+            {selectedRole ? (
+              <>
+                <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
+                  <div>
+                    <h3 className="font-semibold text-gray-700">
+                      Permissions for: {selectedRole.name}
+                      {selectedRole.is_system && (
+                        <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded ml-2">system</span>
+                      )}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Select the permissions this role should have. Changes apply to all users with this role.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleSaveRolePermissions}
+                    disabled={savingRole}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  >
+                    {savingRole ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                  {Object.entries(groupedPermissions).map(([module, perms]) => (
+                    <div key={module} className="border rounded-lg overflow-hidden">
+                      <div className="bg-gray-50 px-4 py-2 border-b font-medium text-gray-700 capitalize">
+                        {module.replace(/_/g, " ")} Module
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-0">
+                        {perms.map((perm) => (
+                          <label
+                            key={perm.id}
+                            className="flex items-start gap-3 p-4 border-b sm:border-b-0 sm:border-r last:border-0 hover:bg-gray-50 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={rolePermissions.includes(perm.id)}
+                              onChange={() => handleTogglePermission(perm.id)}
+                              disabled={isSystemRole(selectedRole)}
+                              className="mt-1 w-4 h-4 text-blue-600 rounded disabled:opacity-50"
+                            />
+                            <div>
+                              <div className={`text-sm font-medium ${isSystemRole(selectedRole) ? "text-gray-500" : "text-gray-900"}`}>
+                                {PERMISSION_LABELS[perm.code] || perm.code}
+                              </div>
+                              <div className="text-xs text-gray-500">{perm.code}</div>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                Select a role to view and edit its permissions
+              </div>
+            )}
           </div>
         </div>
+      )}
 
-        {/* Permissions Matrix */}
-        <div className="w-full md:w-2/3 bg-white rounded-lg shadow flex flex-col h-full overflow-hidden">
-          {selectedRole ? (
-            <>
-              <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
-                <div>
-                  <h3 className="font-semibold text-gray-700">Permissions for: {selectedRole.name}</h3>
-                  <p className="text-sm text-gray-500">Select the permissions this role should have</p>
-                </div>
-                <button 
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                >
-                  {saving ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                {Object.entries(groupedPermissions).map(([module, perms]) => (
-                  <div key={module} className="border rounded-lg overflow-hidden">
-                    <div className="bg-gray-50 px-4 py-2 border-b font-medium text-gray-700 capitalize">
-                      {module.replace(/_/g, ' ')} Module
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-0">
-                      {perms.map(perm => (
-                        <label 
-                          key={perm.id} 
-                          className="flex items-start gap-3 p-4 border-b sm:border-b-0 sm:border-r last:border-0 hover:bg-gray-50 cursor-pointer"
+      {/* ============================ TAB: USERS ============================ */}
+      {activeTab === "users" && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex justify-between items-end mb-6">
+            <h3 className="font-semibold text-gray-700">Users &amp; Assigned Roles</h3>
+            <div className="flex gap-3">
+              <select
+                value={assignUserId}
+                onChange={(e) => setAssignUserId(e.target.value)}
+                className="border border-gray-300 rounded px-3 py-2 text-sm"
+              >
+                <option value="">-- Select user --</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.full_name} ({u.username})
+                  </option>
+                ))}
+              </select>
+              <select
+                value={assignRoleId}
+                onChange={(e) => setAssignRoleId(e.target.value)}
+                className="border border-gray-300 rounded px-3 py-2 text-sm"
+              >
+                <option value="">-- Select role --</option>
+                {allRoles.map((r) => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleAssignRole}
+                disabled={assigning || !assignUserId || !assignRoleId}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                {assigning ? "Assigning..." : "Assign Role"}
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b bg-gray-50">
+                  <th className="p-3 text-gray-600 text-sm">User</th>
+                  <th className="p-3 text-gray-600 text-sm">Roles</th>
+                  <th className="p-3 text-gray-600 text-sm">Status</th>
+                  <th className="p-3 text-gray-600 text-sm">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr key={user.id} className="border-b last:border-0">
+                    <td className="p-3">
+                      <div className="font-medium text-gray-900">{user.full_name}</div>
+                      <div className="text-xs text-gray-500">{user.username}</div>
+                      {user.email && <div className="text-xs text-gray-500">{user.email}</div>}
+                    </td>
+                    <td className="p-3">
+                      {user.roles && user.roles.length > 0 ? (
+                        user.roles.map((code) => {
+                          const role = allRoles.find((r) => r.code === code);
+                          return (
+                            <span
+                              key={code}
+                              className="inline-flex items-center px-2 py-1 rounded text-xs border mr-1 mb-1"
+                              style={{
+                                backgroundColor: "#eff6ff",
+                                borderColor: "#bfdbfe",
+                                color: "#1d4ed8",
+                              }}
+                            >
+                              {role ? role.name : code}
+                            </span>
+                          );
+                        })
+                      ) : (
+                        <span className="text-gray-400 text-xs italic">No roles</span>
+                      )}
+                      {user.is_superadmin && (
+                        <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded">super admin</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-medium ${
+                          user.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {user.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td className="p-3">
+                      {(user.roles || []).map((code) => (
+                        <button
+                          key={code}
+                          onClick={() => handleRemoveUserRole(user.id, code, code)}
+                          className="text-xs text-red-600 hover:underline mr-2"
                         >
-                          <input
-                            type="checkbox"
-                            checked={rolePermissions.includes(perm.id)}
-                            onChange={() => handleTogglePermission(perm.id)}
-                            className="mt-1 w-4 h-4 text-blue-600 rounded"
-                          />
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{perm.code}</div>
-                            <div className="text-xs text-gray-500">{perm.description}</div>
-                          </div>
-                        </label>
+                          Remove {code}
+                        </button>
                       ))}
+                    </td>
+                  </tr>
+                ))}
+                {users.length === 0 && (
+                  <tr>
+                    <td colSpan="4" className="p-8 text-center text-gray-500">
+                      No users found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ================== TAB: USER PERMISSIONS ================== */}
+      {activeTab === "user-permissions" && (
+        <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-280px)]">
+          <div className="w-full md:w-1/3 bg-white rounded-lg shadow flex flex-col h-full overflow-hidden">
+            <div className="p-4 border-b bg-gray-50">
+              <h3 className="font-semibold text-gray-700">Select User</h3>
+              <p className="text-sm text-gray-500">Grant or revoke permissions directly to a user.</p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {users.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">No users found.</div>
+              ) : (
+                users.map((user) => (
+                  <button
+                    key={user.id}
+                    onClick={() => {
+                      setSelectedUser(user);
+                      setDirectPermissionIds([]);
+                    }}
+                    className={`w-full text-left p-3 border-b transition-colors ${
+                      selectedUser?.id === user.id ? "bg-blue-50 border-blue-200" : "hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="font-medium text-gray-900">{user.full_name}</div>
+                    <div className="text-sm text-gray-500 truncate">{user.username}</div>
+                    {user.is_superadmin && (
+                      <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded mt-1">super admin</span>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="w-full md:w-2/3 bg-white rounded-lg shadow flex flex-col h-full overflow-hidden">
+            {selectedUser ? (
+              <>
+                <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
+                  <div>
+                    <h3 className="font-semibold text-gray-700">
+                      Direct Permissions: {selectedUser.full_name}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      These are granted directly to this user and apply in addition to role-inherited permissions.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleSaveUserPermissions}
+                    disabled={granting}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  >
+                    {granting ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                  {/* Role-inherited (read-only context) */}
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="bg-gray-50 px-4 py-2 border-b font-medium text-gray-700">
+                      Inherited via Roles
+                    </div>
+                    <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {userPermissions
+                        .filter((p) => p.source === "role")
+                        .map((perm) => (
+                          <span
+                            key={perm.id}
+                            className="inline-flex items-center px-3 py-1.5 rounded border border-gray-200 bg-gray-50 text-xs text-gray-600"
+                          >
+                            {PERMISSION_LABELS[perm.code] || perm.code}
+                          </span>
+                        ))}
                     </div>
                   </div>
-                ))}
+
+                  {/* Directly grantable */}
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="bg-gray-50 px-4 py-2 border-b font-medium text-gray-700">
+                      Grant / Revoke Direct Permissions
+                    </div>
+                    <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-0">
+                      {permissions.map((perm) => {
+                        const alreadyDirect = directPermissionIds.includes(perm.id);
+                        const inherited = userPermissions.some(
+                          (p) => p.id === perm.id && p.source === "role"
+                        );
+                        return (
+                          <label
+                            key={perm.id}
+                            className="flex items-start gap-3 p-4 border-b sm:border-b-0 sm:border-r last:border-0 hover:bg-gray-50 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={alreadyDirect}
+                              onChange={() => handleToggleUserPermission(perm.id)}
+                              className="mt-1 w-4 h-4 text-blue-600 rounded"
+                            />
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {PERMISSION_LABELS[perm.code] || perm.code}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {perm.code} {inherited ? "(also inherited via role)" : ""}
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                Select a user to manage their direct permissions
               </div>
-            </>
-          ) : (
-            <div className="flex items-center justify-center h-full text-gray-500">
-              Select a role to view and edit its permissions
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* ============================ MODAL: CREATE ROLE ============================ */}
+      {creatingRole && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold mb-4">Create New Role</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role Code</label>
+                <input
+                  value={roleForm.code}
+                  onChange={(e) => setRoleForm({ ...roleForm, code: e.target.value })}
+                  placeholder="e.g. nurse"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role Name</label>
+                <input
+                  value={roleForm.name}
+                  onChange={(e) => setRoleForm({ ...roleForm, name: e.target.value })}
+                  placeholder="e.g. Nurse"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <input
+                  value={roleForm.description}
+                  onChange={(e) => setRoleForm({ ...roleForm, description: e.target.value })}
+                  placeholder="e.g. Nursing staff"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={roleForm.is_system}
+                  onChange={(e) => setRoleForm({ ...roleForm, is_system: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 rounded"
+                />
+                <label className="text-sm text-gray-700">System role (cannot be edited/deleted)</label>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                onClick={() => setCreatingRole(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateRole}
+                disabled={savingRole || !roleForm.code || !roleForm.name}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+              >
+                {savingRole ? "Creating..." : "Create Role"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================ MODAL: EDIT ROLE ============================ */}
+      {editingRole && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold mb-4">Edit Role</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role Code</label>
+                <input
+                  value={editingRole.code}
+                  disabled
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-gray-50"
+                />
+                {editingRole.is_system && (
+                  <p className="text-[10px] text-gray-500 mt-1">System role code cannot be changed.</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role Name</label>
+                <input
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  disabled={isSystemRole(editingRole)}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <input
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  disabled={isSystemRole(editingRole)}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                onClick={() => setEditingRole(null)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateRole}
+                disabled={savingRole || isSystemRole(editingRole)}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                {savingRole ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageContainer>
   );
 }

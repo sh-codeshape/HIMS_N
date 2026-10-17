@@ -29,6 +29,7 @@ import { staffRoutes } from './modules/staff/staff.routes';
 import { practitionerRoutes } from './modules/staff/practitioner.routes';
 import { labRoutes } from './modules/laboratory/lab.routes';
 import { pharmacyRoutes } from './modules/pharmacy/pharmacy.routes';
+import { inventoryRoutes } from './modules/inventory/inventory.routes';
 
 import { rolesRoutes } from './modules/roles/roles.routes';
 
@@ -48,6 +49,7 @@ app.use('/api/v1/staff', staffRoutes);
 app.use('/api/v1/practitioners', practitionerRoutes);
 app.use('/api/v1/laboratory', labRoutes);
 app.use('/api/v1/pharmacy', pharmacyRoutes);
+app.use('/api/v1/inventory', inventoryRoutes);
 app.use('/api/v1/roles', rolesRoutes);
 
 // Global Error Handler
