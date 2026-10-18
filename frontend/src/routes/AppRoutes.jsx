@@ -20,6 +20,7 @@ import { staffRoutes } from "./modules/staffRoutes.jsx";
 import { pharmacyRoutes } from "./modules/pharmacyRoutes.jsx";
 import { laboratoryRoutes } from "./modules/laboratoryRoutes.jsx";
 import { emergencyRoutes } from "./modules/emergencyRoutes.jsx";
+import { inventoryRoutes } from "./modules/inventoryRoutes.jsx";
 import { otherRoutes } from "./modules/otherRoutes.jsx";
 
 export default function AppRoutes() {
@@ -50,6 +51,7 @@ export default function AppRoutes() {
         {pharmacyRoutes}
         {laboratoryRoutes}
         {emergencyRoutes}
+        {inventoryRoutes}
         {otherRoutes}
       </Route>
 

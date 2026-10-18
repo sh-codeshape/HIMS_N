@@ -101,14 +101,66 @@ async function seed() {
     }
 
     const permissionsToSeed = [
+      // ---- Roles & Users ----
+      { code: 'roles.view', module: 'roles', description: 'View roles and permissions' },
+      { code: 'roles.manage', module: 'roles', description: 'Create/edit roles and manage role permissions' },
+      { code: 'users.view', module: 'users', description: 'View users and their assigned roles' },
+      { code: 'users.manage', module: 'users', description: 'Assign roles and direct permissions to users' },
+
+      // ---- Staff ----
       { code: 'staff.view', module: 'staff', description: 'View staff members' },
       { code: 'staff.create', module: 'staff', description: 'Create staff members' },
       { code: 'staff.edit', module: 'staff', description: 'Edit staff members' },
       { code: 'staff.delete', module: 'staff', description: 'Delete staff members' },
-      { code: 'roles.view', module: 'roles', description: 'View roles and permissions' },
-      { code: 'roles.manage', module: 'roles', description: 'Manage roles and permissions' },
+
+      // ---- Registration / OPD ----
+      { code: 'registration.view', module: 'registration', description: 'View patient registrations' },
+      { code: 'registration.create', module: 'registration', description: 'Register new patients' },
+      { code: 'opd.view', module: 'opd', description: 'View OPD records' },
+      { code: 'opd.create', module: 'opd', description: 'Create OPD encounters' },
+
+      // ---- IPD / Ward ----
+      { code: 'ipd.view', module: 'ipd', description: 'View IPD admissions' },
+      { code: 'ipd.create', module: 'ipd', description: 'Admit patients to IPD' },
+      { code: 'ward.view', module: 'ward', description: 'View ward and bed status' },
+      { code: 'bed.manage', module: 'ward', description: 'Allot and transfer beds' },
+
+      // ---- Billing ----
       { code: 'billing.view', module: 'billing', description: 'View billing' },
-      { code: 'billing.create', module: 'billing', description: 'Create billing' },
+      { code: 'billing.create', module: 'billing', description: 'Create billing invoices' },
+      { code: 'billing.edit', module: 'billing', description: 'Edit billing invoices' },
+      { code: 'billing.refund', module: 'billing', description: 'Process refunds and discounts' },
+
+      // ---- Pharmacy ----
+      { code: 'pharmacy.view', module: 'pharmacy', description: 'View pharmacy records' },
+      { code: 'pharmacy.pos', module: 'pharmacy', description: 'Run medicine sales POS' },
+      { code: 'pharmacy.purchase', module: 'pharmacy', description: 'Manage purchase orders' },
+      { code: 'pharmacy.stock', module: 'pharmacy', description: 'Manage pharmacy stock' },
+
+      // ---- Laboratory ----
+      { code: 'laboratory.view', module: 'laboratory', description: 'View laboratory orders' },
+      { code: 'laboratory.order', module: 'laboratory', description: 'Create lab test orders' },
+      { code: 'laboratory.report', module: 'laboratory', description: 'Enter lab reports' },
+
+      // ---- Radiology ----
+      { code: 'radiology.view', module: 'radiology', description: 'View radiology records' },
+      { code: 'radiology.schedule', module: 'radiology', description: 'Schedule imaging' },
+      { code: 'radiology.report', module: 'radiology', description: 'Enter scan reports' },
+
+      // ---- Inventory ----
+      { code: 'inventory.view', module: 'inventory', description: 'View inventory' },
+      { code: 'inventory.manage', module: 'inventory', description: 'Manage inventory items and stock' },
+
+      // ---- Patients / EMR ----
+      { code: 'patients.view', module: 'patients', description: 'View patient directory' },
+      { code: 'patients.emr', module: 'patients', description: 'View patient EMR / medical history' },
+
+      // ---- Emergency ----
+      { code: 'emergency.view', module: 'emergency', description: 'View emergency dispatches' },
+      { code: 'emergency.create', module: 'emergency', description: 'Create emergency / trauma cases' },
+
+      // ---- Reports ----
+      { code: 'reports.view', module: 'reports', description: 'View reports' },
     ];
 
     for (const p of permissionsToSeed) {
@@ -119,27 +171,59 @@ async function seed() {
       `, [p.code, p.module, p.description]);
     }
 
-    // Map permissions to Super Admin role
+    // Load all permissions into a map: code -> id
+    const allPerms = await client.query(`SELECT id, code FROM permissions`);
+    const permByCode = new Map(allPerms.rows.map((r) => [r.code, r.id]));
+
+    const assignPermsToRole = async (roleCode: string, permissionCodes: string[]) => {
+      const roleRes = await client.query(`SELECT id FROM roles WHERE code = $1 AND organization_id = $2`, [roleCode, orgId]);
+      const roleId = roleRes.rows[0]?.id;
+      if (!roleId) return;
+      for (const code of permissionCodes) {
+        const permId = permByCode.get(code);
+        if (!permId) continue;
+        await client.query(`
+          INSERT INTO role_permissions (role_id, permission_id)
+          VALUES ($1, $2)
+          ON CONFLICT (role_id, permission_id) DO NOTHING;
+        `, [roleId, permId]);
+      }
+    };
+
+    // Default permission sets per role (super admin = everything)
+    const allCodes = permissionsToSeed.map((p) => p.code);
+    await assignPermsToRole('super_admin', allCodes);
+
+    const adminCodes = allCodes.filter((c) => c !== 'roles.manage' && c !== 'users.manage');
+    await assignPermsToRole('admin', adminCodes);
+
+    await assignPermsToRole('doctor', [
+      'opd.view', 'opd.create',
+      'ipd.view',
+      'ward.view',
+      'patients.view', 'patients.emr',
+      'laboratory.view', 'laboratory.order', 'laboratory.report',
+      'radiology.view', 'radiology.report',
+      'emergency.view', 'emergency.create',
+    ]);
+
+    await assignPermsToRole('reception', [
+      'registration.view', 'registration.create',
+      'opd.view', 'opd.create',
+      'billing.view', 'billing.create',
+      'patients.view',
+      'emergency.view',
+    ]);
+
+    await assignPermsToRole('pharmacy', [
+      'pharmacy.view', 'pharmacy.pos', 'pharmacy.purchase', 'pharmacy.stock',
+      'inventory.view',
+    ]);
+
+    // Assign Super Admin role to the super admin user
     const superAdminRoleRes = await client.query(`SELECT id FROM roles WHERE code = 'super_admin' AND organization_id = $1`, [orgId]);
     const superAdminRoleId = superAdminRoleRes.rows[0]?.id;
-
-    const adminRoleRes = await client.query(`SELECT id FROM roles WHERE code = 'admin' AND organization_id = $1`, [orgId]);
-    const adminRoleId = adminRoleRes.rows[0]?.id;
-
     if (superAdminRoleId) {
-      for (const p of permissionsToSeed) {
-        const permRes = await client.query(`SELECT id FROM permissions WHERE code = $1`, [p.code]);
-        if (permRes.rows.length > 0) {
-          const permId = permRes.rows[0].id;
-          await client.query(`
-            INSERT INTO role_permissions (role_id, permission_id)
-            VALUES ($1, $2)
-            ON CONFLICT (role_id, permission_id) DO NOTHING;
-          `, [superAdminRoleId, permId]);
-        }
-      }
-
-      // Assign Super Admin role to the super admin user
       const checkSuperAdminUr = await client.query(`SELECT id FROM user_roles WHERE user_id = $1 AND role_id = $2`, [superAdminUserId, superAdminRoleId]);
       if (checkSuperAdminUr.rows.length === 0) {
         await client.query(`
@@ -149,6 +233,8 @@ async function seed() {
       }
     }
 
+    const adminRoleRes = await client.query(`SELECT id FROM roles WHERE code = 'admin' AND organization_id = $1`, [orgId]);
+    const adminRoleId = adminRoleRes.rows[0]?.id;
     if (adminRoleId) {
       // Assign Admin role to the admin user
       const checkAdminUr = await client.query(`SELECT id FROM user_roles WHERE user_id = $1 AND role_id = $2`, [adminUserId, adminRoleId]);
