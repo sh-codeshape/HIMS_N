@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+.env.*
+!.env.example
+tests
+*.test.ts
+*.test.js
+test-*.js
+test-*.sh
+.git

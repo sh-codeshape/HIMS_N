@@ -1,0 +1,49 @@
+name: Deploy HIMS Backend
+
+on:
+  push:
+    branches:
+      - main                          # FIX: was "-main" (missing space)
+    paths:
+      - 'backend/**'
+      - 'docker-compose.yml'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest            # FIX: was "ubntu-latest" (typo)
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3  # bumped from v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Backend Image
+        uses: docker/build-push-action@v5   # bumped from v4
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile        # FIX: was "/backend/Dockerfile" (absolute path)
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/hims-n-api:latest   # FIX: was uppercase "HIMS-N" (Docker Hub requires lowercase)
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ${{ secrets.PROJECT_PATH }}
+
+            # Trigger a manual database backup before deployment
+            docker compose exec -T pgbackups /backup.sh || echo "Backup failed, continuing deployment..."
+
+            git pull origin main
+
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/hims-n-api:latest    # FIX: was "docbot-api" (copy-paste from docbot)
+
+            # Restart only the API service
+            docker compose up -d --no-deps api                                 # FIX: was referencing wrong service

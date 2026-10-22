@@ -34,3 +34,5 @@ schema.sql
 
 
 backend/package-lock.json
+backend/src/db/seed-permissions.ts
+backend/src/db/seed*.ts

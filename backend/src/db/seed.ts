@@ -9,16 +9,22 @@ async function seed() {
     await client.query('BEGIN');
 
     const orgId = randomUUID();
-    const facilityId = randomUUID();
-    
+    let facilityId = randomUUID();
+
     // Fix: role_permissions has no id column, so audit trigger fails. Drop it here.
     await client.query('DROP TRIGGER IF EXISTS trg_role_permissions_audit ON role_permissions');
 
-    await client.query(`
-      INSERT INTO organizations (id, code, name)
-      VALUES ($1, 'DEFAULT', 'Default Hospital Organization')
-      ON CONFLICT (id) DO NOTHING;
-    `, [orgId]);
+    // Idempotent: reuse existing org if one with code 'DEFAULT' already exists
+    let organizationId = orgId;
+    const existingOrg = await client.query(`SELECT id FROM organizations WHERE code = 'DEFAULT' LIMIT 1`);
+    if (existingOrg.rows.length > 0) {
+      organizationId = existingOrg.rows[0].id;
+    } else {
+      await client.query(`
+        INSERT INTO organizations (id, code, name)
+        VALUES ($1, 'DEFAULT', 'Default Hospital Organization');
+      `, [organizationId]);
+    }
 
     await client.query(`
       INSERT INTO facilities (id, organization_id, code, name, facility_type)
@@ -26,7 +32,13 @@ async function seed() {
       ON CONFLICT (organization_id, code) DO UPDATE SET
         name = EXCLUDED.name,
         facility_type = EXCLUDED.facility_type;
-    `, [facilityId, orgId]);
+    `, [facilityId, organizationId]);
+
+    // Idempotent: reuse existing facility id so downstream inserts (user_roles, beds) reference a real facility
+    const existingFacility = await client.query(`SELECT id FROM facilities WHERE organization_id = $1 AND code = 'MAIN' LIMIT 1`, [organizationId]);
+    if (existingFacility.rows.length > 0) {
+      facilityId = existingFacility.rows[0].id;
+    }
 
     const defaultSequenceRows = [
       { seq_key: 'ENCOUNTER', prefix: 'OPD-', suffix: '', include_year: true, padding: 4, reset_policy: 'yearly' },
@@ -51,7 +63,7 @@ async function seed() {
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, 0, $8, CURRENT_DATE)
         ON CONFLICT (organization_id, COALESCE(facility_id, '00000000-0000-0000-0000-000000000000'::uuid), seq_key)
         DO NOTHING;
-      `, [orgId, facilityId, row.seq_key, row.prefix, row.suffix, row.include_year, row.padding, row.reset_policy]);
+      `, [organizationId, facilityId, row.seq_key, row.prefix, row.suffix, row.include_year, row.padding, row.reset_policy]);
     }
 
     const adminUsername = 'admin@narayanhospital.com';
@@ -73,7 +85,7 @@ async function seed() {
         is_superadmin = EXCLUDED.is_superadmin,
         default_facility_id = EXCLUDED.default_facility_id,
         phone = EXCLUDED.phone;
-    `, [orgId, adminUsername, adminUsername, passwordHash, facilityId, superAdminUsername, superAdminUsername]);
+    `, [organizationId, adminUsername, adminUsername, passwordHash, facilityId, superAdminUsername, superAdminUsername]);
 
     const adminUserResult = await client.query(`SELECT id FROM users WHERE username = $1`, [adminUsername]);
     const adminUserId = adminUserResult.rows[0].id;
@@ -97,18 +109,70 @@ async function seed() {
         INSERT INTO roles (organization_id, code, name, description, is_system)
         VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT (organization_id, code) DO NOTHING;
-      `, [orgId, r.code, r.name, r.description, r.is_system]);
+      `, [organizationId, r.code, r.name, r.description, r.is_system]);
     }
 
     const permissionsToSeed = [
+      // ---- Roles & Users ----
+      { code: 'roles.view', module: 'roles', description: 'View roles and permissions' },
+      { code: 'roles.manage', module: 'roles', description: 'Create/edit roles and manage role permissions' },
+      { code: 'users.view', module: 'users', description: 'View users and their assigned roles' },
+      { code: 'users.manage', module: 'users', description: 'Assign roles and direct permissions to users' },
+
+      // ---- Staff ----
       { code: 'staff.view', module: 'staff', description: 'View staff members' },
       { code: 'staff.create', module: 'staff', description: 'Create staff members' },
       { code: 'staff.edit', module: 'staff', description: 'Edit staff members' },
       { code: 'staff.delete', module: 'staff', description: 'Delete staff members' },
-      { code: 'roles.view', module: 'roles', description: 'View roles and permissions' },
-      { code: 'roles.manage', module: 'roles', description: 'Manage roles and permissions' },
+
+      // ---- Registration / OPD ----
+      { code: 'registration.view', module: 'registration', description: 'View patient registrations' },
+      { code: 'registration.create', module: 'registration', description: 'Register new patients' },
+      { code: 'opd.view', module: 'opd', description: 'View OPD records' },
+      { code: 'opd.create', module: 'opd', description: 'Create OPD encounters' },
+
+      // ---- IPD / Ward ----
+      { code: 'ipd.view', module: 'ipd', description: 'View IPD admissions' },
+      { code: 'ipd.create', module: 'ipd', description: 'Admit patients to IPD' },
+      { code: 'ward.view', module: 'ward', description: 'View ward and bed status' },
+      { code: 'bed.manage', module: 'ward', description: 'Allot and transfer beds' },
+
+      // ---- Billing ----
       { code: 'billing.view', module: 'billing', description: 'View billing' },
-      { code: 'billing.create', module: 'billing', description: 'Create billing' },
+      { code: 'billing.create', module: 'billing', description: 'Create billing invoices' },
+      { code: 'billing.edit', module: 'billing', description: 'Edit billing invoices' },
+      { code: 'billing.refund', module: 'billing', description: 'Process refunds and discounts' },
+
+      // ---- Pharmacy ----
+      { code: 'pharmacy.view', module: 'pharmacy', description: 'View pharmacy records' },
+      { code: 'pharmacy.pos', module: 'pharmacy', description: 'Run medicine sales POS' },
+      { code: 'pharmacy.purchase', module: 'pharmacy', description: 'Manage purchase orders' },
+      { code: 'pharmacy.stock', module: 'pharmacy', description: 'Manage pharmacy stock' },
+
+      // ---- Laboratory ----
+      { code: 'laboratory.view', module: 'laboratory', description: 'View laboratory orders' },
+      { code: 'laboratory.order', module: 'laboratory', description: 'Create lab test orders' },
+      { code: 'laboratory.report', module: 'laboratory', description: 'Enter lab reports' },
+
+      // ---- Radiology ----
+      { code: 'radiology.view', module: 'radiology', description: 'View radiology records' },
+      { code: 'radiology.schedule', module: 'radiology', description: 'Schedule imaging' },
+      { code: 'radiology.report', module: 'radiology', description: 'Enter scan reports' },
+
+      // ---- Inventory ----
+      { code: 'inventory.view', module: 'inventory', description: 'View inventory' },
+      { code: 'inventory.manage', module: 'inventory', description: 'Manage inventory items and stock' },
+
+      // ---- Patients / EMR ----
+      { code: 'patients.view', module: 'patients', description: 'View patient directory' },
+      { code: 'patients.emr', module: 'patients', description: 'View patient EMR / medical history' },
+
+      // ---- Emergency ----
+      { code: 'emergency.view', module: 'emergency', description: 'View emergency dispatches' },
+      { code: 'emergency.create', module: 'emergency', description: 'Create emergency / trauma cases' },
+
+      // ---- Reports ----
+      { code: 'reports.view', module: 'reports', description: 'View reports' },
     ];
 
     for (const p of permissionsToSeed) {
@@ -119,27 +183,59 @@ async function seed() {
       `, [p.code, p.module, p.description]);
     }
 
-    // Map permissions to Super Admin role
-    const superAdminRoleRes = await client.query(`SELECT id FROM roles WHERE code = 'super_admin' AND organization_id = $1`, [orgId]);
-    const superAdminRoleId = superAdminRoleRes.rows[0]?.id;
+    // Load all permissions into a map: code -> id
+    const allPerms = await client.query(`SELECT id, code FROM permissions`);
+    const permByCode = new Map(allPerms.rows.map((r) => [r.code, r.id]));
 
-    const adminRoleRes = await client.query(`SELECT id FROM roles WHERE code = 'admin' AND organization_id = $1`, [orgId]);
-    const adminRoleId = adminRoleRes.rows[0]?.id;
-
-    if (superAdminRoleId) {
-      for (const p of permissionsToSeed) {
-        const permRes = await client.query(`SELECT id FROM permissions WHERE code = $1`, [p.code]);
-        if (permRes.rows.length > 0) {
-          const permId = permRes.rows[0].id;
-          await client.query(`
-            INSERT INTO role_permissions (role_id, permission_id)
-            VALUES ($1, $2)
-            ON CONFLICT (role_id, permission_id) DO NOTHING;
-          `, [superAdminRoleId, permId]);
-        }
+    const assignPermsToRole = async (roleCode: string, permissionCodes: string[]) => {
+      const roleRes = await client.query(`SELECT id FROM roles WHERE code = $1 AND organization_id = $2`, [roleCode, organizationId]);
+      const roleId = roleRes.rows[0]?.id;
+      if (!roleId) return;
+      for (const code of permissionCodes) {
+        const permId = permByCode.get(code);
+        if (!permId) continue;
+        await client.query(`
+          INSERT INTO role_permissions (role_id, permission_id)
+          VALUES ($1, $2)
+          ON CONFLICT (role_id, permission_id) DO NOTHING;
+        `, [roleId, permId]);
       }
+    };
 
-      // Assign Super Admin role to the super admin user
+    // Default permission sets per role (super admin = everything)
+    const allCodes = permissionsToSeed.map((p) => p.code);
+    await assignPermsToRole('super_admin', allCodes);
+
+    const adminCodes = allCodes.filter((c) => c !== 'roles.manage' && c !== 'users.manage');
+    await assignPermsToRole('admin', adminCodes);
+
+    await assignPermsToRole('doctor', [
+      'opd.view', 'opd.create',
+      'ipd.view',
+      'ward.view',
+      'patients.view', 'patients.emr',
+      'laboratory.view', 'laboratory.order', 'laboratory.report',
+      'radiology.view', 'radiology.report',
+      'emergency.view', 'emergency.create',
+    ]);
+
+    await assignPermsToRole('reception', [
+      'registration.view', 'registration.create',
+      'opd.view', 'opd.create',
+      'billing.view', 'billing.create',
+      'patients.view',
+      'emergency.view',
+    ]);
+
+    await assignPermsToRole('pharmacy', [
+      'pharmacy.view', 'pharmacy.pos', 'pharmacy.purchase', 'pharmacy.stock',
+      'inventory.view',
+    ]);
+
+    // Assign Super Admin role to the super admin user
+    const superAdminRoleRes = await client.query(`SELECT id FROM roles WHERE code = 'super_admin' AND organization_id = $1`, [organizationId]);
+    const superAdminRoleId = superAdminRoleRes.rows[0]?.id;
+    if (superAdminRoleId) {
       const checkSuperAdminUr = await client.query(`SELECT id FROM user_roles WHERE user_id = $1 AND role_id = $2`, [superAdminUserId, superAdminRoleId]);
       if (checkSuperAdminUr.rows.length === 0) {
         await client.query(`
@@ -149,6 +245,8 @@ async function seed() {
       }
     }
 
+    const adminRoleRes = await client.query(`SELECT id FROM roles WHERE code = 'admin' AND organization_id = $1`, [organizationId]);
+    const adminRoleId = adminRoleRes.rows[0]?.id;
     if (adminRoleId) {
       // Assign Admin role to the admin user
       const checkAdminUr = await client.query(`SELECT id FROM user_roles WHERE user_id = $1 AND role_id = $2`, [adminUserId, adminRoleId]);
@@ -170,9 +268,9 @@ async function seed() {
         ($1, 'ICU', 'ICU Category', 2, true),
         ($1, 'PVT', 'Private Category', 3, false)
       ON CONFLICT (organization_id, code) DO NOTHING;
-    `, [orgId]);
+    `, [organizationId]);
 
-    const bedCategories = await client.query(`SELECT id, code FROM bed_categories WHERE organization_id = $1`, [orgId]);
+    const bedCategories = await client.query(`SELECT id, code FROM bed_categories WHERE organization_id = $1`, [organizationId]);
     const genCatId = bedCategories.rows.find(r => r.code === 'GEN')?.id;
     const icuCatId = bedCategories.rows.find(r => r.code === 'ICU')?.id;
     const pvtCatId = bedCategories.rows.find(r => r.code === 'PVT')?.id;
@@ -187,7 +285,7 @@ async function seed() {
         ($1, $2, 'W-ICU', 'ICU Ward', 'icu'),
         ($1, $2, 'W-PVT', 'Private Ward', 'general')
       ON CONFLICT (facility_id, code) DO NOTHING;
-    `, [orgId, facilityId]);
+    `, [organizationId, facilityId]);
 
     const wards = await client.query(`SELECT id, code FROM wards WHERE facility_id = $1`, [facilityId]);
     const genWardId = wards.rows.find(r => r.code === 'W-GEN')?.id;
@@ -233,7 +331,7 @@ async function seed() {
           ($1, $2, $5, $11, $12, 'PVT-2', 'occupied')
         ON CONFLICT (ward_id, bed_no) DO NOTHING;
       `, [
-        orgId, facilityId, genWardId, icuWardId, pvtWardId,
+        organizationId, facilityId, genWardId, icuWardId, pvtWardId,
         room101Id, room102Id, room201Id, icuCatId, pvtCatId, room301Id, pvtCatId
       ]);
       // Fixed the index above:
@@ -254,9 +352,9 @@ async function seed() {
         ($1, 'DOC-003', 'Alice', 'Williams', 'doctor', 'alice.w@hospital.com', '9998887773'),
         ($1, 'NUR-001', 'Bob', 'Brown', 'nurse', 'bob.b@hospital.com', '9998887774')
       ON CONFLICT (organization_id, staff_code) DO NOTHING;
-    `, [orgId]);
+    `, [organizationId]);
 
-    const staffList = await client.query(`SELECT id, staff_code FROM staff WHERE organization_id = $1`, [orgId]);
+    const staffList = await client.query(`SELECT id, staff_code FROM staff WHERE organization_id = $1`, [organizationId]);
     const doc1Id = staffList.rows.find(r => r.staff_code === 'DOC-001')?.id;
     const doc2Id = staffList.rows.find(r => r.staff_code === 'DOC-002')?.id;
     const doc3Id = staffList.rows.find(r => r.staff_code === 'DOC-003')?.id;
@@ -300,7 +398,7 @@ async function seed() {
         ($1, 'UHID-SEED-02', 'Test', 'Patient 2', '1990-05-15', 'female', '2222222222'),
         ($1, 'UHID-SEED-03', 'Test', 'Patient 3', '2000-10-20', 'male', '3333333333')
       ON CONFLICT (organization_id, uhid) DO NOTHING;
-    `, [orgId]);
+    `, [organizationId]);
 
     const patientsRes = await client.query(`SELECT id, uhid FROM patients WHERE uhid IN ('UHID-SEED-01', 'UHID-SEED-02', 'UHID-SEED-03')`);
     const pat1 = patientsRes.rows.find(r => r.uhid === 'UHID-SEED-01')?.id;
@@ -316,7 +414,7 @@ async function seed() {
           ($1, $2, 'ENC-SEED-02', $4, 'ipd', 'in_progress', $7),
           ($1, $2, 'ENC-SEED-03', $5, 'ipd', 'in_progress', $6)
         ON CONFLICT (facility_id, encounter_no) DO NOTHING;
-      `, [orgId, facilityId, pat1, pat2, pat3, pract1, pract2 || pract1]);
+      `, [organizationId, facilityId, pat1, pat2, pat3, pract1, pract2 || pract1]);
 
       const encountersRes = await client.query(`SELECT id, encounter_no FROM encounters WHERE encounter_no IN ('ENC-SEED-01', 'ENC-SEED-02', 'ENC-SEED-03')`);
       const enc1 = encountersRes.rows.find(r => r.encounter_no === 'ENC-SEED-01')?.id;
@@ -332,7 +430,7 @@ async function seed() {
             ($1, $2, $4, $7, 'ADM-SEED-02', $10, 'admitted'),
             ($1, $2, $5, $8, 'ADM-SEED-03', $9, 'admitted')
           ON CONFLICT (facility_id, admission_no) DO NOTHING;
-        `, [orgId, facilityId, enc1, enc2, enc3, pat1, pat2, pat3, pract1, pract2 || pract1]);
+        `, [organizationId, facilityId, enc1, enc2, enc3, pat1, pat2, pat3, pract1, pract2 || pract1]);
 
         const admissionsRes = await client.query(`SELECT id, admission_no FROM admissions WHERE admission_no IN ('ADM-SEED-01', 'ADM-SEED-02', 'ADM-SEED-03')`);
         const adm1 = admissionsRes.rows.find(r => r.admission_no === 'ADM-SEED-01')?.id;
@@ -374,39 +472,39 @@ async function seed() {
     // ---------------------------------------------------------
     const existingDepts = await client.query(
       'SELECT id, code FROM departments WHERE organization_id = $1',
-      [orgId]
+      [organizationId]
     );
     if (existingDepts.rows.length === 0) {
       await client.query(
         `INSERT INTO departments (organization_id, facility_id, code, name, department_type, is_active)
          VALUES ($1, $2, $3, $4, $5, true)`,
-        [orgId, facilityId, 'GEN-MED', 'General Medicine', 'clinical']
+        [organizationId, facilityId, 'GEN-MED', 'General Medicine', 'clinical']
       );
       await client.query(
         `INSERT INTO departments (organization_id, facility_id, code, name, department_type, is_active)
          VALUES ($1, $2, $3, $4, $5, true)`,
-        [orgId, facilityId, 'CARD', 'Cardiology', 'clinical']
+        [organizationId, facilityId, 'CARD', 'Cardiology', 'clinical']
       );
       await client.query(
         `INSERT INTO departments (organization_id, facility_id, code, name, department_type, is_active)
          VALUES ($1, $2, $3, $4, $5, true)`,
-        [orgId, facilityId, 'PEDS', 'Pediatrics', 'clinical']
+        [organizationId, facilityId, 'PEDS', 'Pediatrics', 'clinical']
       );
       await client.query(
         `INSERT INTO departments (organization_id, facility_id, code, name, department_type, is_active)
          VALUES ($1, $2, $3, $4, $5, true)`,
-        [orgId, facilityId, 'ORTHO', 'Orthopedics', 'clinical']
+        [organizationId, facilityId, 'ORTHO', 'Orthopedics', 'clinical']
       );
       await client.query(
         `INSERT INTO departments (organization_id, facility_id, code, name, department_type, is_active)
          VALUES ($1, $2, $3, $4, $5, true)`,
-        [orgId, facilityId, 'GYN', 'Gynecology', 'clinical']
+        [organizationId, facilityId, 'GYN', 'Gynecology', 'clinical']
       );
     }
 
     const departments = await client.query(
       'SELECT id, code FROM departments WHERE organization_id = $1',
-      [orgId]
+      [organizationId]
     );
     const genMedId = departments.rows.find(r => r.code === 'GEN-MED')?.id;
     const cardId = departments.rows.find(r => r.code === 'CARD')?.id;
@@ -418,23 +516,23 @@ async function seed() {
     // ---------------------------------------------------------
     const existingCats = await client.query(
       'SELECT id, code FROM service_categories WHERE organization_id = $1',
-      [orgId]
+      [organizationId]
     );
     if (existingCats.rows.length === 0) {
       await client.query(
         `INSERT INTO service_categories (organization_id, code, name, category_type, sort_order)
          VALUES ($1, $2, $3, $4, 1)`,
-        [orgId, 'CONSULT', 'Consultation', 'consultation']
+        [organizationId, 'CONSULT', 'Consultation', 'consultation']
       );
       await client.query(
         `INSERT INTO service_categories (organization_id, code, name, category_type, sort_order)
          VALUES ($1, $2, $3, $4, 2)`,
-        [orgId, 'BED', 'Bed Charges', 'bed_charge']
+        [organizationId, 'BED', 'Bed Charges', 'bed_charge']
       );
     }
     const serviceCats = await client.query(
       'SELECT id, code FROM service_categories WHERE organization_id = $1',
-      [orgId]
+      [organizationId]
     );
     const consultCatId = serviceCats.rows.find(r => r.code === 'CONSULT')?.id;
     const bedCatId = serviceCats.rows.find(r => r.code === 'BED')?.id;
@@ -444,23 +542,23 @@ async function seed() {
     // ---------------------------------------------------------
     const existingTaxes = await client.query(
       'SELECT id, code FROM tax_groups WHERE organization_id = $1',
-      [orgId]
+      [organizationId]
     );
     if (existingTaxes.rows.length === 0) {
       await client.query(
         `INSERT INTO tax_groups (organization_id, code, name, total_rate, is_exempt, is_active)
          VALUES ($1, $2, $3, 5.00, false, true)`,
-        [orgId, 'GST-5', 'GST 5%']
+        [organizationId, 'GST-5', 'GST 5%']
       );
       await client.query(
         `INSERT INTO tax_groups (organization_id, code, name, total_rate, is_exempt, is_active)
          VALUES ($1, $2, $3, 12.00, false, true)`,
-        [orgId, 'GST-12', 'GST 12%']
+        [organizationId, 'GST-12', 'GST 12%']
       );
     }
     const taxGroups = await client.query(
       'SELECT id, code FROM tax_groups WHERE organization_id = $1',
-      [orgId]
+      [organizationId]
     );
     const gst5Id = taxGroups.rows.find(r => r.code === 'GST-5')?.id;
     const gst12Id = taxGroups.rows.find(r => r.code === 'GST-12')?.id;
@@ -470,44 +568,44 @@ async function seed() {
     // ---------------------------------------------------------
     const existingServices = await client.query(
       'SELECT id, code FROM services WHERE organization_id = $1',
-      [orgId]
+      [organizationId]
     );
     if (existingServices.rows.length === 0) {
       await client.query(
         `INSERT INTO services (organization_id, category_id, department_id, tax_group_id, code, name, description, service_type, billing_unit, default_rate, is_rate_editable)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 1500.00, true)`,
-        [orgId, bedCatId, genMedId, gst5Id, 'BED-GEN-DAY', 'General Ward Bed - Per Day', 'General ward bed charge per day', 'bed', 'per_day']
+        [organizationId, bedCatId, genMedId, gst5Id, 'BED-GEN-DAY', 'General Ward Bed - Per Day', 'General ward bed charge per day', 'bed', 'per_day']
       );
       await client.query(
         `INSERT INTO services (organization_id, category_id, department_id, tax_group_id, code, name, description, service_type, billing_unit, default_rate, is_rate_editable)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 5000.00, true)`,
-        [orgId, bedCatId, icuCatId, gst5Id, 'BED-ICU-DAY', 'ICU Bed - Per Day', 'ICU bed charge per day', 'bed', 'per_day']
+        [organizationId, bedCatId, icuCatId, gst5Id, 'BED-ICU-DAY', 'ICU Bed - Per Day', 'ICU bed charge per day', 'bed', 'per_day']
       );
       await client.query(
         `INSERT INTO services (organization_id, category_id, department_id, tax_group_id, code, name, description, service_type, billing_unit, default_rate, is_rate_editable)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 3000.00, true)`,
-        [orgId, bedCatId, pvtCatId, gst5Id, 'BED-PVT-DAY', 'Private Room - Per Day', 'Private room charge per day', 'bed', 'per_day']
+        [organizationId, bedCatId, pvtCatId, gst5Id, 'BED-PVT-DAY', 'Private Room - Per Day', 'Private room charge per day', 'bed', 'per_day']
       );
       await client.query(
         `INSERT INTO services (organization_id, category_id, department_id, tax_group_id, code, name, description, service_type, billing_unit, default_rate, is_rate_editable)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 500.00, true)`,
-        [orgId, consultCatId, genMedId, gst12Id, 'CONS-GEN', 'General Physician Consultation', 'General physician consultation fee', 'consultation', 'per_visit']
+        [organizationId, consultCatId, genMedId, gst12Id, 'CONS-GEN', 'General Physician Consultation', 'General physician consultation fee', 'consultation', 'per_visit']
       );
       await client.query(
         `INSERT INTO services (organization_id, category_id, department_id, tax_group_id, code, name, description, service_type, billing_unit, default_rate, is_rate_editable)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 800.00, true)`,
-        [orgId, consultCatId, cardId, gst12Id, 'CONS-CARD', 'Cardiologist Consultation', 'Cardiologist consultation fee', 'consultation', 'per_visit']
+        [organizationId, consultCatId, cardId, gst12Id, 'CONS-CARD', 'Cardiologist Consultation', 'Cardiologist consultation fee', 'consultation', 'per_visit']
       );
       await client.query(
         `INSERT INTO services (organization_id, category_id, department_id, tax_group_id, code, name, description, service_type, billing_unit, default_rate, is_rate_editable)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 600.00, true)`,
-        [orgId, consultCatId, pedsId, gst12Id, 'CONS-PED', 'Pediatrician Consultation', 'Pediatrician consultation fee', 'consultation', 'per_visit']
+        [organizationId, consultCatId, pedsId, gst12Id, 'CONS-PED', 'Pediatrician Consultation', 'Pediatrician consultation fee', 'consultation', 'per_visit']
       );
     }
 
     const services = await client.query(
       'SELECT id, code FROM services WHERE organization_id = $1',
-      [orgId]
+      [organizationId]
     );
     const bedGenId = services.rows.find(r => r.code === 'BED-GEN-DAY')?.id;
     const bedIcuId = services.rows.find(r => r.code === 'BED-ICU-DAY')?.id;
@@ -521,19 +619,19 @@ async function seed() {
     // ---------------------------------------------------------
     const existingPlan = await client.query(
       'SELECT id FROM tariff_plans WHERE organization_id = $1 AND is_default = true LIMIT 1',
-      [orgId]
+      [organizationId]
     );
     let defaultTariffId = existingPlan.rows[0]?.id;
     if (!defaultTariffId) {
       await client.query(
         `INSERT INTO tariff_plans (organization_id, code, name, plan_type, currency, is_default, is_active)
          VALUES ($1, $2, $3, $4, $5, true, true) RETURNING id`,
-        [orgId, 'DEFAULT', 'Standard Tariff Plan', 'standard', 'INR']
+        [organizationId, 'DEFAULT', 'Standard Tariff Plan', 'standard', 'INR']
       );
       defaultTariffId = (
         await client.query(
           'SELECT id FROM tariff_plans WHERE organization_id = $1 AND is_default = true LIMIT 1',
-          [orgId]
+          [organizationId]
         )
       ).rows[0]?.id;
     }
