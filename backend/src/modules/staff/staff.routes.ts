@@ -2,11 +2,13 @@ import { Router } from 'express';
 import { StaffController } from './staff.controller';
 import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
+import { moduleGuard } from '../../middleware/moduleGuard';
 
 const router = Router();
 const controller = new StaffController();
 
 router.use(authenticate);
+router.use(moduleGuard('staff'));
 
 router.get('/departments', controller.getDepartments);
 router.get('/doctors', controller.getDoctors);

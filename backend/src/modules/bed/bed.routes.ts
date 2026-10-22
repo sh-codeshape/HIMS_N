@@ -2,12 +2,14 @@ import { Router } from 'express';
 import { BedController } from './bed.controller';
 import { validate } from '../../middleware/validate';
 import { authenticate } from '../../middleware/authenticate';
+import { moduleGuard } from '../../middleware/moduleGuard';
 import { getBedSchema, updateBedStatusSchema } from './bed.schema';
 
 const router = Router();
 const controller = new BedController();
 
 router.use(authenticate);
+router.use(moduleGuard('ward'));
 
 router.get('/', validate(getBedSchema), controller.getBeds);
 router.get('/wards', controller.getWards);

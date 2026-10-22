@@ -32,6 +32,7 @@ import { pharmacyRoutes } from './modules/pharmacy/pharmacy.routes';
 import { inventoryRoutes } from './modules/inventory/inventory.routes';
 
 import { rolesRoutes } from './modules/roles/roles.routes';
+import { modulesRoutes } from './modules/modules/modules.routes';
 
 // Health check
 app.get('/health', (req, res) => {
@@ -51,6 +52,7 @@ app.use('/api/v1/laboratory', labRoutes);
 app.use('/api/v1/pharmacy', pharmacyRoutes);
 app.use('/api/v1/inventory', inventoryRoutes);
 app.use('/api/v1/roles', rolesRoutes);
+app.use('/api/v1/modules', modulesRoutes);
 
 // Global Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

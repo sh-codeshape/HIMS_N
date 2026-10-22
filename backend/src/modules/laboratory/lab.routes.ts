@@ -2,12 +2,14 @@ import { Router } from 'express';
 import { LabController } from './lab.controller';
 import { validate } from '../../middleware/validate';
 import { authenticate } from '../../middleware/authenticate';
+import { moduleGuard } from '../../middleware/moduleGuard';
 import { createLabOrderSchema, updateLabResultSchema } from './lab.schema';
 
 const router = Router();
 const controller = new LabController();
 
 router.use(authenticate);
+router.use(moduleGuard('laboratory'));
 
 router.get('/tests', controller.getLabTests);
 router.get('/definitions', controller.getTestDefinitions);

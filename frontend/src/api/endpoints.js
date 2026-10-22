@@ -114,6 +114,10 @@ export const ENDPOINTS = {
   BULK_MESSAGING: {
     BASE: "/bulk-messaging",
   },
+  MODULES: {
+    BASE: "/modules",
+    TOGGLE: (moduleKey) => `/modules/${moduleKey}`,
+  },
   MASTER_REPORTS: {
     BASE: "/reports/master",
   },

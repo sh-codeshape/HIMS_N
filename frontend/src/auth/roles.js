@@ -3,6 +3,7 @@
 // reads from this list so nothing gets out of sync.
 
 export const ROLES = {
+  DEVELOPER: "developer",
   SUPER_ADMIN: "super_admin",
   ADMIN: "admin",
   DOCTOR: "doctor",
@@ -11,6 +12,7 @@ export const ROLES = {
 };
 
 export const ROLE_LABELS = {
+  [ROLES.DEVELOPER]: "Developer",
   [ROLES.SUPER_ADMIN]: "Super Admin",
   [ROLES.ADMIN]: "Admin",
   [ROLES.DOCTOR]: "Doctor",
@@ -28,8 +30,6 @@ export const LOGIN_ROLE_OPTIONS = [
 ];
 
 export const ALL_ROLES = Object.values(ROLES);
-
-// ---------------------------------------------------------------------------
 // Permission catalog (must match the permission codes seeded in the backend).
 // Use these codes in sidebarConfig, ProtectedRoute and the permission UI so
 // nothing drifts out of sync.
@@ -96,6 +96,12 @@ export const PERMISSIONS = {
 
   // Reports
   REPORTS_VIEW: 'reports.view',
+
+  // Developer
+  DEVELOPER_MODULES: 'developer.modules',
+  DEVELOPER_CONSOLE: 'developer.console',
+  DEVELOPER_AUDIT: 'developer.audit',
+  DEVELOPER_CONFIG: 'developer.config',
 };
 
 export const PERMISSION_LABELS = {
@@ -147,6 +153,10 @@ export const PERMISSION_LABELS = {
   [PERMISSIONS.EMERGENCY_CREATE]: 'Create Emergency Cases',
 
   [PERMISSIONS.REPORTS_VIEW]: 'View Reports',
+  [PERMISSIONS.DEVELOPER_MODULES]: 'Toggle Module Visibility',
+  [PERMISSIONS.DEVELOPER_CONSOLE]: 'Developer Console Access',
+  [PERMISSIONS.DEVELOPER_AUDIT]: 'View System Audit Logs',
+  [PERMISSIONS.DEVELOPER_CONFIG]: 'System Configuration',
 };
 
 // All permission codes as a flat array (useful for the UI matrix).
@@ -154,6 +164,12 @@ export const ALL_PERMISSIONS = Object.values(PERMISSIONS);
 
 // Group permissions by module for the permission matrix UI.
 export const PERMISSION_GROUPS = {
+  Developer: [
+    PERMISSIONS.DEVELOPER_MODULES,
+    PERMISSIONS.DEVELOPER_CONSOLE,
+    PERMISSIONS.DEVELOPER_AUDIT,
+    PERMISSIONS.DEVELOPER_CONFIG,
+  ],
   'Roles & Users': [
     PERMISSIONS.ROLES_VIEW,
     PERMISSIONS.ROLES_MANAGE,

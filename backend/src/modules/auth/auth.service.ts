@@ -22,6 +22,7 @@ export class AuthService {
     }
 
     const { roles, permissions } = await authRepository.getUserEffectivePermissions(user.id);
+    const enabledModules = await authRepository.getEnabledModules();
     
     // Fallback or explicit injection of super_admin role if is_superadmin is true
     const assignedRoles = user.is_superadmin && !roles.includes('super_admin') 
@@ -55,6 +56,8 @@ export class AuthService {
         facility_id: facilityId,
         roles: assignedRoles,
         permissions,
+        enabledModules,
+        isDeveloper: assignedRoles.includes('developer'),
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -72,6 +75,8 @@ export class AuthService {
         role: primaryRole, // kept for backward compatibility
         roles: assignedRoles,
         permissions,
+        enabledModules,
+        isDeveloper: assignedRoles.includes('developer'),
         organization_id: user.organization_id,
       },
     };

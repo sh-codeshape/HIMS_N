@@ -2,12 +2,16 @@ import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
 import sidebarConfig from "../../config/sidebarConfig";
 import { useAuth } from "../../auth/AuthContext.jsx";
+import { useRole } from "../../hooks/useRole";
+import { useModules } from "../../context/ModuleContext";
 import Icon from "../common/Icon.jsx";
 import codeShapeLogo from "../../assets/logos/codeshape-logo.png";
 import "./Sidebar.css";
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const { roles } = useRole();
+  const { isModuleEnabled } = useModules();
   const [openKey, setOpenKey] = useState(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
@@ -18,17 +22,21 @@ export default function Sidebar() {
     : user.role ? [user.role] : [];
   const userPermissions = Array.isArray(user.permissions) ? user.permissions : [];
 
+  const isDeveloper = roles.includes('developer');
+
   /**
-   * A menu item is visible when:
-   * - the user has one of its allowedRoles (role-based gating - the primary
-   *   control, so "whichever role is given to the user only that page shows"),
-   *   OR, when the page explicitly lists allowedPermissions, the user has one
-   *   of those permissions (super admin can grant a user access to a page via
-   *   permission even if their role is not listed).
-   * Pages without an explicit permission list fall back to role-only gating,
-   * so existing role-based behaviour is unchanged.
+   * Layer 1: Module registry check (developer bypasses).
+   * If a module is disabled globally, no one except the developer can see it.
+   *
+   * Layer 2: Existing role + permission check (unchanged).
    */
   const itemVisible = (item) => {
+    // Layer 1: Module gate
+    if (!isDeveloper && item.key && !isModuleEnabled(item.key)) {
+      return false; // Module disabled globally → hide from everyone except developer
+    }
+
+    // Layer 2: Role-based gating
     const roleOk =
       !item.allowedRoles || item.allowedRoles.length === 0
         ? true
@@ -71,7 +79,11 @@ export default function Sidebar() {
             {visibleItems.map((item) => {
               const hasChildren = !!item.children?.length;
               const visibleChildren = hasChildren
-                ? item.children.filter((c) => itemVisible(c))
+                ? item.children.filter((c) => {
+                    // Children inherit module gate from parent group key
+                    const childWithKey = { ...c, key: c.key || item.key };
+                    return itemVisible(childWithKey);
+                  })
                 : [];
               const isOpen = openKey === item.key;
 
