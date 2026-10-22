@@ -9,6 +9,7 @@ import {
   LuPrinter, LuSave, LuCircleX, LuCircleCheck, LuChevronDown,
   LuFolderSearch, LuBedDouble, LuFileText
 } from "react-icons/lu";
+import "./RegistrationReportsTable.css";
 
 // ─── Status Config ────────────────────────────────────────────────────────────
 const STATUSES = [
@@ -218,9 +219,6 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
     }
   };
 
-  // ─── Styles ───────────────────────────────────────────────────────────────
-  const thCls = "px-5 py-3.5 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50/60 border-b border-slate-100";
-
   const getPatientDisplayData = (patient) => {
     if (!patient) return {};
 
@@ -274,43 +272,41 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
   };
 
   return (
-    <div className="font-sans text-slate-800">
+    <div className="rr-page">
 
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-5 right-5 z-[99999] flex items-center gap-2 px-4 py-3 rounded-xl shadow-xl text-sm font-semibold text-white
-          ${toast.type === "warn" ? "bg-amber-500" : toast.type === "error" ? "bg-red-500" : "bg-emerald-600"}`}>
+        <div className={`rr-toast rr-toast--${toast.type === "warn" ? "warn" : toast.type === "error" ? "error" : "success"}`}>
           <LuCircleCheck size={16} /> {toast.msg}
         </div>
       )}
 
       {/* ── PAGE HEADER ── */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+      <div className="rr-header">
+        <div className="rr-header-left">
+          <div className="rr-header-icon">
             <LuBedDouble size={22} />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Patient Registration Reports</h1>
-            <p className="text-xs text-slate-500 mt-0.5">View and manage all registered patients </p>
+            <h1 className="rr-title">Patient Registration Reports</h1>
+            <p className="rr-subtitle">View and manage all registered patients </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="rr-controls">
           {/* Search */}
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 w-56 text-sm shadow-2xs focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
-            <LuSearch size={15} className="text-slate-400 shrink-0" />
+          <div className="rr-search">
+            <LuSearch size={15} />
             <input type="text" placeholder="Search name, mobile..."
-              className="text-sm text-slate-700 bg-transparent outline-none placeholder:text-slate-400 w-full"
               value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
             {search && (
-              <button onClick={() => setSearch("")}><LuX size={13} className="text-slate-400 hover:text-slate-600" /></button>
+              <button className="rr-search-clear" onClick={() => setSearch("")}><LuX size={13} color="#55698a" /></button>
             )}
           </div>
 
           {/* Category Filter */}
           <select
-            className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:border-blue-400 cursor-pointer shadow-2xs"
+            className="rr-select"
             value={catFilter} onChange={e => { setCat(e.target.value); setPage(1); }}>
             <option value="All">All Categories</option>
             <option value="OPD">OPD</option>
@@ -320,42 +316,41 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
 
           {/* Status Filter */}
           <select
-            className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:border-blue-400 cursor-pointer shadow-2xs"
+            className="rr-select"
             value={statusFilter} onChange={e => { setStat(e.target.value); setPage(1); }}>
             <option value="All">All Statuses</option>
             {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
 
           {/* Export Excel */}
-          <button onClick={() => exportToExcel(filtered, showToast)}
-            className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-all active:scale-95 shadow-sm">
+          <button onClick={() => exportToExcel(filtered, showToast)} className="rr-btn rr-btn--green">
             <LuDownload size={15} /> Export Excel
           </button>
         </div>
       </div>
 
       {/* ── TABLE CARD ── */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+      <div className="rr-card">
+        <div className="rr-table-wrap">
+          <table className="rr-table">
             <thead>
               <tr>
-                <th className={thCls}>UHID NUMBER</th>
-                <th className={thCls}>DATE</th>
-                <th className={thCls}>NAME</th>
-                <th className={thCls}>MOBILE NUMBER</th>
-                <th className={thCls}>CATEGORY</th>
-                <th className={thCls}>STATUS</th>
-                <th className={thCls}>ACTIONS</th>
+                <th>UHID NUMBER</th>
+                <th>DATE</th>
+                <th>NAME</th>
+                <th>MOBILE NUMBER</th>
+                <th>CATEGORY</th>
+                <th>STATUS</th>
+                <th>ACTIONS</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center">
-                    <LuFolderSearch size={36} className="mx-auto text-slate-300 mb-3" />
-                    <p className="text-sm font-semibold text-slate-500">No patient records found</p>
-                    <p className="text-xs text-slate-400 mt-1">Try adjusting your search or filters.</p>
+                  <td colSpan={7} className="rr-empty">
+                    <LuFolderSearch size={36} />
+                    <p>No patient records found</p>
+                    <small>Try adjusting your search or filters.</small>
                   </td>
                 </tr>
               ) : paginated.map((p, i) => {
@@ -365,93 +360,82 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                 const regDate  = p.registeredAt?.split(" ")[0] || p.regDate || "—";
 
                 return (
-                  <tr key={p.uhid || i}
-                    className={`hover:bg-slate-50/60 transition-colors ${isCancelled ? "opacity-50" : ""}`}>
+                  <tr key={p.uhid || i} className={isCancelled ? "rr-row--cancelled" : ""}>
 
                     {/* UHID NUMBER */}
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <button onClick={() => setViewP(p)}
-                        className="font-bold text-blue-600 hover:text-blue-800 hover:underline transition-colors text-sm text-left">
+                    <td>
+                      <button onClick={() => setViewP(p)} className="rr-link rr-uhid">
                         {p.uhid || p.id || "—"}
                       </button>
                       {p.patientId && (
-                        <div className="text-[11px] text-slate-400 mt-0.5">{p.patientId}</div>
+                        <div className="rr-sub">{p.patientId}</div>
                       )}
                     </td>
 
                     {/* DATE */}
-                    <td className="px-5 py-4 text-slate-700 whitespace-nowrap text-sm">
-                      {regDate}
-                    </td>
+                    <td>{regDate}</td>
 
                     {/* NAME */}
-                    <td className="px-5 py-4 text-slate-900 font-semibold text-sm whitespace-nowrap">
-                      <button onClick={() => setViewP(p)} className="hover:text-blue-600 transition-colors text-left font-semibold">
+                    <td>
+                      <button onClick={() => setViewP(p)} className="rr-link rr-name">
                         {fullName || "—"}
                       </button>
                     </td>
 
                     {/* MOBILE NUMBER */}
-                    <td className="px-5 py-4 text-slate-700 whitespace-nowrap text-sm">
-                      {p.phone || p.mobile1 || "—"}
-                    </td>
+                    <td>{p.phone || p.mobile1 || "—"}</td>
 
                     {/* CATEGORY */}
-                    <td className="px-5 py-4 whitespace-nowrap text-sm">
-                      <span className={`inline-block px-3 py-1 rounded-md text-xs font-semibold border shadow-2xs ${
+                    <td>
+                      <span className={`rr-cat ${
                         p.category === "IPD"
-                          ? "bg-purple-50 text-purple-700 border-purple-200"
+                          ? "rr-cat--ipd"
                           : p.category === "Emergency"
-                          ? "bg-rose-50 text-rose-700 border-rose-200"
+                          ? "rr-cat--emergency"
                           : p.category === "Registered"
-                          ? "bg-sky-50 text-sky-700 border-sky-200"
-                          : "bg-blue-50 text-blue-700 border-blue-200"
+                          ? "rr-cat--registered"
+                          : "rr-cat--opd"
                       }`}>
                         {p.category || "OPD"}
                       </span>
                     </td>
 
                     {/* STATUS */}
-                    <td className="px-5 py-4 whitespace-nowrap text-sm">
+                    <td>
                       <button
                         onClick={() => { setStatusP(p); setNewStatus(p.status || "Waiting"); }}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-md border transition-all shadow-2xs hover:opacity-85"
+                        className="rr-status"
                         style={{
                           color: st.color,
                           backgroundColor: st.bg,
-                          borderColor: st.color + "44",
+                          borderColor: st.color + "66",
                         }}>
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: st.color }} />
+                        <span className="rr-status-dot" style={{ backgroundColor: st.color }} />
                         {p.status || "Waiting"}
                         <LuChevronDown size={11} style={{ color: st.color }} />
                       </button>
                     </td>
 
                     {/* ACTIONS */}
-                    <td className="px-5 py-4 whitespace-nowrap text-sm">
-                      <div className="flex items-center gap-1.5">
+                    <td>
+                      <div className="rr-actions">
                         {/* View */}
-                        <button onClick={() => setViewP(p)} title="View Details"
-                          className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-colors shadow-2xs">
+                        <button onClick={() => setViewP(p)} title="View Details" className="rr-act rr-act--view">
                           <LuEye size={13} /> View
                         </button>
                         {/* Edit */}
                         <button onClick={() => openEdit(p)} title="Edit Patient"
-                          className={`p-1.5 rounded-md border transition-colors shadow-2xs ${
-                            canEdit
-                              ? "bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200"
-                              : "bg-slate-50 text-slate-300 border-slate-200 cursor-not-allowed"
-                          }`}>
+                          className={`rr-act ${canEdit ? "rr-act--edit" : "rr-act--locked"}`}>
                           <LuSquarePen size={14} />
                         </button>
                         {/* Status */}
                         <button onClick={() => { setStatusP(p); setNewStatus(p.status || "Waiting"); }} title="Change Status"
-                          className="p-1.5 rounded-md bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-colors shadow-2xs">
+                          className="rr-act rr-act--status">
                           <LuRefreshCw size={13} />
                         </button>
                         {/* Cancel */}
                         <button onClick={() => setCancelP(p)} title="Cancel" disabled={isCancelled}
-                          className="p-1.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors shadow-2xs disabled:opacity-40">
+                          className="rr-act rr-act--cancel">
                           {canDelete ? <LuTrash2 size={13} /> : <LuBan size={13} />}
                         </button>
                       </div>
@@ -464,21 +448,21 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
         </div>
 
         {/* ── Footer / Pagination ── */}
-        <div className="px-6 py-4 bg-white border-t border-slate-100 flex items-center justify-between">
-          <p className="text-xs text-slate-500 font-medium">
+        <div className="rr-footer">
+          <p className="rr-count">
             Showing {filtered.length} records
           </p>
-          <div className="flex items-center gap-2">
+          <div className="rr-pager">
             <button
               disabled={page === 1}
               onClick={() => setPage(p => p - 1)}
-              className="text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-all shadow-2xs">
+              className="rr-pg-btn">
               Previous
             </button>
             <button
               disabled={page === totalPages}
               onClick={() => setPage(p => p + 1)}
-              className="text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-all shadow-2xs">
+              className="rr-pg-btn">
               Next
             </button>
           </div>
@@ -494,156 +478,152 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
         const regDate = displayData.regDate;
 
         return (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 print:p-0 print:bg-white"
-            onClick={() => setViewP(null)}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200 print:border-none print:shadow-none print:max-h-none print:w-full"
-              onClick={e => e.stopPropagation()}>
-              
+          <div className="rr-overlay" onClick={() => setViewP(null)}>
+            <div className="rr-modal" onClick={e => e.stopPropagation()}>
+
               {/* Header Bar */}
-              <div className="flex items-center justify-between px-6 py-3.5 border-b border-[#1b3a5b] bg-[#0b1e36] text-white">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-blue-600/30 text-blue-300 border border-blue-400/20 flex items-center justify-center shadow-sm">
+              <div className="rr-modal-head">
+                <div className="rr-modal-head-left">
+                  <div className="rr-modal-icon">
                     <LuFileText size={20} />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white tracking-wide uppercase">Patient Registration Form</h3>
-                    <p className="text-xs text-blue-200/80">
-                      UHID: <span className="font-mono font-bold text-white">{viewP.uhid || "—"}</span>
-                      <span className="mx-2 text-slate-400">•</span>
-                      Reg Date: <span className="text-slate-200">{viewP.registeredAt || viewP.regDate || "—"}</span>
+                    <h3 className="rr-modal-title">Patient Registration Form</h3>
+                    <p className="rr-modal-meta">
+                      UHID: <strong className="rr-mono">{viewP.uhid || "—"}</strong>
+                      <span style={{ margin: "0 8px", opacity: 0.6 }}>•</span>
+                      Reg Date: <strong>{viewP.registeredAt || viewP.regDate || "—"}</strong>
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="rr-head-actions">
                   <button
                     onClick={() => window.print()}
-                    className="flex items-center gap-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-lg border border-emerald-500 transition-all cursor-pointer shadow-sm"
+                    className="rr-btn rr-btn--green rr-btn--sm"
                     title="Print Registration Form"
                   >
                     <LuPrinter size={14} /> Print
                   </button>
-                  <button 
-                    onClick={() => setViewP(null)} 
-                    className="text-red-400 hover:text-red-300 hover:bg-red-500/20 p-1 rounded-lg transition-colors cursor-pointer"
+                  <button
+                    onClick={() => setViewP(null)}
+                    className="rr-close"
                     title="Close"
                   >
-                    <LuCircleX size={24} />
+                    <LuCircleX size={20} />
                   </button>
                 </div>
               </div>
 
               {/* Form Content (Scrollable & Form Tables) */}
-              <div className="p-6 overflow-y-auto space-y-5 text-slate-800 bg-slate-50/50">
-                
+              <div className="rr-modal-body">
+
                 {/* Patient Summary Header Card */}
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-[#0b1e36] text-white flex items-center justify-center font-bold text-xl shadow-xs">
+                <div className="rr-banner">
+                  <div className="rr-banner-left">
+                    <div className="rr-avatar">
                       {vFullName[0]?.toUpperCase()}
                     </div>
                     <div>
-                      <h2 className="text-lg font-bold text-slate-900 leading-tight">
-                        {vFullName}
-                      </h2>
-                      <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-slate-500">
-                        <span>UHID: <strong className="text-blue-700 font-mono font-bold">{displayData.uhid}</strong></span>
+                      <h2>{vFullName}</h2>
+                      <div className="rr-banner-meta">
+                        <span>UHID: <strong className="rr-mono rr-blue">{displayData.uhid}</strong></span>
                         <span>•</span>
-                        <span>Reg. Date: <strong className="text-slate-800 font-semibold">{regDate}</strong></span>
+                        <span>Reg. Date: <strong>{regDate}</strong></span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Section 1: Patient Details */}
-                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
-                  <div className="bg-slate-100/90 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-blue-600"></span> 1. Patient Details
+                <div className="rr-section">
+                  <div className="rr-section-head">
+                    <h4 className="rr-section-title">
+                      <span className="rr-dot rr-dot--blue"></span> 1. Patient Details
                     </h4>
                   </div>
-                  <table className="w-full text-xs border-collapse">
+                  <table className="rr-dtable">
                     <tbody>
-                      <tr className="border-b border-slate-200">
-                        <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Patient Full Name</td>
-                        <td className="w-1/4 p-2.5 font-bold text-slate-900 border-r border-slate-200">{vFullName}</td>
-                        <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">UHID Number</td>
-                        <td className="w-1/4 p-2.5 font-mono font-bold text-blue-700">{displayData.uhid}</td>
-                      </tr>
-                      <tr className="border-b border-slate-200">
-                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Registration Date</td>
-                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{regDate}</td>
-                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Gender / Age</td>
-                        <td className="p-2.5 font-semibold text-slate-900">{displayData.gender} / {ageDisplay}</td>
-                      </tr>
-                      <tr className="border-b border-slate-200">
-                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Date of Birth</td>
-                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{dobFormatted}</td>
-                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Blood Group</td>
-                        <td className="p-2.5 font-bold text-rose-600">{displayData.bloodGroup}</td>
-                      </tr>
-                      <tr className="border-b border-slate-200">
-                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Nationality</td>
-                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{displayData.nationality}</td>
-                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Aadhaar / ID</td>
-                        <td className="p-2.5 font-medium text-slate-900">{displayData.idNumber || "—"}</td>
+                      <tr>
+                        <td className="rr-lbl">Patient Full Name</td>
+                        <td className="rr-val rr-val--strong">{vFullName}</td>
+                        <td className="rr-lbl">UHID Number</td>
+                        <td className="rr-val rr-val--uhid rr-mono">{displayData.uhid}</td>
                       </tr>
                       <tr>
-                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Patient Category</td>
-                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{displayData.category}</td>
-                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Department</td>
-                        <td className="p-2.5 font-medium text-slate-900">{displayData.department || "—"}</td>
+                        <td className="rr-lbl">Registration Date</td>
+                        <td className="rr-val">{regDate}</td>
+                        <td className="rr-lbl">Gender / Age</td>
+                        <td className="rr-val rr-val--strong">{displayData.gender} / {ageDisplay}</td>
+                      </tr>
+                      <tr>
+                        <td className="rr-lbl">Date of Birth</td>
+                        <td className="rr-val">{dobFormatted}</td>
+                        <td className="rr-lbl">Blood Group</td>
+                        <td className="rr-val rr-val--blood">{displayData.bloodGroup}</td>
+                      </tr>
+                      <tr>
+                        <td className="rr-lbl">Nationality</td>
+                        <td className="rr-val">{displayData.nationality}</td>
+                        <td className="rr-lbl">Aadhaar / ID</td>
+                        <td className="rr-val">{displayData.idNumber || "—"}</td>
+                      </tr>
+                      <tr>
+                        <td className="rr-lbl">Patient Category</td>
+                        <td className="rr-val">{displayData.category}</td>
+                        <td className="rr-lbl">Department</td>
+                        <td className="rr-val">{displayData.department || "—"}</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
 
                 {/* Section 2: Contact Details */}
-                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
-                  <div className="bg-slate-100/90 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-600"></span> 2. Contact Details
+                <div className="rr-section">
+                  <div className="rr-section-head">
+                    <h4 className="rr-section-title">
+                      <span className="rr-dot rr-dot--green"></span> 2. Contact Details
                     </h4>
                   </div>
-                  <table className="w-full text-xs border-collapse">
+                  <table className="rr-dtable">
                     <tbody>
-                      <tr className="border-b border-slate-200">
-                        <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Mobile No.</td>
-                        <td className="w-1/4 p-2.5 font-bold text-slate-900 border-r border-slate-200">{displayData.phone || "—"}</td>
-                        <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">City / District</td>
-                        <td className="w-1/4 p-2.5 font-medium text-slate-900">{displayData.city || "—"}</td>
-                      </tr>
-                      <tr className="border-b border-slate-200">
-                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">State</td>
-                        <td className="p-2.5 font-medium text-slate-900 border-r border-slate-200">{displayData.state || "—"}</td>
-                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Pincode</td>
-                        <td className="p-2.5 font-medium text-slate-900">{displayData.country || "India"} {displayData.postalCode ? `(${displayData.postalCode})` : ""}</td>
+                      <tr>
+                        <td className="rr-lbl">Mobile No.</td>
+                        <td className="rr-val rr-val--strong">{displayData.phone || "—"}</td>
+                        <td className="rr-lbl">City / District</td>
+                        <td className="rr-val">{displayData.city || "—"}</td>
                       </tr>
                       <tr>
-                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Full Residential Address</td>
-                        <td colSpan={3} className="p-2.5 font-medium text-slate-900">{displayData.addressLine || "—"}</td>
+                        <td className="rr-lbl">State</td>
+                        <td className="rr-val">{displayData.state || "—"}</td>
+                        <td className="rr-lbl">Pincode</td>
+                        <td className="rr-val">{displayData.country || "India"} {displayData.postalCode ? `(${displayData.postalCode})` : ""}</td>
+                      </tr>
+                      <tr>
+                        <td className="rr-lbl">Full Residential Address</td>
+                        <td colSpan={3} className="rr-val" style={{ width: "auto" }}>{displayData.addressLine || "—"}</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
 
                 {/* Section 3: Emergency Contact Details */}
-                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
-                  <div className="bg-slate-100/90 px-4 py-2.5 border-b border-slate-200">
-                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-rose-600"></span> 3. Emergency Contact Details
+                <div className="rr-section">
+                  <div className="rr-section-head">
+                    <h4 className="rr-section-title">
+                      <span className="rr-dot rr-dot--red"></span> 3. Emergency Contact Details
                     </h4>
                   </div>
-                  <table className="w-full text-xs border-collapse">
+                  <table className="rr-dtable">
                     <tbody>
-                      <tr className="border-b border-slate-200">
-                        <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Contact Person</td>
-                        <td className="w-1/4 p-2.5 font-bold text-slate-900 border-r border-slate-200">{displayData.emergencyName || "—"}</td>
-                        <td className="w-1/4 bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Relationship</td>
-                        <td className="w-1/4 p-2.5 font-medium text-slate-900">{displayData.emergencyRelation || "—"}</td>
+                      <tr>
+                        <td className="rr-lbl">Contact Person</td>
+                        <td className="rr-val rr-val--strong">{displayData.emergencyName || "—"}</td>
+                        <td className="rr-lbl">Relationship</td>
+                        <td className="rr-val">{displayData.emergencyRelation || "—"}</td>
                       </tr>
                       <tr>
-                        <td className="bg-slate-50 p-2.5 font-semibold text-slate-600 border-r border-slate-200">Emergency Phone</td>
-                        <td colSpan={3} className="p-2.5 font-bold text-slate-900">{displayData.emergencyPhone || "—"}</td>
+                        <td className="rr-lbl">Emergency Phone</td>
+                        <td colSpan={3} className="rr-val rr-val--strong" style={{ width: "auto" }}>{displayData.emergencyPhone || "—"}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -652,36 +632,36 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
               </div>
 
               {/* Modal Footer Controls */}
-              <div className="px-6 py-3.5 border-t border-slate-200 bg-white flex flex-wrap justify-between items-center gap-3">
-                <div className="flex flex-wrap items-center gap-2">
+              <div className="rr-modal-foot">
+                <div className="rr-foot-group">
                   <button
                     onClick={() => window.print()}
-                    className="text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 border border-emerald-600 px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    className="rr-btn rr-btn--green rr-btn--sm"
                   >
                     <LuPrinter size={14} /> Print Form
                   </button>
-                  <button 
+                  <button
                     onClick={() => { const p = viewP; setViewP(null); openEdit(p); }}
-                    className="text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    className="rr-btn rr-btn--gold rr-btn--sm"
                   >
                     <LuSquarePen size={14} /> Edit Record
                   </button>
-                  <button 
+                  <button
                     onClick={() => { const p = viewP; setViewP(null); setStatusP(p); setNewStatus(p.status || "Waiting"); }}
-                    className="text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    className="rr-btn rr-btn--violet rr-btn--sm"
                   >
                     <LuRefreshCw size={13} /> Update Status
                   </button>
-                  <button 
+                  <button
                     onClick={() => { const p = viewP; setViewP(null); setCancelP(p); }}
-                    className="text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    className="rr-btn rr-btn--red rr-btn--sm"
                   >
                     <LuBan size={14} /> Cancel
                   </button>
                 </div>
-                <button 
+                <button
                   onClick={() => setViewP(null)}
-                  className="text-xs font-bold text-white bg-[#0b1e36] hover:bg-[#122b4d] px-5 py-2 rounded-lg transition-all cursor-pointer shadow-xs"
+                  className="rr-btn rr-btn--navy rr-btn--sm"
                 >
                   Close Form
                 </button>
@@ -694,99 +674,93 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
 
       {/* ─── EDIT MODAL (Premium Healthcare Record Editor - Wide & Structured) ─── */}
       {editP && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 md:p-6"
-          onClick={() => setEditP(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200"
-            onClick={e => e.stopPropagation()}>
-            
+        <div className="rr-overlay" onClick={() => setEditP(null)}>
+          <div className="rr-modal" onClick={e => e.stopPropagation()}>
+
             {/* Header Bar */}
-            <div className="flex items-center justify-between px-6 py-3.5 border-b border-[#1b3a5b] bg-[#0b1e36] text-white">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-blue-600/30 text-blue-300 border border-blue-400/20 flex items-center justify-center shadow-sm">
+            <div className="rr-modal-head">
+              <div className="rr-modal-head-left">
+                <div className="rr-modal-icon">
                   <LuSquarePen size={18} />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold text-white tracking-wide uppercase">Edit Patient Record</h3>
-                    <span className="text-[11px] font-semibold bg-blue-500/25 text-blue-200 px-2 py-0.5 rounded border border-blue-400/30">
-                      Editor Mode
-                    </span>
-                  </div>
-                  <p className="text-xs text-blue-200/80">
-                    UHID: <span className="font-mono font-bold text-white">{editP.uhid || "—"}</span>
-                    <span className="mx-2 text-slate-400">•</span>
-                    Patient: <span className="text-slate-200 font-semibold">{editP.name || editForm.name || "—"}</span>
+                  <h3 className="rr-modal-title">
+                    Edit Patient Record
+                    <span className="rr-chip">Editor Mode</span>
+                  </h3>
+                  <p className="rr-modal-meta">
+                    UHID: <strong className="rr-mono">{editP.uhid || "—"}</strong>
+                    <span style={{ margin: "0 8px", opacity: 0.6 }}>•</span>
+                    Patient: <strong>{editP.name || editForm.name || "—"}</strong>
                   </p>
                 </div>
               </div>
-              <button 
-                onClick={() => setEditP(null)} 
-                className="text-red-400 hover:text-red-300 hover:bg-red-500/20 p-1.5 rounded-lg transition-colors cursor-pointer"
+              <button
+                onClick={() => setEditP(null)}
+                className="rr-close"
                 title="Cancel & Close"
               >
-                <LuCircleX size={22} />
+                <LuCircleX size={20} />
               </button>
             </div>
 
             {/* Scrollable Form Body */}
-            <div className="p-6 overflow-y-auto space-y-5 text-slate-800 bg-slate-50/50">
-              
+            <div className="rr-modal-body">
+
               {/* Patient Identity Banner */}
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-[#0b1e36] text-white flex items-center justify-center font-bold text-xl shadow-xs">
+              <div className="rr-banner">
+                <div className="rr-banner-left">
+                  <div className="rr-avatar">
                     {(editForm.name || "P")[0]?.toUpperCase()}
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-slate-900 leading-tight">
-                      {editForm.name || "Patient Record"}
-                    </h2>
-                    <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-slate-500">
-                      <span>UHID: <strong className="text-blue-700 font-mono font-bold">{editP.uhid || "—"}</strong></span>
+                    <h2>{editForm.name || "Patient Record"}</h2>
+                    <div className="rr-banner-meta">
+                      <span>UHID: <strong className="rr-mono rr-blue">{editP.uhid || "—"}</strong></span>
                       <span>•</span>
-                      <span>Patient ID: <strong className="text-slate-800 font-semibold">{editP.patientId || editP.id || "—"}</strong></span>
+                      <span>Patient ID: <strong>{editP.patientId || editP.id || "—"}</strong></span>
                       <span>•</span>
-                      <span>Category: <strong className="text-slate-800 font-semibold">{editForm.category || "OPD"}</strong></span>
+                      <span>Category: <strong>{editForm.category || "OPD"}</strong></span>
                     </div>
                   </div>
                 </div>
-                <div className="text-xs text-slate-500 text-right hidden sm:block">
-                  <span className="text-[11px] font-medium text-slate-400 block">Registration Date</span>
-                  <span className="font-semibold text-slate-700">{editP.registeredAt || editP.regDate || "—"}</span>
+                <div className="rr-banner-right">
+                  <small>Registration Date</small>
+                  <span>{editP.registeredAt || editP.regDate || "—"}</span>
                 </div>
               </div>
 
               {/* Section 1: Personal Details */}
-              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
-                <div className="bg-slate-100/90 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-600"></span> 1. Personal Details
+              <div className="rr-section">
+                <div className="rr-section-head">
+                  <h4 className="rr-section-title">
+                    <span className="rr-dot rr-dot--blue"></span> 1. Personal Details
                   </h4>
-                  <span className="text-[11px] text-slate-500 font-medium">Identity Info</span>
+                  <span className="rr-section-note">Identity Info</span>
                 </div>
-                
-                <div className="p-4.5 grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="col-span-1 md:col-span-2">
-                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                      Full Name <span className="text-red-500">*</span>
+
+                <div className="rr-grid rr-grid--4">
+                  <div className="rr-span-2">
+                    <label className="rr-flabel">
+                      Full Name <span className="rr-req">*</span>
                     </label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={editForm.name || ""}
                       onChange={e => setEditForm(f => ({...f, name: e.target.value}))}
                       placeholder="e.g. Juli Singh Patel"
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      className="rr-input"
                     />
                   </div>
 
-                  <div className="col-span-1">
-                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                      Gender <span className="text-red-500">*</span>
+                  <div>
+                    <label className="rr-flabel">
+                      Gender <span className="rr-req">*</span>
                     </label>
-                    <select 
+                    <select
                       value={editForm.gender || "Male"}
                       onChange={e => setEditForm(f => ({...f, gender: e.target.value}))}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs cursor-pointer"
+                      className="rr-select"
                     >
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
@@ -794,27 +768,27 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                     </select>
                   </div>
 
-                  <div className="col-span-1">
-                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                      Age (Years) <span className="text-red-500">*</span>
+                  <div>
+                    <label className="rr-flabel">
+                      Age (Years) <span className="rr-req">*</span>
                     </label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       value={editForm.age || ""}
                       onChange={e => setEditForm(f => ({...f, age: e.target.value}))}
                       placeholder="Age in years"
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      className="rr-input"
                     />
                   </div>
 
-                  <div className="col-span-1 md:col-span-2">
-                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <div className="rr-span-2">
+                    <label className="rr-flabel">
                       Blood Group
                     </label>
-                    <select 
+                    <select
                       value={editForm.bloodGroup || ""}
                       onChange={e => setEditForm(f => ({...f, bloodGroup: e.target.value}))}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs cursor-pointer"
+                      className="rr-select"
                     >
                       <option value="">Select blood group</option>
                       <option value="A+">A+</option>
@@ -828,66 +802,66 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                     </select>
                   </div>
 
-                  <div className="col-span-1 md:col-span-2">
-                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <div className="rr-span-2">
+                    <label className="rr-flabel">
                       Aadhaar Number
                     </label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={editForm.aadhaar || ""}
                       onChange={e => setEditForm(f => ({...f, aadhaar: e.target.value}))}
                       placeholder="Enter 12-digit Aadhaar number"
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      className="rr-input"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Section 2: Contact Details */}
-              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
-                <div className="bg-slate-100/90 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-600"></span> 2. Contact Details
+              <div className="rr-section">
+                <div className="rr-section-head">
+                  <h4 className="rr-section-title">
+                    <span className="rr-dot rr-dot--green"></span> 2. Contact Details
                   </h4>
-                  <span className="text-[11px] text-slate-500 font-medium">Communication Info</span>
+                  <span className="rr-section-note">Communication Info</span>
                 </div>
 
-                <div className="p-4.5 grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="col-span-1 md:col-span-2">
-                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                      Mobile No. <span className="text-red-500">*</span>
+                <div className="rr-grid rr-grid--4">
+                  <div className="rr-span-2">
+                    <label className="rr-flabel">
+                      Mobile No. <span className="rr-req">*</span>
                     </label>
-                    <input 
-                      type="tel" 
+                    <input
+                      type="tel"
                       value={editForm.phone || ""}
                       onChange={e => setEditForm(f => ({...f, phone: e.target.value}))}
                       placeholder="10-digit mobile number"
                       maxLength={10}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      className="rr-input"
                     />
                   </div>
 
-                  <div className="col-span-1">
-                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <div>
+                    <label className="rr-flabel">
                       City
                     </label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={editForm.city || ""}
                       onChange={e => setEditForm(f => ({...f, city: e.target.value}))}
                       placeholder="Enter city"
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      className="rr-input"
                     />
                   </div>
 
-                  <div className="col-span-1">
-                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <div>
+                    <label className="rr-flabel">
                       State
                     </label>
-                    <select 
+                    <select
                       value={editForm.state || ""}
                       onChange={e => setEditForm(f => ({...f, state: e.target.value}))}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs cursor-pointer"
+                      className="rr-select"
                     >
                       <option value="">Select state</option>
                       {["Uttar Pradesh","Delhi","Maharashtra","Karnataka","Rajasthan","Madhya Pradesh",
@@ -897,94 +871,94 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                     </select>
                   </div>
 
-                  <div className="col-span-1">
-                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <div>
+                    <label className="rr-flabel">
                       Pincode
                     </label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={editForm.pincode || ""}
                       onChange={e => setEditForm(f => ({...f, pincode: e.target.value}))}
                       placeholder="6-digit pincode"
                       maxLength={6}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      className="rr-input"
                     />
                   </div>
 
-                  <div className="col-span-1">
-                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <div>
+                    <label className="rr-flabel">
                       Country
                     </label>
-                    <select 
+                    <select
                       value={editForm.country || "India"}
                       onChange={e => setEditForm(f => ({...f, country: e.target.value}))}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs cursor-pointer"
+                      className="rr-select"
                     >
                       <option value="India">India</option>
                       <option value="Other">Other</option>
                     </select>
                   </div>
 
-                  <div className="col-span-1 md:col-span-2">
-                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                      Address <span className="text-red-500">*</span>
+                  <div className="rr-span-2">
+                    <label className="rr-flabel">
+                      Address <span className="rr-req">*</span>
                     </label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={editForm.address || ""}
                       onChange={e => setEditForm(f => ({...f, address: e.target.value}))}
                       placeholder="Street / House / Locality"
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      className="rr-input"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Section 3: Additional Information */}
-              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
-                <div className="bg-slate-100/90 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-violet-600"></span> 3. Additional Information
+              <div className="rr-section">
+                <div className="rr-section-head">
+                  <h4 className="rr-section-title">
+                    <span className="rr-dot rr-dot--violet"></span> 3. Additional Information
                   </h4>
-                  <span className="text-[11px] text-slate-500 font-medium">Emergency & Consultation</span>
+                  <span className="rr-section-note">Emergency & Consultation</span>
                 </div>
 
-                <div className="p-4.5 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="rr-grid rr-grid--3">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                    <label className="rr-flabel">
                       Emergency Contact Name
                     </label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={editForm.emergencyName || ""}
                       onChange={e => setEditForm(f => ({...f, emergencyName: e.target.value}))}
                       placeholder="Emergency contact name"
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      className="rr-input"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                    <label className="rr-flabel">
                       Emergency Contact Number
                     </label>
-                    <input 
-                      type="tel" 
+                    <input
+                      type="tel"
                       value={editForm.emergencyPhone || ""}
                       onChange={e => setEditForm(f => ({...f, emergencyPhone: e.target.value}))}
                       placeholder="Contact number"
                       maxLength={10}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs" 
+                      className="rr-input"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                    <label className="rr-flabel">
                       Relationship with Patient
                     </label>
-                    <select 
+                    <select
                       value={editForm.emergencyRelation || ""}
                       onChange={e => setEditForm(f => ({...f, emergencyRelation: e.target.value}))}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs cursor-pointer"
+                      className="rr-select"
                     >
                       <option value="">Select relationship</option>
                       {["Spouse","Parent","Child","Sibling","Friend","Other"].map((r) => (
@@ -994,13 +968,13 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                    <label className="rr-flabel">
                       Referred By
                     </label>
-                    <select 
+                    <select
                       value={editForm.doctor || ""}
                       onChange={e => setEditForm(f => ({...f, doctor: e.target.value}))}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs cursor-pointer"
+                      className="rr-select"
                     >
                       <option value="">Select doctor / source</option>
                       <option value="Dr. Ranju Chaurasia">Dr. Ranju Chaurasia</option>
@@ -1013,13 +987,13 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                    <label className="rr-flabel">
                       Department
                     </label>
-                    <select 
+                    <select
                       value={editForm.department || ""}
                       onChange={e => setEditForm(f => ({...f, department: e.target.value}))}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs cursor-pointer"
+                      className="rr-select"
                     >
                       <option value="">Select department</option>
                       {["General Medicine","Cardiology","Neurology","Orthopedics",
@@ -1031,13 +1005,13 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                    <label className="rr-flabel">
                       Visit Type
                     </label>
-                    <select 
+                    <select
                       value={editForm.category || "OPD"}
                       onChange={e => setEditForm(f => ({...f, category: e.target.value}))}
-                      className="w-full text-xs font-medium border border-slate-200 rounded-lg px-3.5 py-2.5 bg-slate-50/40 hover:bg-white focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-2xs cursor-pointer"
+                      className="rr-select"
                     >
                       <option value="OPD">OPD (Outpatient)</option>
                       <option value="IPD">IPD (Inpatient)</option>
@@ -1050,18 +1024,18 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
             </div>
 
             {/* Modal Footer Controls */}
-            <div className="px-6 py-4 border-t border-slate-200 bg-white flex items-center justify-between gap-3">
-              <button 
+            <div className="rr-modal-foot">
+              <button
                 type="button"
                 onClick={() => setEditP(null)}
-                className="text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-300 px-5 py-2.5 rounded-lg transition-all cursor-pointer shadow-2xs"
+                className="rr-btn rr-btn--ghost"
               >
                 Discard Changes
               </button>
-              <button 
+              <button
                 type="button"
                 onClick={saveEdit}
-                className="flex items-center gap-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm px-6 py-2.5 rounded-lg transition-all cursor-pointer"
+                className="rr-btn rr-btn--green"
               >
                 <LuSave size={15} /> Update Record
               </button>
@@ -1073,33 +1047,30 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
 
       {/* ─── STATUS MODAL ─── */}
       {statusP && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setStatusP(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm"
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-              <h3 className="font-extrabold text-slate-800">Update Status</h3>
-              <button onClick={() => setStatusP(null)}><LuCircleX size={20} className="text-slate-400" /></button>
+        <div className="rr-overlay" onClick={() => setStatusP(null)}>
+          <div className="rr-modal rr-modal--sm" onClick={e => e.stopPropagation()}>
+            <div className="rr-modal-head">
+              <h3 className="rr-modal-title rr-modal-title--plain">Update Status</h3>
+              <button onClick={() => setStatusP(null)} className="rr-close"><LuCircleX size={18} /></button>
             </div>
-            <div className="p-5 space-y-2">
-              <p className="text-sm text-slate-500 mb-3">Patient: <strong className="text-slate-800">{statusP.name || statusP.uhid}</strong></p>
-              {STATUSES.map(s => (
-                <button key={s.value} onClick={() => setNewStatus(s.value)}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border text-sm font-semibold text-left transition-all
-                    ${newStatus === s.value ? "border-2 shadow-sm" : "border-slate-200 hover:bg-slate-50"}`}
-                  style={newStatus === s.value ? { borderColor: s.color, color: s.color, backgroundColor: s.bg } : {}}>
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                  {s.label}
-                </button>
-              ))}
+            <div className="rr-modal-body rr-modal-body--pad">
+              <p className="rr-status-lead">Patient: <strong>{statusP.name || statusP.uhid}</strong></p>
+              <div className="rr-options">
+                {STATUSES.map(s => (
+                  <button key={s.value} onClick={() => setNewStatus(s.value)}
+                    className={`rr-option ${newStatus === s.value ? "rr-option--on" : ""}`}
+                    style={newStatus === s.value ? { borderColor: s.color, color: s.color, backgroundColor: s.bg } : {}}>
+                    <span className="rr-option-dot" style={{ backgroundColor: s.color }} />
+                    {s.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
-              <button onClick={() => setStatusP(null)}
-                className="text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg transition-all">
+            <div className="rr-modal-foot rr-foot-end">
+              <button onClick={() => setStatusP(null)} className="rr-btn rr-btn--ghost">
                 Cancel
               </button>
-              <button onClick={saveStatus}
-                className="text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 px-5 py-2 rounded-lg transition-all">
+              <button onClick={saveStatus} className="rr-btn rr-btn--navy">
                 Update Status
               </button>
             </div>
@@ -1109,30 +1080,28 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
 
       {/* ─── CANCEL CONFIRM MODAL ─── */}
       {cancelP && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setCancelP(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center"
-            onClick={e => e.stopPropagation()}>
-            <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <LuCircleX size={28} className="text-red-500" />
-            </div>
-            <h3 className="text-lg font-extrabold text-slate-800 mb-2">
-              {canDelete ? "Delete Record?" : "Cancel Registration?"}
-            </h3>
-            <p className="text-sm text-slate-500 mb-6">
-              {canDelete
-                ? `This will permanently delete the record for ${cancelP.name || cancelP.uhid}.`
-                : `${cancelP.name || cancelP.uhid} will be marked as Cancelled.`}
-            </p>
-            <div className="flex gap-3">
-              <button onClick={() => setCancelP(null)}
-                className="flex-1 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 py-2.5 rounded-xl transition-all">
-                Keep
-              </button>
-              <button onClick={confirmCancel}
-                className="flex-1 text-sm font-bold text-white bg-red-500 hover:bg-red-600 py-2.5 rounded-xl transition-all">
-                {canDelete ? "Delete" : "Cancel Reg."}
-              </button>
+        <div className="rr-overlay" onClick={() => setCancelP(null)}>
+          <div className="rr-modal rr-modal--sm" onClick={e => e.stopPropagation()}>
+            <div className="rr-confirm">
+              <div className="rr-confirm-icon">
+                <LuCircleX size={28} />
+              </div>
+              <h3>
+                {canDelete ? "Delete Record?" : "Cancel Registration?"}
+              </h3>
+              <p>
+                {canDelete
+                  ? `This will permanently delete the record for ${cancelP.name || cancelP.uhid}.`
+                  : `${cancelP.name || cancelP.uhid} will be marked as Cancelled.`}
+              </p>
+              <div className="rr-confirm-actions">
+                <button onClick={() => setCancelP(null)} className="rr-btn rr-btn--ghost">
+                  Keep
+                </button>
+                <button onClick={confirmCancel} className="rr-btn rr-btn--red">
+                  {canDelete ? "Delete" : "Cancel Reg."}
+                </button>
+              </div>
             </div>
           </div>
         </div>

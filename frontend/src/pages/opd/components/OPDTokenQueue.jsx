@@ -66,19 +66,27 @@ const DOCTOR_LIST = {
 const COMPLAINT_CATEGORIES = [
   {
     category: "Common Complaints",
-    items: ["Fever", "Cough", "Cold / Runny Nose", "Headache", "Body Pain", "Weakness / Fatigue", "Other / अन्य"],
+    items: ["Fever", "Cough", "Cold / Runny Nose", "Headache", "Body Pain", "Weakness / Fatigue", "Dizziness", "Other / अन्य"],
   },
   {
     category: "Respiratory",
-    items: ["Breathing Difficulty", "Cough", "Chest Congestion", "Sore Throat"],
+    items: ["Breathing Difficulty", "Cough", "Chest Congestion", "Sore Throat", "Asthma Attack"],
   },
   {
     category: "Gastrointestinal",
-    items: ["Abdominal Pain", "Vomiting", "Diarrhea", "Acidity"],
+    items: ["Abdominal Pain", "Vomiting", "Diarrhea", "Acidity / Gas", "Loss of Appetite", "Constipation"],
   },
   {
     category: "Cardiac",
-    items: ["Chest Pain", "Palpitations", "Shortness of Breath"],
+    items: ["Chest Pain", "Palpitations", "Shortness of Breath", "High BP Check"],
+  },
+  {
+    category: "Orthopedic",
+    items: ["Joint Pain", "Backache", "Knee Pain", "Neck Stiffness", "Muscle Pain"],
+  },
+  {
+    category: "ENT & Skin",
+    items: ["Ear Ache", "Skin Rash", "Itching", "Allergy / Swelling"],
   },
 ];
 
@@ -109,12 +117,14 @@ export default function OPDTokenQueue() {
   const [selectedComplaints, setSelectedComplaints] = useState(["Fever", "Body Pain"]);
   const [complaintSearch, setComplaintSearch] = useState("");
   const [showComplaintDropdown, setShowComplaintDropdown] = useState(false);
+  const [activeComplaintCat, setActiveComplaintCat] = useState("All");
   const [showOtherInput, setShowOtherInput] = useState(false);
   const [otherComplaintText, setOtherComplaintText] = useState("");
   const [duration, setDuration] = useState("3");
   const [durationUnit, setDurationUnit] = useState("Days");
   const [symptoms, setSymptoms] = useState("");
   const complaintRef = useRef(null);
+  const complaintInputRef = useRef(null);
 
   // Attendant Details (Optional)
   const [attendantName, setAttendantName] = useState("");
@@ -354,18 +364,26 @@ export default function OPDTokenQueue() {
     <div className="opd-container">
       {/* ── TOP HEADER & BREADCRUMB ── */}
       <div className="opd-page-header">
-        <div>
-          <h1 className="opd-page-title">OPD Registration</h1>
-          <div className="opd-breadcrumb">
-            <span>Home</span> &gt; <span>OPD</span> &gt; <span className="active">OPD Registration</span>
+        <div className="opd-header-left">
+          <div className="opd-header-icon">
+            <Icon name="LuClipboardList" size={26} />
+          </div>
+          <div>
+            <h1 className="opd-page-title">OPD Registration</h1>
+            <p className="opd-page-sub">Register patient visit &amp; generate OPD token</p>
+            <div className="opd-breadcrumb">
+              <span>Home</span> &gt; <span>OPD</span> &gt; <span className="active">OPD Registration</span>
+            </div>
           </div>
         </div>
       </div>
 
+      
+
       {/* ── PATIENT SEARCH BAR ── */}
       <div ref={searchRef} className="opd-search-card">
         <label className="opd-search-label">
-          Search Patient (UHID / Mobile / Name) <span className="font-normal text-slate-400">· मरीज खोजें</span>
+          Search Patient (UHID / Mobile / Name) <span className="opd-hint">· मरीज खोजें</span>
         </label>
         <div className="opd-search-row">
           <div className="opd-search-input-wrapper">
@@ -497,18 +515,14 @@ export default function OPDTokenQueue() {
 
       {/* ── FAMILY MEMBER SELECTOR ── */}
       {familyMembers.length > 1 && (
-        <div className="opd-card mb-2 p-3 border border-blue-100 bg-blue-50/30 rounded-xl">
-          <h4 className="text-xs font-semibold text-slate-700 mb-1">Book Appointment For:</h4>
-          <div className="flex gap-2 flex-wrap">
+        <div className="opd-family">
+          <h4 className="opd-family-title">Book Appointment For:</h4>
+          <div className="opd-family-list">
             {familyMembers.map(member => (
               <button
                 key={member.id}
                 type="button"
-                className={`px-4 py-2 rounded-lg text-sm border transition-colors ${
-                  selectedPatient?.id === member.id 
-                    ? 'bg-blue-600 text-white border-blue-600' 
-                    : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300'
-                }`}
+                className={`opd-family-btn ${selectedPatient?.id === member.id ? "active" : ""}`}
                 onClick={async () => {
                   try {
                     const fullMember = await patientService.getById(member.id);
@@ -520,7 +534,7 @@ export default function OPDTokenQueue() {
                 }}
               >
                 {member.first_name} {member.last_name || ''} 
-                <span className="text-xs opacity-75 ml-1">
+                <span className="opd-family-rel">
                   ({member.relation_to_head || (member.id === (member.family_head_id || member.id) ? 'Head' : 'Self')})
                 </span>
               </button>
@@ -538,13 +552,13 @@ export default function OPDTokenQueue() {
             <h3
               className="opd-card-title"
               onClick={() => setVisitDetailsOpen((prev) => !prev)}
-              style={{ cursor: "pointer", userSelect: "none" }}
+              style={{ cursor: "pointer", userSelect: "none", marginBottom: visitDetailsOpen ? undefined : 0 }}
             >
               <Icon name="LuCalendar" size={16} className="title-icon" /> 1. Visit Details
-              <span className="ml-auto text-xs font-medium text-slate-500">
+              <span className="opd-title-meta">
                 {visitType} • {visitDate}
               </span>
-              <span className="text-slate-400">{visitDetailsOpen ? "▲" : "▼"}</span>
+              <span className="opd-title-caret">{visitDetailsOpen ? "▲" : "▼"}</span>
             </h3>
             {visitDetailsOpen && (
               <>
@@ -564,7 +578,7 @@ export default function OPDTokenQueue() {
 
               <div className="opd-field-group">
                 <label className="opd-label">
-                  Visit Date <span className="req">*</span> <span className="font-normal text-slate-400">· तारीख (DD/MM/YYYY)</span>
+                  Visit Date <span className="req">*</span> <span className="opd-hint">· तारीख (DD/MM/YYYY)</span>
                 </label>
                 <input
                   type="date"
@@ -578,7 +592,7 @@ export default function OPDTokenQueue() {
             <div className="opd-form-row col-3" style={{ marginTop: '16px' }}>
               <div className="opd-field-group">
                 <label className="opd-label">
-                  Attendant Name <span className="font-normal text-slate-400">· परिचारक (Optional)</span>
+                  Attendant Name <span className="opd-hint">· परिचारक (Optional)</span>
                 </label>
                 <input
                   type="text"
@@ -589,7 +603,7 @@ export default function OPDTokenQueue() {
                 />
               </div>
               <div className="opd-field-group">
-                <label className="opd-label">Relation <span className="font-normal text-slate-400">· संबंध</span></label>
+                <label className="opd-label">Relation <span className="opd-hint">· संबंध</span></label>
                 <select 
                   className="opd-select"
                   value={attendantRelation}
@@ -608,7 +622,7 @@ export default function OPDTokenQueue() {
                 </select>
               </div>
               <div className="opd-field-group">
-                <label className="opd-label">Attendant Phone <span className="font-normal text-slate-400">· मोबाइल</span></label>
+                <label className="opd-label">Attendant Phone <span className="opd-hint">· मोबाइल</span></label>
                 <input
                   type="text"
                   className="opd-input"
@@ -623,88 +637,213 @@ export default function OPDTokenQueue() {
             )}
           </div>
 
-          {/* SECTION 2: PATIENT COMPLAINT (SELECT & CHIPS DESIGN) */}
+          {/* SECTION 2: PATIENT COMPLAINT (MULTI-SELECT DROPDOWN + CHIPS IN BOX) */}
           <div className="opd-card">
             <h3 className="opd-card-title">
-              <Icon name="LuFileText" size={16} className="title-icon" /> 2. Patient Complaint <span className="font-normal text-slate-400 text-xs">· मरीज की समस्या</span>
+              <Icon name="LuFileText" size={16} className="title-icon" /> 2. Patient Complaint <span className="opd-hint">· मरीज की समस्या</span>
             </h3>
 
             <div className="opd-form-row col-1">
-              {/* Complaint Search / Select */}
+              {/* Complaint Multi-Select Box */}
               <div className="opd-field-group" ref={complaintRef}>
-                <label className="opd-label">
-                  Chief Complaint / Main Problem <span className="req">*</span> <span className="font-normal text-slate-400">· समस्या</span>
-                </label>
-                <div className="complaint-search-wrapper">
-                  <Icon name="LuSearch" size={16} className="complaint-search-icon" />
-                  <input
-                    type="text"
-                    className="opd-input complaint-search-input"
-                    placeholder="Search complaint / समस्या खोजें या चुनें..."
-                    value={complaintSearch}
-                    onChange={(e) => {
-                      setComplaintSearch(e.target.value);
-                      setShowComplaintDropdown(true);
-                    }}
-                    onFocus={() => setShowComplaintDropdown(true)}
-                  />
-                  <span className="complaint-dropdown-arrow">▼</span>
+                <div className="flex-justify-between">
+                  <label className="opd-label">
+                    Chief Complaint / Main Problem <span className="req">*</span> <span className="opd-hint">· मुख्य समस्या (Select Multiple)</span>
+                  </label>
+                  {selectedComplaints.length > 0 && (
+                    <span className="opd-complaint-count-badge">
+                      <strong>{selectedComplaints.length}</strong> selected
+                    </span>
+                  )}
+                </div>
 
-                  {/* Dropdown Menu */}
+                {/* THE MULTI-SELECT TRIGGER BOX WITH INLINE TAGS */}
+                <div
+                  className={`opd-complaint-select-box ${showComplaintDropdown ? "open" : ""}`}
+                  onClick={() => {
+                    setShowComplaintDropdown(true);
+                    if (complaintInputRef.current) complaintInputRef.current.focus();
+                  }}
+                >
+                  <div className="opd-complaint-box-left">
+                    <Icon name="LuSearch" size={16} className="opd-complaint-search-icon" />
+
+                    <div className="opd-complaint-chips-wrap">
+                      {selectedComplaints.map((item) => (
+                        <span key={item} className="opd-complaint-chip">
+                          <span className="opd-complaint-chip-text">{item}</span>
+                          <button
+                            type="button"
+                            className="opd-complaint-chip-remove"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeComplaint(item);
+                            }}
+                            title={`Remove ${item}`}
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+
+                      <input
+                        ref={complaintInputRef}
+                        type="text"
+                        className="opd-complaint-inline-input"
+                        placeholder={
+                          selectedComplaints.length === 0
+                            ? "Click to select or search complaints / समस्याएं चुनें..."
+                            : "Type to search or add more..."
+                        }
+                        value={complaintSearch}
+                        onChange={(e) => {
+                          setComplaintSearch(e.target.value);
+                          setShowComplaintDropdown(true);
+                        }}
+                        onFocus={() => setShowComplaintDropdown(true)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && complaintSearch.trim()) {
+                            e.preventDefault();
+                            addCustomComplaint();
+                          }
+                          if (e.key === "Backspace" && !complaintSearch && selectedComplaints.length > 0) {
+                            removeComplaint(selectedComplaints[selectedComplaints.length - 1]);
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="opd-complaint-box-actions">
+                    {selectedComplaints.length > 0 && (
+                      <button
+                        type="button"
+                        className="opd-complaint-clear-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedComplaints([]);
+                        }}
+                        title="Clear all selected"
+                      >
+                        Clear
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className={`opd-complaint-toggle-btn ${showComplaintDropdown ? "active" : ""}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowComplaintDropdown((prev) => !prev);
+                      }}
+                      title="Toggle Dropdown"
+                    >
+                      <Icon name={showComplaintDropdown ? "LuChevronUp" : "LuChevronDown"} size={16} />
+                    </button>
+                  </div>
+
+                  {/* ── MULTI-SELECT DROPDOWN MENU ── */}
                   {showComplaintDropdown && (
-                    <div className="complaint-dropdown-menu">
-                      {COMPLAINT_CATEGORIES.map((cat) => {
-                        const filtered = cat.items.filter((item) =>
-                          item.toLowerCase().includes(complaintSearch.toLowerCase())
-                        );
-                        if (filtered.length === 0) return null;
-                        return (
-                          <div key={cat.category} className="complaint-cat-block">
-                            <div className="complaint-cat-title">{cat.category}</div>
-                            {filtered.map((item) => {
-                              const isSelected = selectedComplaints.includes(item);
-                              return (
-                                <div
-                                  key={item}
-                                  className={`complaint-dropdown-item ${isSelected ? "selected" : ""}`}
-                                  onClick={() => {
-                                    if (item === "Other" || item.includes("Other")) {
-                                      setShowOtherInput(true);
-                                      setShowComplaintDropdown(false);
-                                    } else {
-                                      toggleComplaint(item);
-                                      setComplaintSearch("");
-                                      setShowComplaintDropdown(false);
-                                    }
-                                  }}
-                                >
-                                  <span>{item}</span>
-                                  {isSelected && <span className="check-mark">✓</span>}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })}
+                    <div
+                      className="opd-complaint-dropdown"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {/* Dropdown Header with Category Tabs */}
+                      <div className="opd-dropdown-cat-tabs">
+                        {["All", ...COMPLAINT_CATEGORIES.map((c) => c.category)].map((cat) => (
+                          <button
+                            key={cat}
+                            type="button"
+                            className={`opd-cat-tab-btn ${activeComplaintCat === cat ? "active" : ""}`}
+                            onClick={() => setActiveComplaintCat(cat)}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
 
-                      {complaintSearch.trim() ? (
-                        <div
-                          className="complaint-dropdown-item custom-add-btn"
-                          onClick={addCustomComplaint}
-                        >
-                          + Add Custom: "{complaintSearch}"
+                      {/* Dropdown Item List */}
+                      <div className="opd-dropdown-scroll-list">
+                        {COMPLAINT_CATEGORIES
+                          .filter((c) => activeComplaintCat === "All" || activeComplaintCat === c.category)
+                          .map((cat) => {
+                            const filteredItems = cat.items.filter((item) =>
+                              item.toLowerCase().includes(complaintSearch.toLowerCase())
+                            );
+                            if (filteredItems.length === 0) return null;
+
+                            return (
+                              <div key={cat.category} className="opd-dropdown-cat-section">
+                                <div className="opd-dropdown-cat-heading">
+                                  <span>{cat.category}</span>
+                                </div>
+                                <div className="opd-dropdown-grid">
+                                  {filteredItems.map((item) => {
+                                    const isSelected = selectedComplaints.includes(item);
+                                    return (
+                                      <div
+                                        key={item}
+                                        className={`opd-dropdown-row ${isSelected ? "selected" : ""}`}
+                                        onClick={() => {
+                                          if (item === "Other" || item.includes("Other")) {
+                                            setShowOtherInput(true);
+                                          } else {
+                                            toggleComplaint(item);
+                                          }
+                                        }}
+                                      >
+                                        <div className="opd-dropdown-row-main">
+                                          <span className={`opd-dropdown-checkbox ${isSelected ? "checked" : ""}`}>
+                                            {isSelected ? "✓" : ""}
+                                          </span>
+                                          <span className="opd-dropdown-item-label">{item}</span>
+                                        </div>
+                                        {isSelected && (
+                                          <span className="opd-dropdown-item-badge">Selected</span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                        {/* If search query has custom text, offer instant add */}
+                        {complaintSearch.trim() && (
+                          <div
+                            className="opd-dropdown-custom-row"
+                            onClick={addCustomComplaint}
+                          >
+                            <Icon name="LuPlus" size={16} />
+                            <span>Add custom problem: <strong>"{complaintSearch}"</strong></span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Dropdown Footer Action Bar */}
+                      <div className="opd-dropdown-action-bar">
+                        <div className="opd-dropdown-counter">
+                          <strong>{selectedComplaints.length}</strong> problem(s) selected
                         </div>
-                      ) : (
-                        <div
-                          className="complaint-dropdown-item custom-add-btn"
-                          onClick={() => {
-                            setShowOtherInput(true);
-                            setShowComplaintDropdown(false);
-                          }}
-                        >
-                          + Other / अन्य (Type Custom Problem)
+                        <div className="opd-dropdown-footer-btns">
+                          {selectedComplaints.length > 0 && (
+                            <button
+                              type="button"
+                              className="opd-dropdown-btn-reset"
+                              onClick={() => setSelectedComplaints([])}
+                            >
+                              Reset
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="opd-dropdown-btn-done"
+                            onClick={() => setShowComplaintDropdown(false)}
+                          >
+                            Done / Apply (पूर्ण)
+                          </button>
                         </div>
-                      )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -747,9 +886,9 @@ export default function OPDTokenQueue() {
                 )}
               </div>
 
-              {/* Popular Complaints Chips */}
+              {/* Popular Complaints Quick Shortcuts */}
               <div className="opd-field-group">
-                <label className="opd-label-sub">Popular Complaints</label>
+                <label className="opd-label-sub">Quick Shortcuts (Click to toggle in box)</label>
                 <div className="popular-chips-flex">
                   {POPULAR_COMPLAINTS.map((item) => {
                     const isSelected = selectedComplaints.includes(item);
@@ -773,31 +912,10 @@ export default function OPDTokenQueue() {
                 </div>
               </div>
 
-              {/* Selected Complaints Tag Pills */}
-              {selectedComplaints.length > 0 && (
-                <div className="opd-field-group">
-                  <label className="opd-label-sub">Selected Complaints ({selectedComplaints.length})</label>
-                  <div className="selected-tags-flex">
-                    {selectedComplaints.map((item) => (
-                      <span key={item} className="selected-tag-pill">
-                        {item}
-                        <button
-                          type="button"
-                          className="tag-remove-btn"
-                          onClick={() => removeComplaint(item)}
-                        >
-                          ✕
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Additional Symptoms / Notes */}
               <div className="opd-field-group">
                 <label className="opd-label">
-                  Additional Symptoms / Notes <span className="font-normal text-slate-400">· लक्षण / अतिरिक्त विवरण</span>
+                  Additional Symptoms / Notes <span className="opd-hint">· लक्षण / अतिरिक्त विवरण</span>
                 </label>
                 <textarea
                   className="opd-textarea"
@@ -882,7 +1000,7 @@ export default function OPDTokenQueue() {
         <div className="opd-right-col">
           <div className="opd-card">
             <h3 className="opd-card-title">
-              <Icon name="LuClipboardList" size={16} className="title-icon" /> 5. Quick Summary
+              <Icon name="LuClipboardList" size={16} className="title-icon" /> 4. Quick Summary
             </h3>
             <div className="opd-billing-box">
               <div className="billing-row">
@@ -964,16 +1082,16 @@ export default function OPDTokenQueue() {
               <div className="slip-details-grid">
                 <div className="slip-detail-item">
                   <span className="lbl">Date & Time:</span>
-                  <span className="val font-semibold">{opdSlipData.date}</span>
+                  <span className="val semi">{opdSlipData.date}</span>
                 </div>
                
                 <div className="slip-detail-item">
                   <span className="lbl">UHID:</span>
-                  <span className="val font-mono font-bold">{opdSlipData.uhid}</span>
+                  <span className="val mono">{opdSlipData.uhid}</span>
                 </div>
                 <div className="slip-detail-item">
                   <span className="lbl">Patient Name:</span>
-                  <span className="val font-bold text-slate-800">{opdSlipData.patientName}</span>
+                  <span className="val strong">{opdSlipData.patientName}</span>
                 </div>
                 <div className="slip-detail-item">
                   <span className="lbl">Age / Gender:</span>
@@ -989,11 +1107,11 @@ export default function OPDTokenQueue() {
                 </div>
                 <div className="slip-detail-item">
                   <span className="lbl">Doctor:</span>
-                  <span className="val font-medium">{opdSlipData.doctor} ({opdSlipData.doctorDegree})</span>
+                  <span className="val semi">{opdSlipData.doctor} ({opdSlipData.doctorDegree})</span>
                 </div>
                 <div className="slip-detail-item full-width">
                   <span className="lbl">Chief Complaint:</span>
-                  <span className="val font-medium">{opdSlipData.chiefComplaint}</span>
+                  <span className="val semi">{opdSlipData.chiefComplaint}</span>
                 </div>
               </div>
 
@@ -1014,7 +1132,7 @@ export default function OPDTokenQueue() {
                   </div>
                 )}
                 {opdSlipData.discount > 0 && (
-                  <div className="fee-line text-emerald-600">
+                  <div className="fee-line discount">
                     <span>Discount</span>
                     <span>- ₹ {opdSlipData.discount.toFixed(2)}</span>
                   </div>
