@@ -75,6 +75,17 @@ const INITIAL_FORM = {
   relationToHead: "",
 };
 
+// ─── UI-only helper (presentation, no logic) ────────────────────────────────
+function FieldError({ message }) {
+  if (!message) return null;
+  return (
+    <p className="rp-error">
+      <span className="rp-error-dot"></span>
+      {message}
+    </p>
+  );
+}
+
 // ─── component ───────────────────────────────────────────────────────────────
 export default function RegisterPatient() {
   const navigate = useNavigate();
@@ -174,7 +185,7 @@ export default function RegisterPatient() {
     if (!p) return;
     const fullName = p.full_name || p.name || `${p.first_name || p.firstName || ""} ${p.last_name || p.lastName || ""}`.trim();
     const addrParts = (p.address || p.address_line1 || "").split(",");
-    
+
     // Auto-fill address and phone number, but leave personal details blank
     setFormData({
       ...INITIAL_FORM,
@@ -188,7 +199,7 @@ export default function RegisterPatient() {
       country: p.country || "India",
       emgName: fullName, // Emergency contact can be the family head
       emgNumber: p.phone || p.mobile1 || p.mobile || "",
-      emgRelation: "Other", 
+      emgRelation: "Other",
       familyHeadId: p.family_head_id || p.id, // Link to the same head if they are a dependent, else to them
       relationToHead: relation || "Dependent",
     });
@@ -420,15 +431,15 @@ export default function RegisterPatient() {
 
   const fieldError = (name) => (touched[name] ? errors[name] : null);
 
+  // UI-only: returns " rp-input--err" style modifiers
+  const errCls = (name, base) => (fieldError(name) ? ` ${base}--err` : "");
+
   return (
-    <div className="bg-slate-50 min-h-screen font-sans p-6 lg:p-8">
+    <div className="rp-page">
 
       {/* Toast Notification */}
       {toast && (
-        <div
-          className={`fixed top-5 right-5 z-50 flex items-center gap-2 px-5 py-3 rounded-xl shadow-lg text-sm font-semibold text-white transition-all
-            ${toast.type === "error" ? "bg-rose-500" : toast.type === "info" ? "bg-slate-700" : "bg-emerald-600"}`}
-        >
+        <div className={`rp-toast rp-toast--${toast.type === "error" ? "error" : toast.type === "info" ? "info" : "success"}`}>
           <LuCircleCheck size={16} />
           {toast.msg}
         </div>
@@ -436,43 +447,37 @@ export default function RegisterPatient() {
 
       {/* FAMILY MODAL */}
       {selectedPatientForFamily && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-bold text-slate-800 text-lg">Patient Selected</h3>
-              <button onClick={() => setSelectedPatientForFamily(null)} className="text-slate-400 hover:text-slate-600">
-                <LuX size={20} />
+        <div className="rp-overlay">
+          <div className="rp-modal">
+            <div className="rp-modal-head">
+              <h3>Patient Selected</h3>
+              <button type="button" className="rp-modal-close" onClick={() => setSelectedPatientForFamily(null)}>
+                <LuX size={18} />
               </button>
             </div>
-            <div className="p-6">
-              <p className="text-sm text-slate-600 mb-6">
+            <div className="rp-modal-body">
+              <p className="rp-modal-text">
                 You selected <strong>{selectedPatientForFamily.full_name || selectedPatientForFamily.first_name}</strong>. What would you like to do?
               </p>
-              
-              <div className="space-y-3">
-                <button 
-                  onClick={handleLoadSelectedPatient}
-                  className="w-full flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50 transition-all text-left group"
-                >
-                  <div className="p-2 bg-blue-100 text-blue-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">
+
+              <div className="rp-choices">
+                <button type="button" onClick={handleLoadSelectedPatient} className="rp-choice">
+                  <div className="rp-choice-icon rp-choice-icon--blue">
                     <LuUser size={20} />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-slate-800 text-sm">Load Patient Profile</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">Auto-fill form to update details or proceed to OPD/IPD.</p>
+                    <h4>Load Patient Profile</h4>
+                    <p>Auto-fill form to update details or proceed to OPD/IPD.</p>
                   </div>
                 </button>
 
-                <button 
-                  onClick={() => handleAddFamilyMember("Spouse")}
-                  className="w-full flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 transition-all text-left group"
-                >
-                  <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                <button type="button" onClick={() => handleAddFamilyMember("Spouse")} className="rp-choice">
+                  <div className="rp-choice-icon rp-choice-icon--green">
                     <LuUserPlus size={20} />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-slate-800 text-sm">Add New Family Member</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">Register a dependent under this patient's profile.</p>
+                    <h4>Add New Family Member</h4>
+                    <p>Register a dependent under this patient's profile.</p>
                   </div>
                 </button>
               </div>
@@ -481,21 +486,20 @@ export default function RegisterPatient() {
         </div>
       )}
 
-      {/* ── TOP SEARCH BAR (Lifeline Hospital Style) ── */}
-      <div ref={searchRef} className="relative mb-6">
-        <div className="flex items-center bg-white border border-slate-200/90 rounded-xl shadow-sm overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
-          <LuSearch size={18} className="text-slate-400 ml-4 shrink-0" />
+      {/* ── TOP SEARCH BAR ── */}
+      <div ref={searchRef} className="rp-search-wrap">
+        <div className="rp-search">
+          <LuSearch size={18} className="rp-search-icon" />
           <input
             type="text"
-            className="flex-1 text-sm text-slate-700 bg-transparent outline-none placeholder:text-slate-400 px-3.5 py-3"
+            className="rp-search-input"
             placeholder="Search registered patient by Name or Mobile Number..."
             value={searchQuery}
             onChange={handleSearchChange}
             onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
           />
           {searchQuery && (
-            <button type="button" onClick={clearSearch}
-              className="text-slate-400 hover:text-slate-600 transition-colors px-2">
+            <button type="button" onClick={clearSearch} className="rp-search-clear">
               <LuX size={16} />
             </button>
           )}
@@ -504,7 +508,7 @@ export default function RegisterPatient() {
             onClick={() => {
               if (searchQuery.trim().length >= 1) setShowDropdown(true);
             }}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-3 transition-all shrink-0"
+            className="rp-search-btn"
           >
             <LuSearch size={15} />
             Search
@@ -513,86 +517,80 @@ export default function RegisterPatient() {
 
         {/* Dropdown results */}
         {showDropdown && searchResults.length > 0 && (
-          <div className="absolute top-full left-0 right-0 z-50 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto">
-            <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+          <div className="rp-dropdown">
+            <div className="rp-dropdown-head">
               {searchResults.length} Patient(s) Found — Click to auto-fill form
             </div>
             {searchResults.map((p) => (
-              <div key={p.uhid || p.id}
-                onClick={() => handleSelectPatient(p)}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-slate-100 last:border-0 transition-colors">
-                <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shrink-0">
+              <div key={p.uhid || p.id} onClick={() => handleSelectPatient(p)} className="rp-result">
+                <div className="rp-avatar">
                   {((p.full_name || p.name || `${p.first_name || p.firstName || ""} ${p.last_name || p.lastName || ""}`.trim()) || "?")[0]?.toUpperCase() || "?"}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm text-slate-800">
+                <div className="rp-result-main">
+                  <div className="rp-result-top">
+                    <span className="rp-result-name">
                       {p.full_name || p.name || `${p.first_name || p.firstName || ""} ${p.last_name || p.lastName || ""}`.trim() || "Patient"}
                     </span>
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                      {p.uhid}
-                    </span>
+                    <span className="rp-uhid">{p.uhid}</span>
                   </div>
-                  <div className="text-xs text-slate-500 mt-0.5 flex gap-3 flex-wrap">
+                  <div className="rp-result-sub">
                     <span>📞 {p.mobile1 || p.phone || p.mobile || "—"}</span>
                     <span>• {p.age || p.ageYrs || "?"} Yrs / {p.gender || "—"}</span>
                     {p.bloodGroup && <span>• 🩸 {p.bloodGroup}</span>}
                     {p.city && <span>• 📍 {p.city}</span>}
                   </div>
                 </div>
-                <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg shrink-0">
-                  Load →
-                </span>
+                <span className="rp-load-chip">Load →</span>
               </div>
             ))}
           </div>
         )}
 
         {showDropdown && searchResults.length === 0 && searchQuery.trim().length >= 2 && (
-          <div className="absolute top-full left-0 right-0 z-50 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl px-4 py-4 text-center text-sm text-slate-500">
-            No registered patient found for "<strong>{searchQuery}</strong>"
+          <div className="rp-dropdown">
+            <div className="rp-empty">
+              No registered patient found for "<strong>{searchQuery}</strong>"
+            </div>
           </div>
         )}
       </div>
 
       {/* ── PAGE HEADER & BREADCRUMBS ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm shrink-0">
+      <div className="rp-header">
+        <div className="rp-header-left">
+          <div className="rp-header-icon">
             <LuUserPlus size={22} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
-              Patient Registration
-            </h1>
-            <p className="text-xs text-slate-500 mt-0.5">Register a new patient into the system</p>
+            <h1 className="rp-title">Patient Registration</h1>
+            <p className="rp-subtitle">Register a new patient into the system</p>
           </div>
         </div>
-        <div className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
-          <span className="text-blue-600 cursor-pointer hover:underline" onClick={() => navigate("/")}>Dashboard</span>
+        <div className="rp-crumbs">
+          <span className="rp-crumb-link" onClick={() => navigate("/")}>Dashboard</span>
           <span>/</span>
-          <span className="text-blue-600">Registration</span>
+          <span className="rp-crumb-link">Registration</span>
           <span>/</span>
-          <span className="text-slate-400">Patient Registration</span>
+          <span className="rp-crumb-active">Patient Registration</span>
         </div>
       </div>
 
       {/* ── MAIN FORM CARDS ── */}
-      <div className="space-y-4 w-full">
+      <div className="rp-form">
 
         {/* 1. PERSONAL INFORMATION */}
-        <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-4 sm:p-5">
-          <div className="flex items-center gap-2 text-blue-600 font-bold text-sm sm:text-base mb-3.5">
+        <div className="rp-card">
+          <div className="rp-card-head">
             <LuUser size={18} />
             <span>Personal Information</span>
           </div>
 
-          <div className="space-y-3.5">
+          <div className="rp-rows">
             {/* Row 1: First Name, Middle Name, Last Name, Gender */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5 sm:gap-4">
+            <div className="rp-grid rp-grid--4">
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
-                  First Name <span className="text-rose-500">*</span>
+                <label className="rp-label">
+                  First Name <span className="rp-req">*</span>
                 </label>
                 <input
                   type="text"
@@ -602,22 +600,13 @@ export default function RegisterPatient() {
                   onChange={handleChange}
                   onBlur={handleBlur}
                   required
-                  className={`w-full px-3.5 py-2 text-sm text-slate-800 bg-white border rounded-lg placeholder:text-slate-400 focus:outline-none transition-all ${
-                    fieldError("firstName")
-                      ? "border-rose-500 focus:ring-2 focus:ring-rose-100"
-                      : "border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  }`}
+                  className={`rp-input${errCls("firstName", "rp-input")}`}
                 />
-                {fieldError("firstName") && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                    {errors.firstName}
-                  </p>
-                )}
+                <FieldError message={fieldError("firstName") ? errors.firstName : null} />
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">Middle Name</label>
+                <label className="rp-label">Middle Name</label>
                 <input
                   type="text"
                   name="middleName"
@@ -625,12 +614,12 @@ export default function RegisterPatient() {
                   value={formData.middleName}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  className="w-full px-3.5 py-2 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                  className="rp-input"
                 />
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">Last Name</label>
+                <label className="rp-label">Last Name</label>
                 <input
                   type="text"
                   name="lastName"
@@ -638,17 +627,17 @@ export default function RegisterPatient() {
                   value={formData.lastName}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  className="w-full px-3.5 py-2 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                  className="rp-input"
                 />
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
-                  Gender <span className="text-rose-500">*</span>
+                <label className="rp-label">
+                  Gender <span className="rp-req">*</span>
                 </label>
-                <div className="flex items-center gap-4 pt-2">
+                <div className="rp-radios">
                   {["Male", "Female", "Other"].map((g) => (
-                    <label key={g} className="flex items-center gap-1.5 text-sm text-slate-700 cursor-pointer font-medium">
+                    <label key={g} className="rp-radio">
                       <input
                         type="radio"
                         name="gender"
@@ -656,28 +645,22 @@ export default function RegisterPatient() {
                         checked={formData.gender === g}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        className="accent-blue-600 w-4 h-4 cursor-pointer"
                       />
                       <span>{g}</span>
                     </label>
                   ))}
                 </div>
-                {fieldError("gender") && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                    {errors.gender}
-                  </p>
-                )}
+                <FieldError message={fieldError("gender") ? errors.gender : null} />
               </div>
             </div>
 
             {/* Row 2: Age, Blood Group, Aadhaar Number */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5 sm:gap-4">
+            <div className="rp-grid rp-grid--4">
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
-                  Age <span className="text-rose-500">*</span>
+                <label className="rp-label">
+                  Age <span className="rp-req">*</span>
                 </label>
-                <div className="relative">
+                <div className="rp-input-unit">
                   <input
                     type="number"
                     name="age"
@@ -687,36 +670,25 @@ export default function RegisterPatient() {
                     onBlur={handleBlur}
                     required
                     inputMode="numeric"
-                    className={`w-full pl-3.5 pr-14 py-2 text-sm text-slate-800 bg-white border rounded-lg placeholder:text-slate-400 focus:outline-none transition-all ${
-                      fieldError("age")
-                        ? "border-rose-500 focus:ring-2 focus:ring-rose-100"
-                        : "border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    }`}
+                    className={`rp-input${errCls("age", "rp-input")}`}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500 select-none pointer-events-none">
-                    Years
-                  </span>
+                  <span className="rp-unit">Years</span>
                 </div>
-                <div className="flex justify-between items-center mt-1">
-                  <span className="text-xs text-slate-500">Enter age in years.</span>
-                  <span className="text-xs text-slate-500">Years</span>
+                <div className="rp-hint-row">
+                  <span>Enter age in years.</span>
+                  <span>Years</span>
                 </div>
-                {fieldError("age") && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                    {errors.age}
-                  </p>
-                )}
+                <FieldError message={fieldError("age") ? errors.age : null} />
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">Blood Group</label>
+                <label className="rp-label">Blood Group</label>
                 <select
                   name="bloodGroup"
                   value={formData.bloodGroup}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  className="w-full px-3.5 py-2 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer"
+                  className="rp-select"
                 >
                   <option value="">Select blood group</option>
                   {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((bg) => (
@@ -725,8 +697,8 @@ export default function RegisterPatient() {
                 </select>
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">Aadhaar Number</label>
+              <div className="rp-span-2">
+                <label className="rp-label">Aadhaar Number</label>
                 <input
                   type="text"
                   name="aadhaar"
@@ -735,19 +707,10 @@ export default function RegisterPatient() {
                   onChange={handleChange}
                   onBlur={handleBlur}
                   maxLength={12}
-                  className={`w-full px-3.5 py-2 text-sm text-slate-800 bg-white border rounded-lg placeholder:text-slate-400 focus:outline-none transition-all ${
-                    fieldError("aadhaar")
-                      ? "border-rose-500 focus:ring-2 focus:ring-rose-100"
-                      : "border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  }`}
+                  className={`rp-input${errCls("aadhaar", "rp-input")}`}
                 />
-                <p className="text-xs text-slate-500 mt-1">Optional. 12 digits if provided.</p>
-                {fieldError("aadhaar") && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                    {errors.aadhaar}
-                  </p>
-                )}
+                <p className="rp-hint">Optional. 12 digits if provided.</p>
+                <FieldError message={fieldError("aadhaar") ? errors.aadhaar : null} />
               </div>
             </div>
           </div>
@@ -755,25 +718,25 @@ export default function RegisterPatient() {
 
         {/* FAMILY LINKING (CONDITIONAL) */}
         {formData.familyHeadId && (
-          <div className="bg-blue-50/70 border border-blue-200/80 rounded-xl p-4 sm:p-5 shadow-sm">
-            <div className="flex items-center gap-2 text-blue-800 font-bold text-sm sm:text-base mb-3">
+          <div className="rp-card rp-card--family">
+            <div className="rp-card-head">
               <LuUserPlus size={16} />
               <span>Family Linking</span>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5 sm:gap-4">
-              <div className="md:col-span-2">
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">Family Head ID (Hidden)</label>
+            <div className="rp-grid rp-grid--2">
+              <div>
+                <label className="rp-label">Family Head ID (Hidden)</label>
                 <input
                   type="text"
                   name="familyHeadId"
                   value={formData.familyHeadId}
                   disabled
-                  className="w-full px-3.5 py-2 text-sm text-slate-500 bg-slate-100 border border-slate-200 rounded-lg cursor-not-allowed"
+                  className="rp-input"
                 />
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
-                  Relationship to Family Head <span className="text-rose-500">*</span>
+              <div>
+                <label className="rp-label">
+                  Relationship to Family Head <span className="rp-req">*</span>
                 </label>
                 <select
                   name="relationToHead"
@@ -781,50 +744,35 @@ export default function RegisterPatient() {
                   onChange={handleChange}
                   onBlur={handleBlur}
                   required
-                  className={`w-full px-3.5 py-2 text-sm text-slate-800 bg-white border rounded-lg focus:outline-none transition-all cursor-pointer ${
-                    fieldError("relationToHead")
-                      ? "border-rose-500 focus:ring-2 focus:ring-rose-100"
-                      : "border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  }`}
+                  className={`rp-select${errCls("relationToHead", "rp-select")}`}
                 >
                   <option value="">Select relationship</option>
                   {["Spouse", "Parent", "Child", "Sibling", "Dependent", "Other"].map((r) => (
                     <option key={r} value={r}>{r}</option>
                   ))}
                 </select>
-                {fieldError("relationToHead") && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                    {errors.relationToHead}
-                  </p>
-                )}
+                <FieldError message={fieldError("relationToHead") ? errors.relationToHead : null} />
               </div>
             </div>
           </div>
         )}
 
         {/* 2. CONTACT INFORMATION */}
-        <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-4 sm:p-5">
-          <div className="flex items-center gap-2 text-blue-600 font-bold text-sm sm:text-base mb-3.5">
+        <div className="rp-card">
+          <div className="rp-card-head">
             <LuPhone size={18} />
             <span>Contact Information</span>
           </div>
 
-          <div className="space-y-3.5">
+          <div className="rp-rows">
             {/* Row 1: Mobile Number, Alternate Mobile */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
+            <div className="rp-grid rp-grid--2">
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
-                  Mobile Number <span className="text-rose-500">*</span>
+                <label className="rp-label">
+                  Mobile Number <span className="rp-req">*</span>
                 </label>
-                <div className={`flex items-center border rounded-lg overflow-hidden bg-white transition-all ${
-                  fieldError("mobile")
-                    ? "border-rose-500 ring-2 ring-rose-100"
-                    : "border-slate-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100"
-                }`}>
-                  <span className="px-3.5 py-2 bg-slate-50 border-r border-slate-200 text-sm font-semibold text-slate-600 select-none">
-                    +91
-                  </span>
+                <div className={`rp-phone${errCls("mobile", "rp-phone")}`}>
+                  <span className="rp-phone-prefix">+91</span>
                   <input
                     type="tel"
                     name="mobile"
@@ -835,28 +783,17 @@ export default function RegisterPatient() {
                     required
                     inputMode="tel"
                     maxLength={10}
-                    className="flex-1 px-3.5 py-2 text-sm text-slate-800 bg-transparent outline-none placeholder:text-slate-400"
+                    className="rp-phone-input"
                   />
                 </div>
-                <p className="text-xs text-slate-500 mt-1">Valid 10-digit Indian mobile number.</p>
-                {fieldError("mobile") && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                    {errors.mobile}
-                  </p>
-                )}
+                <p className="rp-hint">Valid 10-digit Indian mobile number.</p>
+                <FieldError message={fieldError("mobile") ? errors.mobile : null} />
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">Alternate Mobile</label>
-                <div className={`flex items-center border rounded-lg overflow-hidden bg-white transition-all ${
-                  fieldError("altMobile")
-                    ? "border-rose-500 ring-2 ring-rose-100"
-                    : "border-slate-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100"
-                }`}>
-                  <span className="px-3.5 py-2 bg-slate-50 border-r border-slate-200 text-sm font-semibold text-slate-600 select-none">
-                    +91
-                  </span>
+                <label className="rp-label">Alternate Mobile</label>
+                <div className={`rp-phone${errCls("altMobile", "rp-phone")}`}>
+                  <span className="rp-phone-prefix">+91</span>
                   <input
                     type="tel"
                     name="altMobile"
@@ -866,23 +803,18 @@ export default function RegisterPatient() {
                     onBlur={handleBlur}
                     inputMode="tel"
                     maxLength={10}
-                    className="flex-1 px-3.5 py-2 text-sm text-slate-800 bg-transparent outline-none placeholder:text-slate-400"
+                    className="rp-phone-input"
                   />
                 </div>
-                <p className="text-xs text-slate-500 mt-1">Optional alternate contact number.</p>
-                {fieldError("altMobile") && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                    {errors.altMobile}
-                  </p>
-                )}
+                <p className="rp-hint">Optional alternate contact number.</p>
+                <FieldError message={fieldError("altMobile") ? errors.altMobile : null} />
               </div>
             </div>
 
             {/* Row 2: Email Address, Country */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
+            <div className="rp-grid rp-grid--2">
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">Email Address</label>
+                <label className="rp-label">Email Address</label>
                 <input
                   type="email"
                   name="email"
@@ -890,29 +822,20 @@ export default function RegisterPatient() {
                   value={formData.email}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  className={`w-full px-3.5 py-2 text-sm text-slate-800 bg-white border rounded-lg placeholder:text-slate-400 focus:outline-none transition-all ${
-                    fieldError("email")
-                      ? "border-rose-500 focus:ring-2 focus:ring-rose-100"
-                      : "border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  }`}
+                  className={`rp-input${errCls("email", "rp-input")}`}
                 />
-                <p className="text-xs text-slate-500 mt-1">Optional email for appointment reminders.</p>
-                {fieldError("email") && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                    {errors.email}
-                  </p>
-                )}
+                <p className="rp-hint">Optional email for appointment reminders.</p>
+                <FieldError message={fieldError("email") ? errors.email : null} />
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">Country</label>
+                <label className="rp-label">Country</label>
                 <select
                   name="country"
                   value={formData.country}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  className="w-full px-3.5 py-2 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer"
+                  className="rp-select"
                 >
                   <option value="India">India</option>
                   <option value="Other">Other</option>
@@ -923,18 +846,18 @@ export default function RegisterPatient() {
         </div>
 
         {/* 3. ADDRESS INFORMATION */}
-        <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-4 sm:p-5">
-          <div className="flex items-center gap-2 text-blue-600 font-bold text-sm sm:text-base mb-3.5">
+        <div className="rp-card">
+          <div className="rp-card-head">
             <LuGlobe size={18} />
             <span>Address Information</span>
           </div>
 
-          <div className="space-y-3.5">
-            {/* Row 1: Address (col-span-2), State, City */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5 sm:gap-4">
-              <div className="md:col-span-2">
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
-                  Address <span className="text-rose-500">*</span>
+          <div className="rp-rows">
+            {/* Row 1: Address (span 2), State, City */}
+            <div className="rp-grid rp-grid--4">
+              <div className="rp-span-2">
+                <label className="rp-label">
+                  Address <span className="rp-req">*</span>
                 </label>
                 <input
                   type="text"
@@ -944,24 +867,15 @@ export default function RegisterPatient() {
                   onChange={handleChange}
                   onBlur={handleBlur}
                   required
-                  className={`w-full px-3.5 py-2 text-sm text-slate-800 bg-white border rounded-lg placeholder:text-slate-400 focus:outline-none transition-all ${
-                    fieldError("address1")
-                      ? "border-rose-500 focus:ring-2 focus:ring-rose-100"
-                      : "border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  }`}
+                  className={`rp-input${errCls("address1", "rp-input")}`}
                 />
-                <p className="text-xs text-slate-500 mt-1">Street, house number, locality.</p>
-                {fieldError("address1") && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                    {errors.address1}
-                  </p>
-                )}
+                <p className="rp-hint">Street, house number, locality.</p>
+                <FieldError message={fieldError("address1") ? errors.address1 : null} />
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
-                  State <span className="text-rose-500">*</span>
+                <label className="rp-label">
+                  State <span className="rp-req">*</span>
                 </label>
                 <select
                   name="state"
@@ -969,11 +883,7 @@ export default function RegisterPatient() {
                   onChange={handleChange}
                   onBlur={handleBlur}
                   required
-                  className={`w-full px-3.5 py-2 text-sm text-slate-800 bg-white border rounded-lg focus:outline-none transition-all cursor-pointer ${
-                    fieldError("state")
-                      ? "border-rose-500 focus:ring-2 focus:ring-rose-100"
-                      : "border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  }`}
+                  className={`rp-select${errCls("state", "rp-select")}`}
                 >
                   <option value="">Select an option</option>
                   {["Uttar Pradesh", "Delhi", "Maharashtra", "Karnataka", "Rajasthan", "Madhya Pradesh",
@@ -981,17 +891,12 @@ export default function RegisterPatient() {
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
-                {fieldError("state") && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                    {errors.state}
-                  </p>
-                )}
+                <FieldError message={fieldError("state") ? errors.state : null} />
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
-                  City <span className="text-rose-500">*</span>
+                <label className="rp-label">
+                  City <span className="rp-req">*</span>
                 </label>
                 <input
                   type="text"
@@ -1001,25 +906,16 @@ export default function RegisterPatient() {
                   onChange={handleChange}
                   onBlur={handleBlur}
                   required
-                  className={`w-full px-3.5 py-2 text-sm text-slate-800 bg-white border rounded-lg placeholder:text-slate-400 focus:outline-none transition-all ${
-                    fieldError("city")
-                      ? "border-rose-500 focus:ring-2 focus:ring-rose-100"
-                      : "border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  }`}
+                  className={`rp-input${errCls("city", "rp-input")}`}
                 />
-                {fieldError("city") && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                    {errors.city}
-                  </p>
-                )}
+                <FieldError message={fieldError("city") ? errors.city : null} />
               </div>
             </div>
 
             {/* Row 2: Pincode */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5 sm:gap-4">
+            <div className="rp-grid rp-grid--4">
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">Pincode</label>
+                <label className="rp-label">Pincode</label>
                 <input
                   type="text"
                   name="pincode"
@@ -1029,37 +925,28 @@ export default function RegisterPatient() {
                   onBlur={handleBlur}
                   inputMode="numeric"
                   maxLength={6}
-                  className={`w-full px-3.5 py-2 text-sm text-slate-800 bg-white border rounded-lg placeholder:text-slate-400 focus:outline-none transition-all ${
-                    fieldError("pincode")
-                      ? "border-rose-500 focus:ring-2 focus:ring-rose-100"
-                      : "border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  }`}
+                  className={`rp-input${errCls("pincode", "rp-input")}`}
                 />
-                <p className="text-xs text-slate-500 mt-1">Optional 6-digit pincode.</p>
-                {fieldError("pincode") && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                    {errors.pincode}
-                  </p>
-                )}
+                <p className="rp-hint">Optional 6-digit pincode.</p>
+                <FieldError message={fieldError("pincode") ? errors.pincode : null} />
               </div>
             </div>
           </div>
         </div>
 
         {/* 4. ADDITIONAL INFORMATION */}
-        <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-4 sm:p-5">
-          <div className="flex items-center gap-2 text-blue-600 font-bold text-sm sm:text-base mb-3.5">
+        <div className="rp-card">
+          <div className="rp-card-head">
             <LuFileText size={18} />
             <span>Additional Information</span>
           </div>
 
-          <div className="space-y-3.5">
+          <div className="rp-rows">
             {/* Row 1: Emergency Contact Name, Emergency Contact Number, Relationship with Patient */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4">
+            <div className="rp-grid rp-grid--3">
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
-                  Emergency Contact Name <span className="text-rose-500">*</span>
+                <label className="rp-label">
+                  Emergency Contact Name <span className="rp-req">*</span>
                 </label>
                 <input
                   type="text"
@@ -1069,32 +956,17 @@ export default function RegisterPatient() {
                   onChange={handleChange}
                   onBlur={handleBlur}
                   required
-                  className={`w-full px-3.5 py-2 text-sm text-slate-800 bg-white border rounded-lg placeholder:text-slate-400 focus:outline-none transition-all ${
-                    fieldError("emgName")
-                      ? "border-rose-500 focus:ring-2 focus:ring-rose-100"
-                      : "border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  }`}
+                  className={`rp-input${errCls("emgName", "rp-input")}`}
                 />
-                {fieldError("emgName") && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                    {errors.emgName}
-                  </p>
-                )}
+                <FieldError message={fieldError("emgName") ? errors.emgName : null} />
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
-                  Emergency Contact Number <span className="text-rose-500">*</span>
+                <label className="rp-label">
+                  Emergency Contact Number <span className="rp-req">*</span>
                 </label>
-                <div className={`flex items-center border rounded-lg overflow-hidden bg-white transition-all ${
-                  fieldError("emgNumber")
-                    ? "border-rose-500 ring-2 ring-rose-100"
-                    : "border-slate-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100"
-                }`}>
-                  <span className="px-3.5 py-2 bg-slate-50 border-r border-slate-200 text-sm font-semibold text-slate-600 select-none">
-                    +91
-                  </span>
+                <div className={`rp-phone${errCls("emgNumber", "rp-phone")}`}>
+                  <span className="rp-phone-prefix">+91</span>
                   <input
                     type="tel"
                     name="emgNumber"
@@ -1105,20 +977,15 @@ export default function RegisterPatient() {
                     required
                     inputMode="tel"
                     maxLength={10}
-                    className="flex-1 px-3.5 py-2 text-sm text-slate-800 bg-transparent outline-none placeholder:text-slate-400"
+                    className="rp-phone-input"
                   />
                 </div>
-                {fieldError("emgNumber") && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                    {errors.emgNumber}
-                  </p>
-                )}
+                <FieldError message={fieldError("emgNumber") ? errors.emgNumber : null} />
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
-                  Relationship with Patient <span className="text-rose-500">*</span>
+                <label className="rp-label">
+                  Relationship with Patient <span className="rp-req">*</span>
                 </label>
                 <select
                   name="emgRelation"
@@ -1126,36 +993,27 @@ export default function RegisterPatient() {
                   onChange={handleChange}
                   onBlur={handleBlur}
                   required
-                  className={`w-full px-3.5 py-2 text-sm text-slate-800 bg-white border rounded-lg focus:outline-none transition-all cursor-pointer ${
-                    fieldError("emgRelation")
-                      ? "border-rose-500 focus:ring-2 focus:ring-rose-100"
-                      : "border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  }`}
+                  className={`rp-select${errCls("emgRelation", "rp-select")}`}
                 >
                   <option value="">Select an option</option>
                   {["Spouse", "Parent", "Child", "Sibling", "Friend", "Other"].map((r) => (
                     <option key={r} value={r}>{r}</option>
                   ))}
                 </select>
-                {fieldError("emgRelation") && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                    {errors.emgRelation}
-                  </p>
-                )}
+                <FieldError message={fieldError("emgRelation") ? errors.emgRelation : null} />
               </div>
             </div>
 
             {/* Row 2: Referred By, Department, Visit Type */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4 items-center">
+            <div className="rp-grid rp-grid--3">
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">Referred By</label>
+                <label className="rp-label">Referred By</label>
                 <select
                   name="referredBy"
                   value={formData.referredBy}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  className="w-full px-3.5 py-2 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer"
+                  className="rp-select"
                 >
                   <option value="">Select an option</option>
                   <option value="Dr. Ranju Chaurasia">Dr. Ranju Chaurasia</option>
@@ -1168,13 +1026,13 @@ export default function RegisterPatient() {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">Department</label>
+                <label className="rp-label">Department</label>
                 <select
                   name="department"
                   value={formData.department}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  className="w-full px-3.5 py-2 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer"
+                  className="rp-select"
                 >
                   <option value="">Select an option</option>
                   {["General Medicine", "Cardiology", "Neurology", "Orthopedics",
@@ -1186,13 +1044,13 @@ export default function RegisterPatient() {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">Visit Type</label>
-                <div className="flex items-center gap-4 pt-1">
+                <label className="rp-label">Visit Type</label>
+                <div className="rp-radios">
                   {[
                     { val: "OPD", label: "OPD (Outpatient)", icon: "🏥" },
                     { val: "IPD", label: "IPD (Inpatient)", icon: "🛏️" }
                   ].map((vt) => (
-                    <label key={vt.val} className="flex items-center gap-1.5 text-sm text-slate-700 cursor-pointer font-medium">
+                    <label key={vt.val} className={`rp-radio${formData.visitType === vt.val ? " rp-radio--on" : ""}`}>
                       <input
                         type="radio"
                         name="visitType"
@@ -1200,10 +1058,9 @@ export default function RegisterPatient() {
                         checked={formData.visitType === vt.val}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        className="accent-blue-600 w-4 h-4 cursor-pointer"
                       />
-                      <span className={formData.visitType === vt.val ? "text-slate-900 font-semibold" : "text-slate-600"}>
-                        <span className="mr-1">{vt.icon}</span> {vt.label}
+                      <span>
+                        <span style={{ marginRight: 4 }}>{vt.icon}</span> {vt.label}
                       </span>
                     </label>
                   ))}
@@ -1216,23 +1073,19 @@ export default function RegisterPatient() {
       </div>
 
       {/* ── BOTTOM FOOTER ACTIONS ── */}
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-4 pt-2">
+      <div className="rp-footer">
         {/* Reset on Left */}
-        <button
-          type="button"
-          onClick={handleReset}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-100 transition-all bg-white shadow-sm active:scale-95"
-        >
+        <button type="button" onClick={handleReset} className="rp-btn rp-btn--ghost">
           <LuRotateCcw size={15} />
           <span>Reset</span>
         </button>
 
         {/* Action Buttons on Right */}
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="rp-actions">
           <button
             type="button"
             onClick={() => handleRegisterAndNavigate("/opd/registration")}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-all shadow-md shadow-emerald-100 active:scale-95"
+            className="rp-btn rp-btn--green"
           >
             <LuStethoscope size={16} />
             <span>Save & Process to OPD</span>
@@ -1241,7 +1094,7 @@ export default function RegisterPatient() {
           <button
             type="button"
             onClick={() => handleRegisterAndNavigate("/ipd/admission")}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-700 transition-all shadow-md shadow-rose-100 active:scale-95"
+            className="rp-btn rp-btn--red"
           >
             <LuBed size={16} />
             <span>Save & Process to IPD</span>
@@ -1250,7 +1103,7 @@ export default function RegisterPatient() {
           <button
             type="button"
             onClick={() => handleRegisterAndNavigate(null)}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 shadow-md shadow-blue-200 transition-all active:scale-95"
+            className="rp-btn rp-btn--navy"
           >
             <LuUserPlus size={16} />
             <span>Register Patient</span>
