@@ -22,6 +22,7 @@ import { laboratoryRoutes } from "./modules/laboratoryRoutes.jsx";
 import { emergencyRoutes } from "./modules/emergencyRoutes.jsx";
 import { inventoryRoutes } from "./modules/inventoryRoutes.jsx";
 import { otherRoutes } from "./modules/otherRoutes.jsx";
+import { developerRoutes } from "./modules/developerRoutes.jsx";
 
 export default function AppRoutes() {
   return (
@@ -53,6 +54,7 @@ export default function AppRoutes() {
         {emergencyRoutes}
         {inventoryRoutes}
         {otherRoutes}
+        {developerRoutes}
       </Route>
 
       {/* 404 Fallback */}

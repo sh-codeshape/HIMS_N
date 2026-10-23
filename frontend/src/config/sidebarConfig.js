@@ -1,6 +1,6 @@
 import { ROLES, PERMISSIONS } from "../auth/roles";
 
-const { SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION, PHARMACY } = ROLES;
+const { SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION, PHARMACY, DEVELOPER } = ROLES;
 
 /**
  * Single source of truth for the sidebar AND the router.
@@ -210,11 +210,15 @@ const sidebarConfig = [
     ],
   },
   {
-    key: "bulkMessaging",
-    label: "Bulk Messaging",
-    icon: "LuMessageCircle",
-    path: "/bulk-messaging",
-    allowedRoles: [SUPER_ADMIN, ADMIN, RECEPTION],
+    key: "developerConsole",
+    label: "Developer Console",
+    icon: "LuTerminal",
+    allowedRoles: [DEVELOPER],
+    children: [
+      { label: "Module Manager", path: "/developer/modules", allowedRoles: [DEVELOPER], allowedPermissions: [PERMISSIONS.DEVELOPER_MODULES] },
+      { label: "System Audit Log", path: "/developer/audit", allowedRoles: [DEVELOPER], allowedPermissions: [PERMISSIONS.DEVELOPER_AUDIT] },
+      { label: "System Config", path: "/developer/config", allowedRoles: [DEVELOPER], allowedPermissions: [PERMISSIONS.DEVELOPER_CONFIG] },
+    ],
   },
 ];
 

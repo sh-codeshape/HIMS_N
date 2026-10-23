@@ -44,7 +44,15 @@ export default function Login() {
 
   const fieldError = (name) => (touched[name] ? errors[name] : null);
 
-  const handleSelectRole = (roleOption) => {
+  const handleSelectRole = (roleOption, e) => {
+    // Double-click to deselect / clear the role so you can type credentials manually
+    if (e.detail === 2) {
+      setSelectedRole(null);
+      setForm({ username: "", password: "" });
+      setErrors({});
+      setTouched({});
+      return;
+    }
     setSelectedRole(roleOption.role);
     setForm({
       username: roleOption.email || `${roleOption.role}@narayanhospital.com`,
@@ -98,7 +106,9 @@ export default function Login() {
     }
   };
 
-  const currentRoleConfig = LOGIN_ROLE_OPTIONS.find((r) => r.role === selectedRole) || LOGIN_ROLE_OPTIONS[0];
+  const currentRoleConfig = selectedRole
+    ? LOGIN_ROLE_OPTIONS.find((r) => r.role === selectedRole) || LOGIN_ROLE_OPTIONS[0]
+    : LOGIN_ROLE_OPTIONS[0];
 
   return (
     <div className="login-wrapper">
@@ -206,7 +216,7 @@ export default function Login() {
                   className="w-full py-2.5 sm:py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-bold rounded-xl shadow-md shadow-blue-500/25 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   <Icon name="LuLock" size={16} />
-                  {submitting ? "Authenticating..." : `Sign In as ${currentRoleConfig.label}`}
+                  {submitting ? "Authenticating..." : currentRoleConfig ? `Sign In as ${currentRoleConfig.label}` : "Sign In"}
                 </Button>
               </div>
             </form>
@@ -218,7 +228,7 @@ export default function Login() {
                   <Icon name="LuShield" size={14} className="text-blue-600" />
                   Role-Based Access
                 </span>
-                <span className="text-[11px] font-medium text-slate-400">Click role to auto-fill</span>
+                <span className="text-[11px] font-medium text-slate-400">Click role to auto-fill • Double-click to deselect</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
@@ -230,6 +240,7 @@ export default function Login() {
                       key={opt.role}
                       type="button"
                       onClick={() => handleSelectRole(opt)}
+                      onDoubleClick={(e) => handleSelectRole(opt, e)}
                       className={`flex items-center gap-2.5 px-2.5 py-1.5 sm:py-2 rounded-xl border text-left transition-all duration-200 ${
                         isLast ? "sm:col-span-2" : ""
                       } ${

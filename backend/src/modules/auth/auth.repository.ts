@@ -127,6 +127,20 @@ export class AuthRepository {
 
     return { roles, permissions };
   }
+
+  /**
+   * Returns the list of enabled module keys from module_registry.
+   * Used to enrich the JWT so the frontend knows which modules are active.
+   */
+  async getEnabledModules(): Promise<string[]> {
+    const query = `
+      SELECT module_key
+      FROM module_registry
+      WHERE is_enabled = true
+    `;
+    const result = await db.query(query);
+    return result.rows.map((row) => row.module_key);
+  }
 }
 
 export const authRepository = new AuthRepository();

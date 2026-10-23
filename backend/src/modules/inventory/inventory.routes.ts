@@ -51,6 +51,7 @@ import {
 } from './inventory.schema';
 import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
+import { moduleGuard } from '../../middleware/moduleGuard';
 import { validate } from '../../middleware/validate';
 
 const router = Router();
@@ -60,6 +61,7 @@ const controller = inventoryController;
 /*  Authenticate all inventory routes                                 */
 /* ------------------------------------------------------------------ */
 router.use(authenticate);
+router.use(moduleGuard('inventory'));
 
 /* ------------------------------------------------------------------ */
 /*  Suppliers                                                         */
