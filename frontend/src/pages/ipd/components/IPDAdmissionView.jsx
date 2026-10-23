@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { jwtDecode } from "jwt-decode";
@@ -49,8 +49,13 @@ const DOCTORS_BY_DEPT = {
 };
 
 const POPULAR_IPD_COMPLAINTS = [
-  "Fever", "Breathing Difficulty", "Severe Abdominal Pain",
-  "Trauma / Injury", "Chest Pain", "High BP / Hypertension", "Dehydration"
+  "Fever",
+  "Breathing Difficulty",
+  "Severe Abdominal Pain",
+  "Trauma / Injury",
+  "Chest Pain",
+  "High BP / Hypertension",
+  "Dehydration"
 ];
 
 export default function IPDAdmissionView() {
@@ -61,6 +66,8 @@ export default function IPDAdmissionView() {
   const [beds, setBeds] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(DEFAULT_PRESET_PATIENT);
 
+  // Search by mode (UHID/Mobile vs Name)
+  const [searchMode, setSearchMode] = useState("uhid");
   const [patientSearchQuery, setPatientSearchQuery] = useState("");
   const [patientSearchResults, setPatientSearchResults] = useState([]);
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
@@ -71,6 +78,110 @@ export default function IPDAdmissionView() {
   const [doctors, setDoctors] = useState([]);
   const [departmentsLoading, setDepartmentsLoading] = useState(true);
 
+  // ── Admission Details ──
+  const [admissionType, setAdmissionType] = useState("Emergency");
+  const getCurrentDateStr = () => new Date().toISOString().slice(0, 10);
+  const getCurrentTimeStr = () => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  };
+  const [admissionDate, setAdmissionDate] = useState(getCurrentDateStr());
+  const [admissionTime, setAdmissionTime] = useState(getCurrentTimeStr());
+  const [admissionSource, setAdmissionSource] = useState("OPD");
+
+  // ── Department & Doctor selection ──
+  const [department, setDepartment] = useState(null);
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+
+  // ── Reason for Admission ──
+  const [selectedComplaints, setSelectedComplaints] = useState(["Fever", "Breathing Difficulty"]);
+  const [duration, setDuration] = useState("5");
+  const [durationUnit, setDurationUnit] = useState("Days");
+  const [severity, setSeverity] = useState("Moderate");
+  const [provisionalDiagnosis, setProvisionalDiagnosis] = useState("Acute Respiratory Infection");
+  const [reasonForAdmission, setReasonForAdmission] = useState("Patient requires inpatient observation and treatment.");
+  const [showOtherComplaintInput, setShowOtherComplaintInput] = useState(false);
+  const [otherComplaintText, setOtherComplaintText] = useState("");
+  const [showOtherReasonInput, setShowOtherReasonInput] = useState(false);
+  const [otherReasonText, setOtherReasonText] = useState("");
+
+  // ── Bed / Room Allocation ──
+  const [wardType, setWardType] = useState("General Ward");
+  const [roomType, setRoomType] = useState("Multi Bed");
+  const [floor, setFloor] = useState("1st Floor");
+  const [roomNo, setRoomNo] = useState("101");
+  const [selectedBed, setSelectedBed] = useState("Bed-101-A");
+
+  const normalizeBedStatus = (status) => {
+    const value = typeof status === "string" ? status.trim().toLowerCase() : "available";
+    if (value === "occupied" || value === "reserved" || value === "blocked") return value;
+    if (value === "cleaning" || value === "maintenance") return value;
+    return "available";
+  };
+
+  const [availableBedsGrid] = useState([
+    { id: "b1", bedNo: "Bed-101-A", room: "Room 101", status: "Available" },
+    { id: "b2", bedNo: "Bed-101-B", room: "Room 101", status: "Occupied" },
+    { id: "b3", bedNo: "Bed-101-C", room: "Room 101", status: "Available" },
+    { id: "b4", bedNo: "Bed-101-D", room: "Room 101", status: "Available" },
+    { id: "b5", bedNo: "Bed-102-A", room: "Room 102", status: "Available" },
+    { id: "b6", bedNo: "Bed-102-B", room: "Room 102", status: "Available" },
+  ]);
+
+  const WARD_TYPE_MAP = {
+    "General Ward": "general",
+    "ICU": "icu",
+    "Private Room": "private",
+    "Semi-Private Room": "semi_private",
+  };
+
+  const filteredBeds = useMemo(() => {
+    if (!beds || beds.length === 0) return availableBedsGrid;
+    const targetType = WARD_TYPE_MAP[wardType];
+    if (!targetType) return beds;
+    return beds.filter((b) => {
+      const wt = (b.ward_type || "").toLowerCase();
+      const wn = (b.ward_name || "").toLowerCase();
+      return wt === targetType || wn === wardType.toLowerCase();
+    });
+  }, [beds, wardType]);
+
+  useEffect(() => {
+    if (filteredBeds.length > 0) {
+      const firstAvailable = filteredBeds.find(
+        (b) => normalizeBedStatus(b.status || b.current_status || "available") === "available"
+      );
+      setSelectedBed(firstAvailable ? firstAvailable.bedNo : filteredBeds[0].bedNo);
+    } else {
+      setSelectedBed("");
+    }
+  }, [wardType, filteredBeds]);
+
+  // ── Attendant Details ──
+  const [attendantName, setAttendantName] = useState("Raj Kumar");
+  const [relationship, setRelationship] = useState("Brother");
+  const [attendantMobile, setAttendantMobile] = useState("9876500000");
+  const [alternateMobile, setAlternateMobile] = useState("9876500001");
+
+  // ── Advance / Payment Details ──
+  const [registrationFee] = useState(100);
+  const [bedAdvance, setBedAdvance] = useState(5000);
+  const [otherCharges, setOtherCharges] = useState(0);
+  const [paymentMode, setPaymentMode] = useState("Cash");
+  const [paymentStatus, setPaymentStatus] = useState("Paid");
+  const [amountReceived, setAmountReceived] = useState(5100);
+
+  const totalAdvance = Number(registrationFee) + Number(bedAdvance || 0) + Number(otherCharges || 0);
+
+  // ── Additional Information ──
+  const [expectedDischargeDate, setExpectedDischargeDate] = useState("2026-10-05");
+  const [remarks, setRemarks] = useState("");
+
+  // ── Modal State ──
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [ipdSlipData, setIpdSlipData] = useState(null);
+
+  // ── Fetch Initial Data ──
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -82,15 +193,15 @@ export default function IPDAdmissionView() {
             { id: 3, bed_no: "GW-101-B3", ward_name: "General Ward", room_name: "GW-101", current_status: "occupied" },
             { id: 4, bed_no: "ICU-01", ward_name: "ICU", room_name: "ICU-1", current_status: "available" },
           ]),
-          axiosInstance.get("/staff/departments").then(r => r.data?.data || []).catch(() => []),
-          axiosInstance.get("/staff/doctors").then(r => r.data?.data || []).catch(() => []),
+          axiosInstance.get("/staff/departments").then((r) => r.data?.data || []).catch(() => []),
+          axiosInstance.get("/staff/doctors").then((r) => r.data?.data || []).catch(() => []),
         ]);
 
         const mappedPatients = (patientsData || []).map((p) => ({
           id: p.id,
           uhid: p.uhid,
           name: p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Patient",
-          age: p.age ?? (p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e+10) : 0),
+          age: p.age ?? (p.date_of_birth ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e10) : 0),
           gender: p.gender,
           bloodGroup: p.blood_group || "Unknown",
         }));
@@ -104,7 +215,6 @@ export default function IPDAdmissionView() {
           status: b.current_status,
         }));
 
-        // Map departments from backend
         const mappedDepartments = (deptsData || []).map((d) => ({
           id: d.id,
           code: d.code,
@@ -112,26 +222,19 @@ export default function IPDAdmissionView() {
           description: d.description,
         }));
 
-        // Map doctors from backend and group by department
         const mappedDoctors = (docsData || []).map((d) => ({
           id: d.practitioner_id || d.id,
-          name: `${d.first_name || ''} ${d.last_name || ''}`.trim() || d.name || 'Doctor',
+          name: `${d.first_name || ""} ${d.last_name || ""}`.trim() || d.name || "Doctor",
           departmentId: d.department_id,
           qualifications: d.qualifications,
           registrationNo: d.registration_no,
         }));
 
-        // Group doctors by department
-        const doctorsByDept = {};
-        (mappedDepartments || []).forEach((dept) => {
-          doctorsByDept[dept.id] = mappedDoctors.filter((doc) => doc.departmentId === dept.id);
-        });
-
         setPatients(mappedPatients.length ? mappedPatients : (mockStore.getPatients ? mockStore.getPatients() : []));
         setBeds(mappedBeds.length ? mappedBeds : (mockStore.getBeds ? mockStore.getBeds() : []));
         setDepartments(mappedDepartments);
         setDoctors(mappedDoctors);
-        // Initialize first department and doctor
+
         if (mappedDepartments.length > 0 && !department) {
           setDepartment(mappedDepartments[0]);
         }
@@ -141,12 +244,22 @@ export default function IPDAdmissionView() {
         const fallbackBeds = mockStore.getBeds ? mockStore.getBeds() : [];
         setPatients(fallbackPatients);
         setBeds(fallbackBeds);
+        setDepartmentsLoading(false);
       }
     };
 
     fetchData();
   }, []);
 
+  // Sync selectedDoctor with department change
+  useEffect(() => {
+    if (department && doctors.length > 0) {
+      const docs = doctors.filter((d) => d.departmentId === department.id);
+      setSelectedDoctor(docs.length > 0 ? docs[0] : null);
+    }
+  }, [department, doctors]);
+
+  // Click outside listener for search dropdown
   useEffect(() => {
     const clickHandler = (e) => {
       if (patientSearchRef.current && !patientSearchRef.current.contains(e.target)) {
@@ -157,6 +270,7 @@ export default function IPDAdmissionView() {
     return () => document.removeEventListener("mousedown", clickHandler);
   }, []);
 
+  // Auto-load patient from URL params
   useEffect(() => {
     const targetUhid = searchParams.get("uhid") || searchParams.get("patientId") || searchParams.get("id");
     const targetPhone = searchParams.get("phone") || searchParams.get("mobile");
@@ -165,14 +279,17 @@ export default function IPDAdmissionView() {
       try {
         let results = [];
         if (targetUhid) {
-           results = await patientService.search({ query: targetUhid });
+          results = await patientService.search({ query: targetUhid });
         } else if (targetPhone) {
-           results = await patientService.search({ query: targetPhone });
+          results = await patientService.search({ query: targetPhone });
         }
-        
+
         if (results && results.length > 0) {
           const found = results[0];
-          const pName = found.full_name || found.name || `${found.first_name || found.firstName || ""} ${found.last_name || found.lastName || ""}`.trim();
+          const pName =
+            found.full_name ||
+            found.name ||
+            `${found.first_name || found.firstName || ""} ${found.last_name || found.lastName || ""}`.trim();
           const pPhone = found.phone || found.mobile1 || found.mobile || "N/A";
           setSelectedPatient({
             id: found.id || found.uhid,
@@ -199,7 +316,7 @@ export default function IPDAdmissionView() {
         console.error("Failed to load patient from URL", err);
       }
     };
-    
+
     if (targetUhid || targetPhone) {
       fetchTargetPatient();
     }
@@ -224,7 +341,10 @@ export default function IPDAdmissionView() {
   };
 
   const handleSelectOldPatient = (p) => {
-    const pName = p.full_name || p.name || `${p.first_name || p.firstName || ""} ${p.last_name || p.lastName || ""}`.trim();
+    const pName =
+      p.full_name ||
+      p.name ||
+      `${p.first_name || p.firstName || ""} ${p.last_name || p.lastName || ""}`.trim();
     const pPhone = p.phone || p.mobile1 || p.mobile || "N/A";
     setSelectedPatient({
       id: p.id || p.uhid,
@@ -245,33 +365,6 @@ export default function IPDAdmissionView() {
     setShowPatientDropdown(false);
     toast.success(`Selected Patient: ${pName} (${p.uhid})`, { icon: "✅" });
   };
-
-  // ── Card 1: Admission Details ──
-  const [admissionType, setAdmissionType] = useState("Emergency");
-  const getCurrentDateStr = () => new Date().toISOString().slice(0, 10);
-  const getCurrentTimeStr = () => {
-    const now = new Date();
-    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-  };
-  const [admissionDate, setAdmissionDate] = useState(getCurrentDateStr());
-  const [admissionTime, setAdmissionTime] = useState(getCurrentTimeStr());
-  const [admissionSource, setAdmissionSource] = useState("OPD");
-
-  // ── Card 2: Department & Doctor ──
-  const [department, setDepartment] = useState(null);
-  const [selectedDoctor, setSelectedDoctor] = useState(null);
-
-  // ── Card 3: Reason for Admission ──
-  const [selectedComplaints, setSelectedComplaints] = useState(["Fever", "Breathing Difficulty"]);
-  const [duration, setDuration] = useState("5");
-  const [durationUnit, setDurationUnit] = useState("Days");
-  const [severity, setSeverity] = useState("Moderate");
-  const [provisionalDiagnosis, setProvisionalDiagnosis] = useState("Acute Respiratory Infection");
-  const [reasonForAdmission, setReasonForAdmission] = useState("Patient requires inpatient observation and treatment.");
-  const [showOtherComplaintInput, setShowOtherComplaintInput] = useState(false);
-  const [otherComplaintText, setOtherComplaintText] = useState("");
-  const [showOtherReasonInput, setShowOtherReasonInput] = useState(false);
-  const [otherReasonText, setOtherReasonText] = useState("");
 
   const toggleComplaint = (item) => {
     if (item === "Other" || item.includes("Other")) {
@@ -317,127 +410,72 @@ export default function IPDAdmissionView() {
     }
   };
 
-  // ── Card 4: Bed / Room Allocation ──
-  const [wardType, setWardType] = useState("General Ward");
-  const [roomType, setRoomType] = useState("Multi Bed");
-  const [floor, setFloor] = useState("1st Floor");
-  const [roomNo, setRoomNo] = useState("101");
-  const [selectedBed, setSelectedBed] = useState("Bed-101-A");
-
-  const normalizeBedStatus = (status) => {
-    const value = typeof status === "string" ? status.trim().toLowerCase() : "available";
-    if (value === "occupied" || value === "reserved" || value === "blocked") return value;
-    if (value === "cleaning" || value === "maintenance") return value;
-    return "available";
+  const handleResetForm = () => {
+    setSelectedPatient(DEFAULT_PRESET_PATIENT);
+    setPatientSearchQuery("");
+    setAdmissionType("Emergency");
+    setAdmissionDate(getCurrentDateStr());
+    setAdmissionTime(getCurrentTimeStr());
+    setAdmissionSource("OPD");
+    setSelectedComplaints(["Fever", "Breathing Difficulty"]);
+    setDuration("5");
+    setDurationUnit("Days");
+    setSeverity("Moderate");
+    setProvisionalDiagnosis("Acute Respiratory Infection");
+    setReasonForAdmission("Patient requires inpatient observation and treatment.");
+    setWardType("General Ward");
+    setRoomType("Multi Bed");
+    setFloor("1st Floor");
+    setRoomNo("101");
+    setAttendantName("Raj Kumar");
+    setRelationship("Brother");
+    setAttendantMobile("9876500000");
+    setAlternateMobile("9876500001");
+    setBedAdvance(5000);
+    setOtherCharges(0);
+    setPaymentMode("Cash");
+    setPaymentStatus("Paid");
+    setAmountReceived(5100);
+    setExpectedDischargeDate("2026-10-05");
+    setRemarks("");
+    toast.success("New Admission Form Initialized", { icon: "✨" });
   };
-
-  const [availableBedsGrid] = useState([
-    { id: "b1", bedNo: "Bed-101-A", room: "Room 101", status: "Available" },
-    { id: "b2", bedNo: "Bed-101-B", room: "Room 101", status: "Occupied" },
-    { id: "b3", bedNo: "Bed-101-C", room: "Room 101", status: "Available" },
-    { id: "b4", bedNo: "Bed-101-D", room: "Room 101", status: "Available" },
-    { id: "b5", bedNo: "Bed-102-A", room: "Room 102", status: "Available" },
-    { id: "b6", bedNo: "Bed-102-B", room: "Room 102", status: "Available" },
-  ]);
-
-  // Map frontend ward type labels to backend ward_type values
-  const WARD_TYPE_MAP = {
-    "General Ward": "general",
-    "ICU": "icu",
-    "Private Room": "private",
-    "Semi-Private Room": "semi_private",
-  };
-
-  // Filter beds by selected ward type so the matrix updates when ward type changes
-  const filteredBeds = React.useMemo(() => {
-    if (!beds || beds.length === 0) return availableBedsGrid;
-    const targetType = WARD_TYPE_MAP[wardType];
-    if (!targetType) return beds;
-    return beds.filter((b) => {
-      const wt = (b.ward_type || "").toLowerCase();
-      const wn = (b.ward_name || "").toLowerCase();
-      return wt === targetType || wn === wardType.toLowerCase();
-    });
-  }, [beds, wardType]);
-
-  // Reset bed selection when ward type changes so the chosen bed stays valid
-  React.useEffect(() => {
-    if (filteredBeds.length > 0) {
-      const firstAvailable = filteredBeds.find((b) => normalizeBedStatus(b.status || b.current_status || "available") === "available");
-      setSelectedBed(firstAvailable ? firstAvailable.bedNo : filteredBeds[0].bedNo);
-    } else {
-      setSelectedBed("");
-    }
-  }, [wardType, filteredBeds]);
-
-  // ── Card 5: Attendant Details ──
-  const [attendantName, setAttendantName] = useState("Raj Kumar");
-  const [relationship, setRelationship] = useState("Brother");
-  const [attendantMobile, setAttendantMobile] = useState("9876500000");
-  const [alternateMobile, setAlternateMobile] = useState("9876500001");
-
-  // ── Card 6: Estimated / Advance Details ──
-  const [registrationFee] = useState(100);
-  const [bedAdvance, setBedAdvance] = useState(5000);
-  const [otherCharges, setOtherCharges] = useState(0);
-  const [paymentMode, setPaymentMode] = useState("Cash");
-  const [paymentStatus, setPaymentStatus] = useState("Paid");
-  const [amountReceived, setAmountReceived] = useState(5100);
-
-  const totalAdvance = Number(registrationFee) + Number(bedAdvance || 0) + Number(otherCharges || 0);
-
-  // ── Card 7: Additional Information ──
-  const [expectedDischargeDate, setExpectedDischargeDate] = useState("2026-10-05");
-  const [remarks, setRemarks] = useState("");
-
-  // ── Modal State ──
-  const [showPrintModal, setShowPrintModal] = useState(false);
-  const [ipdSlipData, setIpdSlipData] = useState(null);
-
-  useEffect(() => {
-    if (department && doctors.length > 0) {
-      const docs = doctors.filter((d) => d.departmentId === department.id);
-      setSelectedDoctor(docs.length > 0 ? docs[0] : null);
-    }
-  }, [department, doctors]);
-
-
 
   const handleConfirmAdmission = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (!selectedBed) {
       toast.error("Please select an available bed!");
       return;
     }
 
     try {
-      // Resolve facility_id from JWT token (same pattern as billing pages)
       let facilityId = "";
       try {
         const token = localStorage.getItem("hims_token");
         const decoded = token ? jwtDecode(token) : null;
         facilityId = decoded?.facilityId || decoded?.facility_id || facilityId;
       } catch {
-        // keep empty; backend resolves from auth context
+        // backend resolves from auth context
       }
 
       const now = new Date();
-      const formattedDate = `${now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`;
+      const formattedDate = `${now.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })} ${now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`;
 
       let payloadAdmissionType = "elective";
       if (admissionType === "Emergency") payloadAdmissionType = "emergency";
       else if (admissionType === "Referral") payloadAdmissionType = "referral";
       else if (admissionType === "Transfer") payloadAdmissionType = "transfer";
 
-      let actualBedId = selectedBed; // Usually backend bed id
-      // If selectedBed matches availableBedsGrid format, it might be the bedNo string
-      // Let's find the matching bed object from `beds` state if possible
-      const matchedBed = beds.find(b => b.bedNo === selectedBed || b.id === selectedBed);
+      let actualBedId = selectedBed;
+      const matchedBed = beds.find((b) => b.bedNo === selectedBed || b.id === selectedBed);
       if (matchedBed && matchedBed.id) {
         actualBedId = matchedBed.id;
       }
 
-      // Derive payer type from patient insurance info
       const insuranceVal = String(selectedPatient.insurance || "").trim().toLowerCase();
       let payerType = "self";
       if (insuranceVal === "insured" || insuranceVal.includes("insurance") || insuranceVal === "tpa") {
@@ -448,23 +486,23 @@ export default function IPDAdmissionView() {
         payerType = "government";
       }
 
-      // Build payment from form fields. Record whatever amount is collected
-      // at admission — full or partial — as a payment against this encounter.
       const paymentAmount = Number(registrationFee) + Number(bedAdvance || 0) + Number(otherCharges || 0);
-      const paymentPayload = paymentAmount > 0
-        ? {
-            amount: paymentAmount,
-            payment_mode: paymentMode,
-            receipt_no: null,
-          }
-        : null;
+      const paymentPayload =
+        paymentAmount > 0
+          ? {
+              amount: paymentAmount,
+              payment_mode: paymentMode,
+              receipt_no: null,
+            }
+          : null;
 
-      // Only send bed_id if it's a real UUID from the backend (not mock data like "b1", "b2")
-      const realBedId = actualBedId && actualBedId !== selectedBed && actualBedId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
-        ? actualBedId
-        : null;
+      const realBedId =
+        actualBedId &&
+        actualBedId !== selectedBed &&
+        String(actualBedId).match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+          ? actualBedId
+          : null;
 
-      // Attempt backend admission (non-fatal — slip still shows with entered data)
       if (selectedPatient.id && selectedPatient.id !== selectedPatient.uhid) {
         try {
           await ipdService.admitPatient({
@@ -473,19 +511,19 @@ export default function IPDAdmissionView() {
             bed_id: realBedId,
             department_id: department?.id || null,
             admitting_practitioner_id: selectedDoctor?.id || null,
-            tariff_plan_id: null, // backend defaults to org default tariff plan
-            entitled_bed_category_id: null, // resolved by backend from bed category if needed
+            tariff_plan_id: null,
+            entitled_bed_category_id: null,
             admission_type: payloadAdmissionType,
             reason_for_admission: reasonForAdmission || selectedComplaints.join(", "),
             attendant_name: attendantName,
             attendant_relation: relationship,
             attendant_phone: attendantMobile,
             payer_type: payerType,
-            patient_coverage_id: null, // to be resolved post-admission via coverage lookup
-            advance_deposit: paymentPayload
+            patient_coverage_id: null,
+            advance_deposit: paymentPayload,
           });
         } catch (admitErr) {
-          console.error('Backend admission failed:', admitErr);
+          console.error("Backend admission failed:", admitErr);
           toast.error("Admission record saved locally. Backend sync may be pending.");
         }
       }
@@ -501,21 +539,21 @@ export default function IPDAdmissionView() {
         admissionDate: `${admissionDate} ${admissionTime}`,
         chiefComplaint: selectedComplaints.join(", "),
         provisionalDiagnosis,
-        department: department?.name || '',
-        doctor: selectedDoctor?.name || '',
-        doctorDegree: selectedDoctor?.qualifications || '',
+        department: department?.name || "",
+        doctor: selectedDoctor?.name || "",
+        doctorDegree: selectedDoctor?.qualifications || "",
         wardType,
         roomType,
         floor,
         roomNo,
-        bedNo: selectedBed, // for receipt
+        bedNo: selectedBed,
         attendantName,
         relationship,
         attendantMobile,
         registrationFee,
         bedAdvance,
         otherCharges,
-        totalAdvance: advanceAmount,
+        totalAdvance: totalAdvance,
         paymentMode,
         paymentStatus,
         payerType,
@@ -524,7 +562,9 @@ export default function IPDAdmissionView() {
 
       setIpdSlipData(admissionRecord);
       setShowPrintModal(true);
-      toast.success(`IPD Admission Confirmed for ${admissionRecord.patientName} on ${selectedBed}!`, { icon: "🏥" });
+      toast.success(`IPD Admission Confirmed for ${admissionRecord.patientName} on ${selectedBed}!`, {
+        icon: "🏥",
+      });
     } catch (err) {
       console.error(err);
       toast.error("Failed to admit patient to IPD.");
@@ -536,694 +576,1036 @@ export default function IPDAdmissionView() {
   };
 
   return (
-    <div className="ipd-page-wrapper">
-      {/* ── OLD PATIENT SEARCH & QUICK ACTIONS HEADER ── */}
-      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-4 flex flex-wrap items-center justify-between gap-3" ref={patientSearchRef}>
-        <div className="relative flex-1 min-w-[300px]">
-          <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 focus-within:border-teal-600 focus-within:ring-2 focus-within:ring-teal-100 transition-all">
-            <Icon name="LuSearch" size={18} className="text-teal-700 shrink-0" />
-            <input
-              type="text"
-              className="w-full bg-transparent text-xs font-semibold text-slate-800 focus:outline-none placeholder:text-slate-400 placeholder:font-normal"
-              placeholder="🔍 Old Patient? Search by Mobile No., Name or UHID / पुराने मरीज का मोबाइल न., नाम या UHID लिखें..."
-              value={patientSearchQuery}
-              onChange={handlePatientSearchChange}
-              onFocus={() => {
-                if (patientSearchQuery.trim()) setShowPatientDropdown(true);
-              }}
-            />
-            {patientSearchQuery && (
-              <button
-                type="button"
-                onClick={() => {
-                  setPatientSearchQuery("");
-                  setPatientSearchResults([]);
-                  setShowPatientDropdown(false);
-                }}
-                className="text-slate-400 hover:text-slate-600 p-0.5"
-              >
-                <Icon name="LuX" size={16} />
-              </button>
-            )}
-          </div>
-
-          {/* Search Dropdown Results */}
-          {showPatientDropdown && patientSearchResults.length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 max-h-72 overflow-y-auto divide-y divide-slate-100">
-              <div className="px-3 py-1.5 bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                Matching Patients ({patientSearchResults.length})
-              </div>
-              {patientSearchResults.map((p) => {
-                const pName = p.full_name || p.name || `${p.first_name || p.firstName || ""} ${p.last_name || p.lastName || ""}`.trim() || "Patient";
-                const pPhone = p.phone || p.mobile1 || p.mobile || "N/A";
-                return (
-                  <div
-                    key={p.uhid || p.id}
-                    className="p-3 hover:bg-teal-50/90 cursor-pointer transition-colors flex items-center justify-between gap-3 group"
-                    onClick={() => handleSelectOldPatient(p)}
-                  >
-                    <div>
-                      <div className="font-bold text-slate-800 text-xs group-hover:text-teal-800 flex items-center gap-2">
-                        <span>{pName}</span>
-                        <span className="text-[10px] bg-teal-100 text-teal-800 px-1.5 py-0.2 rounded font-semibold">Select</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 flex items-center gap-2.5 mt-0.5">
-                        <span>UHID: <strong className="text-teal-700">{p.uhid}</strong></span>
-                        <span>•</span>
-                        <span>📞 {pPhone}</span>
-                        {p.city && <span>• 📍 {p.city}</span>}
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 font-semibold text-[11px] rounded border border-slate-200">
-                        {p.age || p.ageYrs || "30"} Yrs / {p.gender || "Male"}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+    <div className="ipd-erp-container">
+      {/* ── ERP WINDOW CONTAINER ── */}
+      <div className="ipd-erp-window">
+        {/* ── TOP NAVY TITLE BAR ── */}
+        <div className="ipd-erp-titlebar">
+          <div className="ipd-titlebar-left">
+            <div className="ipd-titlebar-badge">
+              <Icon name="LuFileText" size={24} />
             </div>
-          )}
-        </div>
-
-      </div>
-
-      {/* ── TOP PATIENT BANNER ── */}
-      <div className="ipd-patient-banner-card">
-        <div className="ipd-patient-banner-left">
-          <div className="ipd-patient-avatar-box">
-            <img
-              src=""
-              alt="Rahul Kumar"
-            />
-          </div>
-          <div className="ipd-patient-main-info">
-            <h2>
-              {selectedPatient.name}
-            </h2>
-            <div className="ipd-patient-meta-row">
-              <span><strong>UHID :</strong> {selectedPatient.uhid}</span>
-              <span><strong>Age / Gender :</strong> {selectedPatient.age} Years / {selectedPatient.gender}</span>
-              
+            <div className="ipd-titlebar-info">
+              <h2 className="ipd-titlebar-title">IPD Admission Form</h2>
+              <span className="ipd-titlebar-subtitle">Inpatient Registration & Bed Allocation</span>
             </div>
           </div>
+          <div className="ipd-titlebar-right">
+            <button
+              type="button"
+              className="ipd-titlebar-close"
+              title="Close / Exit Form"
+              onClick={() => navigate(-1)}
+            >
+              <Icon name="LuX" size={18} />
+            </button>
+          </div>
         </div>
 
-        <div className="ipd-patient-banner-mid">
-          <div className="meta-item">📞 {selectedPatient.phone}</div>
-          <div className="meta-item text-red-600 font-bold">🩸 Blood Group : {selectedPatient.bloodGroup}</div>
-          <div className="meta-item">📍 {selectedPatient.address}</div>
-         
-        </div>
-
-   
-      </div>
-
-      {/* ── MAIN 2-COLUMN FORM LAYOUT ── */}
-      <form onSubmit={handleConfirmAdmission}>
-<div className="ipd-main-layout-grid">
-
-{/* CARD 1: ADMISSION DETAILS */}
-            <div className="ipd-sec-card">
-              <div className="ipd-sec-card-header">
-                <div className="ipd-step-icon-num">1</div>
-                <h3>Admission Details</h3>
+        {/* ── MAIN FORM CONTENT ── */}
+        <form onSubmit={handleConfirmAdmission} className="ipd-erp-form">
+          {/* ═════════════════════════════════════════════════════════════════════════════════
+              1. TOP SECTION: SEARCH PATIENT / OLD RECORD & SELECTED PATIENT PROFILE (FIRST!)
+              ═════════════════════════════════════════════════════════════════════════════════ */}
+          <div className="erp-top-patient-row">
+            {/* BOX 1: SEARCH PATIENT / OLD RECORD */}
+            <div className="erp-side-panel erp-top-search-panel" ref={patientSearchRef}>
+              <div className="erp-side-panel-header">
+                <span className="erp-banner-icon">🔍</span>
+                <span>Search Patient / Old Record · पुराने मरीज की खोज</span>
               </div>
-              <div className="ipd-sec-card-body">
-                <div className="ipd-field-group">
-                  <label className="ipd-label">Admission Type <span className="req">*</span></label>
-                  <div className="radio-pill-flex">
-                    {["Emergency", "Planned", "Referral", "Transfer"].map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        className={`radio-pill-btn ${admissionType === type ? "active" : ""}`}
-                        onClick={() => setAdmissionType(type)}
-                      >
-                        {type}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="ipd-field-group">
-                    <label className="ipd-label">Admission Date <span className="req">*</span></label>
+              <div className="erp-side-panel-body">
+                <div className="erp-radio-filter-row">
+                  <label className="erp-radio-inline">
                     <input
-                      type="date"
-                      className="ipd-input"
-                      value={admissionDate}
-                      onChange={(e) => setAdmissionDate(e.target.value)}
-                      required
+                      type="radio"
+                      name="searchMode"
+                      checked={searchMode === "uhid"}
+                      onChange={() => setSearchMode("uhid")}
                     />
-                  </div>
-                  <div className="ipd-field-group">
-                    <label className="ipd-label">Admission Time <span className="req">*</span></label>
-                    <input
-                      type="time"
-                      className="ipd-input cursor-pointer"
-                      value={admissionTime}
-                      onChange={(e) => setAdmissionTime(e.target.value)}
-                      required
-                    />
-                  </div>
-                 
-                </div>
-              </div>
-            </div>
-
-            
-
-            
-
-
-
-{/* CARD 2: DEPARTMENT & DOCTOR */}
-             <div className="ipd-sec-card">
-               <div className="ipd-sec-card-header">
-                 <div className="ipd-step-icon-num">2</div>
-                 <h3>Department & Doctor</h3>
-               </div>
-               <div className="ipd-sec-card-body">
-                 {departmentsLoading ? (
-                   <div className="flex items-center justify-center py-4">
-                     <span className="text-slate-500">Loading departments...</span>
-                   </div>
-                 ) : departments.length === 0 ? (
-                   <div className="p-4 bg-slate-50 rounded border border-slate-200">
-                     <p className="text-sm text-slate-600">No departments found.</p>
-                   </div>
-                 ) : (
-                   <div className="grid grid-cols-2 gap-4">
-                     <div className="ipd-field-group">
-                       <label className="ipd-label">Department <span className="req">*</span></label>
-                       <select
-                         className="ipd-select"
-                         value={department?.id || ""}
-                         onChange={(e) => {
-                           const selected = departments.find((d) => d.id === e.target.value);
-                           setDepartment(selected || null);
-                         }}
-                       >
-                         <option value="">Select Department</option>
-                         {departments.map((d) => (
-                           <option key={d.id} value={d.id}>{d.name}</option>
-                         ))}
-                       </select>
-                     </div>
-                     <div className="ipd-field-group">
-                       <label className="ipd-label">Attending Doctor <span className="req">*</span></label>
-                       <select
-                         className="ipd-select"
-                         value={selectedDoctor?.id || ""}
-                         onChange={(e) => {
-                           const selected = doctors.find((d) => d.id === e.target.value);
-                           setSelectedDoctor(selected || null);
-                         }}
-                       >
-                         <option value="">Select Doctor</option>
-                         {(department && doctors.filter((d) => d.departmentId === department.id)).map((doc) => (
-                           <option key={doc.id} value={doc.id}>
-                             {doc.name} ({doc.qualifications || ''})
-                           </option>
-                         ))}
-                       </select>
-                     </div>
-                   </div>
-                 )}
-               </div>
-             </div>
-
-             
-
-
-
-{/* CARD 3: REASON FOR ADMISSION */}
-            <div className="ipd-sec-card">
-              <div className="ipd-sec-card-header">
-                <div className="ipd-step-icon-num">3</div>
-                <h3>Reason for Admission · भर्ती का कारण एवं विवरण</h3>
-              </div>
-              <div className="ipd-sec-card-body">
-                
-                {/* Chief Complaint / Main Symptoms */}
-                <div className="ipd-field-group">
-                  <label className="ipd-label">
-                    Chief Complaint / Symptoms <span className="req">*</span>
-                    <span className="font-normal text-slate-400 text-xs">· मुख्य समस्या</span>
+                    <span>By UHID / Phone</span>
                   </label>
-                  
-                  {/* Select Dropdown */}
-                  <select
-                    className="ipd-select"
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        toggleComplaint(e.target.value);
-                      }
+                  <label className="erp-radio-inline">
+                    <input
+                      type="radio"
+                      name="searchMode"
+                      checked={searchMode === "name"}
+                      onChange={() => setSearchMode("name")}
+                    />
+                    <span>By Patient Name</span>
+                  </label>
+                </div>
+
+                <div className="erp-side-search-box">
+                  <Icon name="LuSearch" size={18} className="text-slate-400" />
+                  <input
+                    type="text"
+                    className="erp-side-search-input"
+                    placeholder={
+                      searchMode === "uhid"
+                        ? "Search by UHID or Mobile Number..."
+                        : "Search by Patient Full Name..."
+                    }
+                    value={patientSearchQuery}
+                    onChange={handlePatientSearchChange}
+                    onFocus={() => {
+                      if (patientSearchQuery.trim()) setShowPatientDropdown(true);
                     }}
-                    value=""
-                  >
-                    <option value="">Search or select complaint / समस्या चुनें...</option>
-                    {POPULAR_IPD_COMPLAINTS.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                    <option value="Other">+ Other / अन्य समस्या</option>
-                  </select>
-
-                 
-
-                  {/* Inline Other Complaint Input */}
-                  {showOtherComplaintInput && (
-                    <div className="other-complaint-box mt-2 flex gap-2 items-center">
-                      <input
-                        type="text"
-                        className="ipd-input flex-1"
-                        placeholder="Type custom complaint / अन्य समस्या लिखें..."
-                        value={otherComplaintText}
-                        onChange={(e) => setOtherComplaintText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleAddOtherComplaint();
-                          }
-                        }}
-                        autoFocus
-                      />
-                      <button
-                        type="button"
-                        className="px-3 py-1.5 bg-teal-700 text-white font-bold text-xs rounded-lg shrink-0"
-                        onClick={handleAddOtherComplaint}
-                      >
-                        + Add / जोड़ें
-                      </button>
-                      <button
-                        type="button"
-                        className="px-2.5 py-1.5 bg-slate-200 text-slate-700 font-bold text-xs rounded-lg shrink-0"
-                        onClick={() => {
-                          setShowOtherComplaintInput(false);
-                          setOtherComplaintText("");
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Selected Tag Pills */}
-                  {selectedComplaints.length > 0 && (
-                    <div className="complaint-tags-flex mt-2">
-                      {selectedComplaints.map((c) => (
-                        <span key={c} className="complaint-tag-pill">
-                          {c}
-                          <button
-                            type="button"
-                            className="complaint-tag-remove"
-                            onClick={() => removeComplaint(c)}
-                          >
-                            ✕
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Duration & Severity */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="ipd-field-group">
-                    <label className="ipd-label">
-                      Duration 
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="number"
-                        min="1"
-                        className="ipd-input w-20"
-                        value={duration}
-                        onChange={(e) => setDuration(e.target.value)}
-                      />
-                      <select
-                        className="ipd-select flex-1"
-                        value={durationUnit}
-                        onChange={(e) => setDurationUnit(e.target.value)}
-                      >
-                        <option value="Days">Days (दिन)</option>
-                        <option value="Hours">Hours (घंटे)</option>
-                        <option value="Weeks">Weeks (सप्ताह)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="ipd-field-group">
-                    <label className="ipd-label">
-                      Severity <span className="font-normal text-slate-400 text-xs">· गंभीर स्थिति</span>
-                    </label>
-                    <div className="flex gap-1">
-                      {[
-                        { label: "Mild", color: "bg-emerald-50 text-emerald-700 border-emerald-300" },
-                        { label: "Moderate", color: "bg-amber-50 text-amber-700 border-amber-300" },
-                        { label: "Severe", color: "bg-orange-50 text-orange-700 border-orange-300" },
-                        { label: "Critical", color: "bg-rose-50 text-rose-700 border-rose-300" }
-                      ].map((item) => (
-                        <button
-                          key={item.label}
-                          type="button"
-                          className={`flex-1 py-1.5 px-1 text-xs font-bold border rounded-lg transition-all ${
-                            severity === item.label
-                              ? "bg-slate-800 text-white border-slate-800 shadow-sm"
-                              : `${item.color} opacity-80 hover:opacity-100`
-                          }`}
-                          onClick={() => setSeverity(item.label)}
-                        >
-                          {item.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                
-
-                {/* Reason for Admission Notes & Fast Preset Chips */}
-                <div className="ipd-field-group">
-                  <div className="flex justify-between items-center">
-                    <label className="ipd-label">
-                      Reason for Admission / Notes <span className="req">*</span>
-                      <span className="font-normal text-slate-400 text-xs">· भर्ती का मुख्य कारण</span>
-                    </label>
-                  </div>
-                  
-                  {/* Preset quick action buttons for 1-click filling */}
-                  <div className="flex flex-wrap gap-1.5 mb-1.5">
-                    <span className="text-xs font-semibold text-slate-500 self-center">Quick Notes:</span>
-                    {[
-                      "+ IV Antibiotics & Monitoring",
-                      "+ Scheduled for Surgery",
-                      "+ Emergency Observation Required",
-                      "+ Oxygen & ICU Support Needed",
-                      "+ Pre-Op Care & Evaluation"
-                    ].map((preset) => (
-                      <button
-                        key={preset}
-                        type="button"
-                        className="px-2 py-0.5 text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-300 rounded hover:bg-teal-50 hover:border-teal-400 hover:text-teal-800 transition-all"
-                        onClick={() => appendQuickReasonPreset(preset.replace("+ ", ""))}
-                      >
-                        {preset}
-                      </button>
-                    ))}
+                  />
+                  {patientSearchQuery && (
                     <button
                       type="button"
-                      className="px-2 py-0.5 text-[11px] font-medium bg-teal-50 text-teal-700 border border-teal-300 rounded hover:bg-teal-100 transition-all font-semibold"
-                      onClick={() => setShowOtherReasonInput(!showOtherReasonInput)}
+                      className="erp-side-search-clear"
+                      onClick={() => {
+                        setPatientSearchQuery("");
+                        setPatientSearchResults([]);
+                        setShowPatientDropdown(false);
+                      }}
                     >
-                      + Other / अन्य
+                      <Icon name="LuX" size={16} />
                     </button>
-                  </div>
-
-                  {showOtherReasonInput && (
-                    <div className="mb-2 flex gap-2 items-center bg-teal-50/80 p-2 rounded-lg border border-teal-200 shadow-sm animate-fadeIn">
-                      <input
-                        type="text"
-                        className="ipd-input flex-1 text-sm bg-white"
-                        placeholder="Write custom reason or note / अन्य कारण या नोट लिखें..."
-                        value={otherReasonText}
-                        onChange={(e) => setOtherReasonText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleAddOtherReason();
-                          }
-                        }}
-                        autoFocus
-                      />
-                      <button
-                        type="button"
-                        className="px-3 py-1.5 bg-teal-700 text-white font-bold text-xs rounded-lg hover:bg-teal-800 shrink-0 shadow-sm transition-all"
-                        onClick={handleAddOtherReason}
-                      >
-                        + Add / जोड़ें
-                      </button>
-                      <button
-                        type="button"
-                        className="px-2.5 py-1.5 bg-slate-200 text-slate-700 font-bold text-xs rounded-lg hover:bg-slate-300 shrink-0 transition-all"
-                        onClick={() => {
-                          setShowOtherReasonInput(false);
-                          setOtherReasonText("");
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </div>
                   )}
-
-                  <textarea
-                    className="ipd-textarea"
-                    rows={2.5}
-                    placeholder="Patient requires inpatient observation, vital monitoring, and medical treatment..."
-                    value={reasonForAdmission}
-                    onChange={(e) => setReasonForAdmission(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-
-            
-
-
-
-            {/* CARD 5: ATTENDANT DETAILS */}
-            <div className="ipd-sec-card card-attendant">
-              <div className="ipd-sec-card-header">
-                <div className="ipd-step-icon-num">5</div>
-                <h3>Attendant Details <span className="font-normal text-slate-400 text-xs ml-2">साथी विवरण</span></h3>
-              </div>
-              <div className="ipd-sec-card-body">
-                <div className="ipd-field-group">
-                  <label className="ipd-label">Attendant Name <span className="req">*</span></label>
-                  <input type="text" className="ipd-input" value={attendantName} onChange={(e) => setAttendantName(e.target.value)} />
-                </div>
-                <div className="ipd-field-group">
-                  <label className="ipd-label">Relationship <span className="req">*</span></label>
-                  <input type="text" className="ipd-input" value={relationship} onChange={(e) => setRelationship(e.target.value)} />
-                </div>
-                <div className="ipd-field-group">
-                  <label className="ipd-label">Attendant Mobile <span className="req">*</span></label>
-                  <input type="tel" className="ipd-input" value={attendantMobile} onChange={(e) => setAttendantMobile(e.target.value)} />
-                </div>
-                <div className="ipd-field-group">
-                  <label className="ipd-label">Alternate Mobile</label>
-                  <input type="tel" className="ipd-input" value={alternateMobile} onChange={(e) => setAlternateMobile(e.target.value)} />
-                </div>
-              </div>
-            </div>
-
-
-
-{/* CARD 4: BED / ROOM ALLOCATION (WITH AVAILABLE BEDS MATRIX) */}
-            <div className="ipd-sec-card md:col-span-2">
-              <div className="ipd-sec-card-header">
-                <div className="ipd-step-icon-num">4</div>
-                <h3>Bed / Room Allocation</h3>
-              </div>
-              <div className="ipd-sec-card-body">
-                <div className="grid grid-cols-5 gap-3">
-                  <div className="ipd-field-group">
-                    <label className="ipd-label">Ward Type <span className="req">*</span></label>
-                    <select className="ipd-select" value={wardType} onChange={(e) => setWardType(e.target.value)}>
-                      <option value="General Ward">General Ward</option>
-                      <option value="ICU">ICU</option>
-                      <option value="Private Room">Private Room</option>
-                      <option value="Semi-Private Room">Semi-Private Room</option>
-                    </select>
-                  </div>
-
-                 
-
-                 
-
-                  
-
-                 
                 </div>
 
-                {/* ── AVAILABLE BEDS VISUAL MATRIX GRID ── */}
-                <div className="bed-matrix-wrapper">
-                  <div className="bed-matrix-header">
-                    <span className="bed-matrix-title">
-                      <Icon name="LuBed" size={16} className="text-teal-700" /> Available Beds Matrix ({wardType})
-                    </span>
-                    <div className="bed-legend-flex">
-                      <div className="bed-legend-item">
-                        <span className="bed-status-dot avail"></span> Available
-                      </div>
-                      <div className="bed-legend-item">
-                        <span className="bed-status-dot occ"></span> Occupied
-                      </div>
+                {/* Autocomplete Dropdown List */}
+                {showPatientDropdown && patientSearchResults.length > 0 && (
+                  <div className="erp-side-dropdown">
+                    <div className="erp-side-dropdown-head">
+                      Matching Patients ({patientSearchResults.length})
                     </div>
-                  </div>
-
-                  <div className="bed-grid-cards">
-                    {(filteredBeds.length > 0 ? filteredBeds : availableBedsGrid).map((b) => {
-                      const normalizedStatus = normalizeBedStatus(b.status || b.current_status || "available");
-                      const displayStatus = normalizedStatus === "available" ? "Available" : normalizedStatus === "occupied" ? "Occupied" : normalizedStatus === "reserved" ? "Reserved" : normalizedStatus === "blocked" ? "Blocked" : normalizedStatus === "maintenance" ? "Maintenance" : "Cleaning";
-                      const isAvailable = normalizedStatus === "available";
-                      const isSelected = selectedBed === b.bedNo;
-
+                    {patientSearchResults.map((p) => {
+                      const pName =
+                        p.full_name ||
+                        p.name ||
+                        `${p.first_name || p.firstName || ""} ${p.last_name || p.lastName || ""}`.trim() ||
+                        "Patient";
+                      const pPhone = p.phone || p.mobile1 || p.mobile || "N/A";
                       return (
                         <div
-                          key={b.id}
-                          className={`bed-card-item ${isAvailable ? "available" : "occupied"} ${isSelected ? "selected" : ""}`}
-                          onClick={() => {
-                            if (isAvailable) {
-                              setSelectedBed(b.bedNo);
-                            }
-                          }}
+                          key={p.uhid || p.id}
+                          className="erp-dropdown-item"
+                          onClick={() => handleSelectOldPatient(p)}
                         >
-                          <div className="bed-card-top">
-                            <span className="bed-card-no">🛏️ {b.bedNo}</span>
-                            <span className="bed-card-status-badge">
-                              {displayStatus} {isSelected && "✓"}
+                          <div className="erp-dropdown-item-info">
+                            <span className="erp-drop-name">{pName}</span>
+                            <span className="erp-drop-meta">
+                              <strong>{p.uhid}</strong> • 📞 {pPhone} • {p.age || "?"} Yrs / {p.gender || "—"}
                             </span>
                           </div>
+                          <span className="erp-drop-btn">Load Profile →</span>
                         </div>
                       );
                     })}
                   </div>
-                </div>
+                )}
               </div>
             </div>
 
-           
-
+            {/* BOX 2: SELECTED PATIENT PROFILE */}
+            <div className="erp-side-panel erp-top-profile-panel">
+              <div className="erp-side-panel-header">
+                <span className="erp-banner-icon">👤</span>
+                <span>Selected Patient Profile · चयनित मरीज का विवरण</span>
+              </div>
+              <div className="erp-side-panel-body">
+                <div className="erp-patient-profile-card">
+                  <div className="erp-patient-avatar">
+                    {selectedPatient.name ? selectedPatient.name.charAt(0).toUpperCase() : "P"}
+                  </div>
+                  <div className="erp-patient-profile-info">
+                    <h3 className="erp-profile-name">{selectedPatient.name}</h3>
+                    <div className="erp-profile-tags">
+                      <span className="erp-badge-uhid">UHID: {selectedPatient.uhid}</span>
+                      <span className="erp-badge-blood">🩸 {selectedPatient.bloodGroup}</span>
+                      <span className="erp-badge-uhid">{selectedPatient.age} Yrs / {selectedPatient.gender}</span>
+                      <span className="erp-badge-uhid">{selectedPatient.insurance || "Self Pay"}</span>
+                    </div>
+                    <div className="erp-profile-meta-list">
+                      <div>
+                        <span>📞 Phone:</span> <strong>{selectedPatient.phone}</strong>
+                        <span className="ml-3">📍 Address:</span> <strong>{selectedPatient.address}</strong>
+                      </div>
+                      <div>
+                        <span>⚠️ Allergies:</span> <strong className="text-amber-900">{selectedPatient.allergies || "No Known Allergies"}</strong>
+                        <span className="ml-3">💍 Status:</span> <strong>{selectedPatient.maritalStatus || "Single"}</strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* ── RIGHT COLUMN (~32% Width) ── */}
-          <div className="ipd-column-right">
-            
+          {/* ═════════════════════════════════════════════════════════════════════════════════
+              2. MAIN BODY 2-COLUMN GRID (ADMISSION DETAILS, CLINICAL, BED MATRIX & FEES)
+              ═════════════════════════════════════════════════════════════════════════════════ */}
+          <div className="ipd-erp-body-grid">
+            {/* ── LEFT COLUMN ── */}
+            <div className="ipd-erp-left-col">
+              {/* 1. ADMISSION SPECIFICATIONS */}
+              <div className="erp-section-panel">
+                <div className="erp-section-banner">
+                  <span className="erp-banner-icon">📋</span>
+                  <span>Admission Specifications · भर्ती विवरण</span>
+                </div>
+                <div className="erp-section-inner">
+                  {/* Admission Type Radio Pills */}
+                  <div className="erp-field-group mb-2">
+                    <label className="erp-label">
+                      Admission Type <span className="erp-req">*</span>
+                    </label>
+                    <div className="erp-type-pills">
+                      {["Emergency", "Planned", "Referral", "Transfer"].map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          className={`erp-type-pill ${admissionType === type ? "active" : ""}`}
+                          onClick={() => setAdmissionType(type)}
+                        >
+                          <span className="erp-radio-dot"></span>
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-            
+                  <div className="erp-grid-3">
+                    <div className="erp-field-group">
+                      <label className="erp-label">
+                        Admission Date <span className="erp-req">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        className="erp-input"
+                        value={admissionDate}
+                        onChange={(e) => setAdmissionDate(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">
+                        Admission Time <span className="erp-req">*</span>
+                      </label>
+                      <input
+                        type="time"
+                        className="erp-input cursor-pointer"
+                        value={admissionTime}
+                        onChange={(e) => setAdmissionTime(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">Admission Source</label>
+                      <select
+                        className="erp-select"
+                        value={admissionSource}
+                        onChange={(e) => setAdmissionSource(e.target.value)}
+                      >
+                        <option value="OPD">OPD Consultation</option>
+                        <option value="Emergency">Emergency / Casualty</option>
+                        <option value="Direct">Direct Admission</option>
+                        <option value="Referral">External Referral</option>
+                      </select>
+                    </div>
+                  </div>
 
-
-
-            {/* CARD 6: ADVANCE & PAYMENT */}
-            <div className="ipd-sec-card card-advance">
-              <div className="ipd-sec-card-header">
-                <div className="ipd-step-icon-num">6</div>
-                <h3>Advance & Payment <span className="font-normal text-slate-400 text-xs ml-2">अग्रिम भुगतान</span></h3>
+                  <div className="erp-grid-2 mt-2">
+                    <div className="erp-field-group">
+                      <label className="erp-label">
+                        Department <span className="erp-req">*</span>
+                      </label>
+                      <select
+                        className="erp-select"
+                        value={department?.id || ""}
+                        onChange={(e) => {
+                          const selected = departments.find((d) => d.id === e.target.value);
+                          setDepartment(selected || null);
+                        }}
+                        disabled={departmentsLoading}
+                      >
+                        <option value="">Select Department</option>
+                        {departments.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">
+                        Attending Doctor <span className="erp-req">*</span>
+                      </label>
+                      <select
+                        className="erp-select"
+                        value={selectedDoctor?.id || ""}
+                        onChange={(e) => {
+                          const selected = doctors.find((d) => d.id === e.target.value);
+                          setSelectedDoctor(selected || null);
+                        }}
+                      >
+                        <option value="">Select Doctor</option>
+                        {(department
+                          ? doctors.filter((d) => d.departmentId === department.id)
+                          : doctors
+                        ).map((doc) => (
+                          <option key={doc.id} value={doc.id}>
+                            {doc.name} {doc.qualifications ? `(${doc.qualifications})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="ipd-sec-card-body">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="ipd-field-group">
-                    <label className="ipd-label">Registration Fee</label>
-                    <input type="number" className="ipd-input" value={registrationFee} readOnly />
+
+              {/* 2. PATIENT INFORMATION (Editable Demographics) */}
+              <div className="erp-section-panel erp-panel-patient">
+                <div className="erp-section-banner erp-banner-highlight">
+                  <span className="erp-banner-icon">👤</span>
+                  <span>Patient Information · मरीज का विवरण</span>
+                </div>
+                <div className="erp-section-inner">
+                  <div className="erp-grid-4">
+                    <div className="erp-field-group">
+                      <label className="erp-label">UHID / Patient ID</label>
+                      <input
+                        type="text"
+                        className="erp-input font-bold text-teal-800 bg-teal-50/60"
+                        value={selectedPatient.uhid}
+                        readOnly
+                      />
+                    </div>
+                    <div className="erp-field-group erp-span-2">
+                      <label className="erp-label">
+                        Patient Full Name <span className="erp-req">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="erp-input font-semibold"
+                        value={selectedPatient.name}
+                        onChange={(e) => setSelectedPatient({ ...selectedPatient, name: e.target.value })}
+                        placeholder="Enter patient full name"
+                        required
+                      />
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">Contact No</label>
+                      <input
+                        type="tel"
+                        className="erp-input font-semibold"
+                        value={selectedPatient.phone}
+                        onChange={(e) => setSelectedPatient({ ...selectedPatient, phone: e.target.value })}
+                        placeholder="Contact number"
+                      />
+                    </div>
                   </div>
-                  <div className="ipd-field-group">
-                    <label className="ipd-label">Bed Advance</label>
-                    <input type="number" className="ipd-input" value={bedAdvance} onChange={(e) => setBedAdvance(e.target.value)} />
+
+                  <div className="erp-grid-4 mt-2">
+                    <div className="erp-field-group">
+                      <label className="erp-label">Age</label>
+                      <input
+                        type="text"
+                        className="erp-input"
+                        value={selectedPatient.age}
+                        onChange={(e) => setSelectedPatient({ ...selectedPatient, age: e.target.value })}
+                        placeholder="Age in yrs"
+                      />
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">Gender</label>
+                      <select
+                        className="erp-select"
+                        value={selectedPatient.gender}
+                        onChange={(e) => setSelectedPatient({ ...selectedPatient, gender: e.target.value })}
+                      >
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label text-red-700 font-bold">Blood Group</label>
+                      <select
+                        className="erp-select font-bold text-red-700"
+                        value={selectedPatient.bloodGroup}
+                        onChange={(e) => setSelectedPatient({ ...selectedPatient, bloodGroup: e.target.value })}
+                      >
+                        {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"].map((bg) => (
+                          <option key={bg} value={bg}>
+                            {bg}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">Insurance / Payer</label>
+                      <input
+                        type="text"
+                        className="erp-input"
+                        value={selectedPatient.insurance || "Self Pay"}
+                        onChange={(e) => setSelectedPatient({ ...selectedPatient, insurance: e.target.value })}
+                      />
+                    </div>
                   </div>
-                  <div className="ipd-field-group">
-                    <label className="ipd-label">Other Charges</label>
-                    <input type="number" className="ipd-input" value={otherCharges} onChange={(e) => setOtherCharges(e.target.value)} />
-                  </div>
-                  <div className="ipd-field-group">
-                    <label className="ipd-label">Payment Mode</label>
-                    <select className="ipd-select" value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)}>
-                      <option value="Cash">Cash</option>
-                      <option value="Card">Card</option>
-                      <option value="UPI">UPI</option>
-                      <option value="Insurance">Insurance</option>
-                    </select>
+
+                  <div className="erp-grid-4 mt-2">
+                    <div className="erp-field-group erp-span-2">
+                      <label className="erp-label">Complete Address</label>
+                      <input
+                        type="text"
+                        className="erp-input"
+                        value={selectedPatient.address}
+                        onChange={(e) => setSelectedPatient({ ...selectedPatient, address: e.target.value })}
+                        placeholder="Enter full address"
+                      />
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">Marital Status</label>
+                      <select
+                        className="erp-select"
+                        value={selectedPatient.maritalStatus || "Single"}
+                        onChange={(e) => setSelectedPatient({ ...selectedPatient, maritalStatus: e.target.value })}
+                      >
+                        <option value="Single">Single</option>
+                        <option value="Married">Married</option>
+                        <option value="Divorced">Divorced</option>
+                        <option value="Widowed">Widowed</option>
+                      </select>
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">Allergies</label>
+                      <input
+                        type="text"
+                        className="erp-input text-amber-900 font-medium"
+                        value={selectedPatient.allergies || "No Known Allergies"}
+                        onChange={(e) => setSelectedPatient({ ...selectedPatient, allergies: e.target.value })}
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="total-advance-box">
-                  <div className="total-advance-header">
-                    <span className="dot"></span>
-                    <span className="lbl">Total Advance Payable</span>
+              </div>
+
+              {/* 3. CLINICAL & REASON FOR ADMISSION */}
+              <div className="erp-section-panel">
+                <div className="erp-section-banner">
+                  <span className="erp-banner-icon">🩺</span>
+                  <span>Clinical & Admission Reason · भर्ती का कारण</span>
+                </div>
+                <div className="erp-section-inner">
+                  {/* Complaints Selector */}
+                  <div className="erp-field-group">
+                    <label className="erp-label">
+                      Chief Complaint / Symptoms <span className="erp-req">*</span>
+                      <span className="text-[12px] text-slate-500 font-normal">
+                        (Select multiple symptoms or add custom)
+                      </span>
+                    </label>
+                    <div className="flex gap-2 items-center">
+                      <select
+                        className="erp-select flex-1"
+                        onChange={(e) => {
+                          if (e.target.value) toggleComplaint(e.target.value);
+                        }}
+                        value=""
+                      >
+                        <option value="">Select Chief Complaint / मुख्य लक्षण चुनें...</option>
+                        {POPULAR_IPD_COMPLAINTS.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                        <option value="Other">+ Other / अन्य समस्या</option>
+                      </select>
+                      <button
+                        type="button"
+                        className="erp-btn-sm-action"
+                        onClick={() => setShowOtherComplaintInput(true)}
+                      >
+                        + Custom
+                      </button>
+                    </div>
+
+                    {/* Inline Other Complaint Input */}
+                    {showOtherComplaintInput && (
+                      <div className="mt-2 flex gap-2 items-center bg-sky-50 p-2 rounded-lg border border-sky-200">
+                        <input
+                          type="text"
+                          className="erp-input flex-1"
+                          placeholder="Type custom complaint / समस्या लिखें..."
+                          value={otherComplaintText}
+                          onChange={(e) => setOtherComplaintText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddOtherComplaint();
+                            }
+                          }}
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          className="erp-btn-pill-save"
+                          onClick={handleAddOtherComplaint}
+                        >
+                          + Add
+                        </button>
+                        <button
+                          type="button"
+                          className="erp-btn-pill-cancel"
+                          onClick={() => {
+                            setShowOtherComplaintInput(false);
+                            setOtherComplaintText("");
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Active Complaint Badges */}
+                    {selectedComplaints.length > 0 && (
+                      <div className="erp-tags-wrap mt-2">
+                        {selectedComplaints.map((c) => (
+                          <span key={c} className="erp-tag-chip">
+                            {c}
+                            <button
+                              type="button"
+                              className="erp-tag-chip-remove"
+                              onClick={() => removeComplaint(c)}
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="amt">₹ {totalAdvance.toFixed(2)}</div>
-                </div>
-                <div className="ipd-field-group mt-3">
-                  <label className="ipd-label">Payment Status</label>
-                  <select className="ipd-select" value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)}>
-                    <option value="Paid">Paid</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Partial">Partial</option>
-                  </select>
-                </div>
-                <div className="ipd-field-group">
-                  <label className="ipd-label">Amount Received</label>
-                  <input type="number" className="ipd-input" value={amountReceived} onChange={(e) => setAmountReceived(e.target.value)} />
+
+                  {/* Duration, Severity & Provisional Diagnosis */}
+                  <div className="erp-grid-3 mt-2">
+                    <div className="erp-field-group">
+                      <label className="erp-label">Duration</label>
+                      <div className="flex gap-1.5">
+                        <input
+                          type="number"
+                          min="1"
+                          className="erp-input w-24"
+                          value={duration}
+                          onChange={(e) => setDuration(e.target.value)}
+                        />
+                        <select
+                          className="erp-select flex-1"
+                          value={durationUnit}
+                          onChange={(e) => setDurationUnit(e.target.value)}
+                        >
+                          <option value="Days">Days (दिन)</option>
+                          <option value="Hours">Hours (घंटे)</option>
+                          <option value="Weeks">Weeks (सप्ताह)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="erp-field-group">
+                      <label className="erp-label">
+                        Severity <span className="text-[12px] text-slate-500 font-normal">· स्थिति</span>
+                      </label>
+                      <div className="flex gap-1.5">
+                        {[
+                          { label: "Mild", cls: "sev-mild" },
+                          { label: "Moderate", cls: "sev-moderate" },
+                          { label: "Severe", cls: "sev-severe" },
+                          { label: "Critical", cls: "sev-critical" },
+                        ].map((item) => (
+                          <button
+                            key={item.label}
+                            type="button"
+                            className={`erp-sev-pill ${item.cls} ${severity === item.label ? "selected" : ""}`}
+                            onClick={() => setSeverity(item.label)}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="erp-field-group">
+                      <label className="erp-label">Provisional Diagnosis</label>
+                      <input
+                        type="text"
+                        className="erp-input"
+                        value={provisionalDiagnosis}
+                        onChange={(e) => setProvisionalDiagnosis(e.target.value)}
+                        placeholder="Provisional diagnosis"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quick Notes & Reason Textarea */}
+                  <div className="erp-field-group mt-2">
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="erp-label mb-0">
+                        Reason for Admission / Clinical Notes <span className="erp-req">*</span>
+                      </label>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {[
+                          "+ IV Antibiotics",
+                          "+ Surgery",
+                          "+ Observation",
+                          "+ ICU Care",
+                        ].map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            className="erp-quick-chip"
+                            onClick={() => appendQuickReasonPreset(preset.replace("+ ", ""))}
+                          >
+                            {preset}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          className="erp-quick-chip text-sky-700 font-bold"
+                          onClick={() => setShowOtherReasonInput(!showOtherReasonInput)}
+                        >
+                          + Other
+                        </button>
+                      </div>
+                    </div>
+
+                    {showOtherReasonInput && (
+                      <div className="mb-2 flex gap-2 items-center bg-sky-50 p-2 rounded-lg border border-sky-200">
+                        <input
+                          type="text"
+                          className="erp-input flex-1"
+                          placeholder="Type custom note / अन्य नोट..."
+                          value={otherReasonText}
+                          onChange={(e) => setOtherReasonText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddOtherReason();
+                            }
+                          }}
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          className="erp-btn-pill-save"
+                          onClick={handleAddOtherReason}
+                        >
+                          + Add
+                        </button>
+                        <button
+                          type="button"
+                          className="erp-btn-pill-cancel"
+                          onClick={() => {
+                            setShowOtherReasonInput(false);
+                            setOtherReasonText("");
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+
+                    <textarea
+                      className="erp-textarea"
+                      rows={2.5}
+                      placeholder="Patient requires inpatient observation, vital monitoring, and medical treatment..."
+                      value={reasonForAdmission}
+                      onChange={(e) => setReasonForAdmission(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
-
-
-{/* CARD 7: ADDITIONAL INFORMATION (OPTIONAL) */}
-            <div className="ipd-sec-card card-additional">
-              <div className="ipd-sec-card-header">
-                <div className="ipd-step-icon-num">7</div>
-                <h3>Additional Information <span className="font-normal text-slate-400 text-xs">(Optional)</span></h3>
-              </div>
-              <div className="ipd-sec-card-body">
-                <div className="ipd-field-group">
-                  <label className="ipd-label">Expected Discharge Date</label>
-                  <input
-                    type="date"
-                    className="ipd-input"
-                    value={expectedDischargeDate}
-                    onChange={(e) => setExpectedDischargeDate(e.target.value)}
-                  />
+            {/* ── RIGHT COLUMN ── */}
+            <div className="ipd-erp-right-col">
+              {/* 4. BED / ROOM ALLOCATION (WITH AVAILABLE BEDS MATRIX) */}
+              <div className="erp-section-panel">
+                <div className="erp-section-banner">
+                  <span className="erp-banner-icon">🛏️</span>
+                  <span>Bed / Room Allocation & Ward Matrix · बेड आवंटन</span>
                 </div>
+                <div className="erp-section-inner">
+                  <div className="erp-grid-2">
+                    <div className="erp-field-group">
+                      <label className="erp-label">
+                        Ward Type <span className="erp-req">*</span>
+                      </label>
+                      <select
+                        className="erp-select font-semibold"
+                        value={wardType}
+                        onChange={(e) => setWardType(e.target.value)}
+                      >
+                        <option value="General Ward">General Ward</option>
+                        <option value="ICU">ICU (Intensive Care)</option>
+                        <option value="Private Room">Private Room</option>
+                        <option value="Semi-Private Room">Semi-Private Room</option>
+                      </select>
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">Room Type</label>
+                      <select
+                        className="erp-select"
+                        value={roomType}
+                        onChange={(e) => setRoomType(e.target.value)}
+                      >
+                        <option value="Multi Bed">Multi Bed Ward</option>
+                        <option value="Single Deluxe">Single Deluxe</option>
+                        <option value="Twin Sharing">Twin Sharing</option>
+                        <option value="Isolation">Isolation</option>
+                      </select>
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">Floor</label>
+                      <select
+                        className="erp-select"
+                        value={floor}
+                        onChange={(e) => setFloor(e.target.value)}
+                      >
+                        <option value="Ground Floor">Ground Floor</option>
+                        <option value="1st Floor">1st Floor</option>
+                        <option value="2nd Floor">2nd Floor</option>
+                        <option value="3rd Floor">3rd Floor</option>
+                      </select>
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">
+                        Selected Bed <span className="erp-req">*</span>
+                      </label>
+                      <div className="erp-selected-bed-display">
+                        <Icon name="LuBed" size={17} className="text-teal-700" />
+                        <span className="font-extrabold text-teal-900 text-[13px]">
+                          {selectedBed || "Select Bed Below"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
 
-                <div className="ipd-field-group">
-                  <label className="ipd-label">Remarks</label>
-                  <textarea
-                    className="ipd-textarea"
-                    rows={2}
-                    placeholder="Any additional notes..."
-                    value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
-                  />
+                  {/* Visual Bed Matrix Box */}
+                  <div className="erp-bed-matrix-box mt-3">
+                    <div className="erp-bed-matrix-head">
+                      <span className="erp-bed-matrix-title">
+                        Interactive Bed Grid — <strong>{wardType}</strong>
+                      </span>
+                      <div className="erp-bed-legend">
+                        <span className="erp-legend-item">
+                          <span className="erp-dot-avail"></span> Available
+                        </span>
+                        <span className="erp-legend-item">
+                          <span className="erp-dot-occ"></span> Occupied
+                        </span>
+                        <span className="erp-legend-item">
+                          <span className="erp-dot-sel"></span> Selected
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="erp-bed-cards-grid">
+                      {(filteredBeds.length > 0 ? filteredBeds : availableBedsGrid).map((b) => {
+                        const normalizedStatus = normalizeBedStatus(
+                          b.status || b.current_status || "available"
+                        );
+                        const isAvailable = normalizedStatus === "available";
+                        const isSelected = selectedBed === b.bedNo;
+
+                        return (
+                          <div
+                            key={b.id || b.bedNo}
+                            className={`erp-bed-card ${isAvailable ? "avail" : "occ"} ${
+                              isSelected ? "sel" : ""
+                            }`}
+                            onClick={() => {
+                              if (isAvailable) setSelectedBed(b.bedNo);
+                            }}
+                          >
+                            <div className="erp-bed-card-main">
+                              <span className="erp-bed-icon">🛏️</span>
+                              <div className="erp-bed-text">
+                                <span className="erp-bed-no">{b.bedNo}</span>
+                                <span className="erp-bed-room">{b.floor || "Ward Bed"}</span>
+                              </div>
+                            </div>
+                            <span className="erp-bed-badge">
+                              {isSelected ? "Selected ✓" : isAvailable ? "Available" : "Occupied"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 5. ATTENDANT DETAILS */}
+              <div className="erp-side-panel">
+                <div className="erp-side-panel-header">
+                  <span className="erp-banner-icon">👥</span>
+                  <span>Attendant Details · साथी विवरण</span>
+                </div>
+                <div className="erp-side-panel-body">
+                  <div className="erp-grid-2">
+                    <div className="erp-field-group">
+                      <label className="erp-label">
+                        Attendant Name <span className="erp-req">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="erp-input font-medium"
+                        value={attendantName}
+                        onChange={(e) => setAttendantName(e.target.value)}
+                        placeholder="Attendant full name"
+                        required
+                      />
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">
+                        Relationship <span className="erp-req">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="erp-input"
+                        value={relationship}
+                        onChange={(e) => setRelationship(e.target.value)}
+                        placeholder="e.g. Brother, Spouse"
+                        required
+                      />
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">
+                        Attendant Mobile <span className="erp-req">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        className="erp-input"
+                        value={attendantMobile}
+                        onChange={(e) => setAttendantMobile(e.target.value)}
+                        placeholder="10-digit mobile"
+                        required
+                      />
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">Alternate Mobile</label>
+                      <input
+                        type="tel"
+                        className="erp-input"
+                        value={alternateMobile}
+                        onChange={(e) => setAlternateMobile(e.target.value)}
+                        placeholder="Secondary mobile"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 6. ADMISSION FORM FEE DETAIL */}
+              <div className="erp-side-panel">
+                <div className="erp-side-panel-header">
+                  <span className="erp-banner-icon">💳</span>
+                  <span>Admission Fee & Advance Detail · अग्रिम शुल्क</span>
+                </div>
+                <div className="erp-side-panel-body">
+                  <div className="erp-grid-2">
+                    <div className="erp-field-group">
+                      <label className="erp-label">Registration Fee</label>
+                      <input
+                        type="number"
+                        className="erp-input bg-slate-50 font-semibold"
+                        value={registrationFee}
+                        readOnly
+                      />
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">Bed Advance (₹)</label>
+                      <input
+                        type="number"
+                        className="erp-input font-semibold"
+                        value={bedAdvance}
+                        onChange={(e) => setBedAdvance(e.target.value)}
+                      />
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">Other Charges (₹)</label>
+                      <input
+                        type="number"
+                        className="erp-input"
+                        value={otherCharges}
+                        onChange={(e) => setOtherCharges(e.target.value)}
+                      />
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">Payment Mode</label>
+                      <select
+                        className="erp-select font-semibold"
+                        value={paymentMode}
+                        onChange={(e) => setPaymentMode(e.target.value)}
+                      >
+                        <option value="Cash">Cash</option>
+                        <option value="Card">Card</option>
+                        <option value="UPI">UPI / QR</option>
+                        <option value="Insurance">Insurance / TPA</option>
+                      </select>
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">Payment Status</label>
+                      <select
+                        className="erp-select font-semibold text-emerald-800"
+                        value={paymentStatus}
+                        onChange={(e) => setPaymentStatus(e.target.value)}
+                      >
+                        <option value="Paid">Paid</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Partial">Partial</option>
+                      </select>
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">Amount Received (₹)</label>
+                      <input
+                        type="number"
+                        className="erp-input font-semibold text-slate-800"
+                        value={amountReceived}
+                        onChange={(e) => setAmountReceived(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Total Advance Highlight Banner */}
+                  <div className="erp-total-advance-highlight mt-3">
+                    <span className="erp-tot-lbl">TOTAL ADVANCE PAYABLE</span>
+                    <span className="erp-tot-val">₹ {totalAdvance.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 7. ADMISSION SUMMARY & ADDITIONAL INFO */}
+              <div className="erp-side-panel">
+                <div className="erp-side-panel-header">
+                  <span className="erp-banner-icon">📊</span>
+                  <span>Admission Information Summary & Notes</span>
+                </div>
+                <div className="erp-side-panel-body">
+                  <div className="erp-info-matrix">
+                    <div className="erp-info-tile">
+                      <span className="erp-info-lbl">Admission</span>
+                      <strong className="erp-info-val text-blue-900">{admissionType} (IPD)</strong>
+                    </div>
+                    <div className="erp-info-tile">
+                      <span className="erp-info-lbl">Status</span>
+                      <strong className="erp-info-val text-amber-700">Pending Admission</strong>
+                    </div>
+                    <div className="erp-info-tile">
+                      <span className="erp-info-lbl">Allocated Bed</span>
+                      <strong className="erp-info-val text-emerald-800">
+                        {selectedBed || "Not Selected"}
+                      </strong>
+                    </div>
+                    <div className="erp-info-tile">
+                      <span className="erp-info-lbl">Ward Unit</span>
+                      <strong className="erp-info-val text-slate-800">{wardType}</strong>
+                    </div>
+                    <div className="erp-info-tile erp-tile-full">
+                      <span className="erp-info-lbl">Attending Doctor</span>
+                      <strong className="erp-info-val text-slate-900">
+                        {selectedDoctor?.name || "Dr. Amit Sharma"}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* Expected Discharge & Remarks */}
+                  <div className="erp-grid-2 mt-2">
+                    <div className="erp-field-group">
+                      <label className="erp-label">Expected Discharge Date</label>
+                      <input
+                        type="date"
+                        className="erp-input"
+                        value={expectedDischargeDate}
+                        onChange={(e) => setExpectedDischargeDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="erp-field-group">
+                      <label className="erp-label">Remarks</label>
+                      <input
+                        type="text"
+                        className="erp-input"
+                        placeholder="Additional remarks..."
+                        value={remarks}
+                        onChange={(e) => setRemarks(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <p className="erp-guidance-note mt-2">
+                    Fill the inpatient admission details and allocate ward bed carefully before submitting the form.
+                  </p>
                 </div>
               </div>
             </div>
+          </div>
 
-           
-
-            
-
-
-
-{/* BOTTOM ACTION BUTTONS */}
-            <div className="ipd-bottom-actions-row md:col-span-2 justify-center">
+          {/* ── BOTTOM ACTION BUTTONS BAR ── */}
+          <div className="ipd-erp-footer-actions">
+            <div className="erp-action-buttons-group">
               <button
                 type="button"
-                className="btn-ipd-cancel"
+                className="btn-erp-action btn-erp-new"
+                onClick={handleResetForm}
+                title="Clear and start new admission"
+              >
+                <Icon name="LuPlus" size={17} />
+                <span>+ New</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn-erp-action btn-erp-save"
+                onClick={() => toast.success("Admission draft saved successfully", { icon: "💾" })}
+                title="Save draft locally"
+              >
+                <Icon name="LuSave" size={17} />
+                <span>Save</span>
+              </button>
+
+              <button
+                type="submit"
+                className="btn-erp-action btn-erp-submit"
+                title="Confirm and submit inpatient admission"
+              >
+                <Icon name="LuSend" size={17} />
+                <span>Form Submit</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn-erp-action btn-erp-modify"
+                onClick={() => {
+                  if (ipdSlipData) {
+                    setShowPrintModal(true);
+                  } else {
+                    toast.info("Please submit or confirm admission to preview/print the slip", { icon: "ℹ️" });
+                  }
+                }}
+                title="Preview or print admission slip"
+              >
+                <Icon name="LuPrinter" size={17} />
+                <span>Modify / Print</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn-erp-action btn-erp-exit"
                 onClick={() => navigate(-1)}
+                title="Close and exit form"
               >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-ipd-draft"
-                onClick={() => toast.success("Draft saved successfully")}
-              >
-                Save as Draft
-              </button>
-              <button type="submit" className="btn-ipd-confirm">
-                Confirm Admission →
+                <Icon name="LuX" size={17} />
+                <span>Exit</span>
               </button>
             </div>
-
-
-        
-
-
-        </div>
-</form>
+          </div>
+        </form>
+      </div>
 
       {/* ── PRINTABLE IPD ADMISSION SLIP MODAL ── */}
       {showPrintModal && ipdSlipData && (
@@ -1247,7 +1629,6 @@ export default function IPDAdmissionView() {
                 <div className="slip-title-badge-wrap">
                   <span className="slip-badge-title">IPD ADMISSION SUMMARY & RECEIPT</span>
                 </div>
-
                 <div className="token-inline-box">
                   <span className="token-inline-lbl">BED ALLOTTED</span>
                   <span className="token-num-highlight">{ipdSlipData.bedNo}</span>
@@ -1281,15 +1662,21 @@ export default function IPDAdmissionView() {
                 </div>
                 <div className="slip-detail-item">
                   <span className="lbl">Ward & Room:</span>
-                  <span className="val font-semibold">{ipdSlipData.wardType} - Room {ipdSlipData.roomNo}</span>
+                  <span className="val font-semibold">
+                    {ipdSlipData.wardType} - Room {ipdSlipData.roomNo}
+                  </span>
                 </div>
                 <div className="slip-detail-item">
                   <span className="lbl">Attending Doctor:</span>
-                  <span className="val font-medium">{ipdSlipData.doctor} ({ipdSlipData.doctorDegree})</span>
+                  <span className="val font-medium">
+                    {ipdSlipData.doctor} ({ipdSlipData.doctorDegree})
+                  </span>
                 </div>
                 <div className="slip-detail-item">
                   <span className="lbl">Attendant:</span>
-                  <span className="val font-medium">{ipdSlipData.attendantName} ({ipdSlipData.relationship}) - {ipdSlipData.attendantMobile}</span>
+                  <span className="val font-medium">
+                    {ipdSlipData.attendantName} ({ipdSlipData.relationship}) - {ipdSlipData.attendantMobile}
+                  </span>
                 </div>
                 <div className="slip-detail-item full-width">
                   <span className="lbl">Diagnosis:</span>
@@ -1318,7 +1705,10 @@ export default function IPDAdmissionView() {
                 </div>
                 <div className="fee-line">
                   <span>Payer Type</span>
-                  <span>{ipdSlipData.payerType?.charAt(0).toUpperCase() + ipdSlipData.payerType?.slice(1) || "Self"}</span>
+                  <span>
+                    {ipdSlipData.payerType?.charAt(0).toUpperCase() +
+                      ipdSlipData.payerType?.slice(1) || "Self"}
+                  </span>
                 </div>
               </div>
 
