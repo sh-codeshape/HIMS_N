@@ -39,6 +39,8 @@ export function AuthProvider({ children }) {
     setUser(data.user);
     localStorage.setItem(TOKEN_KEY, data.token);
     localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    // Notify same-tab listeners (e.g. ModuleContext) — native storage event only fires cross-tab
+    window.dispatchEvent(new StorageEvent("storage", { key: TOKEN_KEY, newValue: data.token }));
     return data.user;
   };
 
@@ -47,6 +49,8 @@ export function AuthProvider({ children }) {
     setUser(null);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    // Notify same-tab listeners (e.g. ModuleContext)
+    window.dispatchEvent(new StorageEvent("storage", { key: TOKEN_KEY, newValue: null }));
   };
 
   const value = useMemo(
