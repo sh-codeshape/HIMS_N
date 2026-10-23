@@ -5,8 +5,7 @@ import { IPDAdmissionView } from "./components";
 export default function IPDAdmission() {
   return (
     <PageContainer
-      title="IPD Patient Admission"
-      subtitle="Register new inpatient admissions and allocate ward bed units"
+     
     >
       <IPDAdmissionView />
     </PageContainer>
