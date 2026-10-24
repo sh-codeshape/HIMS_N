@@ -111,14 +111,13 @@ const sidebarConfig = [
   },
   {
     key: "laboratory",
-    label: "Laboratory",
+    label: "Pathology",
     icon: "LuFlaskConical",
     allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR],
     children: [
-      { label: "New Lab Test Order", path: "/laboratory/new-order", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.LABORATORY_ORDER] },
-      { label: "Pending Samples", path: "/laboratory/pending-samples", allowedRoles: [SUPER_ADMIN, ADMIN], allowedPermissions: [PERMISSIONS.LABORATORY_VIEW] },
-      { label: "Report Entry", path: "/laboratory/report-entry", allowedRoles: [SUPER_ADMIN, ADMIN], allowedPermissions: [PERMISSIONS.LABORATORY_REPORT] },
-      { label: "Template Settings", path: "/laboratory/template-settings", allowedRoles: [SUPER_ADMIN, ADMIN], allowedPermissions: [PERMISSIONS.LABORATORY_VIEW] },
+      { label: "Dashboard", path: "/laboratory/dashboard", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.LABORATORY_VIEW] },
+      { label: "Add Test Report", path: "/laboratory/add-test-report", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.LABORATORY_ORDER] },
+      { label: "Report Summary", path: "/laboratory/report-summary", allowedRoles: [SUPER_ADMIN, ADMIN], allowedPermissions: [PERMISSIONS.LABORATORY_REPORT] },
     ],
   },
   {
