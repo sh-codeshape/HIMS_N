@@ -9,7 +9,28 @@ export function ModuleProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchModules();
+    // Only fetch modules if a token exists — avoids 401 spam when unauthenticated
+    if (localStorage.getItem("hims_token")) {
+      fetchModules();
+    } else {
+      setLoading(false);
+    }
+
+    // Re-fetch when the user logs in (storage event fires in same tab via our helper)
+    const handleStorage = (e) => {
+      if (e.key === "hims_token") {
+        if (e.newValue) {
+          fetchModules();
+        } else {
+          // Logged out — clear module map
+          setEnabledModules({});
+          setLoading(false);
+        }
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchModules = async () => {

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import sidebarConfig from "../../config/sidebarConfig";
 import { useAuth } from "../../auth/AuthContext.jsx";
 import { useRole } from "../../hooks/useRole";
@@ -8,7 +8,8 @@ import Icon from "../common/Icon.jsx";
 import codeShapeLogo from "../../assets/logos/codeshape-logo.png";
 import "./Sidebar.css";
 
-export default function Sidebar() {
+export default function Sidebar() {     
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { roles } = useRole();
   const { isModuleEnabled } = useModules();
@@ -105,7 +106,13 @@ export default function Sidebar() {
                   <button
                     type="button"
                     className={`sidebar__item sidebar__item--toggle ${isOpen ? "sidebar__item--open" : ""}`}
-                    onClick={() => setOpenKey(isOpen ? null : item.key)}
+                    onClick={() => {
+                      const nextOpen = isOpen ? null : item.key;
+                      setOpenKey(nextOpen);
+                      if (item.key === "laboratory" && item.children?.[0]?.path) {
+                        navigate(item.children[0].path);
+                      }
+                    }}
                   >
                     <Icon name={item.icon} size={20} />
                     <span>{item.label}</span>

@@ -22,8 +22,8 @@ export class LabController {
   };
 
   createLabOrder = async (req: Request, res: Response) => {
-    const facilityId = req.user?.facilityId ?? (req.body.facilityId as string);
-    const organizationId = req.user?.organizationId ?? (req.body.organizationId as string);
+    const facilityId = req.user?.facilityId || (req.body.facilityId as string) || '00000000-0000-0000-0000-000000000000';
+    const organizationId = req.user?.organizationId || (req.body.organizationId as string) || '00000000-0000-0000-0000-000000000000';
     const { patientId, testDefinitionIds, orderedBy } = req.body;
     
     const result = await this.service.createLabOrder(facilityId, organizationId, patientId, testDefinitionIds, orderedBy);

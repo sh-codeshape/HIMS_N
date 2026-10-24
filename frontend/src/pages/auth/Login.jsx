@@ -46,7 +46,7 @@ export default function Login() {
 
   const handleSelectRole = (roleOption, e) => {
     // Double-click to deselect / clear the role so you can type credentials manually
-    if (e.detail === 2) {
+    if (e && e.detail === 2) {
       setSelectedRole(null);
       setForm({ username: "", password: "" });
       setErrors({});
@@ -239,7 +239,7 @@ export default function Login() {
                     <button
                       key={opt.role}
                       type="button"
-                      onClick={() => handleSelectRole(opt)}
+                      onClick={(e) => handleSelectRole(opt, e)}
                       onDoubleClick={(e) => handleSelectRole(opt, e)}
                       className={`flex items-center gap-2.5 px-2.5 py-1.5 sm:py-2 rounded-xl border text-left transition-all duration-200 ${
                         isLast ? "sm:col-span-2" : ""

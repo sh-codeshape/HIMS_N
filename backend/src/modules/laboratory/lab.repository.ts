@@ -4,30 +4,31 @@ export class LabRepository {
   async getLabTests(facilityId: string) {
     const query = `
       SELECT 
-        o.id as order_id, o.order_no, o.order_type,
+        o.id as order_id, o.order_no, o.order_type, o.created_at,
         oi.id as order_item_id, oi.status, oi.notes as result,
-        p.id as patient_id, p.first_name, p.last_name, p.uhid,
-        ltd.service_id as test_id, ltd.lab_section, s.name as test_name
+        p.id as patient_id, p.first_name, p.last_name, p.uhid, p.phone, p.gender, p.age,
+        ltd.service_id as test_id, ltd.lab_section, s.name as test_name, s.default_rate as price
       FROM orders o
       JOIN order_items oi ON oi.order_id = o.id
       JOIN lab_test_definitions ltd ON ltd.service_id = oi.service_id
       JOIN services s ON s.id = ltd.service_id
       JOIN patients p ON p.id = o.patient_id
-      WHERE o.facility_id = $1 AND o.order_type = 'lab'
+      WHERE (o.facility_id = $1 OR $1 IS NULL) AND o.order_type = 'lab'
       ORDER BY o.created_at DESC
     `;
-    const result = await db.query(query, [facilityId]);
+    const result = await db.query(query, [facilityId || null]);
     return result.rows;
   }
 
   async getTestDefinitions(organizationId: string) {
     const query = `
-      SELECT ltd.*, s.name, s.code, s.description 
+      SELECT ltd.*, s.name, s.code, s.description, s.default_rate as price 
       FROM lab_test_definitions ltd
       JOIN services s ON s.id = ltd.service_id
-      WHERE s.organization_id = $1
+      WHERE (s.organization_id = $1 OR s.organization_id = '00000000-0000-0000-0000-000000000000' OR $1 IS NULL)
+      ORDER BY ltd.lab_section ASC, s.name ASC
     `;
-    const result = await db.query(query, [organizationId]);
+    const result = await db.query(query, [organizationId || null]);
     return result.rows;
   }
 
