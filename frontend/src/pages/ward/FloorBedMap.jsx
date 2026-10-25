@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import toast from "react-hot-toast";
 import Icon from "../../components/common/Icon.jsx";
+import ipdService from "../../api/services/ipdService";
 import "./FloorBedMap.css";
 
 // Sample initial data for Ground Floor as displayed in the mockup image
@@ -45,7 +46,8 @@ const INITIAL_GROUND_FLOOR_BEDS = [
 export default function FloorBedMap() {
   const [activeFloor, setActiveFloor] = useState("Ground Floor");
   const [selectedWardFilter, setSelectedWardFilter] = useState("General Ward");
-  const [bedsData, setBedsData] = useState(INITIAL_GROUND_FLOOR_BEDS);
+  const [bedsData, setBedsData] = useState([]);
+  const [bedsLoading, setBedsLoading] = useState(true);
   
   // Table search & filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -57,6 +59,28 @@ export default function FloorBedMap() {
   const [showAllotModal, setShowAllotModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
+  const [showAddBedModal, setShowAddBedModal] = useState(false);
+  const [transferForm, setTransferForm] = useState({ fromBedId: "", toBedId: "" });
+
+  // Add Bed form state
+  const [wards, setWards] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [addBedForm, setAddBedForm] = useState({
+    ward_id: "",
+    ward_code: "",
+    ward_name: "",
+    ward_type: "general",
+    floor: "",
+    gender_policy: "any",
+    bed_category_id: "",
+    bed_charge_service_id: "",
+    room_id: "",
+    room_no: "",
+    room_type: "general",
+    bed_no: "",
+    status: "available",
+    features: { oxygen: false, monitor: false, ventilator: false },
+  });
 
   // Form states for Allotment
   const [allotForm, setAllotForm] = useState({
@@ -68,53 +92,134 @@ export default function FloorBedMap() {
     bedNo: "GW-101-02"
   });
 
-  // Available floors navigation
-  const floorsList = [
-    { name: "Basement", count: 12 },
-    { name: "Ground Floor", count: 28 },
-    { name: "First Floor", count: 48 },
-    { name: "Second Floor", count: 52 },
-    { name: "Third Floor", count: 46 },
-    { name: "Fourth Floor", count: 36 },
-    { name: "Fifth Floor", count: 28 },
-  ];
+  // Load ward / room / bed master for floor map + bed addition
+  useEffect(() => {
+    const loadWardMaster = async () => {
+      try {
+        const [bedsData, wardsData, roomsData] = await Promise.all([
+          ipdService.getBedMatrix().catch(() => []),
+          ipdService.getBedWards().catch(() => []),
+          ipdService.getBedRooms().catch(() => []),
+        ]);
+        setBedsData(Array.isArray(bedsData) ? bedsData : []);
+        setWards(Array.isArray(wardsData) ? wardsData : []);
+        setRooms(Array.isArray(roomsData) ? roomsData : []);
+        if (Array.isArray(wardsData) && wardsData.length > 0) {
+          const floorNames = Array.from(
+            new Set(wardsData.map((w) => w.floor).filter(Boolean))
+          );
+          if (floorNames.length > 0 && !floorNames.includes(activeFloor)) {
+            setActiveFloor(floorNames[0]);
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setBedsLoading(false);
+      }
+    };
+    loadWardMaster();
+  }, []);
 
-  // Overall hospital wide stats (Matching reference mockup image)
-  const overallStats = {
-    total: 250,
-    occupied: 187,
-    occupiedPct: "74.8%",
-    available: 48,
-    availablePct: "19.2%",
-    reserved: 10,
-    reservedPct: "4.0%",
-    maintenance: 5,
-    maintenancePct: "2.0%",
-  };
+  // Bed categories derived from wards
+  const bedCategories = useMemo(() => {
+    const map = new Map();
+    wards.forEach((w) => {
+      if (w.bed_category_id && !map.has(w.bed_category_id)) {
+        map.set(w.bed_category_id, {
+          id: w.bed_category_id,
+          name: w.bed_category_name || w.bed_category_code || "Bed Category",
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [wards]);
 
-  // Current floor summary calculation
-  const floorCounts = useMemo(() => {
-    const occ = bedsData.filter((b) => b.status === "Occupied").length;
-    const avail = bedsData.filter((b) => b.status === "Available").length;
-    const res = bedsData.filter((b) => b.status === "Reserved").length;
-    const maint = bedsData.filter((b) => b.status === "Maintenance").length;
+  // Available floors navigation (derived from wards + live bed data)
+  const floorsList = useMemo(() => {
+    const floorMap = new Map();
+    wards.forEach((w) => {
+      const floor = w.floor || "Unknown";
+      if (!floorMap.has(floor)) floorMap.set(floor, { name: floor, count: 0 });
+    });
+    const wardFloor = new Map(wards.map((w) => [w.id, w.floor || "Unknown"]));
+    bedsData.forEach((b) => {
+      const floor = wardFloor.get(b.ward_id) || b.floor || "Unknown";
+      const entry = floorMap.get(floor);
+      if (entry) entry.count += 1;
+    });
+    return Array.from(floorMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [wards, bedsData]);
+
+  // Overall hospital wide stats from live bed data
+  const overallStats = useMemo(() => {
+    const total = bedsData.length;
+    const occupied = bedsData.filter((b) => b.current_status === "occupied").length;
+    const available = bedsData.filter((b) => b.current_status === "available").length;
+    const reserved = bedsData.filter((b) => b.current_status === "reserved").length;
+    const maintenance = bedsData.filter((b) => b.current_status === "maintenance").length;
+    const pct = (n) => (total > 0 ? Number(((n / total) * 100).toFixed(1)) : 0);
     return {
-      total: bedsData.length,
-      occupied: occ,
-      available: avail,
-      reserved: res,
-      maintenance: maint,
+      total,
+      occupied,
+      occupiedPct: pct(occupied),
+      available,
+      availablePct: pct(available),
+      reserved,
+      reservedPct: pct(reserved),
+      maintenance,
+      maintenancePct: pct(maintenance),
     };
   }, [bedsData]);
 
+  // Current floor summary calculation (live data, scoped to active floor)
+  const floorCounts = useMemo(() => {
+    const floorBeds = bedsData.filter(
+      (b) => (wards.find((w) => w.id === b.ward_id)?.floor || b.floor) === activeFloor
+    );
+    return {
+      total: floorBeds.length,
+      occupied: floorBeds.filter((b) => b.current_status === "occupied").length,
+      available: floorBeds.filter((b) => b.current_status === "available").length,
+      reserved: floorBeds.filter((b) => b.current_status === "reserved").length,
+      maintenance: floorBeds.filter((b) => b.current_status === "maintenance").length,
+    };
+  }, [bedsData, wards, activeFloor]);
+
+  // Map raw API bed rows into the display shape used by table / actions
+  const calculateBedAge = (dob) => {
+    if (!dob) return null;
+    const birth = new Date(dob);
+    const now = new Date();
+    let age = now.getFullYear() - birth.getFullYear();
+    const m = now.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age -= 1;
+    return age;
+  };
+
+  const bedViewFromApi = (b) => ({
+    id: b.id,
+    bedNo: b.bed_no,
+    room: b.room_name || b.room_id || "-",
+    wardName: b.ward_name || "-",
+    patientName: b.patient_first_name || b.patient_last_name ? `${b.patient_first_name || ""} ${b.patient_last_name || ""}`.trim() : "-",
+    uhid: b.patient_uhid || "-",
+    ageGender: b.patient_id ? `${calculateBedAge(b.date_of_birth) ?? "-"} Y / ${b.gender || "-"}` : "-",
+    admissionDate: b.admission_id ? new Date(b.admitted_at).toLocaleDateString("en-GB") : "-",
+    department: b.department_name || "-",
+    status: b.current_status,
+  });
+
+  const bedsView = useMemo(() => bedsData.map(bedViewFromApi), [bedsData]);
+
   // Filtered beds for table
   const filteredBedsForTable = useMemo(() => {
-    return bedsData.filter((b) => {
+    return bedsView.filter((b) => {
       const matchesSearch =
-        b.bedNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        b.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        b.uhid.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        b.room.toLowerCase().includes(searchTerm.toLowerCase());
+        String(b.bedNo ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(b.patientName ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(b.uhid ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(b.room ?? "").toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesStatus =
         statusFilter === "All Status" || b.status === statusFilter;
@@ -124,7 +229,53 @@ export default function FloorBedMap() {
 
       return matchesSearch && matchesStatus && matchesRoom;
     });
-  }, [bedsData, searchTerm, statusFilter, roomFilter]);
+  }, [bedsView, searchTerm, statusFilter, roomFilter]);
+
+  // Ward options scoped to the active floor (from live ward data)
+  const wardOptions = useMemo(() => {
+    const names = new Set();
+    wards.forEach((w) => {
+      if (w.floor === activeFloor) names.add(w.name);
+    });
+    return Array.from(names);
+  }, [wards, activeFloor]);
+
+  const effectiveWardFilter =
+    wardOptions.includes(selectedWardFilter) ? selectedWardFilter : "All";
+
+  // Beds scoped to the active floor (+ selected ward)
+  const bedsInFloor = useMemo(() => {
+    const floorBeds = bedsData.filter(
+      (b) => (wards.find((w) => w.id === b.ward_id)?.floor || b.floor) === activeFloor
+    );
+    if (effectiveWardFilter !== "All") {
+      return floorBeds.filter((b) => (b.ward_name || "") === effectiveWardFilter);
+    }
+    return floorBeds;
+  }, [bedsData, wards, activeFloor, effectiveWardFilter]);
+
+  // Group beds of the active floor (+ ward) into rooms for the blueprint
+  const blueprintRooms = useMemo(() => {
+    const map = new Map();
+    bedsInFloor.forEach((b) => {
+      const key = `${b.ward_id || "ward"}::${b.room_id || b.room_name}`;
+      if (!map.has(key)) {
+        map.set(key, { key, room_no: b.room_name || b.room_id, ward_id: b.ward_id, beds: [] });
+      }
+      map.get(key).beds.push(b);
+    });
+    return Array.from(map.values()).sort((a, b) =>
+      String(a.room_no).localeCompare(String(b.room_no))
+    );
+  }, [bedsInFloor]);
+
+  const blueprintRoomRows = useMemo(() => {
+    const rows = [];
+    for (let i = 0; i < blueprintRooms.length; i += 4) {
+      rows.push(blueprintRooms.slice(i, i + 4));
+    }
+    return rows;
+  }, [blueprintRooms]);
 
   // Handle bed allotment form submit
   const handleAllotSubmit = (e) => {
@@ -135,15 +286,21 @@ export default function FloorBedMap() {
     }
 
     const updated = bedsData.map((b) => {
-      if (b.bedNo === allotForm.bedNo || b.id === selectedBedModal?.id) {
+      const matches =
+        (allotForm.bedNo && b.bed_no === allotForm.bedNo) ||
+        (selectedBedModal?.id && b.id === selectedBedModal.id);
+      if (matches) {
         return {
           ...b,
-          patientName: allotForm.patientName,
-          uhid: allotForm.uhid,
-          ageGender: allotForm.ageGender,
-          admissionDate: new Date().toLocaleDateString("en-GB"),
-          department: allotForm.department,
-          status: "Occupied",
+          patient_first_name: allotForm.patientName,
+          patient_last_name: null,
+          patient_id: null,
+          patient_uhid: allotForm.uhid,
+          gender: allotForm.ageGender?.split(" / ")[1]?.trim() || null,
+          date_of_birth: null,
+          admission_id: null,
+          status: "occupied",
+          current_status: "occupied",
         };
       }
       return b;
@@ -157,18 +314,86 @@ export default function FloorBedMap() {
     setSelectedBedModal(null);
   };
 
-  // Handle Vacate Bed
-  const handleVacateBed = (bedId) => {
+  // Handle Add Bed (floor-wise) submission -> POST /beds
+  const handleAddBedSubmit = async (e) => {
+    e.preventDefault();
+    if (!addBedForm.bed_no) {
+      toast.error("Bed number is required");
+      return;
+    }
+    if (!addBedForm.ward_id && !addBedForm.ward_code) {
+      toast.error("Please select an existing ward or enter a new ward code");
+      return;
+    }
+
+    try {
+      const payload = {
+        facility_id: "00000000-0000-0000-0000-000000000000",
+        ward_id: addBedForm.ward_id || undefined,
+        ward_code: addBedForm.ward_code || undefined,
+        ward_name: addBedForm.ward_name || undefined,
+        ward_type: addBedForm.ward_type,
+        floor: addBedForm.floor || undefined,
+        gender_policy: addBedForm.gender_policy,
+        bed_category_id: addBedForm.bed_category_id || null,
+        room_id: addBedForm.room_id || null,
+        room_no: addBedForm.room_no || undefined,
+        room_type: addBedForm.room_type,
+        bed_no: addBedForm.bed_no,
+        status: addBedForm.status,
+        features: addBedForm.features,
+      };
+      const bed = await ipdService.addBed(payload);
+      toast.success(`Bed ${addBedForm.bed_no} added successfully!`, { icon: "🛏️" });
+      setShowAddBedModal(false);
+      setAddBedForm({
+        ward_id: "",
+        ward_code: "",
+        ward_name: "",
+        ward_type: "general",
+        floor: "",
+        gender_policy: "any",
+        bed_category_id: "",
+        bed_charge_service_id: "",
+        room_id: "",
+        room_no: "",
+        room_type: "general",
+        bed_no: "",
+        status: "available",
+        features: { oxygen: false, monitor: false, ventilator: false },
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.error?.message || "Failed to add bed");
+    }
+  };
+
+  // Handle Vacate Bed (discharge via IPD module when admission exists)
+  const handleVacateBed = async (bedId) => {
+    const bed = bedsData.find((b) => b.id === bedId);
+    if (bed?.admission_id) {
+      try {
+        await ipdService.dischargePatient(bed.admission_id, {
+          discharge_type: "normal",
+          discharge_condition: "Stable",
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
     const updated = bedsData.map((b) => {
       if (b.id === bedId) {
         return {
           ...b,
-          patientName: "-",
-          uhid: "-",
-          ageGender: "-",
-          admissionDate: "-",
-          department: "-",
-          status: "Available",
+          patient_first_name: null,
+          patient_last_name: null,
+          patient_id: null,
+          patient_uhid: null,
+          gender: null,
+          date_of_birth: null,
+          admission_id: null,
+          status: "available",
+          current_status: "available",
         };
       }
       return b;
@@ -225,6 +450,15 @@ export default function FloorBedMap() {
             <Icon name="LuPlus" size={18} />
             <span>Bed Allotment</span>
           </button>
+
+          <button
+            type="button"
+            className="floor-map-btn-primary"
+            onClick={() => setShowAddBedModal(true)}
+          >
+            <Icon name="LuPlus" size={18} />
+            <span>Add Bed</span>
+          </button>
         </div>
       </div>
 
@@ -248,7 +482,7 @@ export default function FloorBedMap() {
             <span className="floor-map-stat-card__label">Occupied</span>
             <span className="floor-map-stat-card__value">{overallStats.occupied}</span>
             <span className="floor-map-stat-card__subtext floor-map-stat-card__subtext--pct">
-              {overallStats.occupiedPct}
+              {overallStats.occupiedPct}%
             </span>
           </div>
           <div className="floor-map-stat-card__icon-wrap">
@@ -262,7 +496,7 @@ export default function FloorBedMap() {
             <span className="floor-map-stat-card__label">Available</span>
             <span className="floor-map-stat-card__value">{overallStats.available}</span>
             <span className="floor-map-stat-card__subtext floor-map-stat-card__subtext--pct">
-              {overallStats.availablePct}
+              {overallStats.availablePct}%
             </span>
           </div>
           <div className="floor-map-stat-card__icon-wrap">
@@ -276,7 +510,7 @@ export default function FloorBedMap() {
             <span className="floor-map-stat-card__label">Reserved</span>
             <span className="floor-map-stat-card__value">{overallStats.reserved}</span>
             <span className="floor-map-stat-card__subtext floor-map-stat-card__subtext--pct">
-              {overallStats.reservedPct}
+              {overallStats.reservedPct}%
             </span>
           </div>
           <div className="floor-map-stat-card__icon-wrap">
@@ -290,7 +524,7 @@ export default function FloorBedMap() {
             <span className="floor-map-stat-card__label">Maintenance</span>
             <span className="floor-map-stat-card__value">{overallStats.maintenance}</span>
             <span className="floor-map-stat-card__subtext floor-map-stat-card__subtext--pct">
-              {overallStats.maintenancePct}
+              {overallStats.maintenancePct}%
             </span>
           </div>
           <div className="floor-map-stat-card__icon-wrap">
@@ -330,7 +564,7 @@ export default function FloorBedMap() {
               </span>
               <div>
                 <h3 className="blueprint-card__title">
-                  {activeFloor} - {selectedWardFilter}
+                  {activeFloor} - {effectiveWardFilter}
                 </h3>
                 <div className="blueprint-card__meta-summary">
                   <span>Total Beds: {floorCounts.total}</span> |{" "}
@@ -344,13 +578,15 @@ export default function FloorBedMap() {
             <div className="blueprint-card__controls">
               <select
                 className="blueprint-select"
-                value={selectedWardFilter}
+                value={effectiveWardFilter}
                 onChange={(e) => setSelectedWardFilter(e.target.value)}
               >
-                <option value="General Ward">General Ward</option>
-                <option value="ICU Ward">ICU Ward</option>
-                <option value="Deluxe Ward">Deluxe Private</option>
-                <option value="Isolation Ward">Isolation Ward</option>
+                <option value="All">All Wards</option>
+                {wardOptions.map((w) => (
+                  <option key={w} value={w}>
+                    {w}
+                  </option>
+                ))}
               </select>
 
               <button
@@ -396,183 +632,38 @@ export default function FloorBedMap() {
 
               {/* Center & Right Rooms Grid with Corridor */}
               <div className="blueprint-rooms-container">
-                {/* Top Row Rooms: GW-101, GW-102, GW-103, Isolation */}
-                <div className="blueprint-rooms-row">
-                  {/* GW-101 */}
-                  <div className="blueprint-room">
-                    <div className="blueprint-room__header">
-                      <div className="blueprint-room__name">GW-101</div>
-                      <div className="blueprint-room__capacity">4 Beds</div>
-                    </div>
-                    <div className="blueprint-bed-grid">
-                      {bedsData.slice(0, 4).map((b, idx) => (
-                        <div
-                          key={b.id}
-                          className={`blueprint-bed-item blueprint-bed-item--${b.status.toLowerCase()}`}
-                          title={`${b.bedNo} (${b.status}) - ${b.patientName}`}
-                          onClick={() => setSelectedBedModal(b)}
-                        >
-                          <span className="blueprint-bed-icon">
-                            <Icon name="LuBed" size={18} />
-                          </span>
-                          <span className="blueprint-bed-num">{idx + 1}</span>
+                {blueprintRoomRows.map((row, rowIdx) => (
+                  <React.Fragment key={`blueprint-row-${rowIdx}`}>
+                    {rowIdx > 0 && (
+                      <div className="blueprint-corridor">CORRIDOR</div>
+                    )}
+                    <div className="blueprint-rooms-row">
+                      {row.map((roomGroup) => (
+                        <div className="blueprint-room" key={roomGroup.key}>
+                          <div className="blueprint-room__header">
+                            <div className="blueprint-room__name">{roomGroup.room_no}</div>
+                            <div className="blueprint-room__capacity">{roomGroup.beds.length} Beds</div>
+                          </div>
+                          <div className="blueprint-bed-grid">
+                            {roomGroup.beds.map((b, idx) => (
+                              <div
+                                key={b.id}
+                                className={`blueprint-bed-item blueprint-bed-item--${(b.current_status || "available").toLowerCase()}`}
+                                title={`${b.bed_no} (${b.current_status}) - ${b.patient_first_name || b.patient_last_name ? `${b.patient_first_name || ""} ${b.patient_last_name || ""}`.trim() : "-"}`}
+                                onClick={() => setSelectedBedModal(bedViewFromApi(b))}
+                              >
+                                <span className="blueprint-bed-icon">
+                                  <Icon name="LuBed" size={18} />
+                                </span>
+                                <span className="blueprint-bed-num">{idx + 1}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ))}
                     </div>
-                  </div>
-
-                  {/* GW-102 */}
-                  <div className="blueprint-room">
-                    <div className="blueprint-room__header">
-                      <div className="blueprint-room__name">GW-102</div>
-                      <div className="blueprint-room__capacity">4 Beds</div>
-                    </div>
-                    <div className="blueprint-bed-grid">
-                      {bedsData.slice(4, 8).map((b, idx) => (
-                        <div
-                          key={b.id}
-                          className={`blueprint-bed-item blueprint-bed-item--${b.status.toLowerCase()}`}
-                          title={`${b.bedNo} (${b.status}) - ${b.patientName}`}
-                          onClick={() => setSelectedBedModal(b)}
-                        >
-                          <span className="blueprint-bed-icon">
-                            <Icon name="LuBed" size={18} />
-                          </span>
-                          <span className="blueprint-bed-num">{idx + 1}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* GW-103 */}
-                  <div className="blueprint-room">
-                    <div className="blueprint-room__header">
-                      <div className="blueprint-room__name">GW-103</div>
-                      <div className="blueprint-room__capacity">4 Beds</div>
-                    </div>
-                    <div className="blueprint-bed-grid">
-                      {bedsData.slice(8, 12).map((b, idx) => (
-                        <div
-                          key={b.id}
-                          className={`blueprint-bed-item blueprint-bed-item--${b.status.toLowerCase()}`}
-                          title={`${b.bedNo} (${b.status}) - ${b.patientName}`}
-                          onClick={() => setSelectedBedModal(b)}
-                        >
-                          <span className="blueprint-bed-icon">
-                            <Icon name="LuBed" size={18} />
-                          </span>
-                          <span className="blueprint-bed-num">{idx + 1}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Isolation */}
-                  <div className="blueprint-room blueprint-room--isolation">
-                    <div className="blueprint-room__header">
-                      <div className="blueprint-room__name">Isolation</div>
-                      <div className="blueprint-room__capacity">2 Beds</div>
-                    </div>
-                    <div className="blueprint-bed-grid">
-                      {bedsData.slice(12, 14).map((b, idx) => (
-                        <div
-                          key={b.id}
-                          className={`blueprint-bed-item blueprint-bed-item--${b.status.toLowerCase()}`}
-                          title={`${b.bedNo} (${b.status}) - ${b.patientName}`}
-                          onClick={() => setSelectedBedModal(b)}
-                        >
-                          <span className="blueprint-bed-icon">
-                            <Icon name="LuBed" size={18} />
-                          </span>
-                          <span className="blueprint-bed-num">{idx + 1}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Central Walkway / Corridor */}
-                <div className="blueprint-corridor">CORRIDOR</div>
-
-                {/* Bottom Row Rooms: GW-104, GW-105, GW-106, Doctor Room */}
-                <div className="blueprint-rooms-row">
-                  {/* GW-104 */}
-                  <div className="blueprint-room">
-                    <div className="blueprint-room__header">
-                      <div className="blueprint-room__name">GW-104</div>
-                      <div className="blueprint-room__capacity">4 Beds</div>
-                    </div>
-                    <div className="blueprint-bed-grid">
-                      {bedsData.slice(14, 18).map((b, idx) => (
-                        <div
-                          key={b.id}
-                          className={`blueprint-bed-item blueprint-bed-item--${b.status.toLowerCase()}`}
-                          title={`${b.bedNo} (${b.status}) - ${b.patientName}`}
-                          onClick={() => setSelectedBedModal(b)}
-                        >
-                          <span className="blueprint-bed-icon">
-                            <Icon name="LuBed" size={18} />
-                          </span>
-                          <span className="blueprint-bed-num">{idx + 1}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* GW-105 */}
-                  <div className="blueprint-room">
-                    <div className="blueprint-room__header">
-                      <div className="blueprint-room__name">GW-105</div>
-                      <div className="blueprint-room__capacity">4 Beds</div>
-                    </div>
-                    <div className="blueprint-bed-grid">
-                      {bedsData.slice(18, 22).map((b, idx) => (
-                        <div
-                          key={b.id}
-                          className={`blueprint-bed-item blueprint-bed-item--${b.status.toLowerCase()}`}
-                          title={`${b.bedNo} (${b.status}) - ${b.patientName}`}
-                          onClick={() => setSelectedBedModal(b)}
-                        >
-                          <span className="blueprint-bed-icon">
-                            <Icon name="LuBed" size={18} />
-                          </span>
-                          <span className="blueprint-bed-num">{idx + 1}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* GW-106 */}
-                  <div className="blueprint-room">
-                    <div className="blueprint-room__header">
-                      <div className="blueprint-room__name">GW-106</div>
-                      <div className="blueprint-room__capacity">4 Beds</div>
-                    </div>
-                    <div className="blueprint-bed-grid">
-                      {bedsData.slice(22, 26).map((b, idx) => (
-                        <div
-                          key={b.id}
-                          className={`blueprint-bed-item blueprint-bed-item--${b.status.toLowerCase()}`}
-                          title={`${b.bedNo} (${b.status}) - ${b.patientName}`}
-                          onClick={() => setSelectedBedModal(b)}
-                        >
-                          <span className="blueprint-bed-icon">
-                            <Icon name="LuBed" size={18} />
-                          </span>
-                          <span className="blueprint-bed-num">{idx + 1}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Doctor Room */}
-                  <div className="blueprint-room blueprint-room--doctor">
-                    <div className="blueprint-utility-icon" style={{ background: '#2563eb' }}>
-                      <Icon name="LuStethoscope" size={20} />
-                    </div>
-                    <span className="blueprint-utility-title" style={{ color: '#1e3a8a' }}>Doctor Room</span>
-                  </div>
-                </div>
+                  </React.Fragment>
+                ))}
               </div>
             </div>
           </div>
@@ -598,7 +689,7 @@ export default function FloorBedMap() {
                   fill="none"
                   stroke="#10b981"
                   strokeWidth="3.8"
-                  strokeDasharray="74.8, 100"
+                  strokeDasharray={`${overallStats.occupiedPct}, 100`}
                 />
                 {/* Available Segment (19.2%) */}
                 <path
@@ -606,8 +697,8 @@ export default function FloorBedMap() {
                   fill="none"
                   stroke="#0284c7"
                   strokeWidth="3.8"
-                  strokeDasharray="19.2, 100"
-                  strokeDashoffset="-74.8"
+                  strokeDasharray={`${overallStats.availablePct}, 100`}
+                  strokeDashoffset={-overallStats.occupiedPct}
                 />
                 {/* Reserved Segment (4.0%) */}
                 <path
@@ -615,8 +706,8 @@ export default function FloorBedMap() {
                   fill="none"
                   stroke="#f97316"
                   strokeWidth="3.8"
-                  strokeDasharray="4.0, 100"
-                  strokeDashoffset="-94"
+                  strokeDasharray={`${overallStats.reservedPct}, 100`}
+                  strokeDashoffset={-overallStats.occupiedPct - overallStats.availablePct}
                 />
                 {/* Maintenance Segment (2.0%) */}
                 <path
@@ -624,12 +715,12 @@ export default function FloorBedMap() {
                   fill="none"
                   stroke="#ef4444"
                   strokeWidth="3.8"
-                  strokeDasharray="2.0, 100"
-                  strokeDashoffset="-98"
+                  strokeDasharray={`${overallStats.maintenancePct}, 100`}
+                  strokeDashoffset={-overallStats.occupiedPct - overallStats.availablePct - overallStats.reservedPct}
                 />
               </svg>
               <div className="donut-center-text">
-                <div className="donut-center-val">250</div>
+                <div className="donut-center-val">{overallStats.total}</div>
                 <div className="donut-center-lbl">Total Beds</div>
               </div>
             </div>
@@ -640,7 +731,7 @@ export default function FloorBedMap() {
                   <span className="overview-legend-dot" style={{ background: "#10b981" }}></span>
                   <span>Occupied</span>
                 </div>
-                <span className="overview-legend-val">187 (74.8%)</span>
+                <span className="overview-legend-val">{overallStats.occupied} ({overallStats.occupiedPct}%)</span>
               </div>
 
               <div className="overview-legend-item">
@@ -648,7 +739,7 @@ export default function FloorBedMap() {
                   <span className="overview-legend-dot" style={{ background: "#0284c7" }}></span>
                   <span>Available</span>
                 </div>
-                <span className="overview-legend-val">48 (19.2%)</span>
+                <span className="overview-legend-val">{overallStats.available} ({overallStats.availablePct}%)</span>
               </div>
 
               <div className="overview-legend-item">
@@ -656,7 +747,7 @@ export default function FloorBedMap() {
                   <span className="overview-legend-dot" style={{ background: "#f97316" }}></span>
                   <span>Reserved</span>
                 </div>
-                <span className="overview-legend-val">10 (4.0%)</span>
+                <span className="overview-legend-val">{overallStats.reserved} ({overallStats.reservedPct}%)</span>
               </div>
 
               <div className="overview-legend-item">
@@ -664,7 +755,7 @@ export default function FloorBedMap() {
                   <span className="overview-legend-dot" style={{ background: "#ef4444" }}></span>
                   <span>Maintenance</span>
                 </div>
-                <span className="overview-legend-val">5 (2.0%)</span>
+                <span className="overview-legend-val">{overallStats.maintenance} ({overallStats.maintenancePct}%)</span>
               </div>
             </div>
           </div>
@@ -854,7 +945,7 @@ export default function FloorBedMap() {
                           className="table-action-icon-btn"
                           title="More Options"
                           onClick={() => {
-                            if (bed.status === "Available") {
+                            if (bed.status === "available") {
                               setAllotForm({ ...allotForm, bedNo: bed.bedNo, room: bed.room });
                               setShowAllotModal(true);
                             } else {
@@ -931,7 +1022,7 @@ export default function FloorBedMap() {
             </div>
 
             <div className="modal-actions-row">
-              {selectedBedModal.status === "Occupied" && (
+              {selectedBedModal.status === "occupied" && (
                 <button
                   type="button"
                   className="modal-btn-submit"
@@ -941,7 +1032,7 @@ export default function FloorBedMap() {
                   Vacate / Discharge
                 </button>
               )}
-              {selectedBedModal.status === "Available" && (
+              {selectedBedModal.status === "available" && (
                 <button
                   type="button"
                   className="modal-btn-submit"
@@ -988,8 +1079,8 @@ export default function FloorBedMap() {
                   value={allotForm.bedNo}
                   onChange={(e) => setAllotForm({ ...allotForm, bedNo: e.target.value })}
                 >
-                  {bedsData
-                    .filter((b) => b.status === "Available")
+                  {bedsView
+                    .filter((b) => b.status === "available")
                     .map((b) => (
                       <option key={b.id} value={b.bedNo}>
                         {b.bedNo} ({b.room})
@@ -1071,11 +1162,16 @@ export default function FloorBedMap() {
 
             <div className="modal-form-group">
               <label className="modal-form-label">Select Currently Occupied Bed</label>
-              <select className="modal-form-select">
-                {bedsData
-                  .filter((b) => b.status === "Occupied")
+              <select
+                className="modal-form-select"
+                value={transferForm.fromBedId}
+                onChange={(e) => setTransferForm({ ...transferForm, fromBedId: e.target.value })}
+              >
+                <option value="">-- Select Occupied Bed --</option>
+                {bedsView
+                  .filter((b) => b.status === "occupied")
                   .map((b) => (
-                    <option key={b.id} value={b.bedNo}>
+                    <option key={b.id} value={b.id}>
                       {b.bedNo} - {b.patientName} ({b.room})
                     </option>
                   ))}
@@ -1084,11 +1180,16 @@ export default function FloorBedMap() {
 
             <div className="modal-form-group">
               <label className="modal-form-label">Target Vacant Bed</label>
-              <select className="modal-form-select">
-                {bedsData
-                  .filter((b) => b.status === "Available")
+              <select
+                className="modal-form-select"
+                value={transferForm.toBedId}
+                onChange={(e) => setTransferForm({ ...transferForm, toBedId: e.target.value })}
+              >
+                <option value="">-- Select Vacant Bed --</option>
+                {bedsView
+                  .filter((b) => b.status === "available")
                   .map((b) => (
-                    <option key={b.id} value={b.bedNo}>
+                    <option key={b.id} value={b.id}>
                       {b.bedNo} ({b.room})
                     </option>
                   ))}
@@ -1106,9 +1207,21 @@ export default function FloorBedMap() {
               <button
                 type="button"
                 className="modal-btn-submit"
-                onClick={() => {
-                  toast.success("Bed transfer processed successfully!");
-                  setShowTransferModal(false);
+                onClick={async () => {
+                  if (!transferForm.fromBedId || !transferForm.toBedId) {
+                    toast.error("Please select source and target bed");
+                    return;
+                  }
+                  try {
+                    await ipdService.transferBed({
+                      fromBedId: transferForm.fromBedId,
+                      toBedId: transferForm.toBedId,
+                    });
+                    toast.success("Bed transfer processed successfully!");
+                    setShowTransferModal(false);
+                  } catch (err) {
+                    toast.error(err?.response?.data?.error?.message || "Bed transfer failed");
+                  }
                 }}
               >
                 Process Transfer
@@ -1135,9 +1248,9 @@ export default function FloorBedMap() {
 
             <div className="modal-form-group">
               <label className="modal-form-label">Select Bed to Block</label>
-              <select className="modal-form-select">
-                {bedsData.map((b) => (
-                  <option key={b.id} value={b.bedNo}>
+              <select className="modal-form-select" value={selectedBedModal?.id || ""}>
+                {bedsView.map((b) => (
+                  <option key={b.id} value={b.id}>
                     {b.bedNo} - Status: {b.status}
                   </option>
                 ))}
@@ -1165,14 +1278,232 @@ export default function FloorBedMap() {
                 type="button"
                 className="modal-btn-submit"
                 style={{ background: "#f97316" }}
-                onClick={() => {
-                  toast.success("Bed status updated to Maintenance!");
-                  setShowBlockModal(false);
+                onClick={async () => {
+                  if (!selectedBedModal?.id) {
+                    toast.error("Please select a bed to block");
+                    return;
+                  }
+                  try {
+                    await ipdService.updateBedStatus(selectedBedModal.id, "maintenance");
+                    setBedsData((prev) =>
+                      prev.map((b) =>
+                        b.id === selectedBedModal.id
+                          ? { ...b, status: "maintenance", current_status: "maintenance" }
+                          : b
+                      )
+                    );
+                    toast.success("Bed status updated to Maintenance!");
+                  } catch (err) {
+                    toast.error(err?.response?.data?.error?.message || "Failed to update bed status");
+                  } finally {
+                    setShowBlockModal(false);
+                  }
                 }}
               >
                 Block Bed
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 10. Add Bed Modal */}
+      {showAddBedModal && (
+        <div className="floor-map-modal-overlay" onClick={() => setShowAddBedModal(false)}>
+          <div className="floor-map-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="floor-map-modal-header">
+              <h3 className="floor-map-modal-title">Add New Bed</h3>
+              <button
+                type="button"
+                className="floor-map-modal-close"
+                onClick={() => setShowAddBedModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddBedSubmit}>
+              <div className="modal-form-group">
+                <label className="modal-form-label">Floor</label>
+                <input
+                  type="text"
+                  className="modal-form-input"
+                  placeholder="e.g. Ground Floor"
+                  value={addBedForm.floor}
+                  onChange={(e) => setAddBedForm({ ...addBedForm, floor: e.target.value })}
+                />
+              </div>
+
+              <div className="modal-form-group">
+                <label className="modal-form-label">Ward</label>
+                <select
+                  className="modal-form-select"
+                  value={addBedForm.ward_id}
+                  onChange={(e) => setAddBedForm({ ...addBedForm, ward_id: e.target.value })}
+                >
+                  <option value="">-- New Ward (auto-create) --</option>
+                  {wards.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} {w.floor ? `— ${w.floor}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {addBedForm.ward_id === "" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+                  <div className="modal-form-group">
+                    <label className="modal-form-label">New Ward Code *</label>
+                    <input
+                      type="text"
+                      className="modal-form-input"
+                      placeholder="e.g. GW-108"
+                      value={addBedForm.ward_code}
+                      onChange={(e) => setAddBedForm({ ...addBedForm, ward_code: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="modal-form-group">
+                    <label className="modal-form-label">New Ward Name</label>
+                    <input
+                      type="text"
+                      className="modal-form-input"
+                      placeholder="e.g. General Ward - Second Shift"
+                      value={addBedForm.ward_name}
+                      onChange={(e) => setAddBedForm({ ...addBedForm, ward_name: e.target.value })}
+                    />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.85rem" }}>
+                    <div className="modal-form-group">
+                      <label className="modal-form-label">Ward Type</label>
+                      <select
+                        className="modal-form-select"
+                        value={addBedForm.ward_type}
+                        onChange={(e) => setAddBedForm({ ...addBedForm, ward_type: e.target.value })}
+                      >
+                        <option value="general">General</option>
+                        <option value="semi_private">Semi Private</option>
+                        <option value="private">Private</option>
+                        <option value="icu">ICU</option>
+                        <option value="nicu">NICU</option>
+                        <option value="picu">PICU</option>
+                        <option value="hdu">HDU</option>
+                        <option value="isolation">Isolation</option>
+                        <option value="emergency">Emergency</option>
+                        <option value="maternity">Maternity</option>
+                        <option value="daycare">Daycare</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div className="modal-form-group">
+                      <label className="modal-form-label">Gender Policy</label>
+                      <select
+                        className="modal-form-select"
+                        value={addBedForm.gender_policy}
+                        onChange={(e) => setAddBedForm({ ...addBedForm, gender_policy: e.target.value })}
+                      >
+                        <option value="any">Any</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {addBedForm.ward_id && (
+                <div className="modal-form-group">
+                  <label className="modal-form-label">Room No.</label>
+                  <input
+                    type="text"
+                    className="modal-form-input"
+                    placeholder="e.g. GW-101"
+                    value={addBedForm.room_no}
+                    onChange={(e) => setAddBedForm({ ...addBedForm, room_no: e.target.value })}
+                  />
+                </div>
+              )}
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+                <div className="modal-form-group">
+                  <label className="modal-form-label">Bed Category</label>
+                  <select
+                    className="modal-form-select"
+                    value={addBedForm.bed_category_id}
+                    onChange={(e) => setAddBedForm({ ...addBedForm, bed_category_id: e.target.value })}
+                  >
+                    <option value="">-- None / Default --</option>
+                    {bedCategories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="modal-form-group">
+                  <label className="modal-form-label">Bed No. *</label>
+                  <input
+                    type="text"
+                    className="modal-form-input"
+                    placeholder="e.g. GW-101-05"
+                    value={addBedForm.bed_no}
+                    onChange={(e) => setAddBedForm({ ...addBedForm, bed_no: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="modal-form-group">
+                  <label className="modal-form-label">Status</label>
+                  <select
+                    className="modal-form-select"
+                    value={addBedForm.status}
+                    onChange={(e) => setAddBedForm({ ...addBedForm, status: e.target.value })}
+                  >
+                    <option value="available">Available</option>
+                    <option value="occupied">Occupied</option>
+                    <option value="reserved">Reserved</option>
+                    <option value="cleaning">Cleaning</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="blocked">Blocked</option>
+                  </select>
+                </div>
+
+                <div className="modal-form-group">
+                  <label className="modal-form-label">Features</label>
+                  <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                    {[
+                      { key: "oxygen", label: "Oxygen" },
+                      { key: "monitor", label: "Monitor" },
+                      { key: "ventilator", label: "Ventilator" },
+                    ].map((f) => (
+                      <label key={f.key} style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                        <input
+                          type="checkbox"
+                          checked={!!addBedForm.features?.[f.key]}
+                          onChange={(e) =>
+                            setAddBedForm({
+                              ...addBedForm,
+                              features: { ...addBedForm.features, [f.key]: e.target.checked },
+                            })
+                          }
+                        />
+                        {f.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-actions-row">
+                <button type="button" className="modal-btn-cancel" onClick={() => setShowAddBedModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="modal-btn-submit">
+                  Add Bed
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

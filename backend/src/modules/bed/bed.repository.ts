@@ -1,4 +1,5 @@
 import { db } from '../../config/database';
+import { ConflictError, NotFoundError } from '../../shared/errors/AppError';
 
 export class BedRepository {
   async getBeds(facilityId: string) {
@@ -78,11 +79,136 @@ export class BedRepository {
     return result.rows;
   }
 
-  async getBedById(bedId: string) {
+  async getBedById(bedId: string, facilityId: string) {
     const query = `
-      SELECT * FROM beds WHERE id = $1 AND is_active = true
+      SELECT b.*, r.room_no as room_name, w.name as ward_name, w.ward_type as ward_type, bc.name as category_name, bc.is_icu
+      FROM beds b
+      LEFT JOIN rooms r ON b.room_id = r.id
+      JOIN wards w ON b.ward_id = w.id
+      JOIN bed_categories bc ON b.bed_category_id = bc.id
+      WHERE b.id = $1 AND b.facility_id = $2 AND b.is_active = true
+      ORDER BY w.name, r.room_no, b.bed_no
     `;
-    const result = await db.query(query, [bedId]);
+    const result = await db.query(query, [bedId, facilityId]);
+    return result.rows[0];
+  }
+
+  async createBed(data: any) {
+    // Resolve (or auto-create) the ward when only ward reference details are provided
+    let wardId = data.ward_id || null;
+
+    if (!wardId) {
+      const wardQuery = `
+        SELECT id FROM wards
+        WHERE facility_id = $1 AND code = $2 AND is_active = true
+        LIMIT 1;
+      `;
+      const wardRes = await db.query(wardQuery, [data.facility_id, data.ward_code]);
+      if (wardRes.rows.length > 0) {
+        wardId = wardRes.rows[0].id;
+      } else {
+        const wardInsert = await db.query(
+          `INSERT INTO wards (
+            organization_id, facility_id, code, name, ward_type, gender_policy, floor, is_active, created_at, updated_at, created_by, updated_by
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, true, NOW(), NOW(), $8, $9) RETURNING *;`,
+          [
+            data.organization_id || null,
+            data.facility_id,
+            data.ward_code,
+            data.ward_name || data.ward_code,
+            data.ward_type || 'general',
+            data.gender_policy || 'any',
+            data.floor || null,
+            data.created_by || null,
+            data.updated_by || null,
+          ]
+        );
+        wardId = wardInsert.rows[0].id;
+      }
+    }
+
+    // Resolve (or auto-create) the room when room details are provided without an existing room
+    let roomId = data.room_id || null;
+    if (!roomId && data.room_no) {
+      const roomQuery = `SELECT id FROM rooms WHERE ward_id = $1 AND room_no = $2 LIMIT 1;`;
+      const roomRes = await db.query(roomQuery, [wardId, data.room_no]);
+      if (roomRes.rows.length > 0) {
+        roomId = roomRes.rows[0].id;
+      } else {
+        const roomInsert = await db.query(
+          `INSERT INTO rooms (ward_id, room_no, room_type, is_active) VALUES ($1, $2, $3, true) RETURNING *;`,
+          [wardId, data.room_no, data.room_type || 'general']
+        );
+        roomId = roomInsert.rows[0].id;
+      }
+    }
+
+    const exists = await db.query(
+      `SELECT id FROM beds WHERE facility_id = $1 AND ward_id = $2 AND bed_no = $3 AND is_active = true`,
+      [data.facility_id, wardId, data.bed_no]
+    );
+    if (exists.rows.length > 0) {
+      throw new ConflictError(`Bed number '${data.bed_no}' already exists in the specified ward`);
+    }
+
+    const query = `
+      INSERT INTO beds (
+        organization_id, facility_id, ward_id, room_id, bed_category_id,
+        bed_charge_service_id, bed_no, status, features, is_active,
+        created_at, updated_at, created_by, updated_by
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW(), $11, $12
+      ) RETURNING *;
+    `;
+    const result = await db.query(query, [
+      data.organization_id || null,
+      data.facility_id,
+      wardId,
+      roomId,
+      data.bed_category_id || null,
+      data.bed_charge_service_id || null,
+      data.bed_no,
+      data.status || 'available',
+      data.features || {},
+      data.is_active === undefined ? true : data.is_active,
+      data.created_by || null,
+      data.updated_by || null,
+    ]);
+    return result.rows[0];
+  }
+
+  async updateBed(bedId: string, data: any, facilityId: string) {
+    const query = `
+      UPDATE beds
+      SET ward_id = $2, room_id = $3, bed_category_id = $4, bed_charge_service_id = $5,
+          bed_no = $6, status = $7, features = $8, is_active = $9, updated_at = NOW(), updated_by = $10
+      WHERE id = $1 AND facility_id = $11
+      RETURNING *;
+    `;
+    const result = await db.query(query, [
+      bedId,
+      data.ward_id ?? null,
+      data.room_id ?? null,
+      data.bed_category_id ?? null,
+      data.bed_charge_service_id ?? null,
+      data.bed_no,
+      data.status || 'available',
+      data.features || {},
+      data.is_active ?? true,
+      data.updated_by || null,
+      facilityId,
+    ]);
+    return result.rows[0];
+  }
+
+  async softDeleteBed(bedId: string, facilityId: string) {
+    const query = `
+      UPDATE beds
+      SET is_active = false, updated_at = NOW()
+      WHERE id = $1 AND facility_id = $2
+      RETURNING *;
+    `;
+    const result = await db.query(query, [bedId, facilityId]);
     return result.rows[0];
   }
 
@@ -95,5 +221,77 @@ export class BedRepository {
     `;
     const result = await db.query(query, [status, bedId, facilityId]);
     return result.rows[0];
+  }
+
+  async transferBed(data: any) {
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+
+      const fromBed = await client.query(
+        `SELECT * FROM beds WHERE id = $1 AND facility_id = $2 AND is_active = true`,
+        [data.fromBedId, data.facilityId]
+      );
+      if (fromBed.rows.length === 0) {
+        throw new NotFoundError('Source bed not found');
+      }
+
+      const toBed = await client.query(
+        `SELECT * FROM beds WHERE id = $1 AND facility_id = $2 AND is_active = true`,
+        [data.toBedId, data.facilityId]
+      );
+      if (toBed.rows.length === 0) {
+        throw new NotFoundError('Target bed not found');
+      }
+
+      if (fromBed.rows[0].status !== 'occupied') {
+        throw new ConflictError('Source bed is not occupied');
+      }
+      if (toBed.rows[0].status !== 'available') {
+        throw new ConflictError('Target bed is not available');
+      }
+
+      const admissionRes = await client.query(
+        `SELECT admission_id FROM bed_assignments WHERE bed_id = $1 AND assigned_to IS NULL LIMIT 1`,
+        [data.fromBedId]
+      );
+      const admissionId = data.admission_id || admissionRes.rows[0]?.admission_id;
+      if (!admissionId) {
+        throw new NotFoundError('No active admission found for source bed');
+      }
+
+      // Close current assignment on source bed, open new one on target bed
+      await client.query(
+        `UPDATE bed_assignments SET assigned_to = NOW() WHERE bed_id = $1 AND assigned_to IS NULL`,
+        [data.fromBedId]
+      );
+
+      const assignRes = await client.query(
+        `INSERT INTO bed_assignments (admission_id, bed_id, assigned_from) VALUES ($1, $2, NOW()) RETURNING *;`,
+        [admissionId, data.toBedId]
+      );
+
+      await client.query(
+        `UPDATE beds SET status = 'available', updated_at = NOW() WHERE id = $1`,
+        [data.fromBedId]
+      );
+
+      const updatedBed = await client.query(
+        `UPDATE beds SET status = 'occupied', updated_at = NOW() WHERE id = $1 RETURNING *;`,
+        [data.toBedId]
+      );
+
+      await client.query('COMMIT');
+      return updatedBed.rows[0];
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (_) {
+        // ignore rollback errors
+      }
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 }
