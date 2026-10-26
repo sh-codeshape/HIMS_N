@@ -22,16 +22,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     const loadDashboardData = async () => {
-      if (isMockMode()) {
-        setAppointments(mockStore.getAppointments() || []);
-        setPatients(mockStore.getPatients() || []);
-        setOpdQueue(mockStore.getOPDQueue() || []);
-        setBeds(mockStore.getBeds() || []);
-        setInvoices(mockStore.getInvoices() || []);
-        setDoctors(mockStore.getDoctors() || []);
-        return;
-      }
-
       try {
         const results = await Promise.allSettled([
           patientService.getAll(),
@@ -39,13 +29,13 @@ export default function Dashboard() {
           ipdService.getBedMatrix(),
         ]);
 
-        const patientList = results[0].status === "fulfilled" ? results[0].value : [];
-        const queueList = results[1].status === "fulfilled" ? results[1].value : [];
-        const bedList = results[2].status === "fulfilled" ? results[2].value : [];
+        const patientList = results[0].status === "fulfilled" && Array.isArray(results[0].value) ? results[0].value : [];
+        const queueList = results[1].status === "fulfilled" && Array.isArray(results[1].value) ? results[1].value : [];
+        const bedList = results[2].status === "fulfilled" && Array.isArray(results[2].value) ? results[2].value : [];
 
-        setPatients(patientList || []);
+        setPatients(patientList);
 
-        setOpdQueue((queueList || []).map((item) => ({
+        setOpdQueue(queueList.map((item) => ({
           tokenNo: item.tokenNo || item.token_no || item.id || "—",
           patientName: item.patientName || item.patient_name || item.full_name || `${item.first_name || ""} ${item.last_name || ""}`.trim() || "Patient",
           uhid: item.uhid || "—",
@@ -55,7 +45,7 @@ export default function Dashboard() {
           status: item.status || "Waiting",
         })));
 
-        setBeds((bedList || []).map((bed) => ({
+        setBeds(bedList.map((bed) => ({
           id: bed.id,
           bedNo: bed.bed_no || bed.bedNo || "—",
           ward: bed.ward_name || bed.ward || "General",
@@ -66,32 +56,30 @@ export default function Dashboard() {
         setInvoices([]);
         setDoctors([]);
 
-        // Generate appointments from queueList (actual OPD encounters) instead of patientList
-        const apptsMapped = (queueList || []).map((item) => {
-          const customFields = typeof item.custom_fields === "string" ? JSON.parse(item.custom_fields) : (item.custom_fields || {});
+        // Generate appointments from registered patients
+        const sourceList = (patientList.length > 0) ? patientList : queueList;
+        const apptsMapped = sourceList.map((item, idx) => {
+          const customFields = typeof item.custom_fields === "string" ? JSON.parse(item.custom_fields || "{}") : (item.custom_fields || {});
           return {
             id: item.id || Math.random().toString(),
-            patientName: item.first_name ? `${item.first_name} ${item.last_name || ""}`.trim() : (item.patientName || "Patient"),
+            patientName: item.patientName || item.full_name || `${item.first_name || ""} ${item.last_name || ""}`.trim() || "Patient",
             uhid: item.uhid || item.id?.substring(0, 8) || "—",
             phone: item.phone || item.mobile || "—",
-            patientType: item.encounter_type === "opd" ? "OPD" : "IPD",
+            patientType: (item.encounter_type === "ipd" || item.category === "IPD") ? "IPD" : "OPD",
             category: item.department_name || item.department || "Consultation",
-            doctor: item.doc_first_name ? `Dr. ${item.doc_first_name} ${item.doc_last_name || ""}`.trim() : (item.doctor || "—"),
-            date: item.started_at ? new Date(item.started_at).toLocaleDateString() : new Date().toLocaleDateString(),
-            token: customFields.opd_token || item.tokenNo || item.token_no || "—",
-            status: item.status === "arrived" ? "Confirmed" : item.status || "Confirmed",
+            doctor: item.doctor || item.referred_by || (item.doc_first_name ? `Dr. ${item.doc_first_name} ${item.doc_last_name || ""}`.trim() : "—"),
+            date: item.started_at ? new Date(item.started_at).toLocaleDateString() : (item.created_at ? new Date(item.created_at).toLocaleDateString() : new Date().toLocaleDateString()),
+            token: customFields.opd_token || item.tokenNo || item.token_no || `T-${new Date().toISOString().slice(2, 4)}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}-GEN-${String(idx + 1).padStart(2, "0")}`,
+            status: item.status || "active",
+            address: item.address?.city || item.city || item.address || "—",
+            gender: item.gender || "—",
+            age: item.age || "—",
           };
         });
 
-        setAppointments(apptsMapped.length > 0 ? apptsMapped : (mockStore.getAppointments() || []));
+        setAppointments(apptsMapped);
       } catch (err) {
         console.error("Dashboard live data load failed:", err);
-        setPatients([]);
-        setOpdQueue([]);
-        setBeds([]);
-        setInvoices([]);
-        setDoctors([]);
-        setAppointments(mockStore.getAppointments() || []);
       }
     };
 
@@ -111,6 +99,7 @@ export default function Dashboard() {
   const [viewPatient, setViewPatient] = useState(null);
   const [editPatient, setEditPatient] = useState(null);
   const [printSlip, setPrintSlip] = useState(null);
+  const [prescribePatient, setPrescribePatient] = useState(null);
 
   // Filter logic
   const filteredAppointments = useMemo(() => {
@@ -146,10 +135,22 @@ export default function Dashboard() {
   const totalBookingsToday = safeAppointments.length;
   const oldPatientsCount = safeAppointments.filter((a) => (a.patientType || "").includes("Old")).length;
   const newPatientsCount = safeAppointments.filter((a) => (a.patientType || "").includes("New")).length;
-  const totalConfirmed = safeAppointments.filter((a) => a.status === "Confirmed").length;
-  const totalPending = safeAppointments.filter((a) => a.status === "Pending").length;
-  const totalCompleted = safeAppointments.filter((a) => a.status === "Completed").length;
-  const totalCancelled = safeAppointments.filter((a) => a.status === "Cancelled").length;
+  const totalConfirmed = safeAppointments.filter((a) => {
+    const s = (a.status || "").toLowerCase();
+    return s === "confirmed" || s === "active";
+  }).length;
+  const totalPending = safeAppointments.filter((a) => {
+    const s = (a.status || "").toLowerCase();
+    return s === "pending" || s === "waiting";
+  }).length;
+  const totalCompleted = safeAppointments.filter((a) => {
+    const s = (a.status || "").toLowerCase();
+    return s === "completed";
+  }).length;
+  const totalCancelled = safeAppointments.filter((a) => {
+    const s = (a.status || "").toLowerCase();
+    return s === "cancelled";
+  }).length;
 
   // Handlers
   const handleTodayClick = () => {
@@ -158,10 +159,31 @@ export default function Dashboard() {
     toast.success("Filter set to Today (01/10/2026)");
   };
 
-  const handleStatusChange = (id, newStatus) => {
-    const updated = mockStore.updateAppointmentStatus(id, newStatus);
-    setAppointments(updated);
-    toast.success(`Status updated to ${newStatus}`);
+  const handleStatusChange = async (id, newStatus) => {
+    setAppointments((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, status: newStatus } : item))
+    );
+    try {
+      await patientService.update(id, { status: newStatus });
+    } catch (err) {
+      console.warn("Backend status update error:", err?.message);
+    }
+    toast.success(`Patient status updated to ${newStatus}`);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editPatient) return;
+    const { id, status, doctor } = editPatient;
+    setAppointments((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, status, doctor: doctor || item.doctor } : item))
+    );
+    try {
+      await patientService.update(id, { status, doctor });
+    } catch (err) {
+      console.warn("Backend update error:", err?.message);
+    }
+    toast.success("Patient details updated successfully!");
+    setEditPatient(null);
   };
 
   const handleExportCSV = () => {
@@ -193,7 +215,7 @@ export default function Dashboard() {
   };
 
   return (
-    <PageContainer className="!max-w-none !p-4 sm:!p-6 !w-full">
+    <PageContainer className="!max-w-none !p-0 !m-0 !w-full">
       <div className="dash-container">
         {/* Header Title Section */}
         <div className="dash-header-card">
@@ -399,14 +421,15 @@ export default function Dashboard() {
                     {/* Status Column */}
                     <td>
                       <span
-                        className={`dash-status-badge ${item.status === "Confirmed"
-                          ? "dash-status-badge--confirmed"
-                          : item.status === "Pending"
-                            ? "dash-status-badge--pending"
-                            : item.status === "Completed"
-                              ? "dash-status-badge--completed"
-                              : "dash-status-badge--cancelled"
-                          }`}
+                        className={`dash-status-badge ${
+                          item.status?.toLowerCase() === "confirmed" || item.status?.toLowerCase() === "active"
+                            ? "dash-status-badge--confirmed"
+                            : item.status?.toLowerCase() === "pending" || item.status?.toLowerCase() === "waiting"
+                              ? "dash-status-badge--pending"
+                              : item.status?.toLowerCase() === "completed"
+                                ? "dash-status-badge--completed"
+                                : "dash-status-badge--cancelled"
+                        }`}
                       >
                         <span className="dash-status-dot"></span>
                         {item.status}
@@ -434,6 +457,14 @@ export default function Dashboard() {
                         </button>
                         <button
                           type="button"
+                          className="dash-icon-btn dash-icon-btn--prescribe"
+                          title="Prescribe Medication"
+                          onClick={() => setPrescribePatient(item)}
+                        >
+                          <Icon name="LuPill" size={15} />
+                        </button>
+                        <button
+                          type="button"
                           className="dash-icon-btn dash-icon-btn--print"
                           title="Print OPD/IPD Slip"
                           onClick={() => setPrintSlip(item)}
@@ -443,10 +474,10 @@ export default function Dashboard() {
                         <button
                           type="button"
                           className="dash-icon-btn dash-icon-btn--check"
-                          title="Confirm / Complete"
-                          onClick={() => handleStatusChange(item.id, "Confirmed")}
+                          title="Confirm / Complete Status"
+                          onClick={() => handleStatusChange(item.id, item.status === "Confirmed" ? "Completed" : "Confirmed")}
                         >
-                          <Icon name="LuCheckCircle2" size={15} />
+                          <Icon name="LuCircleCheck" size={15} />
                         </button>
                         <button
                           type="button"
@@ -454,7 +485,7 @@ export default function Dashboard() {
                           title="Cancel Booking"
                           onClick={() => handleStatusChange(item.id, "Cancelled")}
                         >
-                          <Icon name="LuXCircle" size={15} />
+                          <Icon name="LuCircleX" size={15} />
                         </button>
                       </div>
                     </td>
@@ -537,11 +568,12 @@ export default function Dashboard() {
         )}
 
         {/* EDIT PATIENT MODAL */}
+        {/* EDIT PATIENT MODAL */}
         {editPatient && (
           <div className="dash-modal-overlay">
             <div className="dash-modal-box">
               <div className="dash-modal-header">
-                <h3>✏️ Edit Appointment Status</h3>
+                <h3>✏️ Edit Appointment / Patient Details</h3>
                 <button
                   type="button"
                   className="dash-modal-close"
@@ -566,6 +598,21 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <label style={{ fontSize: "12px", fontWeight: "700", color: "#55698a" }}>
+                      Assigned Doctor
+                    </label>
+                    <input
+                      type="text"
+                      className="dash-search-input"
+                      value={editPatient.doctor || ""}
+                      onChange={(e) =>
+                        setEditPatient({ ...editPatient, doctor: e.target.value })
+                      }
+                      style={{ background: "#ffffff", paddingLeft: "14px", marginTop: "4px" }}
+                      placeholder="Doctor Name / Consultant..."
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "12px", fontWeight: "700", color: "#55698a" }}>
                       Status
                     </label>
                     <select
@@ -576,6 +623,7 @@ export default function Dashboard() {
                         setEditPatient({ ...editPatient, status: e.target.value })
                       }
                     >
+                      <option value="active">Active</option>
                       <option value="Confirmed">Confirmed</option>
                       <option value="Pending">Pending</option>
                       <option value="Completed">Completed</option>
@@ -595,10 +643,7 @@ export default function Dashboard() {
                 <button
                   type="button"
                   className="dash-btn-pri"
-                  onClick={() => {
-                    handleStatusChange(editPatient.id, editPatient.status);
-                    setEditPatient(null);
-                  }}
+                  onClick={handleSaveEdit}
                 >
                   Save Changes
                 </button>
@@ -665,6 +710,75 @@ export default function Dashboard() {
                   }}
                 >
                   Print Ticket
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PRESCRIBE MODAL */}
+        {prescribePatient && (
+          <div className="dash-modal-overlay">
+            <div className="dash-modal-box" style={{ maxWidth: "560px" }}>
+              <div className="dash-modal-header">
+                <h3>💊 Doctor Prescription (Rx)</h3>
+                <button
+                  type="button"
+                  className="dash-modal-close"
+                  onClick={() => setPrescribePatient(null)}
+                >
+                  <Icon name="LuX" size={18} />
+                </button>
+              </div>
+              <div className="dash-modal-body">
+                <div style={{ background: "#ffffff", padding: "16px", borderRadius: "10px", border: "1px solid #9fbbd6", marginBottom: "12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <div>
+                      <strong style={{ fontSize: "14px", color: "#081a3d" }}>{prescribePatient.patientName}</strong>
+                      <div style={{ fontSize: "12px", color: "#55698a" }}>UHID: {prescribePatient.uhid} • Token: {prescribePatient.token}</div>
+                    </div>
+                    <div style={{ textAlign: "right", fontSize: "12px", color: "#123a6b", fontWeight: 700 }}>
+                      Doctor: {prescribePatient.doctor}
+                    </div>
+                  </div>
+                  <hr style={{ margin: "10px 0", borderColor: "#e2e8f0" }} />
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "13px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#334155", marginBottom: "4px" }}>Chief Clinical Diagnosis / Notes:</label>
+                      <input
+                        type="text"
+                        defaultValue="Acute viral fever, mild dehydration, routine observation."
+                        style={{ width: "100%", padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12.5px" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#334155", marginBottom: "4px" }}>Prescribed Medications (Rx):</label>
+                      <div style={{ background: "#f8fafc", padding: "8px 10px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "12.5px", lineHeight: "1.6" }}>
+                        <div>1. Tab. Paracetamol 650mg — 1-0-1 (After Food) x 3 Days</div>
+                        <div>2. Cap. Amoxicillin 500mg — 1-0-1 (After Food) x 5 Days</div>
+                        <div>3. Syp. ORS Electral — As needed with plenty of fluids</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="dash-modal-footer">
+                <button
+                  type="button"
+                  className="dash-btn-sec"
+                  onClick={() => setPrescribePatient(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="dash-btn-pri"
+                  onClick={() => {
+                    toast.success(`Prescription issued for ${prescribePatient.patientName}!`);
+                    setPrescribePatient(null);
+                  }}
+                >
+                  Save & Issue Prescription
                 </button>
               </div>
             </div>

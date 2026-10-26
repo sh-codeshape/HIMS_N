@@ -6,7 +6,7 @@ export default function BedAllotment() {
   return (
     <PageContainer
       title="IPD Bed Allotment & Ward Matrix"
-      subtitle="Real-time hospital bed occupancy, ward allocation, and ICU monitoring"
+     
     >
       <BedMatrixGrid />
     </PageContainer>

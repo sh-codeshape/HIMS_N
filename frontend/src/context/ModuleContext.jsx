@@ -51,7 +51,8 @@ export function ModuleProvider({ children }) {
 
   const isModuleEnabled = (moduleKey) => {
     if (!moduleKey) return true;
-    return enabledModules[moduleKey] === true; // Only enabled if explicitly true
+    if (Object.keys(enabledModules).length === 0) return true;
+    return enabledModules[moduleKey] !== false;
   };
 
   const value = useMemo(

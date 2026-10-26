@@ -23,9 +23,9 @@
 
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
-  padding: 20px 24px;
+  padding: 10px 14px;
   box-sizing: border-box;
   font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
   color: var(--ink);
@@ -33,7 +33,7 @@
     radial-gradient(1200px 500px at 100% 0%, rgba(120, 180, 235, 0.28), transparent 70%),
     linear-gradient(160deg, #dbe9f6 0%, #c3d9ec 55%, #b3cde5 100%);
   border: 1px solid rgba(159, 187, 214, 0.35);
-  border-radius: 16px;
+  border-radius: 8px;
   box-shadow:
     0 10px 30px -5px rgba(8, 26, 61, 0.08),
     0 4px 12px -2px rgba(8, 26, 61, 0.04);
@@ -517,15 +517,16 @@
 .dash-actions-cell {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  white-space: nowrap;
 }
 
 .dash-icon-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
+  width: 29px;
+  height: 29px;
+  border-radius: 6px;
   border: 1px solid var(--line);
-  background: var(--sky-100);
+  background: #ffffff;
   color: var(--navy-700);
   display: inline-flex;
   align-items: center;
@@ -536,14 +537,26 @@
 
 .dash-icon-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(8, 26, 61, 0.18);
+  box-shadow: 0 3px 8px rgba(8, 26, 61, 0.2);
 }
 
-.dash-icon-btn--view:hover { color: #ffffff; background: var(--blue-500); border-color: var(--blue-500); }
-.dash-icon-btn--edit:hover { color: var(--navy-900); background: var(--gold); border-color: #e0ac1f; }
-.dash-icon-btn--print:hover { color: #ffffff; background: var(--navy-700); border-color: var(--navy-700); }
-.dash-icon-btn--check:hover { color: #ffffff; background: var(--green); border-color: #0a7d55; }
-.dash-icon-btn--cross:hover { color: #ffffff; background: var(--red); border-color: #b91c1c; }
+.dash-icon-btn--view { color: #0284c7; background: #f0f9ff; border-color: #bae6fd; }
+.dash-icon-btn--view:hover { color: #ffffff; background: #0284c7; border-color: #0284c7; }
+
+.dash-icon-btn--edit { color: #b45309; background: #fef3c7; border-color: #fde68a; }
+.dash-icon-btn--edit:hover { color: #ffffff; background: #d97706; border-color: #b45309; }
+
+.dash-icon-btn--prescribe { color: #7c3aed; background: #f5f3ff; border-color: #ddd6fe; }
+.dash-icon-btn--prescribe:hover { color: #ffffff; background: #7c3aed; border-color: #6d28d9; }
+
+.dash-icon-btn--print { color: #1e3a8a; background: #eff6ff; border-color: #bfdbfe; }
+.dash-icon-btn--print:hover { color: #ffffff; background: #1d4ed8; border-color: #1e40af; }
+
+.dash-icon-btn--check { color: #15803d; background: #f0fdf4; border-color: #bbf7d0; }
+.dash-icon-btn--check:hover { color: #ffffff; background: #16a34a; border-color: #15803d; }
+
+.dash-icon-btn--cross { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
+.dash-icon-btn--cross:hover { color: #ffffff; background: #dc2626; border-color: #b91c1c; }
 
 .dash-icon-btn:focus-visible,
 .dash-btn-today:focus-visible,

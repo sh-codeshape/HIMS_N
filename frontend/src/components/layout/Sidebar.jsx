@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import sidebarConfig from "../../config/sidebarConfig";
 import { useAuth } from "../../auth/AuthContext.jsx";
 import { useRole } from "../../hooks/useRole";
@@ -10,11 +10,54 @@ import "./Sidebar.css";
 
 export default function Sidebar() {     
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuth();
   const { roles } = useRole();
   const { isModuleEnabled } = useModules();
-  const [openKey, setOpenKey] = useState(null);
+
+  const isPathActive = (targetPath) => {
+    if (!targetPath) return false;
+    const current = location.pathname.toLowerCase();
+    const target = targetPath.toLowerCase();
+    if (current === target) return true;
+    if (target !== "/" && current.startsWith(target + "/")) return true;
+    if (target === "/laboratory/report-summary" && current === "/laboratory/report-entry") return true;
+    return false;
+  };
+
+  const isGroupActive = (item) => {
+    if (item.children?.length) {
+      if (item.children.some((child) => isPathActive(child.path))) return true;
+      const firstSegment = location.pathname.split("/")[1]?.toLowerCase();
+      if (firstSegment) {
+        const childSegments = item.children
+          .map((c) => c.path.split("/")[1]?.toLowerCase())
+          .filter(Boolean);
+        if (childSegments.includes(firstSegment)) return true;
+      }
+    }
+    if (item.path && isPathActive(item.path)) return true;
+    return false;
+  };
+
+  const getActiveGroupKey = () => {
+    for (const item of sidebarConfig) {
+      if (item.children?.length && isGroupActive(item)) {
+        return item.key;
+      }
+    }
+    return null;
+  };
+
+  const [openKey, setOpenKey] = useState(() => getActiveGroupKey());
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  useEffect(() => {
+    const activeKey = getActiveGroupKey();
+    if (activeKey) {
+      setOpenKey(activeKey);
+    }
+  }, [location.pathname]);
 
   if (!user) return null;
 
@@ -86,14 +129,16 @@ export default function Sidebar() {
                     return itemVisible(childWithKey);
                   })
                 : [];
+              const groupActive = isGroupActive(item);
               const isOpen = openKey === item.key;
 
               if (!hasChildren) {
+                const itemActive = isPathActive(item.path);
                 return (
                   <NavLink
                     key={item.key}
                     to={item.path}
-                    className={({ isActive }) => `sidebar__item ${isActive ? "sidebar__item--active" : ""}`}
+                    className={({ isActive }) => `sidebar__item ${isActive || itemActive ? "sidebar__item--active" : ""}`}
                   >
                     <Icon name={item.icon} size={20} />
                     <span>{item.label}</span>
@@ -105,11 +150,11 @@ export default function Sidebar() {
                 <div key={item.key} className="sidebar__group">
                   <button
                     type="button"
-                    className={`sidebar__item sidebar__item--toggle ${isOpen ? "sidebar__item--open" : ""}`}
+                    className={`sidebar__item sidebar__item--toggle ${isOpen ? "sidebar__item--open" : ""} ${groupActive ? "sidebar__item--active" : ""}`}
                     onClick={() => {
                       const nextOpen = isOpen ? null : item.key;
                       setOpenKey(nextOpen);
-                      if (item.key === "laboratory" && item.children?.[0]?.path) {
+                      if (item.key === "laboratory" && !groupActive && item.children?.[0]?.path) {
                         navigate(item.children[0].path);
                       }
                     }}
@@ -126,17 +171,20 @@ export default function Sidebar() {
 
                   {isOpen && (
                     <div className="sidebar__submenu">
-                      {visibleChildren.map((child) => (
-                        <NavLink
-                          key={child.path}
-                          to={child.path}
-                          className={({ isActive }) =>
-                            `sidebar__subitem ${isActive ? "sidebar__subitem--active" : ""}`
-                          }
-                        >
-                          {child.label}
-                        </NavLink>
-                      ))}
+                      {visibleChildren.map((child) => {
+                        const childActive = isPathActive(child.path);
+                        return (
+                          <NavLink
+                            key={child.path}
+                            to={child.path}
+                            className={({ isActive }) =>
+                              `sidebar__subitem ${isActive || childActive ? "sidebar__subitem--active" : ""}`
+                            }
+                          >
+                            {child.label}
+                          </NavLink>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

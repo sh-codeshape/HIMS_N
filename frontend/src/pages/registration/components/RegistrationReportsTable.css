@@ -22,14 +22,16 @@
 
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   width: 100%;
+  min-height: calc(100vh - 64px);
   box-sizing: border-box;
-  padding: 18px;
+  padding: 8px 12px;
+  margin: 0;
   font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
   color: var(--ink);
   background:
-    radial-gradient(900px 380px at 100% 0%, rgba(120, 180, 235, 0.35), transparent 60%),
+    radial-gradient(1200px 500px at 100% 0%, rgba(120, 180, 235, 0.28), transparent 70%),
     linear-gradient(160deg, #dbe9f6 0%, #c3d9ec 55%, #b3cde5 100%);
 }
 .rr-page *, .rr-page *::before, .rr-page *::after,
@@ -62,12 +64,12 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 14px 18px;
-  border-radius: 14px;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: linear-gradient(100deg, var(--navy-800) 0%, var(--blue-600) 100%);
-  box-shadow: 0 6px 16px rgba(8, 26, 61, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 14px rgba(8, 26, 61, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 .rr-header-left { display: flex; align-items: center; gap: 14px; }
 .rr-header-icon {
@@ -166,16 +168,17 @@
 /* ---------- Table card ---------- */
 .rr-card {
   background: #fff;
-  border: 2px solid var(--navy-700);
-  border-radius: 14px;
-  box-shadow: 0 8px 22px rgba(8, 26, 61, 0.14);
+  border: 1.5px solid var(--navy-700);
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(8, 26, 61, 0.1);
   overflow: hidden;
+  width: 100%;
 }
 .rr-table-wrap { overflow-x: auto; }
 .rr-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 
 .rr-table th {
-  padding: 14px 18px;
+  padding: 11px 14px;
   text-align: left;
   white-space: nowrap;
   background: linear-gradient(180deg, var(--navy-700), var(--navy-800));
@@ -183,11 +186,11 @@
   font-size: 11.5px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  border-bottom: 3px solid var(--gold);
+  letter-spacing: 0.06em;
+  border-bottom: 2.5px solid var(--gold);
 }
 .rr-table td {
-  padding: 13px 18px;
+  padding: 10px 14px;
   white-space: nowrap;
   vertical-align: middle;
   background: #fff;
@@ -244,34 +247,112 @@
 .rr-status:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(8, 26, 61, 0.15); }
 .rr-status-dot { width: 7px; height: 7px; border-radius: 50%; }
 
-.rr-actions { display: flex; align-items: center; gap: 6px; }
+.rr-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .rr-act {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  min-width: 30px;
-  height: 30px;
-  padding: 0 8px;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
-  border: 1px solid var(--line);
-  background: var(--sky-100);
-  color: var(--navy-700);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 800;
+  border: 1.5px solid transparent;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(8, 26, 61, 0.08);
+  position: relative;
 }
-.rr-act:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(8, 26, 61, 0.18); }
-.rr-act--view { padding: 0 11px; }
-.rr-act--view:hover { color: #fff; background: var(--blue-500); border-color: var(--blue-500); }
-.rr-act--edit:hover { color: var(--navy-900); background: var(--gold); border-color: #e0ac1f; }
-.rr-act--status:hover { color: #fff; background: #7c3aed; border-color: #6d28d9; }
-.rr-act--cancel:hover { color: #fff; background: var(--red); border-color: #b91c1c; }
-.rr-act--locked { background: #eef2f7; color: #aab7c8; border-color: #d5dde8; cursor: not-allowed; }
-.rr-act--locked:hover { transform: none; box-shadow: none; background: #eef2f7; color: #aab7c8; border-color: #d5dde8; }
-.rr-act:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.rr-act svg {
+  transition: transform 0.18s ease;
+}
+
+.rr-act:hover {
+  transform: translateY(-2px);
+}
+
+.rr-act:hover svg {
+  transform: scale(1.15);
+}
+
+/* 1. View button (Sapphire Blue) */
+.rr-act--view {
+  background: linear-gradient(145deg, #f0f7ff, #dbeafe);
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  box-shadow: 0 1px 3px rgba(29, 78, 216, 0.12);
+}
+.rr-act--view:hover {
+  background: linear-gradient(145deg, #2563eb, #1d4ed8);
+  border-color: #1e40af;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.35);
+}
+
+/* 2. Edit button (Golden Amber) */
+.rr-act--edit {
+  background: linear-gradient(145deg, #fffbeb, #fef08a);
+  border-color: #fde047;
+  color: #92400e;
+  box-shadow: 0 1px 3px rgba(146, 64, 14, 0.12);
+}
+.rr-act--edit:hover {
+  background: linear-gradient(145deg, #f59e0b, #d97706);
+  border-color: #b45309;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.35);
+}
+
+/* 3. Status button (Amethyst Purple) */
+.rr-act--status {
+  background: linear-gradient(145deg, #faf5ff, #ede9fe);
+  border-color: #c4b5fd;
+  color: #6d28d9;
+  box-shadow: 0 1px 3px rgba(109, 40, 217, 0.12);
+}
+.rr-act--status:hover {
+  background: linear-gradient(145deg, #8b5cf6, #7c3aed);
+  border-color: #5b21b6;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+}
+
+/* 4. Cancel / Delete button (Ruby Red) */
+.rr-act--cancel {
+  background: linear-gradient(145deg, #fff5f5, #fee2e2);
+  border-color: #fca5a5;
+  color: #b91c1c;
+  box-shadow: 0 1px 3px rgba(185, 28, 28, 0.12);
+}
+.rr-act--cancel:hover:not(:disabled) {
+  background: linear-gradient(145deg, #ef4444, #dc2626);
+  border-color: #991b1b;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
+}
+
+/* Locked and Disabled states */
+.rr-act--locked {
+  background: #f1f5f9;
+  color: #94a3b8;
+  border-color: #cbd5e1;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.rr-act--locked:hover {
+  transform: none;
+  box-shadow: none;
+}
+.rr-act:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
 
 .rr-empty { padding: 56px 16px; text-align: center; }
 .rr-empty svg { color: var(--line); margin-bottom: 10px; }

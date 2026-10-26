@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import PageContainer from "../../components/common/PageContainer.jsx";
 import { RegistrationReportsTable } from "./components";
 import patientService from "../../api/services/patientService";
 import { isMockMode } from "../../config/appConfig";
@@ -27,11 +26,5 @@ export default function RegistrationReports() {
     loadPatients();
   }, []);
 
-  return (
-    <PageContainer
-    
-    >
-      <RegistrationReportsTable patients={patients} />
-    </PageContainer>
-  );
+  return <RegistrationReportsTable patients={patients} />;
 }
