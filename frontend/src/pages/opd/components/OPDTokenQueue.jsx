@@ -95,12 +95,53 @@ const POPULAR_COMPLAINTS = [
   "Vomiting", "Abdominal Pain", "Body Pain", "Weakness", "Other"
 ];
 
+
+// Safe Date Formatter for Patient Details Modal
+const formatPatientDate = (val) => {
+  if (!val || val === "—") return "—";
+  try {
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return val;
+    return d.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    });
+  } catch {
+    return val;
+  }
+};
+
+const formatPatientDateTime = (val) => {
+  if (!val || val === "—") return "—";
+  try {
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return val;
+    return (
+      d.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric"
+      }) +
+      ", " +
+      d.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true
+      })
+    );
+  } catch {
+    return val;
+  }
+};
+
 export default function OPDTokenQueue() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [familyMembers, setFamilyMembers] = useState([]);
+  const [showPatientModal, setShowPatientModal] = useState(false);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -139,7 +180,54 @@ export default function OPDTokenQueue() {
   const [consultationType, setConsultationType] = useState("General OPD");
 
   // Form Section 5: Fee & Billing
-  const [registrationFee] = useState(100);
+  const [showFeeSection, setShowFeeSection] = useState(false);
+  // Fee Particulars Table Rows (Matching Image 1)
+  const [particulars, setParticulars] = useState([
+    { id: 1, service: "OPD Consultation Fee", charge: 500, qty: 1, amount: 500 },
+    { id: 2, service: "Registration Fee", charge: 100, qty: 1, amount: 100 }
+  ]);
+
+  const handleParticularChange = (id, field, value) => {
+    setParticulars((prev) =>
+      prev.map((row) => {
+        if (row.id !== id) return row;
+        const updated = { ...row, [field]: value };
+        if (field === "service") {
+          if (value === "OPD Consultation Fee") updated.charge = consultationFee;
+          else if (value === "Registration Fee") updated.charge = registrationFee;
+          else if (value === "Emergency OPD Fee") updated.charge = 700;
+          else if (value === "Follow-up Consultation Fee") updated.charge = 300;
+          else if (value === "Dressing / Minor Procedure") updated.charge = 200;
+          else if (value === "Nursing / Service Charge") updated.charge = 150;
+        }
+        const charge = Number(updated.charge) || 0;
+        const qty = Number(updated.qty) || 1;
+        updated.amount = charge * qty;
+
+        if (updated.service === "OPD Consultation Fee") setConsultationFee(charge);
+        if (updated.service === "Registration Fee") setRegistrationFee(charge);
+
+        return updated;
+      })
+    );
+  };
+
+  const handleAddParticularRow = () => {
+    const newId = particulars.length > 0 ? Math.max(...particulars.map((p) => p.id)) + 1 : 1;
+    setParticulars((prev) => [
+      ...prev,
+      { id: newId, service: "", charge: 0, qty: 1, amount: 0 }
+    ]);
+  };
+
+  const handleRemoveParticularRow = (id) => {
+    if (particulars.length <= 1) {
+      toast.error("At least one fee row is required");
+      return;
+    }
+    setParticulars((prev) => prev.filter((p) => p.id !== id));
+  };
+  const [registrationFee, setRegistrationFee] = useState(100);
   const [consultationFee, setConsultationFee] = useState(500);
   const [serviceFee, setServiceFee] = useState(0);
   const [discount, setDiscount] = useState(0);
@@ -276,8 +364,8 @@ export default function OPDTokenQueue() {
     }
   };
 
-  // Billing Calculations
-  const subTotal = Number(consultationFee || 0) + Number(registrationFee || 0) + Number(serviceFee || 0);
+  // Billing Calculations - Calculated dynamically from particulars table rows
+  const subTotal = particulars.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   const totalAmount = Math.max(0, subTotal - Number(discount || 0));
 
   // Form Submit Handler
@@ -498,8 +586,13 @@ export default function OPDTokenQueue() {
           </div>
 
           <div className="opd-pb-right">
-            <button type="button" className="opd-btn-view-profile">
-              <Icon name="LuEye" size={14} /> View Full Profile
+            <button
+              type="button"
+              className="opd-btn-view-patient"
+              onClick={() => setShowPatientModal(true)}
+              title="View Complete Patient Profile"
+            >
+              <Icon name="LuEye" size={14} /> View Patient
             </button>
           </div>
         </div>
@@ -544,494 +637,401 @@ export default function OPDTokenQueue() {
       )}
 
       {/* ── MAIN FORM CONTAINER: 2 COLUMNS ── */}
-      <form onSubmit={handleRegisterOPD} className="opd-form-grid">
-        {/* ── LEFT COLUMN ── */}
-        <div className="opd-left-col">
-          {/* SECTION 1: VISIT DETAILS */}
-          <div className="opd-card">
-            <h3
-              className="opd-card-title"
-              onClick={() => setVisitDetailsOpen((prev) => !prev)}
-              style={{ cursor: "pointer", userSelect: "none", marginBottom: visitDetailsOpen ? undefined : 0 }}
-            >
-              <Icon name="LuCalendar" size={16} className="title-icon" /> 1. Visit Details
-              <span className="opd-title-meta">
-                {visitType} • {visitDate}
-              </span>
-              <span className="opd-title-caret">{visitDetailsOpen ? "▲" : "▼"}</span>
-            </h3>
-            {visitDetailsOpen && (
-              <>
-            <div className="opd-form-row col-2">
-              <div className="opd-field-group">
-                <label className="opd-label">Visit Type <span className="req">*</span></label>
-                <select
-                  className="opd-select"
-                  value={visitType}
-                  onChange={(e) => setVisitType(e.target.value)}
-                >
-                  <option value="New Visit">New Visit</option>
-                  <option value="Follow-up">Follow-up</option>
-                  <option value="Emergency">Emergency</option>
-                </select>
-              </div>
+      <form onSubmit={handleRegisterOPD} className="opd-form-full">
+        {/* SECTION 1: OPD CONSULTATION DETAILS */}
+        <div className="opd-card">
+          <h3 className="opd-card-title">
+            <Icon name="LuStethoscope" size={16} className="title-icon" /> OPD Consultation Details <span className="opd-hint">· परामर्श विवरण</span>
+          </h3>
 
-              <div className="opd-field-group">
+          <div className="opd-form-row col-3">
+            {/* 1. Patient Complaint Multi-Select Dropdown */}
+            <div className="opd-field-group">
+              <div className="flex-justify-between">
                 <label className="opd-label">
-                  Visit Date <span className="req">*</span> <span className="opd-hint">· तारीख (DD/MM/YYYY)</span>
+                  Patient Complaint <span className="req">*</span> <span className="opd-hint">· मरीज की समस्या (Multiple Select)</span>
                 </label>
-                <input
-                  type="date"
-                  className="opd-input"
-                  value={visitDate}
-                  onChange={(e) => setVisitDate(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="opd-form-row col-3" style={{ marginTop: '16px' }}>
-              <div className="opd-field-group">
-                <label className="opd-label">
-                  Attendant Name <span className="opd-hint">· परिचारक (Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  className="opd-input"
-                  placeholder="Enter attendant name"
-                  value={attendantName}
-                  onChange={(e) => setAttendantName(e.target.value)}
-                />
-              </div>
-              <div className="opd-field-group">
-                <label className="opd-label">Relation <span className="opd-hint">· संबंध</span></label>
-                <select 
-                  className="opd-select"
-                  value={attendantRelation}
-                  onChange={(e) => setAttendantRelation(e.target.value)}
-                >
-                  <option value="">-- Select Relation --</option>
-                  <option value="Father">Father</option>
-                  <option value="Mother">Mother</option>
-                  <option value="Spouse">Spouse</option>
-                  <option value="Son">Son</option>
-                  <option value="Daughter">Daughter</option>
-                  <option value="Brother">Brother</option>
-                  <option value="Sister">Sister</option>
-                  <option value="Friend">Friend</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div className="opd-field-group">
-                <label className="opd-label">Attendant Phone <span className="opd-hint">· मोबाइल</span></label>
-                <input
-                  type="text"
-                  className="opd-input"
-                  placeholder="10-digit mobile"
-                  value={attendantPhone}
-                  maxLength={10}
-                  onChange={(e) => setAttendantPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                />
-              </div>
-            </div>
-              </>
-            )}
-          </div>
-
-          {/* SECTION 2: PATIENT COMPLAINT (MULTI-SELECT DROPDOWN + CHIPS IN BOX) */}
-          <div className="opd-card">
-            <h3 className="opd-card-title">
-              <Icon name="LuFileText" size={16} className="title-icon" /> 2. Patient Complaint <span className="opd-hint">· मरीज की समस्या</span>
-            </h3>
-
-            <div className="opd-form-row col-1">
-              {/* Complaint Multi-Select Box */}
-              <div className="opd-field-group" ref={complaintRef}>
-                <div className="flex-justify-between">
-                  <label className="opd-label">
-                    Chief Complaint / Main Problem <span className="req">*</span> <span className="opd-hint">· मुख्य समस्या (Select Multiple)</span>
-                  </label>
-                  {selectedComplaints.length > 0 && (
-                    <span className="opd-complaint-count-badge">
-                      <strong>{selectedComplaints.length}</strong> selected
-                    </span>
-                  )}
-                </div>
-
-                {/* THE MULTI-SELECT TRIGGER BOX WITH INLINE TAGS */}
-                <div
-                  className={`opd-complaint-select-box ${showComplaintDropdown ? "open" : ""}`}
-                  onClick={() => {
-                    setShowComplaintDropdown(true);
-                    if (complaintInputRef.current) complaintInputRef.current.focus();
-                  }}
-                >
-                  <div className="opd-complaint-box-left">
-                    <Icon name="LuSearch" size={16} className="opd-complaint-search-icon" />
-
-                    <div className="opd-complaint-chips-wrap">
-                      {selectedComplaints.map((item) => (
-                        <span key={item} className="opd-complaint-chip">
-                          <span className="opd-complaint-chip-text">{item}</span>
-                          <button
-                            type="button"
-                            className="opd-complaint-chip-remove"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeComplaint(item);
-                            }}
-                            title={`Remove ${item}`}
-                          >
-                            ✕
-                          </button>
-                        </span>
-                      ))}
-
-                      <input
-                        ref={complaintInputRef}
-                        type="text"
-                        className="opd-complaint-inline-input"
-                        placeholder={
-                          selectedComplaints.length === 0
-                            ? "Click to select or search complaints / समस्याएं चुनें..."
-                            : "Type to search or add more..."
-                        }
-                        value={complaintSearch}
-                        onChange={(e) => {
-                          setComplaintSearch(e.target.value);
-                          setShowComplaintDropdown(true);
-                        }}
-                        onFocus={() => setShowComplaintDropdown(true)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && complaintSearch.trim()) {
-                            e.preventDefault();
-                            addCustomComplaint();
-                          }
-                          if (e.key === "Backspace" && !complaintSearch && selectedComplaints.length > 0) {
-                            removeComplaint(selectedComplaints[selectedComplaints.length - 1]);
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="opd-complaint-box-actions">
-                    {selectedComplaints.length > 0 && (
-                      <button
-                        type="button"
-                        className="opd-complaint-clear-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedComplaints([]);
-                        }}
-                        title="Clear all selected"
-                      >
-                        Clear
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className={`opd-complaint-toggle-btn ${showComplaintDropdown ? "active" : ""}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowComplaintDropdown((prev) => !prev);
-                      }}
-                      title="Toggle Dropdown"
-                    >
-                      <Icon name={showComplaintDropdown ? "LuChevronUp" : "LuChevronDown"} size={16} />
-                    </button>
-                  </div>
-
-                  {/* ── MULTI-SELECT DROPDOWN MENU ── */}
-                  {showComplaintDropdown && (
-                    <div
-                      className="opd-complaint-dropdown"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {/* Dropdown Header with Category Tabs */}
-                      <div className="opd-dropdown-cat-tabs">
-                        {["All", ...COMPLAINT_CATEGORIES.map((c) => c.category)].map((cat) => (
-                          <button
-                            key={cat}
-                            type="button"
-                            className={`opd-cat-tab-btn ${activeComplaintCat === cat ? "active" : ""}`}
-                            onClick={() => setActiveComplaintCat(cat)}
-                          >
-                            {cat}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Dropdown Item List */}
-                      <div className="opd-dropdown-scroll-list">
-                        {COMPLAINT_CATEGORIES
-                          .filter((c) => activeComplaintCat === "All" || activeComplaintCat === c.category)
-                          .map((cat) => {
-                            const filteredItems = cat.items.filter((item) =>
-                              item.toLowerCase().includes(complaintSearch.toLowerCase())
-                            );
-                            if (filteredItems.length === 0) return null;
-
-                            return (
-                              <div key={cat.category} className="opd-dropdown-cat-section">
-                                <div className="opd-dropdown-cat-heading">
-                                  <span>{cat.category}</span>
-                                </div>
-                                <div className="opd-dropdown-grid">
-                                  {filteredItems.map((item) => {
-                                    const isSelected = selectedComplaints.includes(item);
-                                    return (
-                                      <div
-                                        key={item}
-                                        className={`opd-dropdown-row ${isSelected ? "selected" : ""}`}
-                                        onClick={() => {
-                                          if (item === "Other" || item.includes("Other")) {
-                                            setShowOtherInput(true);
-                                          } else {
-                                            toggleComplaint(item);
-                                          }
-                                        }}
-                                      >
-                                        <div className="opd-dropdown-row-main">
-                                          <span className={`opd-dropdown-checkbox ${isSelected ? "checked" : ""}`}>
-                                            {isSelected ? "✓" : ""}
-                                          </span>
-                                          <span className="opd-dropdown-item-label">{item}</span>
-                                        </div>
-                                        {isSelected && (
-                                          <span className="opd-dropdown-item-badge">Selected</span>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            );
-                          })}
-
-                        {/* If search query has custom text, offer instant add */}
-                        {complaintSearch.trim() && (
-                          <div
-                            className="opd-dropdown-custom-row"
-                            onClick={addCustomComplaint}
-                          >
-                            <Icon name="LuPlus" size={16} />
-                            <span>Add custom problem: <strong>"{complaintSearch}"</strong></span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Dropdown Footer Action Bar */}
-                      <div className="opd-dropdown-action-bar">
-                        <div className="opd-dropdown-counter">
-                          <strong>{selectedComplaints.length}</strong> problem(s) selected
-                        </div>
-                        <div className="opd-dropdown-footer-btns">
-                          {selectedComplaints.length > 0 && (
-                            <button
-                              type="button"
-                              className="opd-dropdown-btn-reset"
-                              onClick={() => setSelectedComplaints([])}
-                            >
-                              Reset
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            className="opd-dropdown-btn-done"
-                            onClick={() => setShowComplaintDropdown(false)}
-                          >
-                            Done / Apply (पूर्ण)
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Other Complaint Input Box */}
-                {showOtherInput && (
-                  <div className="other-complaint-box">
-                    <input
-                      type="text"
-                      className="opd-input other-complaint-input"
-                      placeholder="Type other problem / अन्य समस्या दर्ज करें..."
-                      value={otherComplaintText}
-                      onChange={(e) => setOtherComplaintText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddOtherComplaint();
-                        }
-                      }}
-                      autoFocus
-                    />
-                    <button
-                      type="button"
-                      className="other-add-btn"
-                      onClick={handleAddOtherComplaint}
-                    >
-                      + Add / जोड़ें
-                    </button>
-                    <button
-                      type="button"
-                      className="other-cancel-btn"
-                      onClick={() => {
-                        setShowOtherInput(false);
-                        setOtherComplaintText("");
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </div>
+                {selectedComplaints.length > 0 && (
+                  <span className="opd-complaints-count-badge">
+                    {selectedComplaints.length} selected
+                  </span>
                 )}
               </div>
+              <select
+                className="opd-select"
+                value=""
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (!val) return;
+                  if (val === "Other") {
+                    setShowOtherInput(true);
+                  } else {
+                    if (!selectedComplaints.includes(val)) {
+                      setSelectedComplaints([...selectedComplaints, val]);
+                    }
+                  }
+                }}
+              >
+                <option value="">
+                  {selectedComplaints.length === 0
+                    ? "— Select Complaint / समस्या चुनें —"
+                    : "+ Add more problem / और समस्या जोड़ें..."}
+                </option>
+                <option value="Fever" disabled={selectedComplaints.includes("Fever")}>
+                  {selectedComplaints.includes("Fever") ? "✓ Fever (Added)" : "Fever (बुखार)"}
+                </option>
+                <option value="Cough & Cold" disabled={selectedComplaints.includes("Cough & Cold")}>
+                  {selectedComplaints.includes("Cough & Cold") ? "✓ Cough & Cold (Added)" : "Cough & Cold (खांसी और जुकाम)"}
+                </option>
+                <option value="Headache" disabled={selectedComplaints.includes("Headache")}>
+                  {selectedComplaints.includes("Headache") ? "✓ Headache (Added)" : "Headache (सिरदर्द)"}
+                </option>
+                <option value="Body Pain" disabled={selectedComplaints.includes("Body Pain")}>
+                  {selectedComplaints.includes("Body Pain") ? "✓ Body Pain (Added)" : "Body Pain (बदन दर्द)"}
+                </option>
+                <option value="Chest Pain" disabled={selectedComplaints.includes("Chest Pain")}>
+                  {selectedComplaints.includes("Chest Pain") ? "✓ Chest Pain (Added)" : "Chest Pain (छाती में दर्द)"}
+                </option>
+                <option value="Abdominal Pain" disabled={selectedComplaints.includes("Abdominal Pain")}>
+                  {selectedComplaints.includes("Abdominal Pain") ? "✓ Abdominal Pain (Added)" : "Abdominal Pain (पेट दर्द)"}
+                </option>
+                <option value="Vomiting" disabled={selectedComplaints.includes("Vomiting")}>
+                  {selectedComplaints.includes("Vomiting") ? "✓ Vomiting (Added)" : "Vomiting / Nausea (उल्टी / मतली)"}
+                </option>
+                <option value="Weakness" disabled={selectedComplaints.includes("Weakness")}>
+                  {selectedComplaints.includes("Weakness") ? "✓ Weakness (Added)" : "Weakness / Fatigue (कमजोरी)"}
+                </option>
+                <option value="High Blood Pressure" disabled={selectedComplaints.includes("High Blood Pressure")}>
+                  {selectedComplaints.includes("High Blood Pressure") ? "✓ High Blood Pressure (Added)" : "High Blood Pressure (उच्च रक्तचाप / बीपी)"}
+                </option>
+                <option value="Diabetes Consultation" disabled={selectedComplaints.includes("Diabetes Consultation")}>
+                  {selectedComplaints.includes("Diabetes Consultation") ? "✓ Diabetes (Added)" : "Diabetes Consultation (शुगर समस्या)"}
+                </option>
+                <option value="Backache / Joint Pain" disabled={selectedComplaints.includes("Backache / Joint Pain")}>
+                  {selectedComplaints.includes("Backache / Joint Pain") ? "✓ Joint Pain (Added)" : "Backache / Joint Pain (कमर / जोड़ों का दर्द)"}
+                </option>
+                <option value="Breathing Difficulty" disabled={selectedComplaints.includes("Breathing Difficulty")}>
+                  {selectedComplaints.includes("Breathing Difficulty") ? "✓ Breathing (Added)" : "Breathing Difficulty (सांस लेने में तकलीफ)"}
+                </option>
+                <option value="Acidity / Gas" disabled={selectedComplaints.includes("Acidity / Gas")}>
+                  {selectedComplaints.includes("Acidity / Gas") ? "✓ Acidity / Gas (Added)" : "Acidity / Gas (गैस / एसिडिटी)"}
+                </option>
+                <option value="Skin Rash / Allergy" disabled={selectedComplaints.includes("Skin Rash / Allergy")}>
+                  {selectedComplaints.includes("Skin Rash / Allergy") ? "✓ Skin Rash (Added)" : "Skin Rash / Allergy (त्वचा रोग)"}
+                </option>
+                <option value="Injury / Trauma" disabled={selectedComplaints.includes("Injury / Trauma")}>
+                  {selectedComplaints.includes("Injury / Trauma") ? "✓ Injury (Added)" : "Injury / Trauma (चोट / दर्द)"}
+                </option>
+                <option value="Follow-up Consultation" disabled={selectedComplaints.includes("Follow-up Consultation")}>
+                  {selectedComplaints.includes("Follow-up Consultation") ? "✓ Follow-up (Added)" : "Follow-up Consultation (फॉलो-अप)"}
+                </option>
+                <option value="General Health Checkup" disabled={selectedComplaints.includes("General Health Checkup")}>
+                  {selectedComplaints.includes("General Health Checkup") ? "✓ General Checkup (Added)" : "General Health Checkup (सामान्य जांच)"}
+                </option>
+                <option value="Other">+ Other / अन्य समस्या (Custom)...</option>
+              </select>
 
-              {/* Popular Complaints Quick Shortcuts */}
-              <div className="opd-field-group">
-                <label className="opd-label-sub">Quick Shortcuts (Click to toggle in box)</label>
-                <div className="popular-chips-flex">
-                  {POPULAR_COMPLAINTS.map((item) => {
-                    const isSelected = selectedComplaints.includes(item);
-                    return (
-                      <button
-                        key={item}
-                        type="button"
-                        className={`chip-btn ${isSelected ? "active" : ""}`}
-                        onClick={() => {
-                          if (item === "Other" || item.includes("Other")) {
-                            setShowOtherInput(true);
-                          } else {
-                            toggleComplaint(item);
+              {showOtherInput && (
+                <div className="opd-other-input-row">
+                  <input
+                    type="text"
+                    className="opd-input"
+                    placeholder="Type custom problem / अन्य समस्या दर्ज करें..."
+                    value={otherComplaintText}
+                    onChange={(e) => setOtherComplaintText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (otherComplaintText.trim()) {
+                          if (!selectedComplaints.includes(otherComplaintText.trim())) {
+                            setSelectedComplaints([...selectedComplaints, otherComplaintText.trim()]);
                           }
-                        }}
-                      >
-                        {isSelected ? `✓ ${item}` : `+ ${item}`}
-                      </button>
-                    );
-                  })}
+                          setOtherComplaintText("");
+                          setShowOtherInput(false);
+                        }
+                      }
+                    }}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    className="opd-btn-add-complaint"
+                    onClick={() => {
+                      if (otherComplaintText.trim()) {
+                        if (!selectedComplaints.includes(otherComplaintText.trim())) {
+                          setSelectedComplaints([...selectedComplaints, otherComplaintText.trim()]);
+                        }
+                        setOtherComplaintText("");
+                        setShowOtherInput(false);
+                      }
+                    }}
+                  >
+                    + Add
+                  </button>
+                  <button
+                    type="button"
+                    className="opd-btn-cancel-complaint"
+                    onClick={() => {
+                      setOtherComplaintText("");
+                      setShowOtherInput(false);
+                    }}
+                    title="Cancel"
+                  >
+                    ✕
+                  </button>
                 </div>
-              </div>
+              )}
 
-              {/* Additional Symptoms / Notes */}
-              <div className="opd-field-group">
+              {/* Selected Complaint Badges / Tags */}
+              {selectedComplaints.length > 0 && (
+                <div className="opd-selected-tags-container">
+                  {selectedComplaints.map((item) => (
+                    <span key={item} className="opd-complaint-pill">
+                      <span>{item}</span>
+                      <button
+                        type="button"
+                        className="pill-remove-btn"
+                        onClick={() => removeComplaint(item)}
+                        title={`Remove ${item}`}
+                      >
+                        <Icon name="LuX" size={11} />
+                      </button>
+                    </span>
+                  ))}
+                  {selectedComplaints.length > 1 && (
+                    <button
+                      type="button"
+                      className="pill-clear-all"
+                      onClick={() => setSelectedComplaints([])}
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 2. Department Dropdown */}
+            <div className="opd-field-group">
+              <div className="flex-justify-between">
                 <label className="opd-label">
-                  Additional Symptoms / Notes <span className="opd-hint">· लक्षण / अतिरिक्त विवरण</span>
+                  Department <span className="req">*</span> <span className="opd-hint">· विभाग</span>
                 </label>
-                <textarea
-                  className="opd-textarea"
-                  rows={2}
-                  placeholder="Enter any additional symptoms or notes (e.g. Patient has mild weakness and headache)..."
-                  value={symptoms}
-                  onChange={(e) => setSymptoms(e.target.value)}
-                />
+                <span className="opd-avail-doc-text">
+                  <button
+                    type="button"
+                    className="opd-refresh-link"
+                    onClick={() => toast.success("Refreshed doctor list")}
+                  >
+                    <Icon name="LuRefreshCw" size={12} /> Refresh
+                  </button>
+                </span>
               </div>
+              <select
+                className="opd-select"
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+              >
+                <option value="">— Select Department / विभाग चुनें —</option>
+                {Object.keys(DOCTOR_LIST).map((dep) => (
+                  <option key={dep} value={dep}>
+                    {dep}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 3. Doctor Dropdown */}
+            <div className="opd-field-group">
+              <div className="flex-justify-between">
+                <label className="opd-label">
+                  Doctor to Consult <span className="req">*</span> <span className="opd-hint">· चिकित्सक चुनें</span>
+                </label>
+                {selectedDoctor && (
+                  <span
+                    className={`opd-doc-status ${
+                      selectedDoctor.status === "Available" ? "status-avail" : "status-busy"
+                    }`}
+                  >
+                    ● {selectedDoctor.status}
+                  </span>
+                )}
+              </div>
+              <select
+                className="opd-select"
+                value={selectedDoctor?.name || ""}
+                onChange={(e) => {
+                  const doc = currentDoctors.find((d) => d.name === e.target.value);
+                  if (doc) setSelectedDoctor(doc);
+                }}
+              >
+                <option value="">— Select Doctor / डॉक्टर चुनें —</option>
+                {currentDoctors.map((doc) => (
+                  <option key={doc.name} value={doc.name}>
+                    {doc.name} ({doc.degree}) — {doc.status}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          {/* SECTION 3: DEPARTMENT & DOCTOR */}
-          <div className="opd-card">
-            <h3 className="opd-card-title">
-              <Icon name="LuStethoscope" size={16} className="title-icon" /> 3. Department & Doctor
-            </h3>
-            <div className="opd-form-row col-1">
-              <div className="opd-field-group">
-                <div className="flex-justify-between">
-                  <label className="opd-label">Department <span className="req">*</span></label>
-                  <span className="opd-avail-doc-text">
-                    Available Doctors ({department}){" "}
-                    <button type="button" className="opd-refresh-link" onClick={() => toast.success("Refreshed doctor list")}>
-                      <Icon name="LuRefreshCw" size={12} /> Refresh
-                    </button>
-                  </span>
+          
+        </div>
+
+        {/* SECTION: OPD REGISTRATION FEE (TABLE / SINGLE ROW UI MATCHING IMAGE 1) */}
+        <div className="opd-card opd-particulars-card">
+          <h3 className="opd-card-title">
+            <Icon name="LuCreditCard" size={16} className="title-icon" /> OPD Registration Fee <span className="opd-hint">· शुल्क एवं भुगतान विवरण</span>
+          </h3>
+
+          <div className="opd-particulars-table-wrapper">
+            <table className="opd-particulars-table">
+              <thead>
+                <tr>
+                  <th className="col-hash">#</th>
+                  <th className="col-particular">PARTICULAR / SERVICE</th>
+                  <th className="col-charge">CHARGE</th>
+                  <th className="col-qty">DAYS / QTY</th>
+                  <th className="col-amount">AMOUNT</th>
+                  <th className="col-action">ACTION</th>
+                </tr>
+              </thead>
+              <tbody>
+                {particulars.map((row, index) => (
+                  <tr key={row.id}>
+                    <td className="cell-hash">{String(index + 1).padStart(2, '0')}</td>
+                    <td className="cell-particular">
+                      <select
+                        className="opd-select opd-particular-select"
+                        value={row.service}
+                        onChange={(e) => handleParticularChange(row.id, 'service', e.target.value)}
+                      >
+                        <option value="">Select Particular / Service</option>
+                        <option value="OPD Consultation Fee">OPD Consultation Fee (परामर्श शुल्क)</option>
+                        <option value="Registration Fee">Registration Fee (पंजीकरण शुल्क)</option>
+                        <option value="Follow-up Consultation Fee">Follow-up Consultation Fee</option>
+                        <option value="Emergency OPD Fee">Emergency OPD Fee</option>
+                        <option value="Dressing / Minor Procedure">Dressing / Minor Procedure</option>
+                        <option value="Nursing / Service Charge">Nursing / Service Charge</option>
+                        <option value="Other Service">Other Service Charge</option>
+                      </select>
+                    </td>
+                    <td className="cell-charge">
+                      <div className="opd-input-prefix-wrap">
+                        <span className="opd-prefix">₹</span>
+                        <input
+                          type="number"
+                          min="0"
+                          className="opd-input"
+                          placeholder="Select Charge"
+                          value={row.charge}
+                          onChange={(e) => handleParticularChange(row.id, 'charge', e.target.value)}
+                        />
+                      </div>
+                    </td>
+                    <td className="cell-qty">
+                      <select
+                        className="opd-select opd-qty-select"
+                        value={row.qty}
+                        onChange={(e) => handleParticularChange(row.id, 'qty', e.target.value)}
+                      >
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                      </select>
+                    </td>
+                    <td className="cell-amount">
+                      ₹ {Number(row.amount || 0).toFixed(2)}
+                    </td>
+                    <td className="cell-action">
+                      <button
+                        type="button"
+                        className="opd-btn-trash-row"
+                        onClick={() => handleRemoveParticularRow(row.id)}
+                        title="Remove row"
+                      >
+                        <Icon name="LuTrash2" size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="opd-particulars-footer-row">
+            <button
+              type="button"
+              className="opd-btn-add-particular-row"
+              onClick={handleAddParticularRow}
+            >
+              + Add Particular Row
+            </button>
+
+            <div className="opd-billing-inline-fields">
+              <div className="opd-inline-field">
+                <label className="opd-label">Discount (₹)</label>
+                <div className="opd-input-prefix-wrap" style={{ width: '105px' }}>
+                  <span className="opd-prefix">₹</span>
+                  <input
+                    type="number"
+                    min="0"
+                    className="opd-input"
+                    value={discount}
+                    onChange={(e) => setDiscount(Number(e.target.value) || 0)}
+                    placeholder="0"
+                  />
                 </div>
+              </div>
+
+              <div className="opd-inline-field">
+                <label className="opd-label">Payment Mode</label>
                 <select
                   className="opd-select"
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
+                  style={{ width: '125px' }}
+                  value={paymentMode}
+                  onChange={(e) => setPaymentMode(e.target.value)}
                 >
-                  <option value="">— Select department / विभाग चुनें —</option>
-                  {Object.keys(DOCTOR_LIST).map((dep) => (
-                    <option key={dep} value={dep}>
-                      {dep}
-                    </option>
-                  ))}
+                  <option value="Cash">Cash (नकद)</option>
+                  <option value="UPI">UPI / QR Code</option>
+                  <option value="Card">Debit / Card</option>
+                  <option value="NetBanking">Net Banking</option>
+                  <option value="Free">Free</option>
                 </select>
               </div>
 
-              {/* Doctor Cards Row */}
-              <div className="opd-doctors-grid">
-                {currentDoctors.map((doc) => {
-                  const isSelected = selectedDoctor?.name === doc.name;
-                  return (
-                    <div
-                      key={doc.name}
-                      className={`opd-doctor-card ${isSelected ? "selected" : ""}`}
-                      onClick={() => setSelectedDoctor(doc)}
-                    >
-                      <input
-                        type="radio"
-                        name="doctorSelection"
-                        checked={isSelected}
-                        onChange={() => setSelectedDoctor(doc)}
-                        className="opd-doc-radio"
-                      />
-                      <div className="opd-doc-info">
-                        <div className="opd-doc-name">{doc.name}</div>
-                        <div className="opd-doc-degree">{doc.degree}</div>
-                        <div className="opd-doc-footer">
-                          <span
-                            className={`opd-doc-status ${
-                              doc.status === "Available" ? "status-avail" : "status-busy"
-                            }`}
-                          >
-                            {doc.status}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="opd-inline-field">
+                <label className="opd-label">Payment Status</label>
+                <select
+                  className="opd-select"
+                  style={{ width: '115px' }}
+                  value={paymentStatus}
+                  onChange={(e) => setPaymentStatus(e.target.value)}
+                >
+                  <option value="Paid">Paid (प्राप्त)</option>
+                  <option value="Pending">Pending (लंबित)</option>
+                </select>
+              </div>
+
+              <div className="opd-inline-total-badge">
+                <span className="lbl">Total:</span>
+                <span className="val">₹ {Number(totalAmount).toFixed(2)}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ── RIGHT COLUMN ── */}
-        <div className="opd-right-col">
-          <div className="opd-card">
-            <h3 className="opd-card-title">
-              <Icon name="LuClipboardList" size={16} className="title-icon" /> 4. Quick Summary
-            </h3>
-            <div className="opd-billing-box">
-              <div className="billing-row">
-                <span className="lbl">Patient</span>
-                <span className="val">{selectedPatient ? selectedPatient.full_name || `${selectedPatient.first_name || ''} ${selectedPatient.last_name || ''}`.trim() : 'Not selected'}</span>
-              </div>
-              <div className="billing-row">
-                <span className="lbl">UHID</span>
-                <span className="val">{selectedPatient?.uhid || '—'}</span>
-              </div>
-              <div className="billing-row">
-                <span className="lbl">Department</span>
-                <span className="val">{department}</span>
-              </div>
-              <div className="billing-row">
-                <span className="lbl">Doctor</span>
-                <span className="val">{selectedDoctor?.name || 'Not selected'}</span>
-              </div>
-              <div className="billing-row">
-                <span className="lbl">Complaint</span>
-                <span className="val">{selectedComplaints.join(', ') || 'General Consultation'}</span>
-              </div>
-              <div className="billing-divider" />
-              <div className="total-amount-card">
-                <span className="total-title">Visit Date</span>
-                <span className="total-value">{visitDate}</span>
-              </div>
-            </div>
+        {/* ── FOOTER ACTIONS BAR ── */}
+        <div className="opd-footer-actions-bar">
+          <div className="opd-footer-summary-chip">
+            <span className="chip-label">Total Payable:</span>
+            <span className="chip-amount">₹{totalAmount}</span>
+            <span className="chip-sub">({paymentMode} • {paymentStatus})</span>
           </div>
 
-          <div className="opd-footer-actions">
+          <div className="opd-footer-btn-group">
             <button
               type="button"
               className="opd-btn-cancel"
@@ -1040,7 +1040,7 @@ export default function OPDTokenQueue() {
               Cancel
             </button>
             <button type="submit" className="opd-btn-register">
-              Register OPD <Icon name="LuArrowRight" size={16} />
+              <Icon name="LuCheckCircle" size={16} /> OPD Registration
             </button>
           </div>
         </div>
@@ -1117,19 +1117,28 @@ export default function OPDTokenQueue() {
 
               {/* Fee Breakdown Table */}
               <div className="slip-fee-table">
-                <div className="fee-line">
-                  <span>Registration Fee</span>
-                  <span>₹ {opdSlipData.registrationFee.toFixed(2)}</span>
-                </div>
-                <div className="fee-line">
-                  <span>Consultation Fee</span>
-                  <span>₹ {opdSlipData.consultationFee.toFixed(2)}</span>
-                </div>
-                {opdSlipData.serviceFee > 0 && (
-                  <div className="fee-line">
-                    <span>Service Fee</span>
-                    <span>₹ {opdSlipData.serviceFee.toFixed(2)}</span>
-                  </div>
+                {particulars && particulars.length > 0 ? (
+                  particulars.map((row) => (
+                    <div className="fee-line" key={row.id}>
+                      <span>{row.service || "OPD Fee"} {Number(row.qty) > 1 ? `(x${row.qty})` : ""}</span>
+                      <span>₹ {Number(row.amount || 0).toFixed(2)}</span>
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    {opdSlipData.registrationFee > 0 && (
+                      <div className="fee-line">
+                        <span>Registration Fee</span>
+                        <span>₹ {opdSlipData.registrationFee.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {opdSlipData.consultationFee > 0 && (
+                      <div className="fee-line">
+                        <span>Consultation Fee</span>
+                        <span>₹ {opdSlipData.consultationFee.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </>
                 )}
                 {opdSlipData.discount > 0 && (
                   <div className="fee-line discount">
@@ -1171,6 +1180,152 @@ export default function OPDTokenQueue() {
                 onClick={() => setShowPrintModal(false)}
               >
                 Done / Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    {/* ── VIEW PATIENT DETAILS MODAL ── */}
+      {showPatientModal && selectedPatient && (
+        <div className="opd-modal-overlay" onClick={() => setShowPatientModal(false)}>
+          <div className="opd-patient-modal-card" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="opd-patient-modal-header">
+              <div className="opd-modal-title-wrap">
+                <div className="opd-modal-badge-icon">
+                  <Icon name="LuUserCheck" size={20} />
+                </div>
+                <div>
+                  <h3 className="opd-modal-title">Patient Profile & Details</h3>
+                  <div className="opd-modal-sub">
+                    UHID: <span className="opd-uhid-badge">{selectedPatient.uhid || "N/A"}</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="opd-modal-close-btn"
+                onClick={() => setShowPatientModal(false)}
+                title="Close Modal"
+              >
+                <Icon name="LuX" size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="opd-patient-modal-body">
+              {/* Patient Banner */}
+              <div className="opd-modal-patient-hero">
+                <div className="opd-modal-hero-avatar">
+                  <Icon name={String(selectedPatient.gender || "").toLowerCase() === "female" ? "LuUserCheck" : "LuUser"} size={34} />
+                </div>
+                <div className="opd-modal-hero-info">
+                  <div className="opd-modal-hero-name-row">
+                    <h2 className="opd-modal-patient-name">
+                      {selectedPatient.full_name || selectedPatient.name || `${selectedPatient.first_name || ""} ${selectedPatient.last_name || ""}`.trim()}
+                    </h2>
+                    <span className="opd-status-pill active">Registered Patient</span>
+                    {selectedPatient.category && (
+                      <span className="opd-status-pill category">{selectedPatient.category}</span>
+                    )}
+                  </div>
+                  <div className="opd-modal-hero-meta-row">
+                    <span><strong>Age / Gender:</strong> {selectedPatient.age || "N/A"} Yrs / {selectedPatient.gender || "N/A"}</span>
+                    <span className="meta-dot">•</span>
+                    <span><strong>Blood Group:</strong> <span className="opd-blood-pill">{selectedPatient.bloodGroup || selectedPatient.blood_group || "N/A"}</span></span>
+                    <span className="meta-dot">•</span>
+                    <span><strong>Patient Category:</strong> {selectedPatient.category || selectedPatient.patient_type || "General OPD"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Patient Details Cards Grid */}
+              <div className="opd-modal-grid">
+                {/* Contact Information */}
+                <div className="opd-detail-card">
+                  <h4 className="opd-detail-card-title">
+                    <Icon name="LuPhone" size={15} /> Contact & Emergency Details
+                  </h4>
+                  <div className="opd-detail-list">
+                    <div className="opd-detail-row">
+                      <span className="opd-d-label">Primary Mobile:</span>
+                      <span className="opd-d-val">{selectedPatient.phone || selectedPatient.mobile1 || selectedPatient.contact_number || "N/A"}</span>
+                    </div>
+                    <div className="opd-detail-row">
+                      <span className="opd-d-label">Alternate Phone:</span>
+                      <span className="opd-d-val">{selectedPatient.mobile2 || selectedPatient.alternate_phone || "—"}</span>
+                    </div>
+                    <div className="opd-detail-row">
+                      <span className="opd-d-label">Email Address:</span>
+                      <span className="opd-d-val">{selectedPatient.email || "—"}</span>
+                    </div>
+                    <div className="opd-detail-row">
+                      <span className="opd-d-label">Guardian / Relation:</span>
+                      <span className="opd-d-val">{selectedPatient.guardianName || selectedPatient.father_name || selectedPatient.guardian_name || selectedPatient.spouse_name || "—"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Residential Address */}
+                <div className="opd-detail-card">
+                  <h4 className="opd-detail-card-title">
+                    <Icon name="LuMapPin" size={15} /> Residential Address
+                  </h4>
+                  <div className="opd-detail-list">
+                    <div className="opd-detail-row">
+                      <span className="opd-d-label">Street / Area:</span>
+                      <span className="opd-d-val">{selectedPatient.address || selectedPatient.street || "—"}</span>
+                    </div>
+                    <div className="opd-detail-row">
+                      <span className="opd-d-label">City / District:</span>
+                      <span className="opd-d-val">{selectedPatient.city || "—"}</span>
+                    </div>
+                    <div className="opd-detail-row">
+                      <span className="opd-d-label">State:</span>
+                      <span className="opd-d-val">{selectedPatient.state || "—"}</span>
+                    </div>
+                    <div className="opd-detail-row">
+                      <span className="opd-d-label">Postal Pincode:</span>
+                      <span className="opd-d-val">{selectedPatient.pincode || selectedPatient.zip || "—"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Demographics & Registration */}
+                <div className="opd-detail-card full-span">
+                  <h4 className="opd-detail-card-title">
+                    <Icon name="LuShieldCheck" size={15} /> Demographic & Identity Information
+                  </h4>
+                  <div className="opd-detail-columns">
+                    <div className="opd-demog-item">
+                      <span className="opd-d-label">Marital Status</span>
+                      <span className="opd-d-val">{selectedPatient.marital_status || selectedPatient.maritalStatus || "—"}</span>
+                    </div>
+                    <div className="opd-demog-item">
+                      <span className="opd-d-label">Date of Birth (DOB)</span>
+                      <span className="opd-d-val">{formatPatientDate(selectedPatient.dob || selectedPatient.date_of_birth)}</span>
+                    </div>
+                    <div className="opd-demog-item">
+                      <span className="opd-d-label">Aadhar / National ID</span>
+                      <span className="opd-d-val">{selectedPatient.aadhar_number || selectedPatient.national_id || "—"}</span>
+                    </div>
+                    <div className="opd-demog-item">
+                      <span className="opd-d-label">Registered Date</span>
+                      <span className="opd-d-val">{formatPatientDateTime(selectedPatient.registeredAt || selectedPatient.created_at || selectedPatient.registration_date)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="opd-patient-modal-footer">
+              <button
+                type="button"
+                className="opd-btn-modal-close"
+                onClick={() => setShowPatientModal(false)}
+              >
+                Close Profile
               </button>
             </div>
           </div>

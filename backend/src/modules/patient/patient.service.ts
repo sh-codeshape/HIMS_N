@@ -152,12 +152,14 @@ export class PatientService {
     const normalizedData = normalizePatientRequest(data);
 
     // Identity verification (phone + name deduplication)
-    const exists = await patientRepository.checkPhoneNameExists(
-      organizationId, 
-      normalizedData.phone ?? '', 
-      normalizedData.first_name,
-      normalizedData.last_name ?? ''
-    );
+    const exists = normalizedData.phone && normalizedData.phone.trim()
+      ? await patientRepository.checkPhoneNameExists(
+          organizationId, 
+          normalizedData.phone.trim(), 
+          normalizedData.first_name,
+          normalizedData.last_name ?? ''
+        )
+      : false;
 
     if (exists) {
       throw new ConflictError('A patient with this name and phone number already exists.');

@@ -13,7 +13,7 @@ export const createPatientSchema = z.object({
     marital_status: z.string().optional(),
     occupation: z.string().optional(),
     nationality: z.string().optional(),
-    phone: z.string().regex(/^\d{10}$/, "Phone number must be exactly 10 digits"),
+    phone: z.string().regex(/^\d{10}$/, "Phone number must be exactly 10 digits").optional().or(z.literal('')),
     alternate_phone: z.string().optional(),
     email: z.string().email().optional(),
     landline: z.string().optional(),

@@ -37,29 +37,47 @@ const THEME_CSS = `
   --muted: #5b6f88;
   font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   color: var(--ink);
+  width: 100%;
+  min-height: calc(100vh - 64px);
+  padding: 8px 12px;
+  box-sizing: border-box;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(1200px 500px at 100% 0%, rgba(120, 180, 235, 0.28), transparent 70%),
+    linear-gradient(160deg, #dbe9f6 0%, #c3d9ec 55%, #b3cde5 100%);
 }
 .opdr * { box-sizing: border-box; }
 
-/* Outer shell */
+/* Outer shell - Full screen */
 .opdr-shell {
   position: relative;
-  border-radius: 22px;
-  padding: 3px;
+  border-radius: 12px;
+  padding: 2px;
   background: linear-gradient(135deg, #1b4a82 0%, #0b1e36 45%, #f5c542 100%);
-  box-shadow: 0 24px 60px -18px rgba(11,30,54,.45), 0 2px 0 rgba(255,255,255,.4) inset;
+  box-shadow: 0 8px 24px -10px rgba(11,30,54,.35), 0 1px 0 rgba(255,255,255,.4) inset;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 .opdr-card {
-  border-radius: 19px;
+  border-radius: 10px;
   overflow: hidden;
   background:
     radial-gradient(900px 300px at 100% -10%, rgba(181,208,232,.55), transparent 60%),
     linear-gradient(180deg, var(--sky-50) 0%, #ffffff 40%);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 /* Banner */
 .opdr-banner {
   display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;
-  padding: 18px 26px;
+  padding: 12px 18px;
   background: linear-gradient(100deg, var(--navy-900) 0%, var(--navy-700) 60%, var(--navy-600) 100%);
   border-bottom: 3px solid var(--gold);
   position: relative;
@@ -90,8 +108,7 @@ const THEME_CSS = `
 .opdr-count span { font-size: 11px; color: #cfe0f2; font-weight: 600; line-height: 1.25; }
 
 /* Filter bar */
-.opdr-filters {
-  margin: 20px 24px 0;
+.opdr-filters { margin: 10px 12px 0;
   padding: 14px 16px;
   display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px;
   background: linear-gradient(180deg, var(--sky-100), var(--sky-200));
@@ -134,7 +151,7 @@ const THEME_CSS = `
 .opdr-btn-ghost:hover { background: var(--navy-800); color: #fff; }
 
 /* Table */
-.opdr-table-wrap { margin: 20px 24px 0; border-radius: 16px; border: 1px solid var(--sky-300); background: #fff; overflow: hidden; box-shadow: 0 14px 30px -22px rgba(11,30,54,.6); }
+.opdr-table-wrap { margin: 10px 12px 0; flex: 1; border-radius: 16px; border: 1px solid var(--sky-300); background: #fff; overflow: hidden; box-shadow: 0 14px 30px -22px rgba(11,30,54,.6); }
 .opdr-scroll { overflow-x: auto; }
 .opdr-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
 .opdr-table thead tr { background: linear-gradient(180deg, var(--sky-200), var(--sky-300)); }
@@ -191,7 +208,7 @@ button.opdr-badge:hover { filter: brightness(.95); transform: translateY(-1px); 
 /* Pagination */
 .opdr-foot {
   display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
-  padding: 18px 26px 22px;
+  padding: 12px 18px 14px;
 }
 .opdr-info { color: var(--navy-700); font-size: 12px; font-weight: 700; }
 .opdr-pages { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }

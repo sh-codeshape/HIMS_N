@@ -9,24 +9,7 @@ import ipdService from "../../../api/services/ipdService";
 import axiosInstance from "../../../api/axiosInstance";
 import "./IPDAdmissionView.css";
 
-// ── Preset Mock Patient fallback ──────────────────────────
-const DEFAULT_PRESET_PATIENT = {
-  id: "P-10245",
-  uhid: "LH-10245",
-  name: "Rahul Kumar",
-  age: "32",
-  gender: "Male",
-  dob: "12 Aug 1994",
-  phone: "9876543210",
-  bloodGroup: "B+",
-  address: "Sector 21, Noida, Uttar Pradesh",
-  maritalStatus: "Married",
-  occupation: "Private Job",
-  allergies: "No Known Allergies",
-  insurance: "Self Pay",
-  previousOpd: 5,
-  previousIpd: 1,
-};
+
 
 const DOCTORS_BY_DEPT = {
   "General Medicine": [
@@ -49,13 +32,50 @@ const DOCTORS_BY_DEPT = {
 };
 
 const POPULAR_IPD_COMPLAINTS = [
-  "Fever",
-  "Breathing Difficulty",
+  "Fever / High Grade Pyrexia",
+  "Breathing Difficulty / Dyspnea",
   "Severe Abdominal Pain",
-  "Trauma / Injury",
-  "Chest Pain",
-  "High BP / Hypertension",
-  "Dehydration"
+  "Trauma / Fracture / Road Accident",
+  "Chest Pain / Cardiac Observation",
+  "High BP / Hypertensive Crisis",
+  "Severe Vomiting & Dehydration",
+  "Post-Operative Inpatient Care",
+  "Diabetic Ketoacidosis / High Sugar",
+  "Acute Gastroenteritis",
+  "Pneumonia / Chest Infection",
+  "Renal Colic / Kidney Stone",
+  "Burn Injury & Dressing Care",
+  "Neurological Deficit / Stroke",
+  "General Weakness / Syncope"
+];
+
+const POPULAR_ADMISSION_REASONS = [
+  "Inpatient Observation & Medical Management",
+  "IV Antibiotics & Fluid Therapy",
+  "Elective / Emergency Surgery & Post-Op Care",
+  "ICU / Critical Care & Vital Monitoring",
+  "Respiratory Distress & Nebulization Support",
+  "Chest Pain / Cardiac Care & ECG Monitoring",
+  "Severe Dehydration & Gastroenteritis Management",
+  "Orthopedic Traction / Fracture Care",
+  "Diabetic Ketoacidosis / Blood Sugar Stabilization",
+  "Post-Operative Recovery & Nursing Care",
+  "Pain Management & Palliative Care",
+  "Pediatric High Grade Pyrexia / Observation",
+];
+
+const IPD_ADVANCE_SERVICES = [
+  { name: "IPD Registration Fee", defaultAmount: 100 },
+  { name: "Bed Advance Deposit (General Ward)", defaultAmount: 5000 },
+  { name: "Bed Advance Deposit (ICU / Critical Care)", defaultAmount: 10000 },
+  { name: "Bed Advance Deposit (Private Deluxe Room)", defaultAmount: 8000 },
+  { name: "Nursing & Daily RMO Care Advance", defaultAmount: 1500 },
+  { name: "Operation Theater (OT) Booking Advance", defaultAmount: 15000 },
+  { name: "Diagnostic & Lab Investigation Deposit", defaultAmount: 2500 },
+  { name: "Pharmacy & Medicine Deposit", defaultAmount: 3000 },
+  { name: "Emergency Casualty / Triage Charge", defaultAmount: 500 },
+  { name: "Oxygen / Respiratory Equipment Advance", defaultAmount: 1200 },
+  { name: "Other Miscellaneous Inpatient Advance", defaultAmount: 0 },
 ];
 
 export default function IPDAdmissionView() {
@@ -64,7 +84,7 @@ export default function IPDAdmissionView() {
 
   const [patients, setPatients] = useState([]);
   const [beds, setBeds] = useState([]);
-  const [selectedPatient, setSelectedPatient] = useState(DEFAULT_PRESET_PATIENT);
+  const [selectedPatient, setSelectedPatient] = useState([]);
 
   // Search by mode (UHID/Mobile vs Name)
   const [searchMode, setSearchMode] = useState("uhid");
@@ -99,6 +119,7 @@ export default function IPDAdmissionView() {
   const [durationUnit, setDurationUnit] = useState("Days");
   const [severity, setSeverity] = useState("Moderate");
   const [provisionalDiagnosis, setProvisionalDiagnosis] = useState("Acute Respiratory Infection");
+  const [selectedReasons, setSelectedReasons] = useState(["Inpatient Observation & Medical Management"]);
   const [reasonForAdmission, setReasonForAdmission] = useState("Patient requires inpatient observation and treatment.");
   const [showOtherComplaintInput, setShowOtherComplaintInput] = useState(false);
   const [otherComplaintText, setOtherComplaintText] = useState("");
@@ -163,15 +184,61 @@ export default function IPDAdmissionView() {
   const [attendantMobile, setAttendantMobile] = useState("9876500000");
   const [alternateMobile, setAlternateMobile] = useState("9876500001");
 
-  // ── Advance / Payment Details ──
-  const [registrationFee] = useState(100);
-  const [bedAdvance, setBedAdvance] = useState(5000);
-  const [otherCharges, setOtherCharges] = useState(0);
+  // ── Advance / Payment Details & Add-on Particulars ──
+  const [advanceParticulars, setAdvanceParticulars] = useState([
+    { id: 1, service: "IPD Registration Fee", amount: 100, isFixed: true },
+    { id: 2, service: "Bed Advance Deposit (General Ward)", amount: 5000, isFixed: false },
+  ]);
+
+  const totalAdvance = advanceParticulars.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  const registrationFee = advanceParticulars.find((p) => p.service.toLowerCase().includes("registration"))?.amount || 100;
+  const bedAdvance = advanceParticulars.find((p) => p.service.toLowerCase().includes("bed"))?.amount || 0;
+  const otherCharges = advanceParticulars
+    .filter((p) => !p.service.toLowerCase().includes("registration") && !p.service.toLowerCase().includes("bed"))
+    .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
   const [paymentMode, setPaymentMode] = useState("Cash");
   const [paymentStatus, setPaymentStatus] = useState("Paid");
   const [amountReceived, setAmountReceived] = useState(5100);
 
-  const totalAdvance = Number(registrationFee) + Number(bedAdvance || 0) + Number(otherCharges || 0);
+  useEffect(() => {
+    setAmountReceived(totalAdvance);
+  }, [totalAdvance]);
+
+  const handleAddParticularRow = () => {
+    const newId = advanceParticulars.length > 0 ? Math.max(...advanceParticulars.map((p) => p.id)) + 1 : 1;
+    setAdvanceParticulars((prev) => [
+      ...prev,
+      { id: newId, service: "Nursing & Daily RMO Care Advance", amount: 1500, isFixed: false },
+    ]);
+  };
+
+  const handleRemoveParticularRow = (id) => {
+    if (advanceParticulars.length <= 1) {
+      toast.error("At least one fee particular is required");
+      return;
+    }
+    setAdvanceParticulars((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const handleParticularChange = (id, field, value) => {
+    setAdvanceParticulars((prev) =>
+      prev.map((item) => {
+        if (item.id === id) {
+          if (field === "service") {
+            const matched = IPD_ADVANCE_SERVICES.find((s) => s.name === value);
+            return {
+              ...item,
+              service: value,
+              amount: matched ? matched.defaultAmount : item.amount,
+            };
+          }
+          return { ...item, [field]: value };
+        }
+        return item;
+      })
+    );
+  };
 
   // ── Additional Information ──
   const [expectedDischargeDate, setExpectedDischargeDate] = useState("2026-10-05");
@@ -393,25 +460,43 @@ export default function IPDAdmissionView() {
     setSelectedComplaints(selectedComplaints.filter((c) => c !== item));
   };
 
-  const appendQuickReasonPreset = (text) => {
-    if (!reasonForAdmission) {
-      setReasonForAdmission(text);
-    } else if (!reasonForAdmission.includes(text)) {
-      setReasonForAdmission(`${reasonForAdmission} ${text}`);
+  const toggleAdmissionReason = (item) => {
+    if (item === "Other" || item.includes("Other")) {
+      setShowOtherReasonInput(true);
+      return;
     }
+    if (selectedReasons.includes(item)) {
+      const updated = selectedReasons.filter((r) => r !== item);
+      setSelectedReasons(updated);
+      setReasonForAdmission(updated.join(", "));
+    } else {
+      const updated = [...selectedReasons, item];
+      setSelectedReasons(updated);
+      setReasonForAdmission(updated.join(", "));
+    }
+  };
+
+  const removeAdmissionReason = (item) => {
+    const updated = selectedReasons.filter((r) => r !== item);
+    setSelectedReasons(updated);
+    setReasonForAdmission(updated.join(", "));
   };
 
   const handleAddOtherReason = () => {
     const trimmed = otherReasonText.trim();
     if (trimmed) {
-      appendQuickReasonPreset(trimmed);
+      if (!selectedReasons.includes(trimmed)) {
+        const updated = [...selectedReasons, trimmed];
+        setSelectedReasons(updated);
+        setReasonForAdmission(updated.join(", "));
+      }
       setOtherReasonText("");
       setShowOtherReasonInput(false);
     }
   };
 
   const handleResetForm = () => {
-    setSelectedPatient(DEFAULT_PRESET_PATIENT);
+    setSelectedPatient(null);
     setPatientSearchQuery("");
     setAdmissionType("Emergency");
     setAdmissionDate(getCurrentDateStr());
@@ -422,6 +507,7 @@ export default function IPDAdmissionView() {
     setDurationUnit("Days");
     setSeverity("Moderate");
     setProvisionalDiagnosis("Acute Respiratory Infection");
+    setSelectedReasons(["Inpatient Observation & Medical Management"]);
     setReasonForAdmission("Patient requires inpatient observation and treatment.");
     setWardType("General Ward");
     setRoomType("Multi Bed");
@@ -431,8 +517,10 @@ export default function IPDAdmissionView() {
     setRelationship("Brother");
     setAttendantMobile("9876500000");
     setAlternateMobile("9876500001");
-    setBedAdvance(5000);
-    setOtherCharges(0);
+    setAdvanceParticulars([
+      { id: 1, service: "IPD Registration Fee", amount: 100, isFixed: true },
+      { id: 2, service: "Bed Advance Deposit (General Ward)", amount: 5000, isFixed: false },
+    ]);
     setPaymentMode("Cash");
     setPaymentStatus("Paid");
     setAmountReceived(5100);
@@ -587,7 +675,7 @@ export default function IPDAdmissionView() {
             </div>
             <div className="ipd-titlebar-info">
               <h2 className="ipd-titlebar-title">IPD Admission Form</h2>
-              <span className="ipd-titlebar-subtitle">Inpatient Registration & Bed Allocation</span>
+              <span className="ipd-titlebar-subtitle">Inpatient Registration & Bed Allocation · इंडोर मरीज भर्ती एवं बेड आवंटन</span>
             </div>
           </div>
           <div className="ipd-titlebar-right">
@@ -611,41 +699,16 @@ export default function IPDAdmissionView() {
             {/* BOX 1: SEARCH PATIENT / OLD RECORD */}
             <div className="erp-side-panel erp-top-search-panel" ref={patientSearchRef}>
               <div className="erp-side-panel-header">
-                <span className="erp-banner-icon">🔍</span>
-                <span>Search Patient / Old Record · पुराने मरीज की खोज</span>
+                <span className="erp-banner-icon"><Icon name="LuSearch" size={14} /></span>
+                <span>Search Patient / Old Record <span className="erp-hint">· पुराने मरीज की खोज</span></span>
               </div>
               <div className="erp-side-panel-body">
-                <div className="erp-radio-filter-row">
-                  <label className="erp-radio-inline">
-                    <input
-                      type="radio"
-                      name="searchMode"
-                      checked={searchMode === "uhid"}
-                      onChange={() => setSearchMode("uhid")}
-                    />
-                    <span>By UHID / Phone</span>
-                  </label>
-                  <label className="erp-radio-inline">
-                    <input
-                      type="radio"
-                      name="searchMode"
-                      checked={searchMode === "name"}
-                      onChange={() => setSearchMode("name")}
-                    />
-                    <span>By Patient Name</span>
-                  </label>
-                </div>
-
                 <div className="erp-side-search-box">
                   <Icon name="LuSearch" size={18} className="text-slate-400" />
                   <input
                     type="text"
                     className="erp-side-search-input"
-                    placeholder={
-                      searchMode === "uhid"
-                        ? "Search by UHID or Mobile Number..."
-                        : "Search by Patient Full Name..."
-                    }
+                    placeholder="Search by UHID / Mobile Number / Patient Name / नाम, UHID या फोन से खोजें..."
                     value={patientSearchQuery}
                     onChange={handlePatientSearchChange}
                     onFocus={() => {
@@ -701,37 +764,52 @@ export default function IPDAdmissionView() {
               </div>
             </div>
 
-            {/* BOX 2: SELECTED PATIENT PROFILE */}
+            {/* BOX 2: SELECTED PATIENT PROFILE (FETCHED FROM REGISTRATION) */}
             <div className="erp-side-panel erp-top-profile-panel">
               <div className="erp-side-panel-header">
-                <span className="erp-banner-icon">👤</span>
-                <span>Selected Patient Profile · चयनित मरीज का विवरण</span>
+                <span className="erp-banner-icon"><Icon name="LuUser" size={14} /></span>
+                <span>Selected Patient Profile <span className="erp-hint">· चयनित मरीज का विवरण</span></span>
+                {selectedPatient && (selectedPatient.uhid || selectedPatient.name) && (
+                  <span className="erp-fetched-badge">
+                    ✓ Fetched from Registration
+                  </span>
+                )}
               </div>
               <div className="erp-side-panel-body">
-                <div className="erp-patient-profile-card">
-                  <div className="erp-patient-avatar">
-                    {selectedPatient.name ? selectedPatient.name.charAt(0).toUpperCase() : "P"}
-                  </div>
-                  <div className="erp-patient-profile-info">
-                    <h3 className="erp-profile-name">{selectedPatient.name}</h3>
-                    <div className="erp-profile-tags">
-                      <span className="erp-badge-uhid">UHID: {selectedPatient.uhid}</span>
-                      <span className="erp-badge-blood">🩸 {selectedPatient.bloodGroup}</span>
-                      <span className="erp-badge-uhid">{selectedPatient.age} Yrs / {selectedPatient.gender}</span>
-                      <span className="erp-badge-uhid">{selectedPatient.insurance || "Self Pay"}</span>
+                {selectedPatient && (selectedPatient.name || selectedPatient.uhid) ? (
+                  <div className="erp-patient-profile-card">
+                    <div className="erp-patient-avatar">
+                      {selectedPatient.name ? selectedPatient.name.charAt(0).toUpperCase() : "P"}
                     </div>
-                    <div className="erp-profile-meta-list">
-                      <div>
-                        <span>📞 Phone:</span> <strong>{selectedPatient.phone}</strong>
-                        <span className="ml-3">📍 Address:</span> <strong>{selectedPatient.address}</strong>
+                    <div className="erp-patient-profile-info">
+                      <h3 className="erp-profile-name">{selectedPatient.name}</h3>
+                      <div className="erp-profile-tags">
+                        <span className="erp-badge-uhid">UHID: {selectedPatient.uhid || "N/A"}</span>
+                        <span className="erp-badge-blood">🩸 {selectedPatient.bloodGroup || "O+"}</span>
+                        <span className="erp-badge-uhid">{selectedPatient.age || "—"} Yrs / {selectedPatient.gender || "—"}</span>
+                        <span className="erp-badge-uhid">{selectedPatient.insurance || "Self Pay"}</span>
                       </div>
-                      <div>
-                        <span>⚠️ Allergies:</span> <strong className="text-amber-900">{selectedPatient.allergies || "No Known Allergies"}</strong>
-                        <span className="ml-3">💍 Status:</span> <strong>{selectedPatient.maritalStatus || "Single"}</strong>
+                      <div className="erp-profile-meta-list">
+                        <div>
+                          <span>📞 Phone:</span> <strong>{selectedPatient.phone || "—"}</strong>
+                          <span className="ml-3">📍 Address:</span> <strong>{selectedPatient.address || "—"}</strong>
+                        </div>
+                        <div>
+                          <span>⚠️ Allergies:</span> <strong className="text-amber-900">{selectedPatient.allergies || "No Known Allergies"}</strong>
+                          <span className="ml-3">💍 Status:</span> <strong>{selectedPatient.maritalStatus || "Single"}</strong>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="erp-patient-profile-empty">
+                    <span className="empty-icon">🔍</span>
+                    <div className="empty-msg-wrap">
+                      <span className="empty-title">No Patient Selected Yet</span>
+                      <span className="empty-sub">Search patient by UHID, Mobile Number, or Name to auto-load registration details.</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -745,8 +823,8 @@ export default function IPDAdmissionView() {
               {/* 1. ADMISSION SPECIFICATIONS */}
               <div className="erp-section-panel">
                 <div className="erp-section-banner">
-                  <span className="erp-banner-icon">📋</span>
-                  <span>Admission Specifications · भर्ती विवरण</span>
+                  <span className="erp-banner-icon"><Icon name="LuClipboardList" size={14} /></span>
+                  <span>Admission Specifications <span className="erp-hint">· भर्ती विवरण</span></span>
                 </div>
                 <div className="erp-section-inner">
                   {/* Admission Type Radio Pills */}
@@ -858,168 +936,59 @@ export default function IPDAdmissionView() {
                 </div>
               </div>
 
-              {/* 2. PATIENT INFORMATION (Editable Demographics) */}
-              <div className="erp-section-panel erp-panel-patient">
-                <div className="erp-section-banner erp-banner-highlight">
-                  <span className="erp-banner-icon">👤</span>
-                  <span>Patient Information · मरीज का विवरण</span>
+              {/* 2. CLINICAL & ADMISSION REASON (PREMIUM MULTI-SELECT) */}
+              <div className="erp-section-panel erp-panel-clinical">
+                <div className="erp-section-banner erp-banner-clinical">
+                  <span className="erp-banner-icon"><Icon name="LuStethoscope" size={14} /></span>
+                  <span>Clinical & Admission Reason <span className="erp-hint">· भर्ती का कारण</span></span>
                 </div>
                 <div className="erp-section-inner">
-                  <div className="erp-grid-4">
-                    <div className="erp-field-group">
-                      <label className="erp-label">UHID / Patient ID</label>
-                      <input
-                        type="text"
-                        className="erp-input font-bold text-teal-800 bg-teal-50/60"
-                        value={selectedPatient.uhid}
-                        readOnly
-                      />
-                    </div>
-                    <div className="erp-field-group erp-span-2">
-                      <label className="erp-label">
-                        Patient Full Name <span className="erp-req">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        className="erp-input font-semibold"
-                        value={selectedPatient.name}
-                        onChange={(e) => setSelectedPatient({ ...selectedPatient, name: e.target.value })}
-                        placeholder="Enter patient full name"
-                        required
-                      />
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">Contact No</label>
-                      <input
-                        type="tel"
-                        className="erp-input font-semibold"
-                        value={selectedPatient.phone}
-                        onChange={(e) => setSelectedPatient({ ...selectedPatient, phone: e.target.value })}
-                        placeholder="Contact number"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="erp-grid-4 mt-2">
-                    <div className="erp-field-group">
-                      <label className="erp-label">Age</label>
-                      <input
-                        type="text"
-                        className="erp-input"
-                        value={selectedPatient.age}
-                        onChange={(e) => setSelectedPatient({ ...selectedPatient, age: e.target.value })}
-                        placeholder="Age in yrs"
-                      />
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">Gender</label>
-                      <select
-                        className="erp-select"
-                        value={selectedPatient.gender}
-                        onChange={(e) => setSelectedPatient({ ...selectedPatient, gender: e.target.value })}
-                      >
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label text-red-700 font-bold">Blood Group</label>
-                      <select
-                        className="erp-select font-bold text-red-700"
-                        value={selectedPatient.bloodGroup}
-                        onChange={(e) => setSelectedPatient({ ...selectedPatient, bloodGroup: e.target.value })}
-                      >
-                        {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"].map((bg) => (
-                          <option key={bg} value={bg}>
-                            {bg}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">Insurance / Payer</label>
-                      <input
-                        type="text"
-                        className="erp-input"
-                        value={selectedPatient.insurance || "Self Pay"}
-                        onChange={(e) => setSelectedPatient({ ...selectedPatient, insurance: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="erp-grid-4 mt-2">
-                    <div className="erp-field-group erp-span-2">
-                      <label className="erp-label">Complete Address</label>
-                      <input
-                        type="text"
-                        className="erp-input"
-                        value={selectedPatient.address}
-                        onChange={(e) => setSelectedPatient({ ...selectedPatient, address: e.target.value })}
-                        placeholder="Enter full address"
-                      />
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">Marital Status</label>
-                      <select
-                        className="erp-select"
-                        value={selectedPatient.maritalStatus || "Single"}
-                        onChange={(e) => setSelectedPatient({ ...selectedPatient, maritalStatus: e.target.value })}
-                      >
-                        <option value="Single">Single</option>
-                        <option value="Married">Married</option>
-                        <option value="Divorced">Divorced</option>
-                        <option value="Widowed">Widowed</option>
-                      </select>
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">Allergies</label>
-                      <input
-                        type="text"
-                        className="erp-input text-amber-900 font-medium"
-                        value={selectedPatient.allergies || "No Known Allergies"}
-                        onChange={(e) => setSelectedPatient({ ...selectedPatient, allergies: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 3. CLINICAL & REASON FOR ADMISSION */}
-              <div className="erp-section-panel">
-                <div className="erp-section-banner">
-                  <span className="erp-banner-icon">🩺</span>
-                  <span>Clinical & Admission Reason · भर्ती का कारण</span>
-                </div>
-                <div className="erp-section-inner">
-                  {/* Complaints Selector */}
+                  {/* Complaints Multi-Select Dropdown */}
                   <div className="erp-field-group">
-                    <label className="erp-label">
-                      Chief Complaint / Symptoms <span className="erp-req">*</span>
-                      <span className="text-[12px] text-slate-500 font-normal">
-                        (Select multiple symptoms or add custom)
-                      </span>
-                    </label>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="erp-label mb-0">
+                        Chief Complaint / Symptoms <span className="erp-req">*</span>
+                        <span className="text-[11.5px] text-slate-500 font-normal ml-1">
+                          (Select multiple symptoms or add custom)
+                        </span>
+                      </label>
+                      {selectedComplaints.length > 0 && (
+                        <span className="erp-symptom-count-badge">
+                          {selectedComplaints.length} selected
+                        </span>
+                      )}
+                    </div>
                     <div className="flex gap-2 items-center">
                       <select
                         className="erp-select flex-1"
                         onChange={(e) => {
-                          if (e.target.value) toggleComplaint(e.target.value);
+                          const val = e.target.value;
+                          if (!val) return;
+                          toggleComplaint(val);
                         }}
                         value=""
                       >
-                        <option value="">Select Chief Complaint / मुख्य लक्षण चुनें...</option>
+                        <option value="">
+                          {selectedComplaints.length === 0
+                            ? "Select Chief Complaint / मुख्य लक्षण चुनें..."
+                            : "+ Add another symptom / अन्य लक्षण जोड़ें..."}
+                        </option>
                         {POPULAR_IPD_COMPLAINTS.map((c) => (
-                          <option key={c} value={c}>
-                            {c}
+                          <option
+                            key={c}
+                            value={c}
+                            disabled={selectedComplaints.includes(c)}
+                          >
+                            {selectedComplaints.includes(c) ? `✓ ${c} (Added)` : c}
                           </option>
                         ))}
-                        <option value="Other">+ Other / अन्य समस्या</option>
+                        <option value="Other">+ Other / अन्य समस्या (Custom)...</option>
                       </select>
                       <button
                         type="button"
                         className="erp-btn-sm-action"
                         onClick={() => setShowOtherComplaintInput(true)}
+                        title="Add Custom Symptom"
                       >
                         + Custom
                       </button>
@@ -1031,7 +1000,7 @@ export default function IPDAdmissionView() {
                         <input
                           type="text"
                           className="erp-input flex-1"
-                          placeholder="Type custom complaint / समस्या लिखें..."
+                          placeholder="Type custom symptom / लक्षण लिखें..."
                           value={otherComplaintText}
                           onChange={(e) => setOtherComplaintText(e.target.value)}
                           onKeyDown={(e) => {
@@ -1064,7 +1033,7 @@ export default function IPDAdmissionView() {
 
                     {/* Active Complaint Badges */}
                     {selectedComplaints.length > 0 && (
-                      <div className="erp-tags-wrap mt-2">
+                      <div className="erp-tags-wrap mt-2 flex flex-wrap gap-1.5 items-center">
                         {selectedComplaints.map((c) => (
                           <span key={c} className="erp-tag-chip">
                             {c}
@@ -1072,11 +1041,21 @@ export default function IPDAdmissionView() {
                               type="button"
                               className="erp-tag-chip-remove"
                               onClick={() => removeComplaint(c)}
+                              title={`Remove ${c}`}
                             >
                               ✕
                             </button>
                           </span>
                         ))}
+                        {selectedComplaints.length > 1 && (
+                          <button
+                            type="button"
+                            className="text-xs text-slate-400 hover:text-red-600 underline font-semibold ml-1 cursor-pointer"
+                            onClick={() => setSelectedComplaints([])}
+                          >
+                            Clear All
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1105,79 +1084,70 @@ export default function IPDAdmissionView() {
                       </div>
                     </div>
 
-                    <div className="erp-field-group">
-                      <label className="erp-label">
-                        Severity <span className="text-[12px] text-slate-500 font-normal">· स्थिति</span>
-                      </label>
-                      <div className="flex gap-1.5">
-                        {[
-                          { label: "Mild", cls: "sev-mild" },
-                          { label: "Moderate", cls: "sev-moderate" },
-                          { label: "Severe", cls: "sev-severe" },
-                          { label: "Critical", cls: "sev-critical" },
-                        ].map((item) => (
-                          <button
-                            key={item.label}
-                            type="button"
-                            className={`erp-sev-pill ${item.cls} ${severity === item.label ? "selected" : ""}`}
-                            onClick={() => setSeverity(item.label)}
-                          >
-                            {item.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                  
 
-                    <div className="erp-field-group">
-                      <label className="erp-label">Provisional Diagnosis</label>
-                      <input
-                        type="text"
-                        className="erp-input"
-                        value={provisionalDiagnosis}
-                        onChange={(e) => setProvisionalDiagnosis(e.target.value)}
-                        placeholder="Provisional diagnosis"
-                      />
-                    </div>
+                   
                   </div>
 
-                  {/* Quick Notes & Reason Textarea */}
+                  {/* Reason for Admission Multi-Select & Clinical Notes */}
                   <div className="erp-field-group mt-2">
                     <div className="flex justify-between items-center mb-1">
                       <label className="erp-label mb-0">
                         Reason for Admission / Clinical Notes <span className="erp-req">*</span>
+                        <span className="text-[11.5px] text-slate-500 font-normal ml-1">
+                          (Select multiple reasons or add custom)
+                        </span>
                       </label>
-                      <div className="flex gap-1.5 flex-wrap">
-                        {[
-                          "+ IV Antibiotics",
-                          "+ Surgery",
-                          "+ Observation",
-                          "+ ICU Care",
-                        ].map((preset) => (
-                          <button
-                            key={preset}
-                            type="button"
-                            className="erp-quick-chip"
-                            onClick={() => appendQuickReasonPreset(preset.replace("+ ", ""))}
-                          >
-                            {preset}
-                          </button>
-                        ))}
-                        <button
-                          type="button"
-                          className="erp-quick-chip text-sky-700 font-bold"
-                          onClick={() => setShowOtherReasonInput(!showOtherReasonInput)}
-                        >
-                          + Other
-                        </button>
-                      </div>
+                      {selectedReasons.length > 0 && (
+                        <span className="erp-symptom-count-badge">
+                          {selectedReasons.length} selected
+                        </span>
+                      )}
                     </div>
 
+                    <div className="flex gap-2 items-center">
+                      <select
+                        className="erp-select flex-1"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (!val) return;
+                          toggleAdmissionReason(val);
+                        }}
+                        value=""
+                      >
+                        <option value="">
+                          {selectedReasons.length === 0
+                            ? "Select Reason for Admission / भर्ती का मुख्य कारण चुनें..."
+                            : "+ Add another reason / अन्य कारण जोड़ें..."}
+                        </option>
+                        {POPULAR_ADMISSION_REASONS.map((r) => (
+                          <option
+                            key={r}
+                            value={r}
+                            disabled={selectedReasons.includes(r)}
+                          >
+                            {selectedReasons.includes(r) ? `✓ ${r} (Added)` : r}
+                          </option>
+                        ))}
+                        <option value="Other">+ Custom Reason / अन्य कारण (Custom)...</option>
+                      </select>
+                      <button
+                        type="button"
+                        className="erp-btn-sm-action"
+                        onClick={() => setShowOtherReasonInput(true)}
+                        title="Add Custom Reason"
+                      >
+                        + Custom
+                      </button>
+                    </div>
+
+                    {/* Inline Other Reason Input */}
                     {showOtherReasonInput && (
-                      <div className="mb-2 flex gap-2 items-center bg-sky-50 p-2 rounded-lg border border-sky-200">
+                      <div className="mt-2 flex gap-2 items-center bg-sky-50 p-2 rounded-lg border border-sky-200">
                         <input
                           type="text"
                           className="erp-input flex-1"
-                          placeholder="Type custom note / अन्य नोट..."
+                          placeholder="Type custom reason / अन्य कारण लिखें..."
                           value={otherReasonText}
                           onChange={(e) => setOtherReasonText(e.target.value)}
                           onKeyDown={(e) => {
@@ -1208,14 +1178,50 @@ export default function IPDAdmissionView() {
                       </div>
                     )}
 
-                    <textarea
-                      className="erp-textarea"
-                      rows={2.5}
-                      placeholder="Patient requires inpatient observation, vital monitoring, and medical treatment..."
-                      value={reasonForAdmission}
-                      onChange={(e) => setReasonForAdmission(e.target.value)}
-                      required
-                    />
+                    {/* Active Reason Badges */}
+                    {selectedReasons.length > 0 && (
+                      <div className="erp-tags-wrap mt-2 flex flex-wrap gap-1.5 items-center">
+                        {selectedReasons.map((r) => (
+                          <span key={r} className="erp-tag-chip">
+                            {r}
+                            <button
+                              type="button"
+                              className="erp-tag-chip-remove"
+                              onClick={() => removeAdmissionReason(r)}
+                              title={`Remove ${r}`}
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ))}
+                        {selectedReasons.length > 1 && (
+                          <button
+                            type="button"
+                            className="text-xs text-slate-400 hover:text-red-600 underline font-semibold ml-1 cursor-pointer"
+                            onClick={() => {
+                              setSelectedReasons([]);
+                              setReasonForAdmission("");
+                            }}
+                          >
+                            Clear All
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="mt-2">
+                      <label className="text-[11.5px] font-semibold text-slate-600 mb-1 block">
+                        Detailed Clinical Notes / विस्तृत विवरण:
+                      </label>
+                      <textarea
+                        className="erp-textarea"
+                        rows={2}
+                        placeholder="Patient requires inpatient observation, vital monitoring, and medical treatment..."
+                        value={reasonForAdmission}
+                        onChange={(e) => setReasonForAdmission(e.target.value)}
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1226,8 +1232,8 @@ export default function IPDAdmissionView() {
               {/* 4. BED / ROOM ALLOCATION (WITH AVAILABLE BEDS MATRIX) */}
               <div className="erp-section-panel">
                 <div className="erp-section-banner">
-                  <span className="erp-banner-icon">🛏️</span>
-                  <span>Bed / Room Allocation & Ward Matrix · बेड आवंटन</span>
+                  <span className="erp-banner-icon"><Icon name="LuBed" size={14} /></span>
+                  <span>Bed / Room Allocation & Ward Matrix <span className="erp-hint">· बेड आवंटन</span></span>
                 </div>
                 <div className="erp-section-inner">
                   <div className="erp-grid-2">
@@ -1340,102 +1346,85 @@ export default function IPDAdmissionView() {
                 </div>
               </div>
 
-              {/* 5. ATTENDANT DETAILS */}
+             
+              {/* 6. ADMISSION FORM FEE & ADVANCE DETAIL (SELECTABLE & ADD-ON ENABLED) */}
               <div className="erp-side-panel">
                 <div className="erp-side-panel-header">
-                  <span className="erp-banner-icon">👥</span>
-                  <span>Attendant Details · साथी विवरण</span>
+                  <span className="erp-banner-icon"><Icon name="LuCreditCard" size={14} /></span>
+                  <span>Admission Fee & Advance Detail <span className="erp-hint">· अग्रिम शुल्क</span></span>
                 </div>
                 <div className="erp-side-panel-body">
-                  <div className="erp-grid-2">
-                    <div className="erp-field-group">
-                      <label className="erp-label">
-                        Attendant Name <span className="erp-req">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        className="erp-input font-medium"
-                        value={attendantName}
-                        onChange={(e) => setAttendantName(e.target.value)}
-                        placeholder="Attendant full name"
-                        required
-                      />
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">
-                        Relationship <span className="erp-req">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        className="erp-input"
-                        value={relationship}
-                        onChange={(e) => setRelationship(e.target.value)}
-                        placeholder="e.g. Brother, Spouse"
-                        required
-                      />
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">
-                        Attendant Mobile <span className="erp-req">*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        className="erp-input"
-                        value={attendantMobile}
-                        onChange={(e) => setAttendantMobile(e.target.value)}
-                        placeholder="10-digit mobile"
-                        required
-                      />
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">Alternate Mobile</label>
-                      <input
-                        type="tel"
-                        className="erp-input"
-                        value={alternateMobile}
-                        onChange={(e) => setAlternateMobile(e.target.value)}
-                        placeholder="Secondary mobile"
-                      />
-                    </div>
+                  {/* Advance Particulars Table */}
+                  <div className="erp-fee-table-wrap">
+                    <table className="erp-fee-table">
+                      <thead>
+                        <tr>
+                          <th className="col-hash">#</th>
+                          <th className="col-particular">PARTICULAR / SERVICE CHARGE</th>
+                          <th className="col-amount">AMOUNT (₹)</th>
+                          <th className="col-action">ACTION</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {advanceParticulars.map((row, index) => (
+                          <tr key={row.id}>
+                            <td className="cell-hash">{String(index + 1).padStart(2, "0")}</td>
+                            <td className="cell-particular">
+                              <select
+                                className="erp-select text-[12.5px] font-semibold"
+                                value={row.service}
+                                onChange={(e) => handleParticularChange(row.id, "service", e.target.value)}
+                              >
+                                {IPD_ADVANCE_SERVICES.map((s) => (
+                                  <option key={s.name} value={s.name}>
+                                    {s.name} {s.defaultAmount > 0 ? `(₹${s.defaultAmount})` : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="cell-amount">
+                              <div className="relative flex items-center">
+                                <span className="absolute left-2.5 font-bold text-slate-500 text-xs pointer-events-none">₹</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  className="erp-fee-amount-input"
+                                  value={row.amount}
+                                  onChange={(e) => handleParticularChange(row.id, "amount", Number(e.target.value))}
+                                />
+                              </div>
+                            </td>
+                            <td className="cell-action">
+                              <button
+                                type="button"
+                                className="erp-btn-trash-fee"
+                                onClick={() => handleRemoveParticularRow(row.id)}
+                                title="Remove charge item"
+                                disabled={advanceParticulars.length <= 1}
+                              >
+                                <Icon name="LuTrash2" size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                </div>
-              </div>
 
-              {/* 6. ADMISSION FORM FEE DETAIL */}
-              <div className="erp-side-panel">
-                <div className="erp-side-panel-header">
-                  <span className="erp-banner-icon">💳</span>
-                  <span>Admission Fee & Advance Detail · अग्रिम शुल्क</span>
-                </div>
-                <div className="erp-side-panel-body">
-                  <div className="erp-grid-2">
-                    <div className="erp-field-group">
-                      <label className="erp-label">Registration Fee</label>
-                      <input
-                        type="number"
-                        className="erp-input bg-slate-50 font-semibold"
-                        value={registrationFee}
-                        readOnly
-                      />
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">Bed Advance (₹)</label>
-                      <input
-                        type="number"
-                        className="erp-input font-semibold"
-                        value={bedAdvance}
-                        onChange={(e) => setBedAdvance(e.target.value)}
-                      />
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">Other Charges (₹)</label>
-                      <input
-                        type="number"
-                        className="erp-input"
-                        value={otherCharges}
-                        onChange={(e) => setOtherCharges(e.target.value)}
-                      />
-                    </div>
+                  {/* Add-on button */}
+                  <div className="flex justify-between items-center mb-3">
+                    <button
+                      type="button"
+                      className="erp-btn-add-fee-row"
+                      onClick={handleAddParticularRow}
+                    >
+                      <Icon name="LuPlus" size={14} />
+                      <span>+ Add Particular / Add-on Charge</span>
+                    </button>
+                  </div>
+
+                  {/* Payment Details 3-Column Grid */}
+                  <div className="erp-grid-3">
                     <div className="erp-field-group">
                       <label className="erp-label">Payment Mode</label>
                       <select
@@ -1465,9 +1454,9 @@ export default function IPDAdmissionView() {
                       <label className="erp-label">Amount Received (₹)</label>
                       <input
                         type="number"
-                        className="erp-input font-semibold text-slate-800"
+                        className="erp-input font-bold text-slate-900"
                         value={amountReceived}
-                        onChange={(e) => setAmountReceived(e.target.value)}
+                        onChange={(e) => setAmountReceived(Number(e.target.value))}
                       />
                     </div>
                   </div>
@@ -1480,73 +1469,18 @@ export default function IPDAdmissionView() {
                 </div>
               </div>
 
-              {/* 7. ADMISSION SUMMARY & ADDITIONAL INFO */}
-              <div className="erp-side-panel">
-                <div className="erp-side-panel-header">
-                  <span className="erp-banner-icon">📊</span>
-                  <span>Admission Information Summary & Notes</span>
-                </div>
-                <div className="erp-side-panel-body">
-                  <div className="erp-info-matrix">
-                    <div className="erp-info-tile">
-                      <span className="erp-info-lbl">Admission</span>
-                      <strong className="erp-info-val text-blue-900">{admissionType} (IPD)</strong>
-                    </div>
-                    <div className="erp-info-tile">
-                      <span className="erp-info-lbl">Status</span>
-                      <strong className="erp-info-val text-amber-700">Pending Admission</strong>
-                    </div>
-                    <div className="erp-info-tile">
-                      <span className="erp-info-lbl">Allocated Bed</span>
-                      <strong className="erp-info-val text-emerald-800">
-                        {selectedBed || "Not Selected"}
-                      </strong>
-                    </div>
-                    <div className="erp-info-tile">
-                      <span className="erp-info-lbl">Ward Unit</span>
-                      <strong className="erp-info-val text-slate-800">{wardType}</strong>
-                    </div>
-                    <div className="erp-info-tile erp-tile-full">
-                      <span className="erp-info-lbl">Attending Doctor</span>
-                      <strong className="erp-info-val text-slate-900">
-                        {selectedDoctor?.name || "Dr. Amit Sharma"}
-                      </strong>
-                    </div>
-                  </div>
-
-                  {/* Expected Discharge & Remarks */}
-                  <div className="erp-grid-2 mt-2">
-                    <div className="erp-field-group">
-                      <label className="erp-label">Expected Discharge Date</label>
-                      <input
-                        type="date"
-                        className="erp-input"
-                        value={expectedDischargeDate}
-                        onChange={(e) => setExpectedDischargeDate(e.target.value)}
-                      />
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">Remarks</label>
-                      <input
-                        type="text"
-                        className="erp-input"
-                        placeholder="Additional remarks..."
-                        value={remarks}
-                        onChange={(e) => setRemarks(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <p className="erp-guidance-note mt-2">
-                    Fill the inpatient admission details and allocate ward bed carefully before submitting the form.
-                  </p>
-                </div>
-              </div>
+           
             </div>
           </div>
 
           {/* ── BOTTOM ACTION BUTTONS BAR ── */}
           <div className="ipd-erp-footer-actions">
+            <div className="ipd-footer-summary-chip">
+              <span className="chip-label">Total Advance:</span>
+              <span className="chip-amount">₹ {totalAdvance.toFixed(2)}</span>
+              <span className="chip-sub">({paymentMode} • {paymentStatus})</span>
+            </div>
+
             <div className="erp-action-buttons-group">
               <button
                 type="button"

@@ -420,23 +420,23 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                     <td>
                       <div className="rr-actions">
                         {/* View */}
-                        <button onClick={() => setViewP(p)} title="View Details" className="rr-act rr-act--view">
-                          <LuEye size={13} /> View
+                        <button onClick={() => setViewP(p)} title="View Patient Details" className="rr-act rr-act--view">
+                          <LuEye size={15} />
                         </button>
                         {/* Edit */}
                         <button onClick={() => openEdit(p)} title="Edit Patient"
                           className={`rr-act ${canEdit ? "rr-act--edit" : "rr-act--locked"}`}>
-                          <LuSquarePen size={14} />
+                          <LuSquarePen size={15} />
                         </button>
                         {/* Status */}
                         <button onClick={() => { setStatusP(p); setNewStatus(p.status || "Waiting"); }} title="Change Status"
                           className="rr-act rr-act--status">
-                          <LuRefreshCw size={13} />
+                          <LuRefreshCw size={14} />
                         </button>
-                        {/* Cancel */}
-                        <button onClick={() => setCancelP(p)} title="Cancel" disabled={isCancelled}
+                        {/* Cancel / Delete */}
+                        <button onClick={() => setCancelP(p)} title={canDelete ? "Delete Record" : "Cancel Patient"} disabled={isCancelled}
                           className="rr-act rr-act--cancel">
-                          {canDelete ? <LuTrash2 size={13} /> : <LuBan size={13} />}
+                          {canDelete ? <LuTrash2 size={14} /> : <LuBan size={14} />}
                         </button>
                       </div>
                     </td>
