@@ -18,6 +18,26 @@ const ipdService = {
     const res = await axiosInstance.post("/beds", payload);
     return res.data?.data ?? res.data ?? null;
   },
+  getBed: async (bedId) => {
+    const res = await axiosInstance.get(`/beds/${bedId}`);
+    return res.data?.data ?? res.data ?? null;
+  },
+  updateBed: async (bedId, payload) => {
+    const res = await axiosInstance.put(`/beds/${bedId}`, payload);
+    return res.data?.data ?? res.data ?? null;
+  },
+  deleteBed: async (bedId) => {
+    const res = await axiosInstance.delete(`/beds/${bedId}`);
+    return res.data?.data ?? res.data ?? null;
+  },
+  getBedCategories: async (params = {}) => {
+    const res = await axiosInstance.get("/beds/categories", { params });
+    return res.data?.data ?? res.data ?? [];
+  },
+  syncInventoryBeds: async () => {
+    const res = await axiosInstance.post("/beds/sync-inventory");
+    return res.data?.data ?? res.data ?? null;
+  },
   updateBedStatus: async (bedId, status) => {
     const res = await axiosInstance.patch(`/beds/${bedId}/status`, { status });
     return res.data?.data ?? res.data ?? null;

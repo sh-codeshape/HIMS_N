@@ -1,5 +1,5 @@
 import { db } from '../../config/database';
-import { ValidationError } from '../../shared/errors/AppError';
+import { ValidationError, NotFoundError } from '../../shared/errors/AppError';
 
 export class BillingRepository {
   private async resolvePaymentMethodId(data: any, client: any = db): Promise<string> {
@@ -290,6 +290,119 @@ export class BillingRepository {
       JSON.stringify(customFields)
     ]);
     return res.rows[0];
+  }
+
+  async postBedCharges(encounterId: string, facilityId: string, userId?: string) {
+    // 1. Get encounter & admission details
+    const encRes = await db.query(
+      `SELECT e.id as encounter_id, e.organization_id, e.facility_id, e.patient_id, e.started_at, e.ended_at,
+              a.id as admission_id, a.admitted_at, a.discharged_at
+       FROM encounters e
+       JOIN admissions a ON a.encounter_id = e.id
+       WHERE e.id = $1 LIMIT 1;`,
+      [encounterId]
+    );
+
+    if (encRes.rows.length === 0) {
+      throw new NotFoundError('Encounter / Admission not found for billing bed charges');
+    }
+
+    const encounter = encRes.rows[0];
+    const orgId = encounter.organization_id;
+
+    // 2. Get all bed assignments for this admission
+    const baRes = await db.query(
+      `SELECT ba.id, ba.bed_id, ba.assigned_from, ba.assigned_to,
+              b.bed_no, b.bed_charge_service_id, b.bed_category_id,
+              bc.name as category_name,
+              s.name as service_name, s.default_rate,
+              w.name as ward_name
+       FROM bed_assignments ba
+       JOIN beds b ON ba.bed_id = b.id
+       LEFT JOIN bed_categories bc ON b.bed_category_id = bc.id
+       LEFT JOIN services s ON b.bed_charge_service_id = s.id
+       LEFT JOIN wards w ON b.ward_id = w.id
+       WHERE ba.admission_id = $1
+       ORDER BY ba.assigned_from ASC;`,
+      [encounter.admission_id]
+    );
+
+    const postedCharges: any[] = [];
+
+    for (const ba of baRes.rows) {
+      const fromDate = new Date(ba.assigned_from);
+      const toDate = ba.assigned_to ? new Date(ba.assigned_to) : new Date();
+
+      // Calculate days stayed (minimum 1 day)
+      const diffMs = Math.max(0, toDate.getTime() - fromDate.getTime());
+      const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+
+      // Determine rate: check tariff rates or service default rate
+      let rate = Number(ba.default_rate) || 1500;
+      if (ba.bed_charge_service_id) {
+        const tariffRes = await db.query(
+          `SELECT rate FROM tariff_rates WHERE service_id = $1 AND (bed_category_id = $2 OR bed_category_id IS NULL) LIMIT 1;`,
+          [ba.bed_charge_service_id, ba.bed_category_id]
+        );
+        if (tariffRes.rows.length > 0 && Number(tariffRes.rows[0].rate) > 0) {
+          rate = Number(tariffRes.rows[0].rate);
+        }
+      }
+
+      const description = `Bed Charge: ${ba.ward_name || ''} - ${ba.bed_no} (${ba.category_name || 'Standard'}) - ${days} day(s)`;
+
+      // Avoid creating identical duplicate charge for this bed assignment if already posted
+      const existingCharge = await db.query(
+        `SELECT id, quantity, net_amount FROM charges 
+         WHERE encounter_id = $1 AND (custom_fields->>'bed_assignment_id') = $2 AND status != 'cancelled'
+         LIMIT 1;`,
+        [encounterId, ba.id]
+      );
+
+      if (existingCharge.rows.length > 0) {
+        const existing = existingCharge.rows[0];
+        if (Number(existing.quantity) !== days) {
+          const total = days * rate;
+          const updated = await db.query(
+            `UPDATE charges 
+             SET quantity = $2, unit_price = $3, taxable_amount = $4, net_amount = $4, description = $5, updated_at = NOW()
+             WHERE id = $1 RETURNING *;`,
+            [existing.id, days, rate, total, description]
+          );
+          postedCharges.push(updated.rows[0]);
+        } else {
+          postedCharges.push(existing);
+        }
+      } else {
+        const total = days * rate;
+        const customFields = {
+          bed_assignment_id: ba.id,
+          bed_id: ba.bed_id,
+          bed_no: ba.bed_no,
+          days,
+          item_category: 'Room Charges',
+        };
+
+        const charge = await this.addCharge({
+          organization_id: orgId,
+          facility_id: encounter.facility_id || facilityId,
+          patient_id: encounter.patient_id,
+          encounter_id: encounterId,
+          service_id: ba.bed_charge_service_id || null,
+          item_name: description,
+          item_category: 'Room Charges',
+          quantity: days,
+          unit_price: rate,
+          rate: rate,
+          total_amount: total,
+          user_id: userId,
+          custom_fields: customFields,
+        });
+        postedCharges.push(charge);
+      }
+    }
+
+    return postedCharges;
   }
 
   async removeCharge(id: string, facilityId: string) {

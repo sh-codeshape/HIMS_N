@@ -65,6 +65,7 @@ export default function FloorBedMap() {
   // Add Bed form state
   const [wards, setWards] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [categoriesList, setCategoriesList] = useState([]);
   const [addBedForm, setAddBedForm] = useState({
     ward_id: "",
     ward_code: "",
@@ -96,14 +97,16 @@ export default function FloorBedMap() {
   useEffect(() => {
     const loadWardMaster = async () => {
       try {
-        const [bedsData, wardsData, roomsData] = await Promise.all([
+        const [bedsData, wardsData, roomsData, catsData] = await Promise.all([
           ipdService.getBedMatrix().catch(() => []),
           ipdService.getBedWards().catch(() => []),
           ipdService.getBedRooms().catch(() => []),
+          ipdService.getBedCategories().catch(() => []),
         ]);
         setBedsData(Array.isArray(bedsData) ? bedsData : []);
         setWards(Array.isArray(wardsData) ? wardsData : []);
         setRooms(Array.isArray(roomsData) ? roomsData : []);
+        setCategoriesList(Array.isArray(catsData) ? catsData : catsData?.data || []);
         if (Array.isArray(wardsData) && wardsData.length > 0) {
           const floorNames = Array.from(
             new Set(wardsData.map((w) => w.floor).filter(Boolean))
@@ -121,8 +124,11 @@ export default function FloorBedMap() {
     loadWardMaster();
   }, []);
 
-  // Bed categories derived from wards
+  // Bed categories from master API (fallback to wards)
   const bedCategories = useMemo(() => {
+    if (categoriesList && categoriesList.length > 0) {
+      return categoriesList;
+    }
     const map = new Map();
     wards.forEach((w) => {
       if (w.bed_category_id && !map.has(w.bed_category_id)) {
@@ -133,7 +139,7 @@ export default function FloorBedMap() {
       }
     });
     return Array.from(map.values());
-  }, [wards]);
+  }, [categoriesList, wards]);
 
   // Available floors navigation (derived from wards + live bed data)
   const floorsList = useMemo(() => {
@@ -327,6 +333,7 @@ export default function FloorBedMap() {
     }
 
     try {
+      const selectedCategory = bedCategories.find((c) => c.id === addBedForm.bed_category_id);
       const payload = {
         facility_id: "00000000-0000-0000-0000-000000000000",
         ward_id: addBedForm.ward_id || undefined,
@@ -336,6 +343,7 @@ export default function FloorBedMap() {
         floor: addBedForm.floor || undefined,
         gender_policy: addBedForm.gender_policy,
         bed_category_id: addBedForm.bed_category_id || null,
+        bed_charge_service_id: selectedCategory?.bed_charge_service_id || undefined,
         room_id: addBedForm.room_id || null,
         room_no: addBedForm.room_no || undefined,
         room_type: addBedForm.room_type,
@@ -1432,10 +1440,10 @@ export default function FloorBedMap() {
                     value={addBedForm.bed_category_id}
                     onChange={(e) => setAddBedForm({ ...addBedForm, bed_category_id: e.target.value })}
                   >
-                    <option value="">-- None / Default --</option>
+                    <option value="">-- None / Default (General) --</option>
                     {bedCategories.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name}
+                        {c.name} {c.daily_rate ? `— ₹${Number(c.daily_rate).toLocaleString()} / day` : ""}
                       </option>
                     ))}
                   </select>

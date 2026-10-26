@@ -15,6 +15,8 @@ router.use(moduleGuard('ward'));
 router.get('/', validate(getBedSchema), controller.getBeds);
 router.get('/wards', controller.getWards);
 router.get('/rooms', controller.getRooms);
+router.get('/categories', controller.getBedCategories);
+router.post('/sync-inventory', authorize(['bed.manage']), controller.syncAllBedsToInventory);
 router.get('/:id', validate(getBedByIdSchema), controller.getBed);
 router.post('/', authorize(['bed.manage']), validate(createBedSchema), controller.createBed);
 router.put('/:id', authorize(['bed.manage']), validate(updateBedSchema), controller.updateBed);

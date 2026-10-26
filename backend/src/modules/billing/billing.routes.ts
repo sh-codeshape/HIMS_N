@@ -3,7 +3,7 @@ import { BillingController } from './billing.controller';
 import { validate } from '../../middleware/validate';
 import { authenticate } from '../../middleware/authenticate';
 import { moduleGuard } from '../../middleware/moduleGuard';
-import { createInvoiceSchema } from './billing.schema';
+import { createInvoiceSchema, postBedChargesSchema } from './billing.schema';
 
 const router = Router();
 const controller = new BillingController();
@@ -17,6 +17,8 @@ router.get('/:id', controller.getInvoice);
 
 // IPD Running Bill routes
 router.post('/charges', controller.addCharge);
+router.post('/charges/bed', validate(postBedChargesSchema), controller.postBedCharges);
+router.post('/bed-charges', validate(postBedChargesSchema), controller.postBedCharges);
 router.delete('/charges/:id', controller.removeCharge);
 router.get('/running-bill/:encounterId', controller.getRunningBill);
 router.post('/payments/advance', controller.recordAdvancePayment);

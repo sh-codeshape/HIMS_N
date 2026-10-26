@@ -69,4 +69,8 @@ export class BillingService {
   async getEncounterPayments(encounterId: string, facilityId: string) {
     return this.repository.getEncounterPayments(encounterId, facilityId);
   }
+
+  async postBedCharges(encounterId: string, facilityId: string, userId?: string) {
+    return this.repository.postBedCharges(encounterId, facilityId, userId);
+  }
 }

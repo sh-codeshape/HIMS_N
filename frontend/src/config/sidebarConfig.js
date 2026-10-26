@@ -165,6 +165,7 @@ const sidebarConfig = [
     allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY],
     children: [
       { label: "Dashboard", path: "/inventory/dashboard", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY] },
+      { label: "Asset Management", path: "/inventory/asset-management", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY] },
       { label: "Items", path: "/inventory/items", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY] },
       { label: "Categories", path: "/inventory/categories", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY] },
       { label: "Stores", path: "/inventory/stores", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY] },

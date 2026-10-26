@@ -49,6 +49,26 @@ export class BedController {
     }
   };
 
+  getBedCategories = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const facilityId = this.resolveBedFacilityId(req);
+      const categories = await this.service.getBedCategories(facilityId);
+      sendSuccess(res, categories, 'Bed categories retrieved successfully', 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  syncAllBedsToInventory = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const facilityId = this.resolveBedFacilityId(req);
+      const result = await this.service.syncAllBedsToInventory(facilityId);
+      sendSuccess(res, result, 'Beds synchronized with inventory assets successfully', 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getBed = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const facilityId = this.resolveBedFacilityId(req);

@@ -19,6 +19,10 @@ const billingService = {
     const res = await axiosInstance.post("/billing/charges", payload);
     return res.data?.data ?? res.data ?? null;
   },
+  postBedCharges: async (payload) => {
+    const res = await axiosInstance.post("/billing/charges/bed", payload);
+    return res.data?.data ?? res.data ?? null;
+  },
   removeCharge: async (id, payload) => {
     const res = await axiosInstance.delete(`/billing/charges/${id}`, { data: payload });
     return res.data?.data ?? res.data ?? null;

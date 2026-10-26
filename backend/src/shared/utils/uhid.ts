@@ -6,9 +6,17 @@ export interface ParsedUHID {
   serial: number;
 }
 
-export function buildUHID(date: Date, serial: number): string {
-  const month = date.getMonth() + 1;
-  const yearSuffix = date.getFullYear() % 100;
+export function buildUHID(dateOrYear: Date | number, serial: number, monthInput?: number): string {
+  let month: number;
+  let yearSuffix: number;
+
+  if (typeof dateOrYear === 'number') {
+    yearSuffix = dateOrYear % 100;
+    month = monthInput || 1;
+  } else {
+    month = dateOrYear.getMonth() + 1;
+    yearSuffix = dateOrYear.getFullYear() % 100;
+  }
 
   if (!Number.isInteger(serial) || serial < 1) {
     throw new RangeError('UHID serial must be a positive integer.');

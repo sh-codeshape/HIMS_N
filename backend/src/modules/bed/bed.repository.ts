@@ -22,11 +22,17 @@ export class BedRepository {
         adm.admitted_at,
         adm.status as admission_status,
         s.first_name as doctor_first_name,
-        s.last_name as doctor_last_name
+        s.last_name as doctor_last_name,
+        srv.id as bed_charge_service_id,
+        srv.code as bed_charge_service_code,
+        srv.name as bed_charge_service_name,
+        COALESCE(srv.default_rate, 0) as bed_charge_rate,
+        b.features->>'inventory_item_id' as inventory_item_id
       FROM beds b
       LEFT JOIN rooms r ON b.room_id = r.id
       JOIN wards w ON b.ward_id = w.id
-      JOIN bed_categories bc ON b.bed_category_id = bc.id
+      LEFT JOIN bed_categories bc ON b.bed_category_id = bc.id
+      LEFT JOIN services srv ON b.bed_charge_service_id = srv.id
       LEFT JOIN bed_assignments ba ON ba.bed_id = b.id AND ba.assigned_to IS NULL
       LEFT JOIN admissions adm ON ba.admission_id = adm.id AND adm.status IN ('admitted', 'discharge_initiated')
       LEFT JOIN patients p ON adm.patient_id = p.id
@@ -81,11 +87,15 @@ export class BedRepository {
 
   async getBedById(bedId: string, facilityId: string) {
     const query = `
-      SELECT b.*, r.room_no as room_name, w.name as ward_name, w.ward_type as ward_type, bc.name as category_name, bc.is_icu
+      SELECT b.*, r.room_no as room_name, w.name as ward_name, w.ward_type as ward_type, bc.name as category_name, bc.is_icu,
+             srv.id as bed_charge_service_id, srv.code as bed_charge_service_code, srv.name as bed_charge_service_name,
+             COALESCE(srv.default_rate, 0) as bed_charge_rate,
+             b.features->>'inventory_item_id' as inventory_item_id
       FROM beds b
       LEFT JOIN rooms r ON b.room_id = r.id
       JOIN wards w ON b.ward_id = w.id
-      JOIN bed_categories bc ON b.bed_category_id = bc.id
+      LEFT JOIN bed_categories bc ON b.bed_category_id = bc.id
+      LEFT JOIN services srv ON b.bed_charge_service_id = srv.id
       WHERE b.id = $1 AND b.facility_id = $2 AND b.is_active = true
       ORDER BY w.name, r.room_no, b.bed_no
     `;
@@ -93,9 +103,189 @@ export class BedRepository {
     return result.rows[0];
   }
 
+  async getBedCategories(facilityId?: string) {
+    const query = `
+      SELECT 
+        bc.id,
+        bc.code,
+        bc.name,
+        bc.rank,
+        bc.is_icu,
+        bc.is_active,
+        srv.id as bed_charge_service_id,
+        srv.code as bed_charge_service_code,
+        srv.name as bed_charge_service_name,
+        COALESCE(tr.rate, srv.default_rate, 0) as daily_rate
+      FROM bed_categories bc
+      LEFT JOIN services srv ON (
+        (bc.code = 'GEN' AND srv.code = 'BED-GEN-DAY') OR
+        (bc.code = 'ICU' AND srv.code = 'BED-ICU-DAY') OR
+        (bc.code = 'PVT' AND srv.code = 'BED-PVT-DAY') OR
+        (bc.code = 'SEMI' AND (srv.code = 'BED-SEMI-DAY' OR srv.code = 'BED-GEN-DAY')) OR
+        (bc.code = 'NICU' AND (srv.code = 'BED-NICU-DAY' OR srv.code = 'BED-ICU-DAY')) OR
+        (bc.code = 'EMG' AND (srv.code = 'BED-EMG-DAY' OR srv.code = 'BED-GEN-DAY')) OR
+        (bc.code = 'DAY' AND (srv.code = 'BED-DAY-DAY' OR srv.code = 'BED-GEN-DAY')) OR
+        (srv.service_type = 'bed' AND (srv.code ILIKE '%' || bc.code || '%' OR srv.name ILIKE '%' || bc.name || '%'))
+      )
+      LEFT JOIN tariff_rates tr ON tr.service_id = srv.id AND (tr.bed_category_id = bc.id OR tr.bed_category_id IS NULL)
+      WHERE bc.is_active = true
+      ORDER BY bc.rank ASC, bc.name ASC;
+    `;
+    const result = await db.query(query);
+    const seen = new Set<string>();
+    return result.rows.filter(r => {
+      if (seen.has(r.id)) return false;
+      seen.add(r.id);
+      return true;
+    });
+  }
+
+  async resolveBedChargeServiceId(bedCategoryId: string | null, organizationId?: string): Promise<string | null> {
+    if (bedCategoryId) {
+      // 1. Check tariff rates for this specific bed category
+      const tariffRes = await db.query(
+        `SELECT service_id FROM tariff_rates WHERE bed_category_id = $1 LIMIT 1;`,
+        [bedCategoryId]
+      );
+      if (tariffRes.rows.length > 0 && tariffRes.rows[0].service_id) {
+        return tariffRes.rows[0].service_id;
+      }
+
+      // 2. Try matching service code/name based on bed category code
+      const catRes = await db.query(`SELECT code, name FROM bed_categories WHERE id = $1 LIMIT 1;`, [bedCategoryId]);
+      if (catRes.rows.length > 0) {
+        const catCode = catRes.rows[0].code;
+        const catName = catRes.rows[0].name;
+        const matchRes = await db.query(
+          `SELECT id FROM services 
+           WHERE service_type = 'bed' AND (code ILIKE $1 OR name ILIKE $2) 
+           ORDER BY created_at ASC LIMIT 1;`,
+          [`%${catCode}%`, `%${catName}%`]
+        );
+        if (matchRes.rows.length > 0) {
+          return matchRes.rows[0].id;
+        }
+      }
+    }
+
+    // 3. Fallback to general bed charge service
+    const defaultRes = await db.query(
+      `SELECT id FROM services WHERE service_type = 'bed' AND code = 'BED-GEN-DAY' LIMIT 1;`
+    );
+    if (defaultRes.rows.length > 0) {
+      return defaultRes.rows[0].id;
+    }
+
+    const anyBedRes = await db.query(
+      `SELECT id FROM services WHERE service_type = 'bed' ORDER BY created_at ASC LIMIT 1;`
+    );
+    return anyBedRes.rows[0]?.id || null;
+  }
+
+  async syncBedToInventoryItem(bed: any, client: any = db): Promise<string | null> {
+    try {
+      const orgId = bed.organization_id || '00000000-0000-0000-0000-000000000000';
+      const itemCode = `EQ-BED-${String(bed.bed_no || '').replace(/\s+/g, '-').toUpperCase()}`;
+      
+      const wardRes = await client.query(`SELECT name, floor FROM wards WHERE id = $1 LIMIT 1;`, [bed.ward_id]);
+      const ward = wardRes.rows[0];
+      const catRes = bed.bed_category_id 
+        ? await client.query(`SELECT name FROM bed_categories WHERE id = $1 LIMIT 1;`, [bed.bed_category_id])
+        : { rows: [] };
+      const catName = catRes.rows[0]?.name || 'Standard';
+
+      const itemName = `Hospital Bed - ${bed.bed_no} (${catName})`;
+      const customFields = {
+        bed_id: bed.id,
+        bed_no: bed.bed_no,
+        ward_id: bed.ward_id,
+        ward_name: ward?.name || null,
+        room_id: bed.room_id,
+        floor: ward?.floor || null,
+        bed_category_id: bed.bed_category_id,
+        category_name: catName,
+        status: bed.status,
+        is_bed_asset: true,
+        features: bed.features || {},
+      };
+
+      const existRes = await client.query(
+        `SELECT id FROM items WHERE organization_id = $1 AND code = $2 LIMIT 1;`,
+        [orgId, itemCode]
+      );
+
+      let itemId: string;
+      if (existRes.rows.length > 0) {
+        itemId = existRes.rows[0].id;
+        await client.query(
+          `UPDATE items
+           SET name = $2,
+               service_id = COALESCE($3, service_id),
+               is_active = $4,
+               custom_fields = $5,
+               updated_at = NOW()
+           WHERE id = $1;`,
+          [itemId, itemName, bed.bed_charge_service_id || null, bed.is_active ?? true, JSON.stringify(customFields)]
+        );
+      } else {
+        const insertRes = await client.query(
+          `INSERT INTO items (
+             organization_id, code, name, generic_name, item_type,
+             service_id, base_uom, pack_size, track_batches, track_expiry,
+             is_active, custom_fields, created_at, updated_at
+           ) VALUES (
+             $1, $2, $3, 'IPD Hospital Bed Asset', 'equipment',
+             $4, 'unit', 1, false, false,
+             $5, $6, NOW(), NOW()
+           ) RETURNING id;`,
+          [orgId, itemCode, itemName, bed.bed_charge_service_id || null, bed.is_active ?? true, JSON.stringify(customFields)]
+        );
+        itemId = insertRes.rows[0].id;
+      }
+
+      // Update features with linked inventory item id
+      const currentFeatures = typeof bed.features === 'object' && bed.features !== null ? bed.features : {};
+      if (currentFeatures.inventory_item_id !== itemId) {
+        const features = { ...currentFeatures, inventory_item_id: itemId };
+        await client.query(
+          `UPDATE beds SET features = $2 WHERE id = $1;`,
+          [bed.id, JSON.stringify(features)]
+        );
+      }
+
+      return itemId;
+    } catch (err) {
+      console.error('Error syncing bed to inventory item:', err);
+      return null;
+    }
+  }
+
+  async syncAllBedsToInventory(facilityId: string): Promise<{ synced: number; total: number }> {
+    const beds = await db.query(
+      `SELECT * FROM beds WHERE facility_id = $1 AND is_active = true;`,
+      [facilityId]
+    );
+    let count = 0;
+    for (const bed of beds.rows) {
+      let chargeServiceId = bed.bed_charge_service_id;
+      if (!chargeServiceId) {
+        chargeServiceId = await this.resolveBedChargeServiceId(bed.bed_category_id, bed.organization_id);
+        if (chargeServiceId) {
+          await db.query(`UPDATE beds SET bed_charge_service_id = $1 WHERE id = $2;`, [chargeServiceId, bed.id]);
+          bed.bed_charge_service_id = chargeServiceId;
+        }
+      }
+      await this.syncBedToInventoryItem(bed);
+      count++;
+    }
+    return { synced: count, total: beds.rows.length };
+  }
+
   async createBed(data: any) {
     // Resolve (or auto-create) the ward when only ward reference details are provided
     let wardId = data.ward_id || null;
+
+    const orgId = data.organization_id || '00000000-0000-0000-0000-000000000000';
 
     if (!wardId) {
       const wardQuery = `
@@ -112,7 +302,7 @@ export class BedRepository {
             organization_id, facility_id, code, name, ward_type, gender_policy, floor, is_active, created_at, updated_at, created_by, updated_by
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, true, NOW(), NOW(), $8, $9) RETURNING *;`,
           [
-            data.organization_id || null,
+            orgId,
             data.facility_id,
             data.ward_code,
             data.ward_name || data.ward_code,
@@ -151,6 +341,11 @@ export class BedRepository {
       throw new ConflictError(`Bed number '${data.bed_no}' already exists in the specified ward`);
     }
 
+    let bedChargeServiceId = data.bed_charge_service_id || null;
+    if (!bedChargeServiceId) {
+      bedChargeServiceId = await this.resolveBedChargeServiceId(data.bed_category_id, data.organization_id);
+    }
+
     const query = `
       INSERT INTO beds (
         organization_id, facility_id, ward_id, room_id, bed_category_id,
@@ -161,12 +356,12 @@ export class BedRepository {
       ) RETURNING *;
     `;
     const result = await db.query(query, [
-      data.organization_id || null,
+      orgId,
       data.facility_id,
       wardId,
       roomId,
       data.bed_category_id || null,
-      data.bed_charge_service_id || null,
+      bedChargeServiceId,
       data.bed_no,
       data.status || 'available',
       data.features || {},
@@ -174,13 +369,24 @@ export class BedRepository {
       data.created_by || null,
       data.updated_by || null,
     ]);
-    return result.rows[0];
+
+    const createdBed = result.rows[0];
+    if (createdBed) {
+      await this.syncBedToInventoryItem(createdBed);
+    }
+    return (await this.getBedById(createdBed.id, data.facility_id)) || createdBed;
   }
 
   async updateBed(bedId: string, data: any, facilityId: string) {
+    let bedChargeServiceId = data.bed_charge_service_id;
+    if (bedChargeServiceId === undefined && data.bed_category_id) {
+      bedChargeServiceId = await this.resolveBedChargeServiceId(data.bed_category_id, data.organization_id);
+    }
+
     const query = `
       UPDATE beds
-      SET ward_id = $2, room_id = $3, bed_category_id = $4, bed_charge_service_id = $5,
+      SET ward_id = $2, room_id = $3, bed_category_id = $4,
+          bed_charge_service_id = COALESCE($5, bed_charge_service_id),
           bed_no = $6, status = $7, features = $8, is_active = $9, updated_at = NOW(), updated_by = $10
       WHERE id = $1 AND facility_id = $11
       RETURNING *;
@@ -190,7 +396,7 @@ export class BedRepository {
       data.ward_id ?? null,
       data.room_id ?? null,
       data.bed_category_id ?? null,
-      data.bed_charge_service_id ?? null,
+      bedChargeServiceId ?? null,
       data.bed_no,
       data.status || 'available',
       data.features || {},
@@ -198,7 +404,12 @@ export class BedRepository {
       data.updated_by || null,
       facilityId,
     ]);
-    return result.rows[0];
+
+    const updatedBed = result.rows[0];
+    if (updatedBed) {
+      await this.syncBedToInventoryItem(updatedBed);
+    }
+    return (await this.getBedById(bedId, facilityId)) || updatedBed;
   }
 
   async softDeleteBed(bedId: string, facilityId: string) {
@@ -209,7 +420,11 @@ export class BedRepository {
       RETURNING *;
     `;
     const result = await db.query(query, [bedId, facilityId]);
-    return result.rows[0];
+    const deletedBed = result.rows[0];
+    if (deletedBed) {
+      await this.syncBedToInventoryItem(deletedBed);
+    }
+    return deletedBed;
   }
 
   async updateBedStatus(bedId: string, status: string, facilityId: string) {

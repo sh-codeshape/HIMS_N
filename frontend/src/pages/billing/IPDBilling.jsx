@@ -81,6 +81,8 @@ export default function IPDBilling() {
   const [rateInput, setRateInput] = useState(1500);
   const [qtyInput, setQtyInput] = useState(1);
   const [remarks, setRemarks] = useState("");
+  const [customRoomCharges, setCustomRoomCharges] = useState(null);
+  const [postingBedCharges, setPostingBedCharges] = useState(false);
 
   // ── Payment Modal ──
   const [showReceivePayModal, setShowReceivePayModal] = useState(false);
@@ -229,9 +231,38 @@ export default function IPDBilling() {
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   // ── Category / Service ──
+  useEffect(() => {
+    const loadBedTariffs = async () => {
+      try {
+        const cats = await ipdService.getBedCategories();
+        const catList = Array.isArray(cats) ? cats : cats?.data || [];
+        if (catList.length > 0) {
+          const list = catList.map((c) => ({
+            name: `${c.name} (Per Day)`,
+            rate: Number(c.daily_rate) || 1500,
+          }));
+          setCustomRoomCharges(list);
+        }
+      } catch (err) {
+        console.error("Failed to load bed category tariffs", err);
+      }
+    };
+    loadBedTariffs();
+  }, []);
+
+  const getServicesForCategory = useCallback(
+    (cat) => {
+      if (cat === "Room Charges" && customRoomCharges && customRoomCharges.length > 0) {
+        return customRoomCharges;
+      }
+      return CATEGORY_SERVICE_LIST[cat] || [];
+    },
+    [customRoomCharges]
+  );
+
   const handleCategoryClick = (cat) => {
     setActiveCategory(cat);
-    const services = CATEGORY_SERVICE_LIST[cat] || [];
+    const services = getServicesForCategory(cat);
     if (services.length > 0) {
       setSelectedServiceName(services[0].name);
       setRateInput(services[0].rate);
@@ -241,9 +272,31 @@ export default function IPDBilling() {
   const handleServiceChange = (e) => {
     const sName = e.target.value;
     setSelectedServiceName(sName);
-    const services = CATEGORY_SERVICE_LIST[activeCategory] || [];
+    const services = getServicesForCategory(activeCategory);
     const found = services.find((s) => s.name === sName);
     if (found) setRateInput(found.rate);
+  };
+
+  // ── Post Bed Charges ──
+  const handlePostBedCharges = async () => {
+    if (!patient) return;
+    try {
+      setPostingBedCharges(true);
+      const encId = patient.encounterId || patient.id;
+      const res = await billingService.postBedCharges({ encounter_id: encId });
+      toast.success(
+        res?.length > 0
+          ? `Calculated and posted bed charges for ${patient.name}!`
+          : "Bed charges are up to date.",
+        { icon: "🛏️" }
+      );
+      await fetchPatientBilling(patient);
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.error?.message || "Failed to post bed charges");
+    } finally {
+      setPostingBedCharges(false);
+    }
   };
 
   // ── Add charge ──
@@ -631,7 +684,7 @@ export default function IPDBilling() {
                     value={selectedServiceName}
                     onChange={handleServiceChange}
                   >
-                    {(CATEGORY_SERVICE_LIST[activeCategory] || []).map((s) => (
+                    {getServicesForCategory(activeCategory).map((s) => (
                       <option key={s.name} value={s.name}>{s.name}</option>
                     ))}
                   </select>
@@ -666,6 +719,16 @@ export default function IPDBilling() {
                 </div>
                 <button type="button" className="ipd-btn-add-item" onClick={handleAddServiceItem}>
                   <Icon name="LuPlus" size={16} /> Add
+                </button>
+                <button
+                  type="button"
+                  className="ipd-btn-add-item"
+                  style={{ background: "#7c3aed", borderColor: "#6d28d9", color: "#fff", whiteSpace: "nowrap" }}
+                  onClick={handlePostBedCharges}
+                  disabled={postingBedCharges}
+                  title="Calculate and post daily bed charges based on actual stay"
+                >
+                  <Icon name="LuBed" size={16} /> {postingBedCharges ? "Posting..." : "Post Bed Stay Charges"}
                 </button>
               </div>
             </div>

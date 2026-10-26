@@ -71,4 +71,12 @@ export class BillingController {
     const payments = await this.service.getEncounterPayments(encounterId, facilityId);
     sendSuccess(res, payments, 'Payments retrieved successfully');
   };
+
+  postBedCharges = async (req: Request, res: Response) => {
+    const facilityId = (req.user?.facilityId as string) || req.body.facility_id || '00000000-0000-0000-0000-000000000000';
+    const userId = req.user?.userId || '00000000-0000-0000-0000-000000000000';
+    const encounterId = req.body.encounter_id;
+    const charges = await this.service.postBedCharges(encounterId, facilityId, userId);
+    sendSuccess(res, charges, 'Bed charges calculated and posted successfully', 201);
+  };
 }

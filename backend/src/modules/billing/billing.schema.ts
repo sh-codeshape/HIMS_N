@@ -19,3 +19,12 @@ export const createInvoiceSchema = z.object({
 });
 
 export type CreateInvoiceRequest = z.infer<typeof createInvoiceSchema>['body'];
+
+export const postBedChargesSchema = z.object({
+  body: z.object({
+    encounter_id: z.string().uuid(),
+    facility_id: z.string().uuid().optional(),
+    as_of_date: z.string().optional(),
+  })
+});
+

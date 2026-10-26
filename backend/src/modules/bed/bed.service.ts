@@ -20,6 +20,14 @@ export class BedService {
     return await this.repository.getRooms(facilityId);
   }
 
+  async getBedCategories(facilityId?: string) {
+    return await this.repository.getBedCategories(facilityId);
+  }
+
+  async syncAllBedsToInventory(facilityId: string) {
+    return await this.repository.syncAllBedsToInventory(facilityId);
+  }
+
   async getBed(bedId: string, facilityId: string) {
     const bed = await this.repository.getBedById(bedId, facilityId);
     if (!bed) {
