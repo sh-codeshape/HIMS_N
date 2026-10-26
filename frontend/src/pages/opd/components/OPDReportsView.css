@@ -1,0 +1,896 @@
+/* ==========================================================
+   OPD CONSULTATION REPORT - PREMIUM UI
+   Theme: Navy header + Golden accents + Glassy Sky Panels (matching Registration Reports)
+   ========================================================== */
+
+.opdr-page {
+  --navy-900: #081a3d;
+  --navy-800: #0b2556;
+  --navy-700: #123a6b;
+  --blue-600: #1e5a8e;
+  --blue-500: #2f7bbf;
+  --sky-300: #b9d1e6;
+  --sky-200: #d3e3f1;
+  --sky-100: #e6f0f9;
+  --sky-50: #f3f8fd;
+  --ink: #0b1b36;
+  --muted: #55698a;
+  --line: #9fbbd6;
+  --gold: #f5c542;
+  --green: #0f9d6b;
+  --red: #e11d1d;
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-height: calc(100vh - 64px);
+  box-sizing: border-box;
+  padding: 8px 12px;
+  margin: 0;
+  font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(1200px 500px at 100% 0%, rgba(120, 180, 235, 0.28), transparent 70%),
+    linear-gradient(160deg, #dbe9f6 0%, #c3d9ec 55%, #b3cde5 100%);
+}
+
+.opdr-page *, .opdr-page *::before, .opdr-page *::after,
+.opdr-overlay *, .opdr-overlay *::before, .opdr-overlay *::after {
+  box-sizing: border-box;
+}
+
+/* ---------- 1. Page Header ---------- */
+.opdr-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: linear-gradient(100deg, var(--navy-800) 0%, var(--blue-600) 100%);
+  box-shadow: 0 4px 14px rgba(8, 26, 61, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.opdr-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.opdr-header-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #ffd766, var(--gold));
+  border: 1px solid #e0ac1f;
+  color: var(--navy-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+}
+
+.opdr-title {
+  margin: 0 0 2px;
+  font-size: 21px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.01em;
+}
+
+.opdr-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: #cfe2f5;
+  font-weight: 500;
+}
+
+.opdr-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.opdr-count-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(6px);
+  border-radius: 12px;
+  padding: 6px 14px;
+  box-shadow: 0 2px 8px rgba(8, 26, 61, 0.2);
+}
+
+.opdr-count-num {
+  font-size: 20px;
+  color: var(--gold);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.opdr-count-lbl {
+  font-size: 11px;
+  color: #cfe2f5;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* ---------- 2. Filter Bar Card ---------- */
+.opdr-filters-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1.5px solid var(--navy-700);
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(8, 26, 61, 0.08);
+}
+
+.opdr-filter-left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.opdr-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.opdr-field-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--navy-800);
+}
+
+.opdr-input-date {
+  height: 38px;
+  padding: 0 10px;
+  border: 1.5px solid var(--navy-700);
+  border-radius: 8px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy-900);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.opdr-input-date:focus {
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 3px rgba(47, 123, 191, 0.25);
+}
+
+.opdr-filter-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.opdr-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 240px;
+  max-width: 360px;
+  flex: 1;
+  height: 38px;
+  padding: 0 12px;
+  background: #fff;
+  border: 1.5px solid var(--navy-700);
+  border-radius: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.opdr-search:focus-within {
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 3px rgba(47, 123, 191, 0.25);
+}
+
+.opdr-search svg {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.opdr-search input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.opdr-search input::placeholder {
+  color: #8aa0bd;
+}
+
+.opdr-search-clear {
+  background: none;
+  border: none;
+  padding: 0;
+  display: inline-flex;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.opdr-search-clear:hover {
+  color: var(--red);
+}
+
+/* ---------- 3. Buttons ---------- */
+.opdr-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.opdr-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.opdr-btn:active {
+  transform: translateY(0);
+}
+
+.opdr-btn--navy {
+  background: linear-gradient(180deg, var(--blue-600), var(--navy-800));
+  color: #fff;
+  border-color: var(--navy-900);
+  box-shadow: 0 3px 8px rgba(11, 37, 86, 0.3);
+}
+
+.opdr-btn--ghost {
+  background: #fff;
+  color: var(--navy-800);
+  border-color: var(--navy-700);
+  border-width: 1.5px;
+}
+
+.opdr-btn--ghost:hover {
+  background: var(--sky-50);
+}
+
+.opdr-btn--green {
+  background: linear-gradient(180deg, #13b27c, var(--green));
+  color: #fff;
+  border-color: #0a7d55;
+  box-shadow: 0 3px 8px rgba(15, 157, 107, 0.3);
+}
+
+.opdr-btn--sm {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+/* ---------- 4. Table Card & Design ---------- */
+.opdr-card {
+  background: #fff;
+  border: 1.5px solid var(--navy-700);
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(8, 26, 61, 0.1);
+  overflow: hidden;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.opdr-table-wrap {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.opdr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  text-align: left;
+}
+
+.opdr-table th {
+  padding: 11px 14px;
+  text-align: left;
+  white-space: nowrap;
+  background: linear-gradient(180deg, var(--navy-700), var(--navy-800));
+  color: #e8f1fb;
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 2.5px solid var(--gold);
+}
+
+.opdr-table td {
+  padding: 10px 14px;
+  white-space: nowrap;
+  vertical-align: middle;
+  background: #fff;
+  border-bottom: 1px solid var(--sky-200);
+  color: #1f3556;
+  font-weight: 500;
+  transition: background 0.15s ease;
+}
+
+.opdr-table tbody tr:nth-child(even) td {
+  background: var(--sky-50);
+}
+
+.opdr-table tbody tr:hover td {
+  background: var(--sky-100);
+}
+
+.opdr-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.opdr-empty {
+  padding: 40px 14px !important;
+  text-align: center;
+  color: var(--muted);
+}
+
+.opdr-empty-ic {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 10px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sky-100);
+  color: var(--navy-700);
+  border: 1.5px dashed var(--sky-300);
+}
+
+/* ---------- 5. Cell Contents ---------- */
+.opdr-token-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 800;
+  color: #1d4ed8;
+  cursor: pointer;
+  text-align: left;
+}
+
+.opdr-token-link:hover {
+  color: var(--navy-900);
+  text-decoration: underline;
+}
+
+.opdr-patient-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.opdr-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 12px;
+  color: #fff;
+  background: linear-gradient(145deg, #1e5a8e, var(--navy-900));
+  box-shadow: 0 0 0 1.5px #fff, 0 0 0 3px var(--sky-300);
+}
+
+.opdr-pname-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--navy-900);
+  cursor: pointer;
+  text-align: left;
+  text-transform: capitalize;
+}
+
+.opdr-pname-link:hover {
+  color: var(--blue-500);
+}
+
+.opdr-uhid-sub {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: ui-monospace, Consolas, monospace;
+  margin-top: 2px;
+}
+
+.opdr-doc-name {
+  font-weight: 800;
+  color: var(--navy-900);
+}
+
+.opdr-dept {
+  color: #334155;
+  font-weight: 600;
+}
+
+.opdr-complaint {
+  color: #475569;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.opdr-date {
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.opdr-time {
+  color: #64748b;
+  font-size: 12px;
+}
+
+/* ---------- 6. Status Badge & Actions (Matching Registration Report) ---------- */
+.opdr-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  border-radius: 16px;
+  border: 1px solid;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.opdr-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.opdr-status-btn {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.opdr-status-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(8, 26, 61, 0.12);
+}
+
+.opdr-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.opdr-act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(8, 26, 61, 0.08);
+}
+
+.opdr-act svg {
+  transition: transform 0.18s ease;
+}
+
+.opdr-act:hover {
+  transform: translateY(-2px);
+}
+
+.opdr-act:hover svg {
+  transform: scale(1.15);
+}
+
+.opdr-act--view {
+  background: linear-gradient(145deg, #f0f7ff, #dbeafe);
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  box-shadow: 0 1px 3px rgba(29, 78, 216, 0.12);
+}
+
+.opdr-act--view:hover {
+  background: linear-gradient(145deg, #2563eb, #1d4ed8);
+  border-color: #1e40af;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.35);
+}
+
+.opdr-act--print {
+  background: linear-gradient(145deg, #ecfdf5, #d1fae5);
+  border-color: #a7f3d0;
+  color: #047857;
+  box-shadow: 0 1px 3px rgba(4, 120, 87, 0.12);
+}
+
+.opdr-act--print:hover {
+  background: linear-gradient(145deg, #059669, #047857);
+  border-color: #065f46;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(4, 120, 87, 0.35);
+}
+
+.opdr-act--status {
+  background: linear-gradient(145deg, #f5f3ff, #ede9fe);
+  border-color: #ddd6fe;
+  color: #7c3aed;
+  box-shadow: 0 1px 3px rgba(124, 58, 237, 0.12);
+}
+
+.opdr-act--status:hover {
+  background: linear-gradient(145deg, #7c3aed, #6d28d9);
+  border-color: #5b21b6;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+}
+
+/* ---------- 7. Footer / Pagination ---------- */
+.opdr-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--sky-200);
+  background: #fff;
+}
+
+.opdr-count-text {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.opdr-pager {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.opdr-pg-btn {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1.5px solid var(--navy-700);
+  background: #fff;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--navy-800);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.opdr-pg-btn:hover:not(:disabled) {
+  background: var(--sky-100);
+  border-color: var(--blue-500);
+}
+
+.opdr-pg-btn--active {
+  background: linear-gradient(180deg, var(--navy-700), var(--navy-800)) !important;
+  color: var(--gold) !important;
+  border-color: var(--navy-900) !important;
+}
+
+.opdr-pg-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.opdr-size-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--navy-800);
+}
+
+.opdr-select {
+  height: 34px;
+  padding: 0 28px 0 10px;
+  border: 1.5px solid var(--navy-700);
+  border-radius: 8px;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23123a6b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") no-repeat right 8px center / 12px;
+  appearance: none;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--navy-900);
+  outline: none;
+  cursor: pointer;
+}
+
+/* ---------- 8. Modals (Matching Registration View) ---------- */
+.opdr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(8, 26, 61, 0.65);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.opdr-modal {
+  background: #fff;
+  border: 1.5px solid var(--navy-700);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(8, 26, 61, 0.45);
+  width: 100%;
+  max-width: 920px;
+  height: 88vh;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.opdr-modal--sm {
+  max-width: 400px;
+  height: auto;
+}
+
+.opdr-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: linear-gradient(100deg, var(--navy-800) 0%, var(--blue-600) 100%);
+  color: #fff;
+  border-bottom: 2.5px solid var(--gold);
+  flex-shrink: 0;
+}
+
+.opdr-modal-head-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.opdr-modal-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #ffd766, var(--gold));
+  border: 1px solid #e0ac1f;
+  color: var(--navy-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.opdr-modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.opdr-modal-meta {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #cfe2f5;
+}
+
+.opdr-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.opdr-close-btn {
+  background: #dc2626;
+  border: none;
+  color: #fff;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.15s;
+}
+
+.opdr-close-btn:hover {
+  background: #ef4444;
+  transform: scale(1.06);
+}
+
+.opdr-modal-body {
+  flex: 1 1 0px !important;
+  min-height: 0 !important;
+  height: auto !important;
+  overflow-y: scroll !important;
+  scrollbar-width: thin;
+  scrollbar-color: #123a6b #d3e3f1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: linear-gradient(180deg, var(--sky-50) 0%, #ffffff 100%);
+}
+
+.opdr-modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.opdr-modal-body::-webkit-scrollbar-track {
+  background: #d3e3f1;
+  border-radius: 4px;
+}
+
+.opdr-modal-body::-webkit-scrollbar-thumb {
+  background: #123a6b;
+  border-radius: 4px;
+}
+
+.opdr-modal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #f8fbfe;
+  border-top: 1px solid var(--sky-200);
+  flex-shrink: 0;
+}
+
+.opdr-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: #ffffff;
+  border: 1.5px solid var(--sky-300);
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(8, 26, 61, 0.05);
+}
+
+.opdr-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.opdr-banner-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #1e5a8e, var(--navy-900));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.opdr-banner-info h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--navy-900);
+}
+
+.opdr-banner-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.opdr-section {
+  background: #ffffff;
+  border: 1px solid var(--sky-300);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(8, 26, 61, 0.04);
+}
+
+.opdr-sec-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, var(--sky-100), var(--sky-200));
+  border-bottom: 1px solid var(--sky-300);
+}
+
+.opdr-sec-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--navy-900);
+}
+
+.opdr-dtable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.opdr-dtable td {
+  padding: 9px 12px;
+  border: 1px solid var(--sky-200);
+  color: var(--ink);
+}
+
+.opdr-dtable td.opdr-lbl {
+  width: 20%;
+  background: #f4f8fc;
+  font-weight: 700;
+  color: var(--navy-700);
+}
+
+.opdr-dtable td.opdr-val {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+@media (max-width: 900px) {
+  .opdr-filters-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .opdr-filter-left,
+  .opdr-filter-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .opdr-search {
+    max-width: 100%;
+  }
+}

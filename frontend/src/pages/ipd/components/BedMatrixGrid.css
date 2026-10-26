@@ -1,231 +1,903 @@
-.ipd-bed-module {
+/* ==========================================================
+   IPD BED ALLOTMENT & WARD MATRIX - PREMIUM EYE-CATCHING UI
+   Theme: Deep Navy + Gold Accents + Glassy Sky Blue + Vibrant Bed Status
+   ========================================================== */
+
+.ipd-bed-page {
+  --navy-900: #081a3d;
+  --navy-800: #0b2556;
+  --navy-700: #123a6b;
+  --blue-600: #1e5a8e;
+  --blue-500: #2f7bbf;
+  --sky-300: #b9d1e6;
+  --sky-200: #d3e3f1;
+  --sky-100: #e6f0f9;
+  --sky-50: #f3f8fd;
+  --ink: #0b1b36;
+  --muted: #55698a;
+  --line: #9fbbd6;
+  --gold: #f5c542;
+  --green: #0f9d6b;
+  --green-bg: #ecfdf5;
+  --green-border: #a7f3d0;
+  --red: #dc2626;
+  --red-bg: #fef2f2;
+  --red-border: #fecaca;
+  --amber: #d97706;
+  --amber-bg: #fefce8;
+  --amber-border: #fde68a;
+
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   width: 100%;
+  min-height: calc(100vh - 64px);
+  box-sizing: border-box;
+  padding: 10px 14px 24px;
+  margin: 0;
+  font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(1200px 500px at 100% 0%, rgba(120, 180, 235, 0.28), transparent 70%),
+    linear-gradient(160deg, #dbe9f6 0%, #c3d9ec 55%, #b3cde5 100%);
 }
 
-.ipd-bed-toolbar {
+.ipd-bed-page *, .ipd-bed-page *::before, .ipd-bed-page *::after,
+.ipd-modal-overlay *, .ipd-modal-overlay *::before, .ipd-modal-overlay *::after {
+  box-sizing: border-box;
+}
+
+/* ---------- 1. Page Header Bar ---------- */
+.ipd-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #ffffff;
-  padding: 14px 18px;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  margin-bottom: 20px;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(100deg, var(--navy-800) 0%, var(--blue-600) 100%);
+  box-shadow: 0 4px 16px rgba(8, 26, 61, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.ipd-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ipd-header-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #ffd766, var(--gold));
+  border: 1px solid #e0ac1f;
+  color: var(--navy-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+.ipd-title {
+  margin: 0 0 2px;
+  font-size: 21px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.01em;
+}
+
+.ipd-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: #cfe2f5;
+  font-weight: 500;
+}
+
+.ipd-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ipd-occupancy-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(6px);
+  border-radius: 12px;
+  padding: 6px 14px;
+  color: #fff;
+}
+
+.ipd-occ-rate {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--gold);
+}
+
+.ipd-occ-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #cfe2f5;
+  line-height: 1.2;
+}
+
+.ipd-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--navy-800);
+  border: 1.5px solid var(--navy-700);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-refresh-btn:hover {
+  background: var(--sky-100);
+  transform: translateY(-1px);
+}
+
+/* ---------- 2. Eye-Catching Summary KPI Cards ---------- */
+.ipd-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.ipd-kpi-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  padding: 16px 18px;
+  border: 1.5px solid;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 6px 16px rgba(8, 26, 61, 0.14);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.ipd-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(8, 26, 61, 0.2);
+}
+
+.ipd-kpi-card--total {
+  background: linear-gradient(135deg, #0b2556 0%, #1e5a8e 100%);
+  border-color: #3b82f6;
+}
+
+.ipd-kpi-card--available {
+  background: linear-gradient(135deg, #064e3b 0%, #059669 100%);
+  border-color: #34d399;
+}
+
+.ipd-kpi-card--occupied {
+  background: linear-gradient(135deg, #7f1d1d 0%, #dc2626 100%);
+  border-color: #f87171;
+}
+
+.ipd-kpi-card--maintenance {
+  background: linear-gradient(135deg, #78350f 0%, #d97706 100%);
+  border-color: #fbbf24;
+}
+
+.ipd-kpi-info h4 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.9;
+}
+
+.ipd-kpi-number {
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 1.1;
+  margin: 4px 0 2px;
+  letter-spacing: -0.02em;
+}
+
+.ipd-kpi-sub {
+  margin: 0;
+  font-size: 11.5px;
+  opacity: 0.85;
+  font-weight: 500;
+}
+
+.ipd-kpi-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ---------- 3. Filter & Controls Card ---------- */
+.ipd-toolbar-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #ffffff;
+  border: 1.5px solid var(--navy-700);
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 4px 14px rgba(8, 26, 61, 0.08);
+}
+
+.ipd-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
 }
 
 .ipd-ward-filters {
   display: flex;
-  gap: 6px;
   flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.ipd-ward-label {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--navy-900);
+  margin-right: 4px;
 }
 
 .ipd-filter-btn {
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  padding: 6px 12px;
+  background: #f4f8fc;
+  border: 1.5px solid var(--sky-300);
+  padding: 7px 14px;
   border-radius: 8px;
   font-size: 12.5px;
-  font-weight: 600;
-  color: #334155;
+  font-weight: 700;
+  color: var(--navy-800);
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.ipd-filter-btn:hover {
+  background: var(--sky-100);
+  border-color: var(--blue-500);
+  color: var(--blue-600);
 }
 
 .ipd-filter-btn--active {
-  background: #2563eb;
-  color: #ffffff;
-  border-color: #2563eb;
+  background: linear-gradient(180deg, var(--navy-700), var(--navy-900)) !important;
+  color: var(--gold) !important;
+  border-color: var(--navy-900) !important;
+  box-shadow: 0 3px 8px rgba(8, 26, 61, 0.3);
 }
 
-.ipd-legend {
+.ipd-filter-right {
   display: flex;
-  gap: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.ipd-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 240px;
+  max-width: 380px;
+  flex: 1;
+  height: 38px;
+  padding: 0 12px;
+  background: #fff;
+  border: 1.5px solid var(--navy-700);
+  border-radius: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.ipd-search-wrap:focus-within {
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 3px rgba(47, 123, 191, 0.25);
+}
+
+.ipd-search-wrap svg {
+  color: var(--muted);
+}
+
+.ipd-search-wrap input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.ipd-search-wrap input::placeholder {
+  color: #8aa0bd;
+}
+
+.ipd-legend-pills {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   font-size: 12px;
-  color: #64748b;
+  font-weight: 700;
 }
 
-.ipd-legend-item {
-  display: flex;
+.ipd-legend-pill {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
 }
 
-.ipd-dot {
-  width: 10px;
-  height: 10px;
+.ipd-legend-pill:hover {
+  transform: translateY(-1px);
+}
+
+.ipd-legend-pill--all {
+  background: var(--sky-100);
+  color: var(--navy-800);
+  border-color: var(--sky-300);
+}
+
+.ipd-legend-pill--avail {
+  background: var(--green-bg);
+  color: var(--green);
+  border-color: var(--green-border);
+}
+
+.ipd-legend-pill--occ {
+  background: var(--red-bg);
+  color: var(--red);
+  border-color: var(--red-border);
+}
+
+.ipd-legend-pill--maint {
+  background: var(--amber-bg);
+  color: var(--amber);
+  border-color: var(--amber-border);
+}
+
+.ipd-pulse-dot {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8);
 }
 
-.ipd-dot--avail {
-  background: #10b981;
-}
-
-.ipd-dot--occ {
-  background: #ef4444;
-}
-
-.ipd-dot--maint {
-  background: #94a3b8;
-}
-
+/* ---------- 4. Eye-Catching Bed Cards Grid ---------- */
 .ipd-grid-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 14px;
 }
 
-.ipd-card {
+.bed-card {
+  position: relative;
   background: #ffffff;
-  border: 1px solid #e2e8f0;
   border-radius: 12px;
-  padding: 16px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  border: 1.5px solid var(--sky-300);
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-}
-
-.ipd-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
-}
-
-.ipd-card--occupied {
-  border-left: 4px solid #ef4444;
-}
-
-.ipd-card--available {
-  border-left: 4px solid #10b981;
-}
-
-.ipd-card--maintenance {
-  border-left: 4px solid #94a3b8;
-}
-
-.ipd-card-head {
-  display: flex;
   justify-content: space-between;
+  min-height: 190px;
+  box-shadow: 0 4px 12px rgba(8, 26, 61, 0.06);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+  overflow: hidden;
+}
+
+.bed-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(8, 26, 61, 0.14);
+}
+
+/* Available Bed Card */
+.bed-card--available {
+  border-color: #86efac;
+  background: linear-gradient(180deg, #ffffff 0%, #f4fdf8 100%);
+}
+
+.bed-card--available::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.bed-card--available:hover {
+  border-color: #059669;
+}
+
+/* Occupied Bed Card */
+.bed-card--occupied {
+  border-color: #fca5a5;
+  background: linear-gradient(180deg, #ffffff 0%, #fdf5f5 100%);
+}
+
+.bed-card--occupied::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #ef4444, #b91c1c);
+}
+
+.bed-card--occupied:hover {
+  border-color: #dc2626;
+}
+
+/* Maintenance Bed Card */
+.bed-card--maintenance {
+  border-color: #fde68a;
+  background: linear-gradient(180deg, #ffffff 0%, #fefdf7 100%);
+}
+
+.bed-card--maintenance::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.bed-card--maintenance:hover {
+  border-color: #d97706;
+}
+
+/* Bed Card Header */
+.bed-card-head {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 8px;
 }
 
-.ipd-card-no {
-  font-size: 15px;
+.bed-card-no-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bed-card-icon-pill {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 800;
-  color: #0f172a;
 }
 
-.ipd-card-badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 10px;
-  text-transform: uppercase;
-}
-
-.ipd-badge--available {
+.bed-card--available .bed-card-icon-pill {
   background: #ecfdf5;
   color: #059669;
+  border: 1px solid #a7f3d0;
 }
 
-.ipd-badge--occupied {
+.bed-card--occupied .bed-card-icon-pill {
   background: #fee2e2;
   color: #dc2626;
+  border: 1px solid #fecaca;
 }
 
-.ipd-badge--maintenance {
-  background: #f1f5f9;
-  color: #64748b;
+.bed-card--maintenance .bed-card-icon-pill {
+  background: #fefce8;
+  color: #d97706;
+  border: 1px solid #fde68a;
 }
 
-.ipd-card-ward {
-  font-size: 11.5px;
-  color: #64748b;
-  margin-bottom: 8px;
+.bed-card-no {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--navy-900);
+  letter-spacing: -0.01em;
 }
 
-.ipd-card-patient {
-  background: #f8fafc;
-  padding: 8px 10px;
-  border-radius: 6px;
-}
-
-.ipd-pname {
-  font-size: 13px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.ipd-pdoc {
+.bed-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px;
-  color: #475569;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid;
 }
 
-.ipd-pdate {
-  font-size: 10px;
-  color: #94a3b8;
-  margin-top: 2px;
+.bed-status-badge i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
-.ipd-card-empty {
+.bed-status-badge--available {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.bed-status-badge--occupied {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.bed-status-badge--maintenance {
+  background: #fefce8;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+/* Ward & Room Tag */
+.bed-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(185, 209, 230, 0.4);
+}
+
+.bed-meta-location {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.bed-meta-rate {
+  font-weight: 800;
+  color: var(--navy-800);
+}
+
+/* Card Body: Available Bed View */
+.bed-vacant-view {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 12px 0;
-  color: #10b981;
-  font-size: 12px;
-  font-weight: 600;
+  text-align: center;
+  padding: 10px 0 14px;
   gap: 4px;
 }
 
-/* Modal */
-.ipd-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+.bed-vacant-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ecfdf5;
+  color: #059669;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 999;
-  padding: 20px;
+  border: 1px solid #a7f3d0;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.12);
+}
+
+.bed-vacant-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #047857;
+  margin-top: 4px;
+}
+
+.bed-vacant-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Card Body: Occupied Bed Patient Details */
+.bed-patient-view {
+  background: #ffffff;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.04);
+}
+
+.bed-patient-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.bed-patient-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #1e5a8e, var(--navy-900));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.bed-patient-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.bed-pname {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--navy-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bed-puhid {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1d4ed8;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.bed-patient-doctor {
+  font-size: 11.5px;
+  color: #334155;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.bed-patient-date {
+  font-size: 10.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Card Body: Maintenance View */
+.bed-maint-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 10px 0 14px;
+  gap: 4px;
+}
+
+.bed-maint-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #fefce8;
+  color: #d97706;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #fde68a;
+}
+
+.bed-maint-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #b45309;
+  margin-top: 4px;
+}
+
+.bed-maint-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Action Buttons */
+.bed-action-btn {
+  width: 100%;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.bed-action-btn--allot {
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  box-shadow: 0 3px 8px rgba(5, 150, 105, 0.3);
+}
+
+.bed-action-btn--allot:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.bed-action-btn--manage {
+  background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+  color: #ffffff;
+  box-shadow: 0 3px 8px rgba(220, 38, 38, 0.25);
+}
+
+.bed-action-btn--manage:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.bed-action-btn--ready {
+  background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+  box-shadow: 0 3px 8px rgba(217, 119, 6, 0.25);
+}
+
+.bed-action-btn--ready:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+/* ---------- 5. Modal Design (Bed Allotment & Management) ---------- */
+.ipd-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 26, 61, 0.65);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
 }
 
 .ipd-modal-content {
   background: #ffffff;
   width: 100%;
-  max-width: 440px;
+  max-width: 520px;
   border-radius: 14px;
-  padding: 24px;
+  border: 1.5px solid var(--navy-700);
+  box-shadow: 0 24px 60px rgba(8, 26, 61, 0.45);
+  overflow: hidden;
+  animation: ipdModalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes ipdModalPop {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .ipd-modal-header {
-  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: linear-gradient(100deg, var(--navy-800) 0%, var(--blue-600) 100%);
+  color: #fff;
+  border-bottom: 2.5px solid var(--gold);
+}
+
+.ipd-modal-head-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ipd-modal-head-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #ffd766, var(--gold));
+  color: var(--navy-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e0ac1f;
 }
 
 .ipd-modal-header h3 {
   margin: 0;
   font-size: 16px;
-  color: #0f172a;
+  font-weight: 800;
+  color: #fff;
 }
 
-.ipd-occupied-view {
+.ipd-modal-subtitle {
+  font-size: 12px;
+  color: #cfe2f5;
+  margin-top: 2px;
+}
+
+.ipd-modal-close-btn {
+  background: #dc2626;
+  border: none;
+  color: #fff;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-modal-close-btn:hover {
+  background: #ef4444;
+  transform: scale(1.06);
+}
+
+.ipd-modal-body {
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
+  gap: 14px;
+  background: linear-gradient(180deg, var(--sky-50) 0%, #ffffff 100%);
 }
 
-.ipd-occ-info {
-  background: #f8fafc;
-  padding: 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  margin-bottom: 16px;
+.ipd-banner-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1.5px solid var(--sky-300);
+  border-radius: 10px;
 }
 
-.ipd-occ-info p {
-  margin: 4px 0;
+.ipd-banner-bed-no {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--navy-900);
+}
+
+.ipd-banner-bed-ward {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
 }
 
 .ipd-allot-form {
@@ -240,44 +912,174 @@
   gap: 6px;
 }
 
-.ipd-label {
+.ipd-form-label {
   font-size: 12.5px;
-  font-weight: 600;
-  color: #334155;
+  font-weight: 800;
+  color: var(--navy-900);
 }
 
-.ipd-select {
-  padding: 8px 12px;
-  border: 1px solid #cbd5e1;
+.ipd-form-select {
+  height: 40px;
+  padding: 0 12px;
+  border: 1.5px solid var(--navy-700);
   border-radius: 8px;
+  background: #ffffff;
+  font-family: inherit;
   font-size: 13px;
+  font-weight: 600;
+  color: var(--navy-900);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.ipd-modal-btns {
+.ipd-form-select:focus {
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 3px rgba(47, 123, 191, 0.25);
+}
+
+.ipd-occ-details-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  background: #ffffff;
+  border: 1px solid var(--sky-200);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ipd-occ-details-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--sky-200);
+}
+
+.ipd-occ-details-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ipd-occ-lbl {
+  width: 32%;
+  background: #f4f8fc;
+  font-weight: 700;
+  color: var(--navy-700);
+}
+
+.ipd-occ-val {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ipd-modal-footer {
   display: flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: 10px;
-  margin-top: 10px;
+  padding: 12px 18px;
+  background: #f8fbfe;
+  border-top: 1px solid var(--sky-200);
 }
 
-.ipd-vacate-btn {
+.ipd-btn-confirm {
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(180deg, #10b981, #059669);
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #fee2e2;
-  color: #dc2626;
-  border: 1px solid #fca5a5;
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(5, 150, 105, 0.3);
+  transition: all 0.15s ease;
 }
 
-.ipd-close-modal-btn {
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  padding: 8px 14px;
+.ipd-btn-confirm:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.ipd-btn-vacate {
+  height: 38px;
+  padding: 0 18px;
   border-radius: 8px;
-  font-weight: 600;
-  color: #475569;
+  border: none;
+  background: linear-gradient(180deg, #ef4444, #dc2626);
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 3px 8px rgba(220, 38, 38, 0.3);
+  transition: all 0.15s ease;
+}
+
+.ipd-btn-vacate:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.ipd-btn-cancel {
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1.5px solid var(--navy-700);
+  color: var(--navy-800);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-btn-cancel:hover {
+  background: var(--sky-50);
+}
+
+.ipd-empty-box {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--muted);
+  background: #ffffff;
+  border: 1.5px dashed var(--sky-300);
+  border-radius: 12px;
+}
+
+.ipd-empty-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 12px;
+  border-radius: 16px;
+  background: var(--sky-100);
+  color: var(--navy-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .ipd-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .ipd-header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .ipd-toolbar-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .ipd-filter-right {
+    justify-content: flex-start;
+  }
+  .ipd-search-wrap {
+    max-width: 100%;
+  }
 }

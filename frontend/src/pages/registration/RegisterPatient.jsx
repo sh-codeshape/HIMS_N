@@ -931,44 +931,9 @@ export default function RegisterPatient() {
                 </select>
               </div>
 
-              <div>
-                <label className="rp-label">Department</label>
-                <select
-                  name="department"
-                  value={formData.department}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className="rp-select"
-                >
-                  <option value="">Select department</option>
-                  {["General Medicine", "Cardiology", "Neurology", "Orthopedics",
-                    "Gynecology", "Pediatrics", "Dermatology", "ENT", "Ophthalmology",
-                    "Urology", "Surgery"].map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
-              </div>
+             
 
-              <div>
-                <label className="rp-label">Referred By</label>
-                <select
-                  name="referredBy"
-                  value={formData.referredBy}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className="rp-select"
-                >
-                  <option value="">Select referred by</option>
-                  <option value="Self">Self</option>
-                  <option value="Dr. Sadhana Chaurasiya (BAMS)">Dr. Sadhana Chaurasiya</option>
-                  <option value="Dr. Anand Prakash Tiwari (MS)Ay">Dr. Anand Prakash Tiwari</option>
-                  <option value="Dr. Ranju Chaurasia">Dr. Ranju Chaurasia</option>
-                  <option value="Dr. Manoj Chaurasia">Dr. Manoj Chaurasia</option>
-                  <option value="Dr. Aman Sharma">Dr. Aman Sharma</option>
-                  <option value="Dr. Priya Deshmukh">Dr. Priya Deshmukh</option>
-                  <option value="Other Hospital">Other Hospital</option>
-                </select>
-              </div>
+             
 
               <div>
                 <label className="rp-label">Visit Type</label>
