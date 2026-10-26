@@ -124,30 +124,54 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
   const openEdit = (p) => {
     if (!canEdit) { showToast("🔒 Edit requires Reception or Admin role.", "warn"); return; }
     setEditP(p);
+    const customFields = typeof p.custom_fields === 'object' && p.custom_fields ? p.custom_fields : {};
+    const primaryAddress = Array.isArray(p.addresses) && p.addresses.length
+      ? p.addresses.find(a => a.is_primary) || p.addresses[0]
+      : {};
+    const name = p.name || p.full_name || `${p.firstName || p.first_name || ""} ${p.middleName || p.middle_name ? (p.middleName || p.middle_name) + " " : ""}${p.lastName || p.last_name || ""}`.trim();
+    const dobValue = p.date_of_birth || p.dob || p.dateOfBirth || "";
+    const age = p.age ?? p.ageYrs ?? (dobValue ? Math.floor((Date.now() - new Date(dobValue).getTime()) / 3.15576e10) : "");
+    const address = p.address || primaryAddress.line1 || primaryAddress.address_line1 || p.address_line1 || "";
+    const city = p.city || primaryAddress.city || "";
+    const state = p.state || primaryAddress.state || "";
+    const pincode = p.pincode || p.pin || primaryAddress.postal_code || p.postal_code || "";
+    const country = p.country || primaryAddress.country || "India";
+
     setEditForm({
-      name: p.name || `${p.firstName || p.first_name || ""} ${p.lastName || p.last_name || ""}`.trim(),
-      gender: p.gender || "Male",
-      age: p.age || p.ageYrs || "",
-      bloodGroup: p.bloodGroup || "",
-      aadhaar: p.aadhaar || p.idNo || "",
+      name,
+      gender: p.gender ? (p.gender.charAt(0).toUpperCase() + p.gender.slice(1).toLowerCase()) : "Male",
+      age,
+      bloodGroup: p.bloodGroup || p.blood_group || customFields.blood_group || "",
+      aadhaar: p.aadhaar || p.idNo || p.aadhaar_number || customFields.aadhaar || customFields.idNo || "",
       phone: p.phone || p.mobile1 || p.mobile || "",
-      address: p.address || "",
-      country: p.country || "India",
-      state: p.state || "",
-      city: p.city || "",
-      pincode: p.pincode || p.pin || "",
-      emergencyName: p.emergencyName || p.emgName || "",
-      emergencyPhone: p.emergencyPhone || p.emgNumber || "",
-      emergencyRelation: p.emergencyRelation || p.emgRelation || "",
-      doctor: p.doctor || p.referredBy || "",
-      department: p.department || "",
-      category: p.category || p.visitType || "OPD",
+      altPhone: p.alternate_phone || p.alternatePhone || p.mobile2 || p.altMobile || customFields.alt_phone || "",
+      email: p.email || customFields.email || "",
+      address,
+      country,
+      state,
+      city,
+      pincode,
+      emergencyName: p.emergencyName || p.emgName || customFields.emergency_name || customFields.guardian_name || "",
+      emergencyPhone: p.emergencyPhone || p.emgNumber || customFields.emergency_phone || customFields.emergency_contact || "",
+      emergencyRelation: p.emergencyRelation || p.emgRelation || customFields.emergency_relation || "",
+      doctor: p.doctor || p.referredBy || customFields.referred_by || "",
+      department: p.department || customFields.department || "",
+      category: p.category || customFields.visit_type || "OPD",
+      maritalStatus: p.marital_status || p.maritalStatus || customFields.marital_status || "",
+      occupation: p.occupation || customFields.occupation || "",
     });
+  };
+
+  const handlePrintPatient = (patient) => {
+    setViewP(patient);
+    setTimeout(() => {
+      window.print();
+    }, 200);
   };
 
   const saveEdit = async () => {
     try {
-      const custom_fields = typeof editP.custom_fields === 'object' ? editP.custom_fields : {};
+      const custom_fields = typeof editP.custom_fields === 'object' && editP.custom_fields ? editP.custom_fields : {};
       const parsedAge = Number(editForm.age);
       const sanitizedAge = Number.isFinite(parsedAge) && parsedAge >= 0 && parsedAge <= 120 ? parsedAge : null;
       const updatedData = {
@@ -159,23 +183,33 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
           : editP.date_of_birth || editP.dob || undefined,
         blood_group: editForm.bloodGroup?.trim() ? editForm.bloodGroup.trim().toUpperCase() : undefined,
         phone: editForm.phone,
+        alternate_phone: editForm.altPhone || undefined,
+        email: editForm.email || undefined,
         address_line1: editForm.address,
         city: editForm.city,
         state: editForm.state,
         postal_code: editForm.pincode,
         country: editForm.country,
+        marital_status: editForm.maritalStatus || undefined,
+        occupation: editForm.occupation || undefined,
         custom_fields: {
           ...custom_fields,
           visit_type: editForm.category,
           department: editForm.department,
           referred_by: editForm.doctor,
+          emergency_name: editForm.emergencyName,
+          guardian_name: editForm.emergencyName,
+          emergency_contact: editForm.emergencyPhone,
+          emergency_phone: editForm.emergencyPhone,
+          emergency_relation: editForm.emergencyRelation,
+          aadhaar: editForm.aadhaar,
         }
       };
       
       const updatedRecord = await patientService.update(editP.id, updatedData);
-      setPatients(prev => prev.map(p => p.id === editP.id ? updatedRecord : p));
+      setPatients(prev => prev.map(p => p.id === editP.id ? { ...p, ...updatedRecord, ...updatedData, name: editForm.name } : p));
       setEditP(null);
-      showToast(`✅ ${editP.name || editP.uhid} record updated.`);
+      showToast(`✅ ${editForm.name || editP.uhid} record updated.`);
     } catch (error) {
       console.error(error);
       showToast("❌ Failed to update record", "error");
@@ -227,13 +261,15 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
       ? patient.addresses.find(a => a.is_primary) || patient.addresses[0]
       : {};
 
-    const fullName = patient.name || patient.full_name || `${patient.firstName || patient.first_name || ""} ${patient.middleName || patient.middle_name || ""} ${patient.lastName || patient.last_name || ""}`.trim() || "Patient";
-    const addressLine = patient.address || primaryAddress.line1 || patient.address_line1 || "";
+    const fullName = patient.name || patient.full_name || `${patient.firstName || patient.first_name || ""} ${patient.middleName || patient.middle_name ? (patient.middleName || patient.middle_name) + " " : ""}${patient.lastName || patient.last_name || ""}`.trim() || "Patient";
+    const addressLine = patient.address || primaryAddress.line1 || primaryAddress.address_line1 || patient.address_line1 || "";
     const city = patient.city || primaryAddress.city || "";
     const state = patient.state || primaryAddress.state || "";
-    const postalCode = patient.pincode || patient.pin || primaryAddress.postal_code || "";
+    const postalCode = patient.pincode || patient.pin || primaryAddress.postal_code || patient.postal_code || "";
     const country = patient.country || primaryAddress.country || "India";
     const phone = patient.phone || patient.mobile1 || patient.mobile || "";
+    const altPhone = patient.alternate_phone || patient.alternatePhone || patient.mobile2 || patient.altMobile || customFields.alt_phone || "";
+    const email = patient.email || customFields.email || "";
     const bloodGroup = patient.bloodGroup || patient.blood_group || customFields.blood_group || "—";
     const dobValue = patient.date_of_birth || patient.dob || patient.dateOfBirth || "";
     const dobFormatted = dobValue ? new Date(dobValue).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -242,6 +278,9 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
     const regDate = patient.registeredAt || patient.regDate || patient.created_at
       ? new Date(patient.registeredAt || patient.regDate || patient.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
       : "—";
+    const maritalStatus = patient.marital_status || patient.maritalStatus || customFields.marital_status || "";
+    const occupation = patient.occupation || customFields.occupation || "";
+    const notes = patient.notes || patient.remarks || customFields.notes || customFields.remarks || "";
 
     return {
       fullName,
@@ -251,6 +290,8 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
       postalCode,
       country,
       phone,
+      altPhone,
+      email,
       bloodGroup,
       dobValue,
       dobFormatted,
@@ -258,13 +299,16 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
       regDate,
       category: patient.category || customFields.visit_type || "OPD",
       department: patient.department || customFields.department || "",
-      doctor: patient.doctor || customFields.referred_by || "",
+      doctor: patient.doctor || patient.referredBy || customFields.referred_by || "",
       status: patient.status || customFields.status || "Waiting",
       emergencyName: patient.emergencyName || patient.emgName || customFields.emergency_name || customFields.guardian_name || "",
       emergencyRelation: patient.emergencyRelation || patient.emgRelation || customFields.emergency_relation || "",
       emergencyPhone: patient.emergencyPhone || patient.emgNumber || customFields.emergency_phone || customFields.emergency_contact || "",
       idNumber: patient.idNo || patient.aadhaar || patient.aadhaar_number || customFields.aadhaar || customFields.idNo || "",
-      nationality: patient.nationality || customFields.nationality || "—",
+      nationality: patient.nationality || customFields.nationality || "Indian",
+      maritalStatus,
+      occupation,
+      notes,
       gender: patient.gender || "—",
       uhid: patient.uhid || "—",
       customFields,
@@ -340,21 +384,19 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                 <th>NAME</th>
                 <th>MOBILE NUMBER</th>
                 <th>CATEGORY</th>
-                <th>STATUS</th>
                 <th>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="rr-empty">
+                  <td colSpan={6} className="rr-empty">
                     <LuFolderSearch size={36} />
                     <p>No patient records found</p>
                     <small>Try adjusting your search or filters.</small>
                   </td>
                 </tr>
               ) : paginated.map((p, i) => {
-                const st = getStatus(p.status);
                 const isCancelled = p.status === "Cancelled";
                 const fullName = p.name || p.full_name || `${p.firstName || p.first_name || ""} ${p.middleName || p.middle_name ? (p.middleName || p.middle_name) + " " : ""}${p.lastName || p.last_name || ""}`.trim();
                 const regDate  = p.registeredAt?.split(" ")[0] || p.regDate || "—";
@@ -400,28 +442,16 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                       </span>
                     </td>
 
-                    {/* STATUS */}
-                    <td>
-                      <button
-                        onClick={() => { setStatusP(p); setNewStatus(p.status || "Waiting"); }}
-                        className="rr-status"
-                        style={{
-                          color: st.color,
-                          backgroundColor: st.bg,
-                          borderColor: st.color + "66",
-                        }}>
-                        <span className="rr-status-dot" style={{ backgroundColor: st.color }} />
-                        {p.status || "Waiting"}
-                        <LuChevronDown size={11} style={{ color: st.color }} />
-                      </button>
-                    </td>
-
                     {/* ACTIONS */}
                     <td>
                       <div className="rr-actions">
                         {/* View */}
                         <button onClick={() => setViewP(p)} title="View Patient Details" className="rr-act rr-act--view">
                           <LuEye size={15} />
+                        </button>
+                        {/* Print */}
+                        <button onClick={() => handlePrintPatient(p)} title="Print Registration Form" className="rr-act rr-act--print">
+                          <LuPrinter size={15} />
                         </button>
                         {/* Edit */}
                         <button onClick={() => openEdit(p)} title="Edit Patient"
@@ -479,7 +509,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
 
         return (
           <div className="rr-overlay" onClick={() => setViewP(null)}>
-            <div className="rr-modal" onClick={e => e.stopPropagation()}>
+            <div className="rr-modal" id="rr-printable-modal" onClick={e => e.stopPropagation()}>
 
               {/* Header Bar */}
               <div className="rr-modal-head">
@@ -529,8 +559,17 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                         <span>UHID: <strong className="rr-mono rr-blue">{displayData.uhid}</strong></span>
                         <span>•</span>
                         <span>Reg. Date: <strong>{regDate}</strong></span>
+                        <span>•</span>
+                        <span>Category: <strong>{displayData.category}</strong></span>
                       </div>
                     </div>
+                  </div>
+                  <div className="rr-banner-right">
+                    <small>Current Status</small>
+                    <span style={{ color: getStatus(displayData.status).color, display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: getStatus(displayData.status).color, display: "inline-block" }} />
+                      {displayData.status || "Waiting"}
+                    </span>
                   </div>
                 </div>
 
@@ -540,6 +579,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                     <h4 className="rr-section-title">
                       <span className="rr-dot rr-dot--blue"></span> 1. Patient Details
                     </h4>
+                    <span className="rr-section-note">Personal & Demographics</span>
                   </div>
                   <table className="rr-dtable">
                     <tbody>
@@ -563,16 +603,11 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                       </tr>
                       <tr>
                         <td className="rr-lbl">Nationality</td>
-                        <td className="rr-val">{displayData.nationality}</td>
+                        <td className="rr-val">{displayData.nationality || "Indian"}</td>
                         <td className="rr-lbl">Aadhaar / ID</td>
                         <td className="rr-val">{displayData.idNumber || "—"}</td>
                       </tr>
-                      <tr>
-                        <td className="rr-lbl">Patient Category</td>
-                        <td className="rr-val">{displayData.category}</td>
-                        <td className="rr-lbl">Department</td>
-                        <td className="rr-val">{displayData.department || "—"}</td>
-                      </tr>
+                     
                     </tbody>
                   </table>
                 </div>
@@ -583,19 +618,26 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                     <h4 className="rr-section-title">
                       <span className="rr-dot rr-dot--green"></span> 2. Contact Details
                     </h4>
+                    <span className="rr-section-note">Communication & Address</span>
                   </div>
                   <table className="rr-dtable">
                     <tbody>
                       <tr>
                         <td className="rr-lbl">Mobile No.</td>
                         <td className="rr-val rr-val--strong">{displayData.phone || "—"}</td>
+                        <td className="rr-lbl">Alternate Mobile</td>
+                        <td className="rr-val">{displayData.altPhone || "—"}</td>
+                      </tr>
+                      <tr>
+                        <td className="rr-lbl">Email Address</td>
+                        <td className="rr-val">{displayData.email || "—"}</td>
                         <td className="rr-lbl">City / District</td>
                         <td className="rr-val">{displayData.city || "—"}</td>
                       </tr>
                       <tr>
                         <td className="rr-lbl">State</td>
                         <td className="rr-val">{displayData.state || "—"}</td>
-                        <td className="rr-lbl">Pincode</td>
+                        <td className="rr-lbl">Pincode & Country</td>
                         <td className="rr-val">{displayData.country || "India"} {displayData.postalCode ? `(${displayData.postalCode})` : ""}</td>
                       </tr>
                       <tr>
@@ -612,6 +654,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                     <h4 className="rr-section-title">
                       <span className="rr-dot rr-dot--red"></span> 3. Emergency Contact Details
                     </h4>
+                    <span className="rr-section-note">Guardian & Next of Kin</span>
                   </div>
                   <table className="rr-dtable">
                     <tbody>
@@ -625,6 +668,40 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                         <td className="rr-lbl">Emergency Phone</td>
                         <td colSpan={3} className="rr-val rr-val--strong" style={{ width: "auto" }}>{displayData.emergencyPhone || "—"}</td>
                       </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Section 4: Clinical & Visit Information */}
+                <div className="rr-section">
+                  <div className="rr-section-head">
+                    <h4 className="rr-section-title">
+                      <span className="rr-dot rr-dot--violet"></span> 4. Clinical & Visit Information
+                    </h4>
+                    <span className="rr-section-note">Consultation & Department</span>
+                  </div>
+                  <table className="rr-dtable">
+                    <tbody>
+                      <tr>
+                        <td className="rr-lbl">Visit Category</td>
+                        <td className="rr-val rr-val--strong">{displayData.category || "OPD"}</td>
+                        <td className="rr-lbl">Department</td>
+                        <td className="rr-val">{displayData.department || "—"}</td>
+                      </tr>
+                      <tr>
+                        <td className="rr-lbl">Referred By / Doctor</td>
+                        <td className="rr-val">{displayData.doctor || "—"}</td>
+                        <td className="rr-lbl">Status</td>
+                        <td className="rr-val rr-val--strong" style={{ color: getStatus(displayData.status).color }}>
+                          {displayData.status || "Waiting"}
+                        </td>
+                      </tr>
+                      {displayData.notes && (
+                        <tr>
+                          <td className="rr-lbl">Notes / Remarks</td>
+                          <td colSpan={3} className="rr-val" style={{ width: "auto" }}>{displayData.notes}</td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -814,6 +891,20 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                       className="rr-input"
                     />
                   </div>
+
+                 
+                  <div className="rr-span-2">
+                    <label className="rr-flabel">
+                      Occupation
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.occupation || ""}
+                      onChange={e => setEditForm(f => ({...f, occupation: e.target.value}))}
+                      placeholder="e.g. Business, Service, Homemaker"
+                      className="rr-input"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -837,6 +928,33 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                       onChange={e => setEditForm(f => ({...f, phone: e.target.value}))}
                       placeholder="10-digit mobile number"
                       maxLength={10}
+                      className="rr-input"
+                    />
+                  </div>
+
+                  <div className="rr-span-2">
+                    <label className="rr-flabel">
+                      Alternate Mobile
+                    </label>
+                    <input
+                      type="tel"
+                      value={editForm.altPhone || ""}
+                      onChange={e => setEditForm(f => ({...f, altPhone: e.target.value}))}
+                      placeholder="Alternate phone number"
+                      maxLength={10}
+                      className="rr-input"
+                    />
+                  </div>
+
+                  <div className="rr-span-2">
+                    <label className="rr-flabel">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={editForm.email || ""}
+                      onChange={e => setEditForm(f => ({...f, email: e.target.value}))}
+                      placeholder="patient@example.com"
                       className="rr-input"
                     />
                   </div>

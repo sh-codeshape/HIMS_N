@@ -665,881 +665,754 @@ export default function IPDAdmissionView() {
 
   return (
     <div className="ipd-erp-container">
-      {/* ── ERP WINDOW CONTAINER ── */}
-      <div className="ipd-erp-window">
-        {/* ── TOP NAVY TITLE BAR ── */}
-        <div className="ipd-erp-titlebar">
-          <div className="ipd-titlebar-left">
-            <div className="ipd-titlebar-badge">
-              <Icon name="LuFileText" size={24} />
-            </div>
-            <div className="ipd-titlebar-info">
-              <h2 className="ipd-titlebar-title">IPD Admission Form</h2>
-              <span className="ipd-titlebar-subtitle">Inpatient Registration & Bed Allocation · इंडोर मरीज भर्ती एवं बेड आवंटन</span>
+      {/* ── TOP HEADER & BREADCRUMB (MATCHING OPD REGISTRATION) ── */}
+      <div className="opd-page-header">
+        <div className="opd-header-left">
+          <div className="opd-header-icon">
+            <Icon name="LuBedDouble" size={26} />
+          </div>
+          <div>
+            <h1 className="opd-page-title">IPD Registration</h1>
+            <p className="opd-page-sub">Inpatient Registration, Admission &amp; Bed Allocation · इंडोर मरीज भर्ती एवं बेड आवंटन</p>
+            <div className="opd-breadcrumb">
+              <span>Home</span> &gt; <span>IPD</span> &gt; <span className="active">IPD Registration</span>
             </div>
           </div>
-          <div className="ipd-titlebar-right">
+        </div>
+      </div>
+
+      <form onSubmit={handleConfirmAdmission} className="opd-form-flow">
+        {/* ── 1. PATIENT SEARCH CARD ── */}
+        <div ref={patientSearchRef} className="opd-search-card">
+          <label className="opd-search-label">
+            Search Patient (UHID / Mobile / Name) <span className="opd-hint">· मरीज खोजें</span>
+          </label>
+          <div className="opd-search-row">
+            <div className="opd-search-input-wrapper">
+              <Icon name="LuSearch" size={16} className="opd-search-icon" />
+              <input
+                type="text"
+                className="opd-search-input"
+                placeholder="Search by UHID / Mobile Number / Patient Name / नाम या मोबाइल से खोजें"
+                value={patientSearchQuery}
+                onChange={handlePatientSearchChange}
+                onFocus={() => {
+                  if (patientSearchQuery.trim()) setShowPatientDropdown(true);
+                }}
+              />
+              {patientSearchQuery && (
+                <button
+                  type="button"
+                  className="opd-search-clear-btn"
+                  onClick={() => {
+                    setPatientSearchQuery("");
+                    setPatientSearchResults([]);
+                    setShowPatientDropdown(false);
+                  }}
+                >
+                  <Icon name="LuX" size={14} />
+                </button>
+              )}
+            </div>
+            <button type="button" className="opd-btn-search">
+              <Icon name="LuSearch" size={14} /> Search
+            </button>
+            <span className="opd-or-divider">OR</span>
             <button
               type="button"
-              className="ipd-titlebar-close"
-              title="Close / Exit Form"
-              onClick={() => navigate(-1)}
+              className="opd-btn-new-patient"
+              onClick={() => navigate("/registration/register-patient")}
             >
-              <Icon name="LuX" size={18} />
+              + New Patient Registration
             </button>
+          </div>
+
+          {/* Autocomplete Dropdown List */}
+          {showPatientDropdown && patientSearchResults.length > 0 && (
+            <div className="opd-search-dropdown">
+              {patientSearchResults.map((pt) => {
+                const pName =
+                  pt.full_name ||
+                  pt.name ||
+                  `${pt.first_name || pt.firstName || ""} ${pt.last_name || pt.lastName || ""}`.trim() ||
+                  "Patient";
+                const pPhone = pt.phone || pt.mobile1 || pt.mobile || "N/A";
+                return (
+                  <div
+                    key={pt.uhid || pt.id}
+                    className="opd-dropdown-item"
+                    onClick={() => handleSelectOldPatient(pt)}
+                  >
+                    <div className="opd-dropdown-avatar">
+                      {(pName || "P")[0].toUpperCase()}
+                    </div>
+                    <div className="opd-dropdown-info">
+                      <div className="opd-dropdown-name">
+                        {pName}
+                        <span className="opd-dropdown-uhid-badge">{pt.uhid}</span>
+                      </div>
+                      <div className="opd-dropdown-sub">
+                        📞 {pPhone} | {pt.age || pt.ageYrs || "?"} Yrs / {pt.gender || "—"} | 🩸 {pt.blood_group || pt.bloodGroup || "O+"}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── 2. PATIENT BANNER CARD (SELECTED / EMPTY) ── */}
+        {selectedPatient && (selectedPatient.name || selectedPatient.uhid) ? (
+          <div className="opd-patient-banner">
+            <div className="opd-pb-left">
+              <div className="opd-pb-avatar">
+                <div className="opd-pb-avatar-fallback">
+                  {(selectedPatient.name || "P")[0].toUpperCase()}
+                </div>
+              </div>
+
+              <div className="opd-pb-info-grid">
+                <div className="opd-pb-name-row">
+                  <h2 className="opd-pb-name">{selectedPatient.name}</h2>
+                  <span className="opd-badge-status">Registered</span>
+                  <span className="opd-badge-blood">🩸 {selectedPatient.bloodGroup || "O+"}</span>
+                </div>
+
+                <div className="opd-pb-meta-grid">
+                  <div className="opd-meta-item">
+                    <span className="lbl">UHID :</span>
+                    <span className="val bold font-mono text-blue-700">{selectedPatient.uhid || "—"}</span>
+                  </div>
+                  <div className="opd-meta-item">
+                    <span className="lbl">Phone :</span>
+                    <span className="val">{selectedPatient.phone || "—"}</span>
+                  </div>
+                  <div className="opd-meta-item">
+                    <span className="lbl">Age / Gender :</span>
+                    <span className="val bold">{selectedPatient.age || "—"} Yrs / {selectedPatient.gender || "—"}</span>
+                  </div>
+                  <div className="opd-meta-item">
+                    <span className="lbl">Address :</span>
+                    <span className="val">{selectedPatient.address || "—"}</span>
+                  </div>
+                  <div className="opd-meta-item">
+                    <span className="lbl">Payer / Insurance :</span>
+                    <span className="val">{selectedPatient.insurance || "Self Pay"}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="opd-pb-right">
+              <button
+                type="button"
+                className="opd-btn-view-patient"
+                onClick={() => {
+                  toast.success(`Patient: ${selectedPatient.name} (${selectedPatient.uhid})`, { icon: "👤" });
+                }}
+                title="View Complete Patient Profile"
+              >
+                <Icon name="LuEye" size={14} /> View Patient
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="opd-patient-banner opd-banner-empty">
+            <Icon name="LuUser" size={32} className="empty-user-icon" />
+            <div className="empty-text">
+              <h3>No Patient Selected</h3>
+              <p>Please search patient by UHID, Mobile Number or Name above, or register a new patient.</p>
+            </div>
+          </div>
+        )}
+
+        {/* ── 3. SECTION: IPD ADMISSION DETAILS ── */}
+        <div className="opd-card">
+          <div className="opd-card-title">
+            <Icon name="LuClipboardList" size={16} className="title-icon" />
+            <span>IPD Admission Details <span className="opd-hint">· भर्ती एवं प्रवेश विवरण</span></span>
+          </div>
+
+          <div className="opd-form-grid opd-grid-4">
+            <div>
+              <label className="opd-label">
+                Admission Type <span className="req">*</span> <span className="opd-hint">· भर्ती प्रकार</span>
+              </label>
+              <select
+                className="opd-select font-semibold"
+                value={admissionType}
+                onChange={(e) => setAdmissionType(e.target.value)}
+              >
+                <option value="Emergency">Emergency (आपातकालीन)</option>
+                <option value="Planned">Planned (नियोजित)</option>
+                <option value="Referral">Referral (रेफरल)</option>
+                <option value="Transfer">Transfer (स्थानांतरण)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="opd-label">
+                Admission Date <span className="req">*</span> <span className="opd-hint">· भर्ती तिथि</span>
+              </label>
+              <input
+                type="date"
+                className="opd-input"
+                value={admissionDate}
+                onChange={(e) => setAdmissionDate(e.target.value)}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="opd-label">
+                Admission Time <span className="req">*</span> <span className="opd-hint">· भर्ती समय</span>
+              </label>
+              <input
+                type="time"
+                className="opd-input cursor-pointer"
+                value={admissionTime}
+                onChange={(e) => setAdmissionTime(e.target.value)}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="opd-label">
+                Department <span className="req">*</span> <span className="opd-hint">· विभाग</span>
+              </label>
+              <select
+                className="opd-select font-semibold"
+                value={department?.id || ""}
+                onChange={(e) => {
+                  const selected = departments.find((d) => d.id === e.target.value);
+                  setDepartment(selected || null);
+                }}
+                disabled={departmentsLoading}
+              >
+                <option value="">Select Department</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="opd-col-span-2">
+              <div className="flex justify-between items-center mb-1">
+                <label className="opd-label mb-0">
+                  Doctor to Consult / Attending Doctor <span className="req">*</span> <span className="opd-hint">· चिकित्सक चुनें</span>
+                </label>
+                {selectedDoctor && (
+                  <span className="opd-status-available">● Available</span>
+                )}
+              </div>
+              <select
+                className="opd-select font-semibold"
+                value={selectedDoctor?.id || ""}
+                onChange={(e) => {
+                  const selected = doctors.find((d) => d.id === e.target.value);
+                  setSelectedDoctor(selected || null);
+                }}
+              >
+                <option value="">Select Doctor</option>
+                {(department
+                  ? doctors.filter((d) => d.departmentId === department.id)
+                  : doctors
+                ).map((doc) => (
+                  <option key={doc.id} value={doc.id}>
+                    {doc.name} {doc.qualifications ? `(${doc.qualifications})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+           
+
+            <div>
+              <label className="opd-label">
+                Expected Discharge <span className="opd-hint">· संभावित छुट्टी तिथि</span>
+              </label>
+              <input
+                type="date"
+                className="opd-input"
+                value={expectedDischargeDate}
+                onChange={(e) => setExpectedDischargeDate(e.target.value)}
+              />
+            </div>
           </div>
         </div>
 
-        {/* ── MAIN FORM CONTENT ── */}
-        <form onSubmit={handleConfirmAdmission} className="ipd-erp-form">
-          {/* ═════════════════════════════════════════════════════════════════════════════════
-              1. TOP SECTION: SEARCH PATIENT / OLD RECORD & SELECTED PATIENT PROFILE (FIRST!)
-              ═════════════════════════════════════════════════════════════════════════════════ */}
-          <div className="erp-top-patient-row">
-            {/* BOX 1: SEARCH PATIENT / OLD RECORD */}
-            <div className="erp-side-panel erp-top-search-panel" ref={patientSearchRef}>
-              <div className="erp-side-panel-header">
-                <span className="erp-banner-icon"><Icon name="LuSearch" size={14} /></span>
-                <span>Search Patient / Old Record <span className="erp-hint">· पुराने मरीज की खोज</span></span>
+        {/* ── 4. SECTION: CLINICAL & ADMISSION REASON ── */}
+        <div className="opd-card">
+          <div className="opd-card-title">
+            <Icon name="LuStethoscope" size={16} className="title-icon" />
+            <span>Clinical &amp; Admission Reason <span className="opd-hint">· परामर्श एवं नैदानिक विवरण</span></span>
+          </div>
+
+          <div className="opd-form-grid opd-grid-3">
+            {/* Chief Complaints */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <label className="opd-label mb-0">
+                  Chief Complaint / Symptoms <span className="req">*</span> <span className="opd-hint">· मरीज की समस्या (Multiple Select)</span>
+                </label>
+                {selectedComplaints.length > 0 && (
+                  <span className="opd-badge-count">{selectedComplaints.length} selected</span>
+                )}
               </div>
-              <div className="erp-side-panel-body">
-                <div className="erp-side-search-box">
-                  <Icon name="LuSearch" size={18} className="text-slate-400" />
+              <div className="flex gap-2">
+                <select
+                  className="opd-select flex-1"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) return;
+                    toggleComplaint(val);
+                  }}
+                  value=""
+                >
+                  <option value="">
+                    {selectedComplaints.length === 0
+                      ? "Select Chief Complaint / मुख्य लक्षण चुनें..."
+                      : "+ Add more problem / और समस्या जोड़ें..."}
+                  </option>
+                  {POPULAR_IPD_COMPLAINTS.map((c) => (
+                    <option key={c} value={c} disabled={selectedComplaints.includes(c)}>
+                      {selectedComplaints.includes(c) ? `✓ ${c} (Added)` : c}
+                    </option>
+                  ))}
+                  <option value="Other">+ Custom / अन्य समस्या...</option>
+                </select>
+                <button
+                  type="button"
+                  className="opd-btn-tag-action"
+                  onClick={() => setShowOtherComplaintInput(true)}
+                  title="Add Custom Symptom"
+                >
+                  + Custom
+                </button>
+              </div>
+
+              {showOtherComplaintInput && (
+                <div className="opd-custom-input-row mt-2">
                   <input
                     type="text"
-                    className="erp-side-search-input"
-                    placeholder="Search by UHID / Mobile Number / Patient Name / नाम, UHID या फोन से खोजें..."
-                    value={patientSearchQuery}
-                    onChange={handlePatientSearchChange}
-                    onFocus={() => {
-                      if (patientSearchQuery.trim()) setShowPatientDropdown(true);
+                    className="opd-input flex-1"
+                    placeholder="Type custom symptom / लक्षण लिखें..."
+                    value={otherComplaintText}
+                    onChange={(e) => setOtherComplaintText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddOtherComplaint();
+                      }
                     }}
+                    autoFocus
                   />
-                  {patientSearchQuery && (
+                  <button type="button" className="opd-btn-tag-save" onClick={handleAddOtherComplaint}>+ Add</button>
+                  <button type="button" className="opd-btn-tag-cancel" onClick={() => { setShowOtherComplaintInput(false); setOtherComplaintText(""); }}>✕</button>
+                </div>
+              )}
+
+              {selectedComplaints.length > 0 && (
+                <div className="opd-tags-wrapper mt-2">
+                  {selectedComplaints.map((c) => (
+                    <span key={c} className="opd-tag">
+                      {c}
+                      <button type="button" onClick={() => removeComplaint(c)}>✕</button>
+                    </span>
+                  ))}
+                  {selectedComplaints.length > 1 && (
+                    <button type="button" className="opd-clear-all-link" onClick={() => setSelectedComplaints([])}>Clear All</button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Duration & Diagnosis */}
+            <div>
+              <label className="opd-label">
+                Duration <span className="opd-hint">· लक्षण की अवधि</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  className="opd-input w-24"
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                />
+                <select
+                  className="opd-select flex-1"
+                  value={durationUnit}
+                  onChange={(e) => setDurationUnit(e.target.value)}
+                >
+                  <option value="Days">Days (दिन)</option>
+                  <option value="Hours">Hours (घंटे)</option>
+                  <option value="Weeks">Weeks (सप्ताह)</option>
+                </select>
+              </div>
+             
+            </div>
+
+            {/* Reason for Admission */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <label className="opd-label mb-0">
+                  Reason for Admission <span className="req">*</span> <span className="opd-hint">· भर्ती का कारण</span>
+                </label>
+                {selectedReasons.length > 0 && (
+                  <span className="opd-badge-count">{selectedReasons.length} selected</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <select
+                  className="opd-select flex-1"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) return;
+                    toggleAdmissionReason(val);
+                  }}
+                  value=""
+                >
+                  <option value="">
+                    {selectedReasons.length === 0
+                      ? "Select Reason / भर्ती का कारण चुनें..."
+                      : "+ Add another reason / अन्य कारण जोड़ें..."}
+                  </option>
+                  {POPULAR_ADMISSION_REASONS.map((r) => (
+                    <option key={r} value={r} disabled={selectedReasons.includes(r)}>
+                      {selectedReasons.includes(r) ? `✓ ${r} (Added)` : r}
+                    </option>
+                  ))}
+                  <option value="Other">+ Custom Reason...</option>
+                </select>
+                <button
+                  type="button"
+                  className="opd-btn-tag-action"
+                  onClick={() => setShowOtherReasonInput(true)}
+                  title="Add Custom Reason"
+                >
+                  + Custom
+                </button>
+              </div>
+
+              {showOtherReasonInput && (
+                <div className="opd-custom-input-row mt-2">
+                  <input
+                    type="text"
+                    className="opd-input flex-1"
+                    placeholder="Type custom reason / अन्य कारण लिखें..."
+                    value={otherReasonText}
+                    onChange={(e) => setOtherReasonText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddOtherReason();
+                      }
+                    }}
+                    autoFocus
+                  />
+                  <button type="button" className="opd-btn-tag-save" onClick={handleAddOtherReason}>+ Add</button>
+                  <button type="button" className="opd-btn-tag-cancel" onClick={() => { setShowOtherReasonInput(false); setOtherReasonText(""); }}>✕</button>
+                </div>
+              )}
+
+              {selectedReasons.length > 0 && (
+                <div className="opd-tags-wrapper mt-2">
+                  {selectedReasons.map((r) => (
+                    <span key={r} className="opd-tag">
+                      {r}
+                      <button type="button" onClick={() => removeAdmissionReason(r)}>✕</button>
+                    </span>
+                  ))}
+                  {selectedReasons.length > 1 && (
                     <button
                       type="button"
-                      className="erp-side-search-clear"
+                      className="opd-clear-all-link"
                       onClick={() => {
-                        setPatientSearchQuery("");
-                        setPatientSearchResults([]);
-                        setShowPatientDropdown(false);
+                        setSelectedReasons([]);
+                        setReasonForAdmission("");
                       }}
                     >
-                      <Icon name="LuX" size={16} />
+                      Clear All
                     </button>
                   )}
                 </div>
+              )}
+            </div>
+          </div>
+        </div>
 
-                {/* Autocomplete Dropdown List */}
-                {showPatientDropdown && patientSearchResults.length > 0 && (
-                  <div className="erp-side-dropdown">
-                    <div className="erp-side-dropdown-head">
-                      Matching Patients ({patientSearchResults.length})
-                    </div>
-                    {patientSearchResults.map((p) => {
-                      const pName =
-                        p.full_name ||
-                        p.name ||
-                        `${p.first_name || p.firstName || ""} ${p.last_name || p.lastName || ""}`.trim() ||
-                        "Patient";
-                      const pPhone = p.phone || p.mobile1 || p.mobile || "N/A";
-                      return (
-                        <div
-                          key={p.uhid || p.id}
-                          className="erp-dropdown-item"
-                          onClick={() => handleSelectOldPatient(p)}
-                        >
-                          <div className="erp-dropdown-item-info">
-                            <span className="erp-drop-name">{pName}</span>
-                            <span className="erp-drop-meta">
-                              <strong>{p.uhid}</strong> • 📞 {pPhone} • {p.age || "?"} Yrs / {p.gender || "—"}
-                            </span>
-                          </div>
-                          <span className="erp-drop-btn">Load Profile →</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+        {/* ── 5. SECTION: BED & WARD ALLOCATION ── */}
+        <div className="opd-card">
+          <div className="opd-card-title">
+            <Icon name="LuBed" size={16} className="title-icon" />
+            <span>Bed &amp; Ward Allocation <span className="opd-hint">· वार्ड एवं बेड आवंटन</span></span>
+          </div>
+
+          <div className="opd-form-grid opd-grid-4">
+            <div>
+              <label className="opd-label">
+                Ward Type <span className="req">*</span> <span className="opd-hint">· वार्ड का प्रकार</span>
+              </label>
+              <select
+                className="opd-select font-semibold"
+                value={wardType}
+                onChange={(e) => setWardType(e.target.value)}
+              >
+                <option value="General Ward">General Ward</option>
+                <option value="ICU">ICU (Intensive Care)</option>
+                <option value="Private Room">Private Room</option>
+                <option value="Semi-Private Room">Semi-Private Room</option>
+              </select>
             </div>
 
-            {/* BOX 2: SELECTED PATIENT PROFILE (FETCHED FROM REGISTRATION) */}
-            <div className="erp-side-panel erp-top-profile-panel">
-              <div className="erp-side-panel-header">
-                <span className="erp-banner-icon"><Icon name="LuUser" size={14} /></span>
-                <span>Selected Patient Profile <span className="erp-hint">· चयनित मरीज का विवरण</span></span>
-                {selectedPatient && (selectedPatient.uhid || selectedPatient.name) && (
-                  <span className="erp-fetched-badge">
-                    ✓ Fetched from Registration
-                  </span>
-                )}
-              </div>
-              <div className="erp-side-panel-body">
-                {selectedPatient && (selectedPatient.name || selectedPatient.uhid) ? (
-                  <div className="erp-patient-profile-card">
-                    <div className="erp-patient-avatar">
-                      {selectedPatient.name ? selectedPatient.name.charAt(0).toUpperCase() : "P"}
-                    </div>
-                    <div className="erp-patient-profile-info">
-                      <h3 className="erp-profile-name">{selectedPatient.name}</h3>
-                      <div className="erp-profile-tags">
-                        <span className="erp-badge-uhid">UHID: {selectedPatient.uhid || "N/A"}</span>
-                        <span className="erp-badge-blood">🩸 {selectedPatient.bloodGroup || "O+"}</span>
-                        <span className="erp-badge-uhid">{selectedPatient.age || "—"} Yrs / {selectedPatient.gender || "—"}</span>
-                        <span className="erp-badge-uhid">{selectedPatient.insurance || "Self Pay"}</span>
-                      </div>
-                      <div className="erp-profile-meta-list">
-                        <div>
-                          <span>📞 Phone:</span> <strong>{selectedPatient.phone || "—"}</strong>
-                          <span className="ml-3">📍 Address:</span> <strong>{selectedPatient.address || "—"}</strong>
-                        </div>
-                        <div>
-                          <span>⚠️ Allergies:</span> <strong className="text-amber-900">{selectedPatient.allergies || "No Known Allergies"}</strong>
-                          <span className="ml-3">💍 Status:</span> <strong>{selectedPatient.maritalStatus || "Single"}</strong>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="erp-patient-profile-empty">
-                    <span className="empty-icon">🔍</span>
-                    <div className="empty-msg-wrap">
-                      <span className="empty-title">No Patient Selected Yet</span>
-                      <span className="empty-sub">Search patient by UHID, Mobile Number, or Name to auto-load registration details.</span>
-                    </div>
-                  </div>
-                )}
+            <div>
+              <label className="opd-label">
+                Room Type <span className="opd-hint">· कमरे का प्रकार</span>
+              </label>
+              <select
+                className="opd-select"
+                value={roomType}
+                onChange={(e) => setRoomType(e.target.value)}
+              >
+                <option value="Multi Bed">Multi Bed Ward</option>
+                <option value="Single Deluxe">Single Deluxe</option>
+                <option value="Twin Sharing">Twin Sharing</option>
+                <option value="Isolation">Isolation</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="opd-label">
+                Floor <span className="opd-hint">· मंजिल</span>
+              </label>
+              <select
+                className="opd-select"
+                value={floor}
+                onChange={(e) => setFloor(e.target.value)}
+              >
+                <option value="Ground Floor">Ground Floor</option>
+                <option value="1st Floor">1st Floor</option>
+                <option value="2nd Floor">2nd Floor</option>
+                <option value="3rd Floor">3rd Floor</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="opd-label">
+                Selected Bed <span className="req">*</span> <span className="opd-hint">· चयनित बेड</span>
+              </label>
+              <div className="opd-selected-bed-box">
+                <Icon name="LuBed" size={16} className="text-teal-700" />
+                <span className="font-extrabold text-teal-900 text-[13px]">
+                  {selectedBed || "Select Bed Below"}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* ═════════════════════════════════════════════════════════════════════════════════
-              2. MAIN BODY 2-COLUMN GRID (ADMISSION DETAILS, CLINICAL, BED MATRIX & FEES)
-              ═════════════════════════════════════════════════════════════════════════════════ */}
-          <div className="ipd-erp-body-grid">
-            {/* ── LEFT COLUMN ── */}
-            <div className="ipd-erp-left-col">
-              {/* 1. ADMISSION SPECIFICATIONS */}
-              <div className="erp-section-panel">
-                <div className="erp-section-banner">
-                  <span className="erp-banner-icon"><Icon name="LuClipboardList" size={14} /></span>
-                  <span>Admission Specifications <span className="erp-hint">· भर्ती विवरण</span></span>
-                </div>
-                <div className="erp-section-inner">
-                  {/* Admission Type Radio Pills */}
-                  <div className="erp-field-group mb-2">
-                    <label className="erp-label">
-                      Admission Type <span className="erp-req">*</span>
-                    </label>
-                    <div className="erp-type-pills">
-                      {["Emergency", "Planned", "Referral", "Transfer"].map((type) => (
-                        <button
-                          key={type}
-                          type="button"
-                          className={`erp-type-pill ${admissionType === type ? "active" : ""}`}
-                          onClick={() => setAdmissionType(type)}
-                        >
-                          <span className="erp-radio-dot"></span>
-                          {type}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="erp-grid-3">
-                    <div className="erp-field-group">
-                      <label className="erp-label">
-                        Admission Date <span className="erp-req">*</span>
-                      </label>
-                      <input
-                        type="date"
-                        className="erp-input"
-                        value={admissionDate}
-                        onChange={(e) => setAdmissionDate(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">
-                        Admission Time <span className="erp-req">*</span>
-                      </label>
-                      <input
-                        type="time"
-                        className="erp-input cursor-pointer"
-                        value={admissionTime}
-                        onChange={(e) => setAdmissionTime(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">Admission Source</label>
-                      <select
-                        className="erp-select"
-                        value={admissionSource}
-                        onChange={(e) => setAdmissionSource(e.target.value)}
-                      >
-                        <option value="OPD">OPD Consultation</option>
-                        <option value="Emergency">Emergency / Casualty</option>
-                        <option value="Direct">Direct Admission</option>
-                        <option value="Referral">External Referral</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="erp-grid-2 mt-2">
-                    <div className="erp-field-group">
-                      <label className="erp-label">
-                        Department <span className="erp-req">*</span>
-                      </label>
-                      <select
-                        className="erp-select"
-                        value={department?.id || ""}
-                        onChange={(e) => {
-                          const selected = departments.find((d) => d.id === e.target.value);
-                          setDepartment(selected || null);
-                        }}
-                        disabled={departmentsLoading}
-                      >
-                        <option value="">Select Department</option>
-                        {departments.map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">
-                        Attending Doctor <span className="erp-req">*</span>
-                      </label>
-                      <select
-                        className="erp-select"
-                        value={selectedDoctor?.id || ""}
-                        onChange={(e) => {
-                          const selected = doctors.find((d) => d.id === e.target.value);
-                          setSelectedDoctor(selected || null);
-                        }}
-                      >
-                        <option value="">Select Doctor</option>
-                        {(department
-                          ? doctors.filter((d) => d.departmentId === department.id)
-                          : doctors
-                        ).map((doc) => (
-                          <option key={doc.id} value={doc.id}>
-                            {doc.name} {doc.qualifications ? `(${doc.qualifications})` : ""}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
+          {/* Interactive Bed Matrix Grid */}
+          <div className="opd-bed-matrix-box mt-3">
+            <div className="opd-bed-matrix-head">
+              <span className="opd-bed-matrix-title">
+                Interactive Bed Grid — <strong>{wardType}</strong>
+              </span>
+              <div className="opd-bed-legend">
+                <span className="opd-legend-item"><span className="opd-dot-avail"></span> Available</span>
+                <span className="opd-legend-item"><span className="opd-dot-occ"></span> Occupied</span>
+                <span className="opd-legend-item"><span className="opd-dot-sel"></span> Selected</span>
               </div>
+            </div>
 
-              {/* 2. CLINICAL & ADMISSION REASON (PREMIUM MULTI-SELECT) */}
-              <div className="erp-section-panel erp-panel-clinical">
-                <div className="erp-section-banner erp-banner-clinical">
-                  <span className="erp-banner-icon"><Icon name="LuStethoscope" size={14} /></span>
-                  <span>Clinical & Admission Reason <span className="erp-hint">· भर्ती का कारण</span></span>
-                </div>
-                <div className="erp-section-inner">
-                  {/* Complaints Multi-Select Dropdown */}
-                  <div className="erp-field-group">
-                    <div className="flex justify-between items-center mb-1">
-                      <label className="erp-label mb-0">
-                        Chief Complaint / Symptoms <span className="erp-req">*</span>
-                        <span className="text-[11.5px] text-slate-500 font-normal ml-1">
-                          (Select multiple symptoms or add custom)
-                        </span>
-                      </label>
-                      {selectedComplaints.length > 0 && (
-                        <span className="erp-symptom-count-badge">
-                          {selectedComplaints.length} selected
-                        </span>
-                      )}
+            <div className="opd-bed-cards-grid">
+              {(filteredBeds.length > 0 ? filteredBeds : availableBedsGrid).map((b) => {
+                const normalizedStatus = normalizeBedStatus(b.status || b.current_status || "available");
+                const isAvailable = normalizedStatus === "available";
+                const isSelected = selectedBed === b.bedNo;
+
+                return (
+                  <div
+                    key={b.id || b.bedNo}
+                    className={`opd-bed-card ${isAvailable ? "avail" : "occ"} ${isSelected ? "sel" : ""}`}
+                    onClick={() => {
+                      if (isAvailable) setSelectedBed(b.bedNo);
+                    }}
+                  >
+                    <div className="opd-bed-card-main">
+                      <span className="opd-bed-icon">🛏️</span>
+                      <div className="opd-bed-text">
+                        <span className="opd-bed-no">{b.bedNo}</span>
+                        <span className="opd-bed-room">{b.floor || "Ward Bed"}</span>
+                      </div>
                     </div>
-                    <div className="flex gap-2 items-center">
+                    <span className="opd-bed-badge">
+                      {isSelected ? "Selected ✓" : isAvailable ? "Available" : "Occupied"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+       
+
+        {/* ── 7. SECTION: IPD REGISTRATION FEE & ADVANCE (MATCHING SCREENSHOT 2) ── */}
+        <div className="opd-card">
+          <div className="opd-card-title">
+            <Icon name="LuCreditCard" size={16} className="title-icon" />
+            <span>IPD Registration Fee &amp; Advance <span className="opd-hint">· शुल्क एवं अग्रिम भुगतान विवरण</span></span>
+          </div>
+
+          <div className="opd-fee-table-container">
+            <table className="opd-fee-table">
+              <thead>
+                <tr>
+                  <th style={{ width: "5%" }}>#</th>
+                  <th style={{ width: "55%" }}>PARTICULAR / SERVICE</th>
+                  <th style={{ width: "15%" }}>CHARGE</th>
+                  <th style={{ width: "10%" }}>DAYS / QTY</th>
+                  <th style={{ width: "15%" }}>AMOUNT</th>
+                  <th style={{ width: "8%" }}>ACTION</th>
+                </tr>
+              </thead>
+              <tbody>
+                {advanceParticulars.map((row, index) => (
+                  <tr key={row.id}>
+                    <td className="opd-cell-hash">{String(index + 1).padStart(2, "0")}</td>
+                    <td>
                       <select
-                        className="erp-select flex-1"
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (!val) return;
-                          toggleComplaint(val);
-                        }}
-                        value=""
+                        className="opd-select font-semibold text-[13px]"
+                        value={row.service}
+                        onChange={(e) => handleParticularChange(row.id, "service", e.target.value)}
                       >
-                        <option value="">
-                          {selectedComplaints.length === 0
-                            ? "Select Chief Complaint / मुख्य लक्षण चुनें..."
-                            : "+ Add another symptom / अन्य लक्षण जोड़ें..."}
-                        </option>
-                        {POPULAR_IPD_COMPLAINTS.map((c) => (
-                          <option
-                            key={c}
-                            value={c}
-                            disabled={selectedComplaints.includes(c)}
-                          >
-                            {selectedComplaints.includes(c) ? `✓ ${c} (Added)` : c}
+                        {IPD_ADVANCE_SERVICES.map((s) => (
+                          <option key={s.name} value={s.name}>
+                            {s.name} {s.defaultAmount > 0 ? `(₹${s.defaultAmount})` : ""}
                           </option>
                         ))}
-                        <option value="Other">+ Other / अन्य समस्या (Custom)...</option>
                       </select>
-                      <button
-                        type="button"
-                        className="erp-btn-sm-action"
-                        onClick={() => setShowOtherComplaintInput(true)}
-                        title="Add Custom Symptom"
-                      >
-                        + Custom
-                      </button>
-                    </div>
-
-                    {/* Inline Other Complaint Input */}
-                    {showOtherComplaintInput && (
-                      <div className="mt-2 flex gap-2 items-center bg-sky-50 p-2 rounded-lg border border-sky-200">
-                        <input
-                          type="text"
-                          className="erp-input flex-1"
-                          placeholder="Type custom symptom / लक्षण लिखें..."
-                          value={otherComplaintText}
-                          onChange={(e) => setOtherComplaintText(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleAddOtherComplaint();
-                            }
-                          }}
-                          autoFocus
-                        />
-                        <button
-                          type="button"
-                          className="erp-btn-pill-save"
-                          onClick={handleAddOtherComplaint}
-                        >
-                          + Add
-                        </button>
-                        <button
-                          type="button"
-                          className="erp-btn-pill-cancel"
-                          onClick={() => {
-                            setShowOtherComplaintInput(false);
-                            setOtherComplaintText("");
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Active Complaint Badges */}
-                    {selectedComplaints.length > 0 && (
-                      <div className="erp-tags-wrap mt-2 flex flex-wrap gap-1.5 items-center">
-                        {selectedComplaints.map((c) => (
-                          <span key={c} className="erp-tag-chip">
-                            {c}
-                            <button
-                              type="button"
-                              className="erp-tag-chip-remove"
-                              onClick={() => removeComplaint(c)}
-                              title={`Remove ${c}`}
-                            >
-                              ✕
-                            </button>
-                          </span>
-                        ))}
-                        {selectedComplaints.length > 1 && (
-                          <button
-                            type="button"
-                            className="text-xs text-slate-400 hover:text-red-600 underline font-semibold ml-1 cursor-pointer"
-                            onClick={() => setSelectedComplaints([])}
-                          >
-                            Clear All
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Duration, Severity & Provisional Diagnosis */}
-                  <div className="erp-grid-3 mt-2">
-                    <div className="erp-field-group">
-                      <label className="erp-label">Duration</label>
-                      <div className="flex gap-1.5">
+                    </td>
+                    <td>
+                      <div className="opd-charge-box">
+                        <span className="opd-curr">₹</span>
                         <input
                           type="number"
-                          min="1"
-                          className="erp-input w-24"
-                          value={duration}
-                          onChange={(e) => setDuration(e.target.value)}
+                          min="0"
+                          className="opd-charge-input"
+                          value={row.amount}
+                          onChange={(e) => handleParticularChange(row.id, "amount", Number(e.target.value))}
                         />
-                        <select
-                          className="erp-select flex-1"
-                          value={durationUnit}
-                          onChange={(e) => setDurationUnit(e.target.value)}
-                        >
-                          <option value="Days">Days (दिन)</option>
-                          <option value="Hours">Hours (घंटे)</option>
-                          <option value="Weeks">Weeks (सप्ताह)</option>
-                        </select>
                       </div>
-                    </div>
-
-                  
-
-                   
-                  </div>
-
-                  {/* Reason for Admission Multi-Select & Clinical Notes */}
-                  <div className="erp-field-group mt-2">
-                    <div className="flex justify-between items-center mb-1">
-                      <label className="erp-label mb-0">
-                        Reason for Admission / Clinical Notes <span className="erp-req">*</span>
-                        <span className="text-[11.5px] text-slate-500 font-normal ml-1">
-                          (Select multiple reasons or add custom)
-                        </span>
-                      </label>
-                      {selectedReasons.length > 0 && (
-                        <span className="erp-symptom-count-badge">
-                          {selectedReasons.length} selected
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex gap-2 items-center">
-                      <select
-                        className="erp-select flex-1"
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (!val) return;
-                          toggleAdmissionReason(val);
-                        }}
-                        value=""
-                      >
-                        <option value="">
-                          {selectedReasons.length === 0
-                            ? "Select Reason for Admission / भर्ती का मुख्य कारण चुनें..."
-                            : "+ Add another reason / अन्य कारण जोड़ें..."}
-                        </option>
-                        {POPULAR_ADMISSION_REASONS.map((r) => (
-                          <option
-                            key={r}
-                            value={r}
-                            disabled={selectedReasons.includes(r)}
-                          >
-                            {selectedReasons.includes(r) ? `✓ ${r} (Added)` : r}
-                          </option>
-                        ))}
-                        <option value="Other">+ Custom Reason / अन्य कारण (Custom)...</option>
+                    </td>
+                    <td>
+                      <select className="opd-select opd-select-qty">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="5">5</option>
                       </select>
+                    </td>
+                    <td className="opd-cell-amount font-bold">
+                      ₹ {Number(row.amount || 0).toFixed(2)}
+                    </td>
+                    <td>
                       <button
                         type="button"
-                        className="erp-btn-sm-action"
-                        onClick={() => setShowOtherReasonInput(true)}
-                        title="Add Custom Reason"
+                        className="opd-btn-trash"
+                        onClick={() => handleRemoveParticularRow(row.id)}
+                        title="Remove charge item"
+                        disabled={advanceParticulars.length <= 1}
                       >
-                        + Custom
+                        <Icon name="LuTrash2" size={14} />
                       </button>
-                    </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-                    {/* Inline Other Reason Input */}
-                    {showOtherReasonInput && (
-                      <div className="mt-2 flex gap-2 items-center bg-sky-50 p-2 rounded-lg border border-sky-200">
-                        <input
-                          type="text"
-                          className="erp-input flex-1"
-                          placeholder="Type custom reason / अन्य कारण लिखें..."
-                          value={otherReasonText}
-                          onChange={(e) => setOtherReasonText(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleAddOtherReason();
-                            }
-                          }}
-                          autoFocus
-                        />
-                        <button
-                          type="button"
-                          className="erp-btn-pill-save"
-                          onClick={handleAddOtherReason}
-                        >
-                          + Add
-                        </button>
-                        <button
-                          type="button"
-                          className="erp-btn-pill-cancel"
-                          onClick={() => {
-                            setShowOtherReasonInput(false);
-                            setOtherReasonText("");
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
+          <div className="opd-fee-footer-row mt-3">
+            <button
+              type="button"
+              className="opd-btn-add-row"
+              onClick={handleAddParticularRow}
+            >
+              + Add Particular Row
+            </button>
 
-                    {/* Active Reason Badges */}
-                    {selectedReasons.length > 0 && (
-                      <div className="erp-tags-wrap mt-2 flex flex-wrap gap-1.5 items-center">
-                        {selectedReasons.map((r) => (
-                          <span key={r} className="erp-tag-chip">
-                            {r}
-                            <button
-                              type="button"
-                              className="erp-tag-chip-remove"
-                              onClick={() => removeAdmissionReason(r)}
-                              title={`Remove ${r}`}
-                            >
-                              ✕
-                            </button>
-                          </span>
-                        ))}
-                        {selectedReasons.length > 1 && (
-                          <button
-                            type="button"
-                            className="text-xs text-slate-400 hover:text-red-600 underline font-semibold ml-1 cursor-pointer"
-                            onClick={() => {
-                              setSelectedReasons([]);
-                              setReasonForAdmission("");
-                            }}
-                          >
-                            Clear All
-                          </button>
-                        )}
-                      </div>
-                    )}
+            <div className="opd-fee-summary-inputs">
+              <div className="opd-mini-field">
+                <label>Payment Mode</label>
+                <select
+                  className="opd-select opd-select-sm"
+                  value={paymentMode}
+                  onChange={(e) => setPaymentMode(e.target.value)}
+                >
+                  <option value="Cash">Cash (नकद)</option>
+                  <option value="Card">Card (कार्ड)</option>
+                  <option value="UPI">UPI (क्यूआर)</option>
+                  <option value="Insurance">Insurance (बीमा)</option>
+                </select>
+              </div>
 
-                    <div className="mt-2">
-                      <label className="text-[11.5px] font-semibold text-slate-600 mb-1 block">
-                        Detailed Clinical Notes / विस्तृत विवरण:
-                      </label>
-                      <textarea
-                        className="erp-textarea"
-                        rows={2}
-                        placeholder="Patient requires inpatient observation, vital monitoring, and medical treatment..."
-                        value={reasonForAdmission}
-                        onChange={(e) => setReasonForAdmission(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-                </div>
+              <div className="opd-mini-field">
+                <label>Payment Status</label>
+                <select
+                  className="opd-select opd-select-sm font-bold text-emerald-800"
+                  value={paymentStatus}
+                  onChange={(e) => setPaymentStatus(e.target.value)}
+                >
+                  <option value="Paid">Paid (प्राप्त)</option>
+                  <option value="Pending">Pending (लंबित)</option>
+                  <option value="Partial">Partial (आंशिक)</option>
+                </select>
+              </div>
+
+              <div className="opd-total-pill-badge">
+                <span>TOTAL: <strong>₹ {totalAdvance.toFixed(2)}</strong></span>
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* ── RIGHT COLUMN ── */}
-            <div className="ipd-erp-right-col">
-              {/* 4. BED / ROOM ALLOCATION (WITH AVAILABLE BEDS MATRIX) */}
-              <div className="erp-section-panel">
-                <div className="erp-section-banner">
-                  <span className="erp-banner-icon"><Icon name="LuBed" size={14} /></span>
-                  <span>Bed / Room Allocation & Ward Matrix <span className="erp-hint">· बेड आवंटन</span></span>
-                </div>
-                <div className="erp-section-inner">
-                  <div className="erp-grid-2">
-                    <div className="erp-field-group">
-                      <label className="erp-label">
-                        Ward Type <span className="erp-req">*</span>
-                      </label>
-                      <select
-                        className="erp-select font-semibold"
-                        value={wardType}
-                        onChange={(e) => setWardType(e.target.value)}
-                      >
-                        <option value="General Ward">General Ward</option>
-                        <option value="ICU">ICU (Intensive Care)</option>
-                        <option value="Private Room">Private Room</option>
-                        <option value="Semi-Private Room">Semi-Private Room</option>
-                      </select>
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">Room Type</label>
-                      <select
-                        className="erp-select"
-                        value={roomType}
-                        onChange={(e) => setRoomType(e.target.value)}
-                      >
-                        <option value="Multi Bed">Multi Bed Ward</option>
-                        <option value="Single Deluxe">Single Deluxe</option>
-                        <option value="Twin Sharing">Twin Sharing</option>
-                        <option value="Isolation">Isolation</option>
-                      </select>
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">Floor</label>
-                      <select
-                        className="erp-select"
-                        value={floor}
-                        onChange={(e) => setFloor(e.target.value)}
-                      >
-                        <option value="Ground Floor">Ground Floor</option>
-                        <option value="1st Floor">1st Floor</option>
-                        <option value="2nd Floor">2nd Floor</option>
-                        <option value="3rd Floor">3rd Floor</option>
-                      </select>
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">
-                        Selected Bed <span className="erp-req">*</span>
-                      </label>
-                      <div className="erp-selected-bed-display">
-                        <Icon name="LuBed" size={17} className="text-teal-700" />
-                        <span className="font-extrabold text-teal-900 text-[13px]">
-                          {selectedBed || "Select Bed Below"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+        {/* ── 8. BOTTOM ACTION BAR (MATCHING SCREENSHOT 2) ── */}
+        <div className="opd-bottom-actions-card">
+          <div className="opd-bottom-total-badge">
+            <span>TOTAL PAYABLE: <strong>₹ {totalAdvance.toFixed(0)}</strong> ({paymentMode} • {paymentStatus})</span>
+          </div>
 
-                  {/* Visual Bed Matrix Box */}
-                  <div className="erp-bed-matrix-box mt-3">
-                    <div className="erp-bed-matrix-head">
-                      <span className="erp-bed-matrix-title">
-                        Interactive Bed Grid — <strong>{wardType}</strong>
-                      </span>
-                      <div className="erp-bed-legend">
-                        <span className="erp-legend-item">
-                          <span className="erp-dot-avail"></span> Available
-                        </span>
-                        <span className="erp-legend-item">
-                          <span className="erp-dot-occ"></span> Occupied
-                        </span>
-                        <span className="erp-legend-item">
-                          <span className="erp-dot-sel"></span> Selected
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="erp-bed-cards-grid">
-                      {(filteredBeds.length > 0 ? filteredBeds : availableBedsGrid).map((b) => {
-                        const normalizedStatus = normalizeBedStatus(
-                          b.status || b.current_status || "available"
-                        );
-                        const isAvailable = normalizedStatus === "available";
-                        const isSelected = selectedBed === b.bedNo;
-
-                        return (
-                          <div
-                            key={b.id || b.bedNo}
-                            className={`erp-bed-card ${isAvailable ? "avail" : "occ"} ${
-                              isSelected ? "sel" : ""
-                            }`}
-                            onClick={() => {
-                              if (isAvailable) setSelectedBed(b.bedNo);
-                            }}
-                          >
-                            <div className="erp-bed-card-main">
-                              <span className="erp-bed-icon">🛏️</span>
-                              <div className="erp-bed-text">
-                                <span className="erp-bed-no">{b.bedNo}</span>
-                                <span className="erp-bed-room">{b.floor || "Ward Bed"}</span>
-                              </div>
-                            </div>
-                            <span className="erp-bed-badge">
-                              {isSelected ? "Selected ✓" : isAvailable ? "Available" : "Occupied"}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-             
-              {/* 6. ADMISSION FORM FEE & ADVANCE DETAIL (SELECTABLE & ADD-ON ENABLED) */}
-              <div className="erp-side-panel">
-                <div className="erp-side-panel-header">
-                  <span className="erp-banner-icon"><Icon name="LuCreditCard" size={14} /></span>
-                  <span>Admission Fee & Advance Detail <span className="erp-hint">· अग्रिम शुल्क</span></span>
-                </div>
-                <div className="erp-side-panel-body">
-                  {/* Advance Particulars Table */}
-                  <div className="erp-fee-table-wrap">
-                    <table className="erp-fee-table">
-                      <thead>
-                        <tr>
-                          <th className="col-hash">#</th>
-                          <th className="col-particular">PARTICULAR / SERVICE CHARGE</th>
-                          <th className="col-amount">AMOUNT (₹)</th>
-                          <th className="col-action">ACTION</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {advanceParticulars.map((row, index) => (
-                          <tr key={row.id}>
-                            <td className="cell-hash">{String(index + 1).padStart(2, "0")}</td>
-                            <td className="cell-particular">
-                              <select
-                                className="erp-select text-[12.5px] font-semibold"
-                                value={row.service}
-                                onChange={(e) => handleParticularChange(row.id, "service", e.target.value)}
-                              >
-                                {IPD_ADVANCE_SERVICES.map((s) => (
-                                  <option key={s.name} value={s.name}>
-                                    {s.name} {s.defaultAmount > 0 ? `(₹${s.defaultAmount})` : ""}
-                                  </option>
-                                ))}
-                              </select>
-                            </td>
-                            <td className="cell-amount">
-                              <div className="relative flex items-center">
-                                <span className="absolute left-2.5 font-bold text-slate-500 text-xs pointer-events-none">₹</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  className="erp-fee-amount-input"
-                                  value={row.amount}
-                                  onChange={(e) => handleParticularChange(row.id, "amount", Number(e.target.value))}
-                                />
-                              </div>
-                            </td>
-                            <td className="cell-action">
-                              <button
-                                type="button"
-                                className="erp-btn-trash-fee"
-                                onClick={() => handleRemoveParticularRow(row.id)}
-                                title="Remove charge item"
-                                disabled={advanceParticulars.length <= 1}
-                              >
-                                <Icon name="LuTrash2" size={14} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Add-on button */}
-                  <div className="flex justify-between items-center mb-3">
-                    <button
-                      type="button"
-                      className="erp-btn-add-fee-row"
-                      onClick={handleAddParticularRow}
-                    >
-                      <Icon name="LuPlus" size={14} />
-                      <span>+ Add Particular / Add-on Charge</span>
-                    </button>
-                  </div>
-
-                  {/* Payment Details 3-Column Grid */}
-                  <div className="erp-grid-3">
-                    <div className="erp-field-group">
-                      <label className="erp-label">Payment Mode</label>
-                      <select
-                        className="erp-select font-semibold"
-                        value={paymentMode}
-                        onChange={(e) => setPaymentMode(e.target.value)}
-                      >
-                        <option value="Cash">Cash</option>
-                        <option value="Card">Card</option>
-                        <option value="UPI">UPI / QR</option>
-                        <option value="Insurance">Insurance / TPA</option>
-                      </select>
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">Payment Status</label>
-                      <select
-                        className="erp-select font-semibold text-emerald-800"
-                        value={paymentStatus}
-                        onChange={(e) => setPaymentStatus(e.target.value)}
-                      >
-                        <option value="Paid">Paid</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Partial">Partial</option>
-                      </select>
-                    </div>
-                    <div className="erp-field-group">
-                      <label className="erp-label">Amount Received (₹)</label>
-                      <input
-                        type="number"
-                        className="erp-input font-bold text-slate-900"
-                        value={amountReceived}
-                        onChange={(e) => setAmountReceived(Number(e.target.value))}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Total Advance Highlight Banner */}
-                  <div className="erp-total-advance-highlight mt-3">
-                    <span className="erp-tot-lbl">TOTAL ADVANCE PAYABLE</span>
-                    <span className="erp-tot-val">₹ {totalAdvance.toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-
+          <div className="opd-bottom-buttons">
+            <button
+              type="button"
+              className="opd-btn-cancel-action"
+              onClick={() => navigate(-1)}
+            >
+              Cancel
+            </button>
            
-            </div>
+            {ipdSlipData && (
+              <button
+                type="button"
+                className="opd-btn-print-action"
+                onClick={() => setShowPrintModal(true)}
+              >
+                <Icon name="LuPrinter" size={15} /> Modify / Print
+              </button>
+            )}
+            <button
+              type="submit"
+              className="opd-btn-submit-action"
+            >
+              <Icon name="LuCheckCircle" size={16} /> IPD Registration
+            </button>
           </div>
-
-          {/* ── BOTTOM ACTION BUTTONS BAR ── */}
-          <div className="ipd-erp-footer-actions">
-            <div className="ipd-footer-summary-chip">
-              <span className="chip-label">Total Advance:</span>
-              <span className="chip-amount">₹ {totalAdvance.toFixed(2)}</span>
-              <span className="chip-sub">({paymentMode} • {paymentStatus})</span>
-            </div>
-
-            <div className="erp-action-buttons-group">
-              <button
-                type="button"
-                className="btn-erp-action btn-erp-new"
-                onClick={handleResetForm}
-                title="Clear and start new admission"
-              >
-                <Icon name="LuPlus" size={17} />
-                <span>+ New</span>
-              </button>
-
-              <button
-                type="button"
-                className="btn-erp-action btn-erp-save"
-                onClick={() => toast.success("Admission draft saved successfully", { icon: "💾" })}
-                title="Save draft locally"
-              >
-                <Icon name="LuSave" size={17} />
-                <span>Save</span>
-              </button>
-
-              <button
-                type="submit"
-                className="btn-erp-action btn-erp-submit"
-                title="Confirm and submit inpatient admission"
-              >
-                <Icon name="LuSend" size={17} />
-                <span>Form Submit</span>
-              </button>
-
-              <button
-                type="button"
-                className="btn-erp-action btn-erp-modify"
-                onClick={() => {
-                  if (ipdSlipData) {
-                    setShowPrintModal(true);
-                  } else {
-                    toast.info("Please submit or confirm admission to preview/print the slip", { icon: "ℹ️" });
-                  }
-                }}
-                title="Preview or print admission slip"
-              >
-                <Icon name="LuPrinter" size={17} />
-                <span>Modify / Print</span>
-              </button>
-
-              <button
-                type="button"
-                className="btn-erp-action btn-erp-exit"
-                onClick={() => navigate(-1)}
-                title="Close and exit form"
-              >
-                <Icon name="LuX" size={17} />
-                <span>Exit</span>
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
+        </div>
+      </form>
 
       {/* ── PRINTABLE IPD ADMISSION SLIP MODAL ── */}
       {showPrintModal && ipdSlipData && (

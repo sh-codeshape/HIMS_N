@@ -891,7 +891,6 @@ export default function OPDTokenQueue() {
                   <th className="col-hash">#</th>
                   <th className="col-particular">PARTICULAR / SERVICE</th>
                   <th className="col-charge">CHARGE</th>
-                  <th className="col-qty">DAYS / QTY</th>
                   <th className="col-amount">AMOUNT</th>
                   <th className="col-action">ACTION</th>
                 </tr>
@@ -928,19 +927,6 @@ export default function OPDTokenQueue() {
                           onChange={(e) => handleParticularChange(row.id, 'charge', e.target.value)}
                         />
                       </div>
-                    </td>
-                    <td className="cell-qty">
-                      <select
-                        className="opd-select opd-qty-select"
-                        value={row.qty}
-                        onChange={(e) => handleParticularChange(row.id, 'qty', e.target.value)}
-                      >
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
-                        <option value="5">5</option>
-                      </select>
                     </td>
                     <td className="cell-amount">
                       ₹ {Number(row.amount || 0).toFixed(2)}
@@ -1297,16 +1283,13 @@ export default function OPDTokenQueue() {
                     <Icon name="LuShieldCheck" size={15} /> Demographic & Identity Information
                   </h4>
                   <div className="opd-detail-columns">
-                    <div className="opd-demog-item">
-                      <span className="opd-d-label">Marital Status</span>
-                      <span className="opd-d-val">{selectedPatient.marital_status || selectedPatient.maritalStatus || "—"}</span>
-                    </div>
+                    
                     <div className="opd-demog-item">
                       <span className="opd-d-label">Date of Birth (DOB)</span>
                       <span className="opd-d-val">{formatPatientDate(selectedPatient.dob || selectedPatient.date_of_birth)}</span>
                     </div>
                     <div className="opd-demog-item">
-                      <span className="opd-d-label">Aadhar / National ID</span>
+                      <span className="opd-d-label">Aadhar</span>
                       <span className="opd-d-val">{selectedPatient.aadhar_number || selectedPatient.national_id || "—"}</span>
                     </div>
                     <div className="opd-demog-item">
