@@ -68,11 +68,31 @@ export default function Sidebar() {
 
   const isDeveloper = roles.includes('developer');
 
+  const domainMap = {
+    registration: ["registration", "patient"],
+    opd: ["opd", "appointment", "clinical"],
+    ipd: ["ipd", "bed", "admission"],
+    ward: ["ward", "bed", "ipd"],
+    billing: ["billing", "invoice", "payment", "charge", "discount", "creditnote", "cashsession"],
+    billinginvoices: ["billing", "invoice", "payment", "charge", "discount", "creditnote"],
+    patients: ["patient", "patients", "clinical"],
+    staff: ["staff", "users", "roles"],
+    pharmacy: ["pharmacy"],
+    laboratory: ["laboratory", "lab"],
+    radiology: ["radiology", "imaging"],
+    inventory: ["inventory", "purchase", "grn"],
+    emergency: ["emergency"],
+    reports: ["report", "reports"],
+    medicalreports: ["report", "reports", "clinical"],
+    masterreports: ["report", "reports"],
+    followup: ["appointment", "opd", "clinical"],
+  };
+
   /**
    * Layer 1: Module registry check (developer bypasses).
    * If a module is disabled globally, no one except the developer can see it.
    *
-   * Layer 2: Existing role + permission check (unchanged).
+   * Layer 2: RBAC role + permission check with domain fallback.
    */
   const itemVisible = (item) => {
     // Layer 1: Module gate
@@ -80,19 +100,54 @@ export default function Sidebar() {
       return false; // Module disabled globally → hide from everyone except developer
     }
 
-    // Layer 2: Role-based gating
-    const roleOk =
-      !item.allowedRoles || item.allowedRoles.length === 0
-        ? true
-        : item.allowedRoles.some((r) => userRoles.includes(r));
+    if (isDeveloper || userRoles.includes("super_admin") || !!user.is_superadmin) {
+      return true;
+    }
 
-    if (roleOk) return true;
+    // If item has children, it is visible if at least one child is visible
+    if (item.children && item.children.length > 0) {
+      return item.children.some((child) => {
+        const childWithKey = { ...child, key: child.key || item.key };
+        return itemVisible(childWithKey);
+      });
+    }
 
-    const hasExplicitPerm =
-      item.allowedPermissions && item.allowedPermissions.length > 0;
-    if (!hasExplicitPerm) return false;
+    // Role-based check
+    if (item.allowedRoles && item.allowedRoles.length > 0) {
+      if (item.allowedRoles.some((r) => userRoles.includes(r))) {
+        return true;
+      }
+    }
 
-    return item.allowedPermissions.some((p) => userPermissions.includes(p));
+    // Explicit permission check
+    if (item.allowedPermissions && item.allowedPermissions.length > 0) {
+      if (item.allowedPermissions.some((p) => userPermissions.includes(p))) {
+        return true;
+      }
+    }
+
+    // Module domain check for custom roles
+    if (item.key) {
+      const moduleKey = item.key.toLowerCase();
+      const prefixes = domainMap[moduleKey];
+      if (prefixes) {
+        const hasModulePerm = userPermissions.some((p) => {
+          const prefix = p.split(".")[0].toLowerCase();
+          return prefixes.includes(prefix);
+        });
+        if (hasModulePerm) return true;
+      }
+    }
+
+    // If item requires no specific roles and no specific permissions (e.g. Dashboard)
+    if (
+      (!item.allowedRoles || item.allowedRoles.length === 0) &&
+      (!item.allowedPermissions || item.allowedPermissions.length === 0)
+    ) {
+      return true;
+    }
+
+    return false;
   };
 
   // Only show menu items this user is allowed to see.

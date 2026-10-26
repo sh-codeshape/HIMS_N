@@ -35,7 +35,7 @@ export default function AppRoutes() {
       {/* Authenticated Dashboard Shell */}
       <Route
         element={
-          <ProtectedRoute allowedRoles={ALL_ROLES}>
+          <ProtectedRoute>
             <DashboardLayout />
           </ProtectedRoute>
         }

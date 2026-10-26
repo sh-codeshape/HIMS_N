@@ -97,7 +97,9 @@ export default function Login() {
       navigate(redirectTo, { replace: true });
     } catch (err) {
       if (err?.response?.status === 401) {
-        toast.error("Invalid credentials.");
+        toast.error(err?.response?.data?.error?.message || "Invalid credentials.");
+      } else if (err?.response?.data?.error?.message) {
+        toast.error(err.response.data.error.message);
       } else {
         toast.error("Login failed. Please try again.");
       }
@@ -216,7 +218,7 @@ export default function Login() {
                   className="w-full py-2.5 sm:py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-bold rounded-xl shadow-md shadow-blue-500/25 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   <Icon name="LuLock" size={16} />
-                  {submitting ? "Authenticating..." : currentRoleConfig ? `Sign In as ${currentRoleConfig.label}` : "Sign In"}
+                  {submitting ? "Authenticating..." : (currentRoleConfig && form.username === currentRoleConfig.email) ? `Sign In as ${currentRoleConfig.label}` : "Sign In"}
                 </Button>
               </div>
             </form>

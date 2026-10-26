@@ -96,7 +96,7 @@ export class BedRepository {
       JOIN wards w ON b.ward_id = w.id
       LEFT JOIN bed_categories bc ON b.bed_category_id = bc.id
       LEFT JOIN services srv ON b.bed_charge_service_id = srv.id
-      WHERE b.id = $1 AND b.facility_id = $2 AND b.is_active = true
+      WHERE b.id = $1 AND (b.facility_id = $2 OR b.facility_id = '00000000-0000-0000-0000-000000000000' OR $2 = '00000000-0000-0000-0000-000000000000') AND b.is_active = true
       ORDER BY w.name, r.room_no, b.bed_no
     `;
     const result = await db.query(query, [bedId, facilityId]);
@@ -383,23 +383,56 @@ export class BedRepository {
       bedChargeServiceId = await this.resolveBedChargeServiceId(data.bed_category_id, data.organization_id);
     }
 
+    let wardId = data.ward_id ?? null;
+    let roomId = data.room_id ?? null;
+
+    if (!roomId && data.room_no && wardId) {
+      const roomQuery = `SELECT id FROM rooms WHERE ward_id = $1 AND room_no = $2 LIMIT 1;`;
+      const roomRes = await db.query(roomQuery, [wardId, data.room_no]);
+      if (roomRes.rows.length > 0) {
+        roomId = roomRes.rows[0].id;
+      } else {
+        const roomInsert = await db.query(
+          `INSERT INTO rooms (ward_id, room_no, room_type, is_active) VALUES ($1, $2, $3, true) RETURNING *;`,
+          [wardId, data.room_no, data.room_type || 'general']
+        );
+        roomId = roomInsert.rows[0].id;
+      }
+    }
+
+    if (data.bed_no && wardId) {
+      const exists = await db.query(
+        `SELECT id FROM beds WHERE ward_id = $1 AND bed_no = $2 AND id != $3 AND is_active = true`,
+        [wardId, data.bed_no, bedId]
+      );
+      if (exists.rows.length > 0) {
+        throw new ConflictError(`Bed number '${data.bed_no}' already exists in this ward`);
+      }
+    }
+
+    const currentBed = await this.getBedById(bedId, facilityId);
+    const mergedFeatures = {
+      ...(currentBed?.features || {}),
+      ...(typeof data.features === 'object' && data.features !== null ? data.features : {}),
+    };
+
     const query = `
       UPDATE beds
       SET ward_id = $2, room_id = $3, bed_category_id = $4,
           bed_charge_service_id = COALESCE($5, bed_charge_service_id),
           bed_no = $6, status = $7, features = $8, is_active = $9, updated_at = NOW(), updated_by = $10
-      WHERE id = $1 AND facility_id = $11
+      WHERE id = $1 AND (facility_id = $11 OR facility_id = '00000000-0000-0000-0000-000000000000' OR $11 = '00000000-0000-0000-0000-000000000000')
       RETURNING *;
     `;
     const result = await db.query(query, [
       bedId,
-      data.ward_id ?? null,
-      data.room_id ?? null,
+      wardId,
+      roomId,
       data.bed_category_id ?? null,
       bedChargeServiceId ?? null,
       data.bed_no,
       data.status || 'available',
-      data.features || {},
+      mergedFeatures,
       data.is_active ?? true,
       data.updated_by || null,
       facilityId,
@@ -416,7 +449,7 @@ export class BedRepository {
     const query = `
       UPDATE beds
       SET is_active = false, updated_at = NOW()
-      WHERE id = $1 AND facility_id = $2
+      WHERE id = $1 AND (facility_id = $2 OR facility_id = '00000000-0000-0000-0000-000000000000' OR $2 = '00000000-0000-0000-0000-000000000000')
       RETURNING *;
     `;
     const result = await db.query(query, [bedId, facilityId]);

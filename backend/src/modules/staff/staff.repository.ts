@@ -84,7 +84,23 @@ export class StaffRepository {
         const fullName = `${data.first_name} ${data.last_name || ''}`.trim();
         const defaultPassword = data.password || 'Password@123';
         const passwordHash = await bcrypt.hash(defaultPassword, 10);
-        
+
+        // Fall back to the organization's default facility when none is provided,
+        // so newly created users are always assigned to a valid facility.
+        let defaultFacilityId = data.default_facility_id || null;
+        if (!defaultFacilityId) {
+          const facilityResult = await client.query(
+            `SELECT id FROM facilities 
+             WHERE (organization_id = $1 OR id != '00000000-0000-0000-0000-000000000000'::uuid) 
+               AND id != '00000000-0000-0000-0000-000000000000'::uuid 
+               AND is_active = true 
+             ORDER BY (CASE WHEN organization_id = $1 THEN 0 ELSE 1 END), created_at ASC 
+             LIMIT 1`,
+            [organizationId]
+          );
+          defaultFacilityId = facilityResult.rows[0]?.id || null;
+        }
+
         const userQuery = `
           INSERT INTO users (organization_id, username, email, full_name, password_hash, default_facility_id)
           VALUES ($1, $2, $3, $4, $5, $6)
@@ -97,7 +113,7 @@ export class StaffRepository {
           data.email, 
           fullName, 
           passwordHash,
-          data.default_facility_id || null
+          defaultFacilityId
         ]);
         
         userId = userResult.rows[0].id;

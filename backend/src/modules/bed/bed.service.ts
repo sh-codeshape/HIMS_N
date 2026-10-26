@@ -1,5 +1,5 @@
 import { BedRepository } from './bed.repository';
-import { NotFoundError } from '../../shared/errors/AppError';
+import { NotFoundError, ConflictError } from '../../shared/errors/AppError';
 
 export class BedService {
   private repository: BedRepository;
@@ -61,6 +61,9 @@ export class BedService {
     const bed = await this.repository.getBedById(bedId, facilityId);
     if (!bed) {
       throw new NotFoundError('Bed not found');
+    }
+    if (bed.status === 'occupied' || bed.current_status === 'occupied') {
+      throw new ConflictError('Cannot delete an occupied bed. Please discharge or transfer the patient before deleting.');
     }
     const deletedBed = await this.repository.softDeleteBed(bedId, facilityId);
     if (!deletedBed) {
