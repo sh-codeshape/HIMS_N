@@ -1,9 +1,9 @@
+import React, { useState, useEffect, useMemo } from "react";
 import ipdService from "../../api/services/ipdService";
 import billingService from "../../api/services/billingService";
 import toast from "react-hot-toast";
 import Icon from "../../components/common/Icon.jsx";
 import "./IPDBilling.css";
-
 
 const CATEGORY_SERVICE_LIST = {
   "Room Charges": [
@@ -52,6 +52,8 @@ export default function IPDBilling() {
   const [searchTerm, setSearchTerm] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [patient, setPatient] = useState(null);
+  const [recentAdmissions, setRecentAdmissions] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   // Service Selection Form State
   const [activeCategory, setActiveCategory] = useState("Room Charges");
@@ -84,74 +86,122 @@ export default function IPDBilling() {
   });
 
   // Helper to map backend patient to IPD display format
-  const mapBackendPatientToIPD = (bp) => ({
-    id: bp.id,
-    encounterId: bp.encounter_id || bp.id,
-    admissionNo: bp.admission_number || (bp.id ? `IPD-${bp.id.slice(-6).toUpperCase()}` : "IPD20260929001"),
-    uhid: bp.uhid || bp.id || "N/A",
-    name: bp.patient_name || bp.name || `${bp.first_name || bp.firstName || ""} ${bp.last_name || bp.lastName || ""}`.trim() || "Unknown",
-    age: bp.age || 30,
-    gender: bp.gender || "Unknown",
-    mobile: bp.patient_mobile || bp.phone || bp.mobile || "N/A",
-    city: bp.city || bp.address || "Unknown",
-    bloodGroup: bp.blood_group || bp.bloodGroup || "O+",
-    allergies: bp.allergies || "NKA",
-    history: bp.history || "None",
-    admissionDate: bp.admission_date ? new Date(bp.admission_date).toLocaleDateString("en-GB").replace(/\//g, "-") + " 10:00 AM" : new Date().toLocaleDateString("en-GB").replace(/\//g, "-") + " 10:00 AM",
-    department: bp.department_name || bp.department || "General Medicine",
-    consultant: bp.doctor_name || bp.consultant || "Dr. Assigned",
-    ward: bp.ward_name || bp.ward || "General Ward",
-    roomNo: bp.room_number || bp.roomNo || "GW-102",
-    bedNo: bp.bed_number || bp.bedNo || "B-12",
-    expectedDischarge: "N/A",
-    status: bp.status || "Admitted",
-    admissionType: bp.admission_type || "Routine",
-    ratePlan: "General Ward (₹ 1,500 / day)",
-    initialDeposit: 2000,
-    avatar: bp.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-    historyPayments: [],
-    items: [],
-  });
+  const mapBackendPatientToIPD = (bp) => {
+    if (!bp) return null;
+    const strId = String(bp.id || "");
+    const pName =
+      bp.patient_name ||
+      bp.name ||
+      `${bp.first_name || bp.firstName || ""} ${bp.last_name || bp.lastName || ""}`.trim() ||
+      "Patient";
+    const admNo =
+      bp.admission_no ||
+      bp.admission_number ||
+      (strId ? `ADM-${strId.slice(-6).toUpperCase()}` : "IPD20260929001");
+    const uhid = bp.uhid || (bp.patient_id ? String(bp.patient_id) : "N/A");
+    const docName = bp.doctor_first_name
+      ? `Dr. ${bp.doctor_first_name} ${bp.doctor_last_name || ""}`.trim()
+      : bp.doctor_name || bp.consultant || "Dr. On-Duty Specialist";
+    const wardName = bp.ward_name || bp.ward || "General Ward";
+    const bedName = bp.bed_name || bp.bed_number || bp.bedNo || "Bed";
+    const deptName = bp.department_name || bp.department || "General Medicine";
+
+    return {
+      id: bp.id,
+      encounterId: bp.encounter_id || bp.id,
+      admissionNo: admNo,
+      uhid: uhid,
+      name: pName,
+      age: bp.age || 30,
+      gender: bp.gender || "Male",
+      mobile: bp.patient_mobile || bp.phone || bp.mobile || "N/A",
+      city: bp.city || bp.address || "Kota, Rajasthan",
+      bloodGroup: bp.blood_group || bp.bloodGroup || "O+",
+      allergies: bp.allergies || "NKA",
+      history: bp.history || "None",
+      admissionDate: bp.admitted_at
+        ? new Date(bp.admitted_at).toLocaleString("en-IN")
+        : bp.admission_date
+        ? new Date(bp.admission_date).toLocaleString("en-IN")
+        : new Date().toLocaleString("en-IN"),
+      department: deptName,
+      consultant: docName,
+      ward: wardName,
+      roomNo: bp.room_number || bp.roomNo || wardName,
+      bedNo: bedName,
+      expectedDischarge: "Under Treatment",
+      status: bp.status || "Admitted",
+      admissionType: bp.admission_type || "Routine",
+      ratePlan: `${wardName} (${bedName})`,
+      initialDeposit: Number(bp.total_payments || 0),
+      avatar: bp.avatar || "",
+      historyPayments: [],
+      items: [],
+    };
+  };
 
   const fetchPatientBilling = async (p) => {
     try {
       const encounterId = p.encounterId || p.id;
       const [itemsData, paymentsData] = await Promise.all([
-        billingService.getRunningBill(encounterId),
-        billingService.getEncounterPayments(encounterId)
+        billingService.getRunningBill(encounterId).catch(() => []),
+        billingService.getEncounterPayments(encounterId).catch(() => []),
       ]);
-      
-      const mappedItems = itemsData.map(i => ({ 
+
+      const safeItems = Array.isArray(itemsData) ? itemsData : itemsData?.data || [];
+      const safePayments = Array.isArray(paymentsData) ? paymentsData : paymentsData?.data || [];
+
+      const mappedItems = safeItems.map((i) => ({
         id: i.id,
         date: new Date(i.created_at || new Date()).toLocaleDateString("en-GB").replace(/\//g, "-"),
-        category: i.item_category, 
-        name: i.item_name, 
-        qty: i.quantity, 
-        rate: Number(i.rate), 
-        amount: Number(i.total_amount),
-        selected: false
+        category: i.item_category,
+        name: i.item_name,
+        qty: Number(i.quantity || 1),
+        rate: Number(i.rate || 0),
+        amount: Number(i.total_amount || 0),
+        selected: false,
       }));
-      
-      const mappedPayments = paymentsData.map(pay => ({ 
+
+      const mappedPayments = safePayments.map((pay) => ({
         id: pay.id,
-        date: new Date(pay.payment_date).toLocaleDateString("en-GB").replace(/\//g, "-"), 
-        amount: Number(pay.amount), 
-        mode: pay.payment_method, 
-        type: pay.payment_type, 
-        remarks: pay.notes 
+        date: new Date(pay.payment_date || new Date()).toLocaleDateString("en-GB").replace(/\//g, "-"),
+        amount: Number(pay.amount || 0),
+        mode: pay.payment_method || "Cash",
+        type: pay.payment_type || "Payment",
+        remarks: pay.notes || "",
       }));
 
       setPatient((prev) => ({
-        ...p,
+        ...(prev || p),
         items: mappedItems,
-        historyPayments: mappedPayments
+        historyPayments: mappedPayments,
       }));
     } catch (err) {
       console.error("Failed to load billing data", err);
-      toast.error("Failed to load billing details");
       setPatient(p);
     }
   };
+
+  // Mount effect: Fetch real admissions from backend
+  useEffect(() => {
+    const loadInitial = async () => {
+      setLoading(true);
+      try {
+        const results = await ipdService.getAdmissions({ status: "all" });
+        const list = Array.isArray(results) ? results : results?.rows || results?.data || [];
+        const mapped = list.map(mapBackendPatientToIPD).filter(Boolean);
+        setRecentAdmissions(mapped);
+        if (mapped.length > 0 && !patient) {
+          handleSelectPatient(mapped[0]);
+        }
+      } catch (err) {
+        console.error("Initial load failed", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadInitial();
+  }, []);
 
   // Handle Search Change
   const handleSearchChange = async (e) => {
@@ -160,7 +210,8 @@ export default function IPDBilling() {
     if (query.trim().length > 0) {
       try {
         const results = await ipdService.getAdmissions({ search: query.trim() });
-        const mappedResults = results.map(mapBackendPatientToIPD);
+        const list = Array.isArray(results) ? results : results?.rows || results?.data || [];
+        const mappedResults = list.map(mapBackendPatientToIPD).filter(Boolean);
         setSuggestions(mappedResults);
       } catch (err) {
         console.error("Search failed", err);
@@ -169,10 +220,10 @@ export default function IPDBilling() {
       setSuggestions([]);
     }
   };
-  
 
   const handleSelectPatient = async (p) => {
-    setPatient(p); // Set patient immediately so UI updates
+    if (!p) return;
+    setPatient(p);
     setSearchTerm(p.admissionNo);
     setSuggestions([]);
     setBedForm({ ward: p.ward, roomNo: p.roomNo, bedNo: p.bedNo });
@@ -189,8 +240,9 @@ export default function IPDBilling() {
     }
     try {
       const results = await ipdService.getAdmissions({ search: query });
-      if (results && results.length > 0) {
-        handleSelectPatient(mapBackendPatientToIPD(results[0]));
+      const list = Array.isArray(results) ? results : results?.rows || results?.data || [];
+      if (list && list.length > 0) {
+        handleSelectPatient(mapBackendPatientToIPD(list[0]));
       } else {
         toast.error("No IPD patient found with provided details.");
       }
@@ -477,6 +529,54 @@ export default function IPDBilling() {
         )}
       </form>
 
+      {/* Quick Select Chips from Real Admitted Patients */}
+      {recentAdmissions.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, margin: "6px 0 12px 0" }}>
+          <span style={{ fontSize: 11.5, fontWeight: 800, color: "#475569", textTransform: "uppercase" }}>
+            ⚡ Inpatients Queue:
+          </span>
+          {recentAdmissions.slice(0, 8).map((ra) => {
+            const isSelected = patient && patient.admissionNo === ra.admissionNo;
+            return (
+              <button
+                key={ra.admissionNo}
+                type="button"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "5px 12px",
+                  borderRadius: 20,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  background: isSelected ? "#081a3d" : "#ffffff",
+                  color: isSelected ? "#ffd766" : "#1e293b",
+                  border: `1.5px solid ${isSelected ? "#081a3d" : "#cbd5e1"}`,
+                  cursor: "pointer",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                }}
+                onClick={() => handleSelectPatient(ra)}
+              >
+                <Icon name="LuBed" size={13} />
+                <span>{ra.name}</span>
+                <span style={{ opacity: 0.8, fontSize: 10.5 }}>({ra.admissionNo})</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Empty Patient Placeholder */}
+      {!patient && (
+        <div style={{ padding: "32px 20px", background: "#ffffff", borderRadius: 10, border: "1.5px dashed #93c5fd", textAlign: "center", color: "#64748b", margin: "10px 0" }}>
+          <Icon name="LuBedDouble" size={40} style={{ display: "block", margin: "0 auto 8px auto", opacity: 0.6, color: "#0284c7" }} />
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a" }}>No Inpatient Selected for Billing</div>
+          <div style={{ fontSize: 12.5, marginTop: 4 }}>
+            Search an admitted patient above by UHID / Admission No or click any patient from the Inpatients Queue above.
+          </div>
+        </div>
+      )}
+
       {/* Upper Section Grid (Patient Information & Bed Details) */}
       {patient && (
         <div className="ipd-upper-grid">
@@ -499,11 +599,30 @@ export default function IPDBilling() {
             <div className="ipd-patient-info-layout">
               {/* Left Photo & Badges */}
               <div className="ipd-patient-photo-box">
-                <img
-                  src={patient.avatar}
-                  alt={patient.name}
-                  className="ipd-patient-img"
-                />
+                {patient.avatar ? (
+                  <img
+                    src={patient.avatar}
+                    alt={patient.name}
+                    className="ipd-patient-img"
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 58,
+                      height: 58,
+                      borderRadius: "50%",
+                      background: "linear-gradient(135deg, #1d4ed8 0%, #081a3d 100%)",
+                      color: "#ffffff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 22,
+                      fontWeight: 900,
+                    }}
+                  >
+                    {(patient.name || "P").charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <span className="ipd-tag-uhid">{patient.uhid}</span>
               </div>
 
