@@ -1,14 +1,30 @@
-FROM node:20-alpine
+
+# Stage 1: Build the TypeScript application
+FROM node:20-alpine AS builder
 
 WORKDIR /backend
 
 COPY package*.json ./
+RUN npm ci
 
-RUN npm ci --only=production 
+COPY tsconfig.json ./
+COPY src ./src
+
+RUN npm run build
 
 
-COPY src ./src 
+# Stage 2: Run the production application
+FROM node:20-alpine AS production
 
-EXPOSE 3001
+WORKDIR /backend
 
-CMD ["npm", "start"] 
+ENV NODE_ENV=production
+
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+COPY --from=builder /backend/dist ./dist
+
+EXPOSE 3000
+
+CMD ["npm", "start"]

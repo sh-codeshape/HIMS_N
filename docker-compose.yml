@@ -65,7 +65,7 @@ services:
       DATABASE_URL: postgres://${DB_USER:-hims}:${DB_PASSWORD:-hims}@postgres:5432/${DB_NAME:-hims_db}?sslmode=disable
       JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
-      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      CORS_ORIGIN: ${CORS_ORIGIN}
     deploy:
       resources:
         limits:
