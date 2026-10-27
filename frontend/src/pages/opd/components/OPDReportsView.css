@@ -894,3 +894,475 @@
     max-width: 100%;
   }
 }
+
+/* ---------- 7. Printable OPD Consultation Slip Modal & Print Layout ---------- */
+.opdr-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 26, 61, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.opdr-modal-box--print {
+  width: 100%;
+  max-width: 860px;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1.5px solid var(--navy-700);
+  box-shadow: 0 10px 30px rgba(8, 26, 61, 0.35);
+  display: flex;
+  flex-direction: column;
+  max-height: 92vh;
+  overflow: hidden;
+  animation: opdrFadeScale 0.2s ease-out;
+}
+
+.opdr-modal-icon--print {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  color: #ffffff !important;
+  border-color: #047857 !important;
+}
+
+/* ── Printable Slip Styling (#opdr-printable-slip) ── */
+.opdr-printable-slip {
+  background: #ffffff;
+  border: 1.5px solid var(--navy-800);
+  border-radius: 10px;
+  padding: 16px 20px;
+  position: relative;
+  color: #0b1b36;
+  box-shadow: 0 4px 14px rgba(8, 26, 61, 0.08);
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+.opdr-slip-top-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #081a3d, #1e5a8e, #f5c542);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.opdr-slip-hosp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #081a3d;
+}
+
+.opdr-slip-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.opdr-slip-logo {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  background: #081a3d;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.opdr-slip-hosp-name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 900;
+  color: #081a3d;
+  letter-spacing: 0.02em;
+}
+
+.opdr-slip-hosp-sub {
+  margin: 2px 0 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1e5a8e;
+}
+
+.opdr-slip-hosp-addr {
+  margin: 2px 0 0 0;
+  font-size: 10.5px;
+  color: #55698a;
+}
+
+.opdr-slip-token-box {
+  background: #f0fdf4;
+  border: 1.5px solid #15803d;
+  border-radius: 8px;
+  padding: 6px 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.opdr-slip-token-lbl {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #15803d;
+  letter-spacing: 0.04em;
+}
+
+.opdr-slip-token-num {
+  display: block;
+  font-size: 17px;
+  font-weight: 900;
+  color: #081a3d;
+  font-family: monospace;
+}
+
+.opdr-slip-token-date {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #55698a;
+  margin-top: 1px;
+}
+
+.opdr-slip-title-bar {
+  text-align: center;
+  padding: 5px;
+  margin: 10px 0;
+  background: #e6f0f9;
+  border: 1px solid #9fbbd6;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #081a3d;
+  letter-spacing: 0.04em;
+}
+
+.opdr-slip-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 16px;
+  font-size: 12.5px;
+  border-bottom: 1px dashed #9fbbd6;
+  padding-bottom: 10px;
+}
+
+.opdr-slip-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.opdr-slip-row.full {
+  grid-column: span 2;
+}
+
+.opdr-slip-lbl {
+  color: #55698a;
+  font-weight: 700;
+  font-size: 11.5px;
+  min-width: 130px;
+  flex-shrink: 0;
+}
+
+.opdr-slip-val {
+  color: #081a3d;
+  font-size: 12.5px;
+}
+
+/* Vitals Box */
+.opdr-slip-vitals-box {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin: 8px 0;
+}
+
+.opdr-slip-vitals-title {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #334155;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.opdr-slip-vitals-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.opdr-vitals-cell {
+  font-size: 11px;
+  color: #475569;
+  font-family: monospace;
+}
+
+.opdr-vitals-cell span {
+  font-weight: 700;
+  color: #1e293b;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+/* Fee & Receipt Summary Box */
+.opdr-slip-fee-box {
+  background: #f8fafc;
+  border: 1.5px solid #d3e3f1;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 8px 0;
+}
+
+.opdr-slip-fee-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #081a3d;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+}
+
+.opdr-receipt-no {
+  font-family: monospace;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.opdr-slip-fee-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.opdr-slip-fee-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.opdr-fee-label {
+  font-size: 10.5px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.opdr-fee-amount {
+  font-size: 13px;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.opdr-fee-amount.total {
+  font-size: 15px;
+  color: #047857;
+  font-weight: 900;
+}
+
+.opdr-fee-paid-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* Doctor's Prescription & Notes Box */
+.opdr-slip-rx-box {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin: 8px 0;
+  background: #ffffff;
+}
+
+.opdr-slip-rx-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.opdr-rx-symbol {
+  font-size: 18px;
+  font-weight: 900;
+  color: #1e5a8e;
+  font-family: serif;
+}
+
+.opdr-rx-title {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.opdr-slip-rx-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 0 8px;
+}
+
+.opdr-rx-line {
+  border-bottom: 1px dashed #e2e8f0;
+  height: 1px;
+}
+
+/* Instructions & Footer */
+.opdr-slip-footer-notes {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-top: 6px;
+  font-size: 10.5px;
+  color: #475569;
+}
+
+.opdr-slip-notes-left p {
+  margin: 2px 0;
+}
+
+.opdr-slip-note-small {
+  font-size: 9.5px;
+  color: #94a3b8;
+  margin-top: 2px !important;
+}
+
+.opdr-slip-barcode {
+  margin-top: 6px;
+}
+
+.opdr-barcode-lines {
+  height: 20px;
+  width: 140px;
+  background: repeating-linear-gradient(
+    90deg,
+    #000000,
+    #000000 2px,
+    transparent 2px,
+    transparent 4px,
+    #000000 4px,
+    #000000 7px,
+    transparent 7px,
+    transparent 9px
+  );
+}
+
+.opdr-barcode-text {
+  font-size: 9px;
+  font-family: monospace;
+  letter-spacing: 0.12em;
+  color: #334155;
+  display: block;
+  margin-top: 1px;
+}
+
+.opdr-slip-notes-right {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.opdr-slip-sig-line {
+  width: 160px;
+  height: 1px;
+  background: #94a3b8;
+  margin-bottom: 4px;
+}
+
+.opdr-slip-signature {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #081a3d;
+}
+
+.opdr-slip-timestamp {
+  font-size: 9.5px;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+/* ── STRICT PRINT ISOLATION (ZERO BLANK PAGES) ── */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #opdr-printable-slip,
+  #opdr-printable-slip * {
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  #opdr-printable-slip {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: 195mm !important;
+    margin: 0 auto !important;
+    padding: 6mm 10mm !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    color: #0b1b36 !important;
+    border: 1.5px solid #081a3d !important;
+    border-radius: 8px !important;
+    display: block !important;
+    z-index: 9999999 !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .opdr-overlay,
+  .opdr-modal-overlay {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+  }
+
+  .opdr-modal,
+  .opdr-modal-box--print {
+    position: static !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .opdr-modal-head,
+  .opdr-modal-foot,
+  .opdr-page {
+    display: none !important;
+  }
+}
+

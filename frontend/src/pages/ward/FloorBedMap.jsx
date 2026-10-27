@@ -4,44 +4,7 @@ import Icon from "../../components/common/Icon.jsx";
 import ipdService from "../../api/services/ipdService";
 import "./FloorBedMap.css";
 
-// Sample initial data for Ground Floor as displayed in the mockup image
-const INITIAL_GROUND_FLOOR_BEDS = [
-  { id: 1, bedNo: "GW-101-01", room: "GW-101", roomType: "General Ward", patientName: "Rohit Kumar", uhid: "UHID12345", ageGender: "28 Y / Male", admissionDate: "29-09-2026", department: "General Medicine", status: "Occupied" },
-  { id: 2, bedNo: "GW-101-02", room: "GW-101", roomType: "General Ward", patientName: "-", uhid: "-", ageGender: "-", admissionDate: "-", department: "-", status: "Available" },
-  { id: 3, bedNo: "GW-101-03", room: "GW-101", roomType: "General Ward", patientName: "Suman Yadav", uhid: "UHID12348", ageGender: "36 Y / Female", admissionDate: "27-09-2026", department: "Cardiology", status: "Occupied" },
-  { id: 4, bedNo: "GW-101-04", room: "GW-101", roomType: "General Ward", patientName: "-", uhid: "-", ageGender: "-", admissionDate: "-", department: "-", status: "Available" },
-  
-  { id: 5, bedNo: "GW-102-01", room: "GW-102", roomType: "General Ward", patientName: "-", uhid: "-", ageGender: "-", admissionDate: "-", department: "-", status: "Available" },
-  { id: 6, bedNo: "GW-102-02", room: "GW-102", roomType: "General Ward", patientName: "-", uhid: "-", ageGender: "-", admissionDate: "-", department: "-", status: "Available" },
-  { id: 7, bedNo: "GW-102-03", room: "GW-102", roomType: "General Ward", patientName: "Neha Verma", uhid: "UHID12350", ageGender: "31 Y / Female", admissionDate: "26-09-2026", department: "Gynecology", status: "Reserved" },
-  { id: 8, bedNo: "GW-102-04", room: "GW-102", roomType: "General Ward", patientName: "-", uhid: "-", ageGender: "-", admissionDate: "-", department: "-", status: "Available" },
 
-  { id: 9, bedNo: "GW-103-01", room: "GW-103", roomType: "General Ward", patientName: "-", uhid: "-", ageGender: "-", admissionDate: "-", department: "-", status: "Available" },
-  { id: 10, bedNo: "GW-103-02", room: "GW-103", roomType: "General Ward", patientName: "Amitabh Shah", uhid: "UHID12355", ageGender: "45 Y / Male", admissionDate: "28-09-2026", department: "Orthopedics", status: "Occupied" },
-  { id: 11, bedNo: "GW-103-03", room: "GW-103", roomType: "General Ward", patientName: "-", uhid: "-", ageGender: "-", admissionDate: "-", department: "-", status: "Available" },
-  { id: 12, bedNo: "GW-103-04", room: "GW-103", roomType: "General Ward", patientName: "-", uhid: "-", ageGender: "-", admissionDate: "-", department: "-", status: "Available" },
-
-  { id: 13, bedNo: "ISO-101", room: "Isolation", roomType: "Isolation", patientName: "Ramesh Gupta", uhid: "UHID12360", ageGender: "52 Y / Male", admissionDate: "25-09-2026", department: "Pulmonology", status: "Reserved" },
-  { id: 14, bedNo: "ISO-102", room: "Isolation", roomType: "Isolation", patientName: "Pooja Sharma", uhid: "UHID12361", ageGender: "29 Y / Female", admissionDate: "29-09-2026", department: "Infectious Disease", status: "Reserved" },
-
-  { id: 15, bedNo: "GW-104-01", room: "GW-104", roomType: "General Ward", patientName: "Sanjay Patel", uhid: "UHID12365", ageGender: "40 Y / Male", admissionDate: "28-09-2026", department: "Urology", status: "Reserved" },
-  { id: 16, bedNo: "GW-104-02", room: "GW-104", roomType: "General Ward", patientName: "-", uhid: "-", ageGender: "-", admissionDate: "-", department: "-", status: "Available" },
-  { id: 17, bedNo: "GW-104-03", room: "GW-104", roomType: "General Ward", patientName: "Vikas Singh", uhid: "UHID12367", ageGender: "34 Y / Male", admissionDate: "27-09-2026", department: "Neurology", status: "Reserved" },
-  { id: 18, bedNo: "GW-104-04", room: "GW-104", roomType: "General Ward", patientName: "Kavita Rao", uhid: "UHID12368", ageGender: "38 Y / Female", admissionDate: "29-09-2026", department: "ENT", status: "Reserved" },
-
-  { id: 19, bedNo: "GW-105-01", room: "GW-105", roomType: "General Ward", patientName: "Deepak Joshi", uhid: "UHID12370", ageGender: "50 Y / Male", admissionDate: "24-09-2026", department: "General Surgery", status: "Occupied" },
-  { id: 20, bedNo: "GW-105-02", room: "GW-105", roomType: "General Ward", patientName: "Sunita Devi", uhid: "UHID12371", ageGender: "62 Y / Female", admissionDate: "25-09-2026", department: "Nephrology", status: "Occupied" },
-  { id: 21, bedNo: "GW-105-03", room: "GW-105", roomType: "General Ward", patientName: "-", uhid: "-", ageGender: "-", admissionDate: "-", department: "-", status: "Available" },
-  { id: 22, bedNo: "GW-105-04", room: "GW-105", roomType: "General Ward", patientName: "-", uhid: "-", ageGender: "-", admissionDate: "-", department: "-", status: "Available" },
-
-  { id: 23, bedNo: "GW-106-01", room: "GW-106", roomType: "General Ward", patientName: "-", uhid: "-", ageGender: "-", admissionDate: "-", department: "-", status: "Available" },
-  { id: 24, bedNo: "GW-106-02", room: "GW-106", roomType: "General Ward", patientName: "-", uhid: "-", ageGender: "-", admissionDate: "-", department: "-", status: "Available" },
-  { id: 25, bedNo: "GW-106-03", room: "GW-106", roomType: "General Ward", patientName: "-", uhid: "-", ageGender: "-", admissionDate: "-", department: "-", status: "Available" },
-  { id: 26, bedNo: "GW-106-04", room: "GW-106", roomType: "General Ward", patientName: "Manoj Tiwari", uhid: "UHID12380", ageGender: "44 Y / Male", admissionDate: "29-09-2026", department: "General Medicine", status: "Reserved" },
-
-  { id: 27, bedNo: "GW-107-01", room: "GW-107", roomType: "General Ward", patientName: "Ritu Saxena", uhid: "UHID12385", ageGender: "27 Y / Female", admissionDate: "29-09-2026", department: "Gynecology", status: "Maintenance" },
-  { id: 28, bedNo: "GW-107-02", room: "GW-107", roomType: "General Ward", patientName: "-", uhid: "-", ageGender: "-", admissionDate: "-", department: "-", status: "Available" }
-];
 
 export default function FloorBedMap() {
   const [activeFloor, setActiveFloor] = useState("Ground Floor");
@@ -70,16 +33,16 @@ export default function FloorBedMap() {
     ward_id: "",
     ward_code: "",
     ward_name: "",
-    ward_type: "general",
+    ward_type: "",
     floor: "",
-    gender_policy: "any",
+    gender_policy: "",
     bed_category_id: "",
     bed_charge_service_id: "",
     room_id: "",
     room_no: "",
-    room_type: "general",
+    room_type: "",
     bed_no: "",
-    status: "available",
+    status: "",
     features: { oxygen: false, monitor: false, ventilator: false },
   });
 
@@ -87,10 +50,10 @@ export default function FloorBedMap() {
   const [allotForm, setAllotForm] = useState({
     patientName: "",
     uhid: "",
-    ageGender: "30 Y / Male",
-    department: "General Medicine",
-    room: "GW-101",
-    bedNo: "GW-101-02"
+    ageGender: "",
+    department: "",
+    room: "",
+    bedNo: "2"
   });
 
   // Load ward / room / bed master for floor map + bed addition
@@ -446,7 +409,7 @@ export default function FloorBedMap() {
               <span className="floor-map-header__live-dot"></span> Live Status
             </span>
             <span className="floor-map-header__last-updated">
-              Last updated: 29 Sep 2026, 11:45 AM
+             
             </span>
           </div>
 

@@ -1,811 +1,4275 @@
-/* IPD Discharge Module Styles */
+/* ==========================================================
+   IPD DISCHARGE MODULE - COMPACT & EYE-CATCHING HOSPITAL THEME
+   Theme: Sleek Navy Gradient + Golden Accents + High-Density Table
+   ========================================================== */
+
+.ipd-discharge-page {
+  --navy-900: #081a3d;
+  --navy-800: #0b2556;
+  --navy-700: #123a6b;
+  --blue-600: #1e5a8e;
+  --blue-500: #2f7bbf;
+  --sky-300: #b9d1e6;
+  --sky-200: #d3e3f1;
+  --sky-100: #e6f0f9;
+  --sky-50: #f8fafc;
+  --ink: #0b1b36;
+  --muted: #64748b;
+  --line: #cbd5e1;
+  --gold: #f5c542;
+  --green: #0f9d6b;
+  --red: #dc2626;
+  --amber: #d97706;
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px 16px;
+  margin: 0;
+  font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(1200px 400px at 100% 0%, rgba(120, 180, 235, 0.22), transparent 70%),
+    linear-gradient(160deg, #e4eef7 0%, #cbdced 55%, #bdcfdf 100%);
+}
 
 .ipd-discharge-container {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 8px;
   width: 100%;
-  overflow-x: hidden;
 }
 
-/* KPI Banner */
+.ipd-discharge-page *, .ipd-discharge-page *::before, .ipd-discharge-page *::after,
+.ipd-modal-overlay *, .ipd-modal-overlay *::before, .ipd-modal-overlay *::after {
+  box-sizing: border-box;
+}
+
+/* ---------- 1. Page Header Bar (Compact & Sleek) ---------- */
+.ipd-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: linear-gradient(100deg, var(--navy-800) 0%, var(--blue-600) 100%);
+  box-shadow: 0 2px 8px rgba(8, 26, 61, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.ipd-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ipd-header-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  background: linear-gradient(145deg, #ffd766, var(--gold));
+  border: 1px solid #e0ac1f;
+  color: var(--navy-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.ipd-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+
+/* ---------- 2. KPI Summary Cards (Compact Executive Strip) ---------- */
 .ipd-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
+  .ipd-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .ipd-kpi-card {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 18px 20px;
+  border: 1px solid var(--sky-300);
+  border-radius: 8px;
+  padding: 8px 12px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  gap: 10px;
+  box-shadow: 0 2px 6px rgba(8, 26, 61, 0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .ipd-kpi-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(8, 26, 61, 0.1);
 }
 
 .ipd-kpi-icon-box {
-  width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.ipd-kpi-icon-box--blue {
+  background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+  color: #0369a1;
+  border: 1px solid #7dd3fc;
+}
+
+.ipd-kpi-icon-box--emerald {
+  background: linear-gradient(135deg, #ecfdf5, #a7f3d0);
+  color: #047857;
+  border: 1px solid #6ee7b7;
+}
+
+.ipd-kpi-icon-box--amber {
+  background: linear-gradient(135deg, #fefce8, #fef08a);
+  color: #b45309;
+  border: 1px solid #fde047;
+}
+
+.ipd-kpi-icon-box--purple {
+  background: linear-gradient(135deg, #f5f3ff, #ddd6fe);
+  color: #6d28d9;
+  border: 1px solid #c4b5fd;
+}
+
+.ipd-kpi-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ipd-kpi-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ipd-kpi-value {
+  font-size: 19px;
+  font-weight: 900;
+  color: var(--navy-900);
+  margin: 1px 0 0;
+  line-height: 1.1;
+}
+
+.ipd-kpi-sub {
+  font-size: 10px;
+  color: #059669;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- 3. Action Toolbar & Tabs (Streamlined) ---------- */
+.ipd-action-toolbar {
+  background: #ffffff;
+  border: 1px solid var(--navy-700);
+  border-radius: 8px;
+  padding: 5px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(8, 26, 61, 0.06);
+}
+
+.ipd-tab-group {
+  display: flex;
+  background: var(--sky-100);
+  padding: 2px;
+  border-radius: 6px;
+  border: 1px solid var(--sky-300);
+  gap: 3px;
+}
+
+.ipd-tab-btn {
+  border: none;
+  background: transparent;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--navy-800);
+  border-radius: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.ipd-tab-btn:hover:not(.ipd-tab-btn--active) {
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--blue-600);
+}
+
+.ipd-tab-btn--active {
+  background: linear-gradient(180deg, var(--navy-700), var(--navy-900)) !important;
+  color: var(--gold) !important;
+  box-shadow: 0 2px 6px rgba(8, 26, 61, 0.25);
+}
+
+.ipd-tab-badge {
+  background: #ffffff;
+  color: var(--navy-900);
+  font-size: 10.5px;
+  padding: 1px 6px;
   border-radius: 10px;
+  font-weight: 800;
+  border: 1px solid var(--sky-300);
+}
+
+.ipd-tab-btn--active .ipd-tab-badge {
+  background: var(--gold);
+  color: var(--navy-900);
+  border-color: #e0ac1f;
+}
+
+.ipd-search-filter-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.ipd-search-input-wrapper {
+  position: relative;
+  min-width: 200px;
+  max-width: 320px;
+  flex: 1;
+}
+
+.ipd-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+}
+
+.ipd-search-input {
+  width: 100%;
+  height: 30px;
+  padding: 0 28px 0 32px;
+  border-radius: 6px;
+  border: 1px solid var(--navy-700);
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--ink);
+  outline: none;
+  background: #ffffff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.ipd-search-input:focus {
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 2px rgba(47, 123, 191, 0.2);
+}
+
+.ipd-search-input::placeholder {
+  color: #94a3b8;
+}
+
+.ipd-filter-select {
+  height: 30px;
+  padding: 0 24px 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--navy-700);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  background: #ffffff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23123a6b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") no-repeat right 8px center / 11px;
+  appearance: none;
+  color: var(--navy-900);
+  outline: none;
+  cursor: pointer;
+}
+
+/* ---------- 4. Flagship Hospital Table Design (Fixed 100% No-Scroll Layout) ---------- */
+.ipd-table-card {
+  background: #ffffff;
+  border: 1.5px solid var(--navy-700);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(8, 26, 61, 0.08);
+  width: 100%;
+}
+
+.ipd-table-responsive {
+  width: 100%;
+  overflow-x: hidden !important; /* STRICTLY PREVENTS HORIZONTAL SCROLL! */
+}
+
+.ipd-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed !important; /* Strictly enforces 100% card width! */
+  text-align: left;
+  font-size: 13px;
+}
+
+.ipd-data-table th {
+  background: linear-gradient(180deg, var(--navy-700), var(--navy-800));
+  color: #e8f1fb;
+  font-weight: 800;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 10px 8px;
+  border-bottom: 2.5px solid var(--gold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+}
+
+.ipd-th-flex {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.ipd-data-table td {
+  padding: 8px 8px;
+  border-bottom: 1px solid var(--sky-200);
+  color: #1f3556;
+  vertical-align: middle;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.ipd-data-table tbody tr:nth-child(even) td {
+  background: var(--sky-50);
+}
+
+.ipd-data-table tbody tr:hover td {
+  background: #e6f0fa;
+}
+
+.ipd-data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Patient cell */
+.ipd-patient-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ipd-mini-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--navy-800), var(--blue-600));
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(8, 26, 61, 0.2);
+}
+
+.ipd-patient-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ipd-patient-name {
+  font-weight: 800;
+  color: var(--navy-900);
+  font-size: 13.5px;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+.ipd-patient-sub {
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 1px;
+  white-space: nowrap;
+}
+
+.ipd-uhid-mono {
+  color: #1d4ed8;
+  font-family: ui-monospace, Consolas, monospace;
+  font-weight: 700;
+}
+
+/* Ward & Bed 2-line card */
+.ipd-bed-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ipd-ward-line {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #0369a1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ipd-bed-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 800;
+  font-size: 11px;
+  background: #e0f2fe;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+  width: fit-content;
+  white-space: nowrap;
+}
+
+/* Admit Date / Stay */
+.ipd-date-text {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.ipd-stay-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10.5px;
+  font-weight: 800;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  width: fit-content;
+  white-space: nowrap;
+}
+
+/* Consultant */
+.ipd-doctor-cell {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ipd-doc-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Diagnosis */
+.ipd-diag-cell {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ipd-diag-text {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #334155;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+/* Clearance pills */
+.ipd-checklist-pills {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ipd-chk-pill {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid;
+  width: fit-content;
+  white-space: nowrap;
+}
+
+.ipd-chk-pill--cleared {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.ipd-chk-pill--pending {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.ipd-status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.ipd-status-tag--normal { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.ipd-status-tag--lama { background: #ffedd5; color: #c2410c; border-color: #fed7aa; }
+.ipd-status-tag--dama { background: #fef08a; color: #854d0e; border-color: #fde047; }
+.ipd-status-tag--death { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
+.ipd-status-tag--transferred { background: #e0e7ff; color: #4338ca; border-color: #c7d2fe; }
+.ipd-status-tag--absconded { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+
+/* Table Action Buttons (Clean, never clipped) */
+.ipd-btn-discharge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+  color: #ffffff;
+  border: none;
+  padding: 5px 10px;
+  height: 29px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+  transition: all 0.15s ease;
+}
+
+.ipd-btn-discharge:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.ipd-btn-summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  border: none;
+  padding: 5px 8px;
+  height: 29px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25);
+  transition: all 0.15s ease;
+}
+
+.ipd-btn-summary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+/* ---------- 5. Modals (Discharge Form & Summary) ---------- */
+/* =========================================================
+   5. Inpatient Clinical Discharge Action Modal Styles
+   ========================================================= */
+.ipd-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 26, 61, 0.72);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999 !important;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.ipd-discharge-action-card {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1.5px solid #0f3e68;
+  width: 100%;
+  max-width: 900px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 60px -10px rgba(8, 26, 61, 0.5);
+  animation: ipdModalFade 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+@keyframes ipdModalFade {
+  from { opacity: 0; transform: scale(0.96) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.ipd-discharge-modal-header {
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #0a2540 0%, #0f3e68 60%, #1e40af 100%);
+  color: #ffffff;
+  border-bottom: 2px solid #38bdf8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ipd-discharge-modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ipd-discharge-modal-icon-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background: rgba(56, 189, 248, 0.18);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.ipd-kpi-icon-box--blue { background: #eff6ff; color: #2563eb; }
-.ipd-kpi-icon-box--emerald { background: #ecfdf5; color: #059669; }
-.ipd-kpi-icon-box--amber { background: #fffbeb; color: #d97706; }
-.ipd-kpi-icon-box--purple { background: #faf5ff; color: #7c3aed; }
-
-.ipd-kpi-details {
-  display: flex;
-  flex-direction: column;
-}
-
-.ipd-kpi-title {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-
-.ipd-kpi-value {
-  font-size: 24px;
+.ipd-modal-title {
+  margin: 0;
+  font-size: 16px;
+  color: #ffffff;
   font-weight: 800;
-  color: #0f172a;
-  margin-top: 2px;
+  letter-spacing: 0.3px;
 }
 
-.ipd-kpi-sub {
+.ipd-discharge-header-sub {
+  margin: 2px 0 0;
   font-size: 11.5px;
-  color: #059669;
-  font-weight: 500;
+  color: #cbd5e1;
 }
 
-/* Controls Toolbar */
-.ipd-action-toolbar {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 14px 18px;
+.ipd-modal-close-btn {
+  background: #dc2626;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.ipd-modal-close-btn:hover {
+  background: #ef4444;
+  transform: scale(1.08);
+}
+
+/* Patient Inpatient Banner Card */
+.ipd-discharge-patient-banner {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 10px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
   gap: 14px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
-.ipd-tab-group {
+.ipd-dpb-left {
   display: flex;
-  background: #f1f5f9;
-  padding: 4px;
-  border-radius: 10px;
-  gap: 4px;
+  align-items: center;
+  gap: 12px;
 }
 
-.ipd-tab-btn {
-  border: none;
-  background: transparent;
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #64748b;
+.ipd-dpb-avatar {
+  width: 36px;
+  height: 36px;
   border-radius: 8px;
-  cursor: pointer;
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+  flex-shrink: 0;
+}
+
+.ipd-dpb-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: #0a2540;
+}
+
+.ipd-dpb-meta-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: all 0.2s ease;
-}
-
-.ipd-tab-btn--active {
-  background: #ffffff;
-  color: #2563eb;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-.ipd-tab-badge {
-  background: #e2e8f0;
-  color: #475569;
   font-size: 11px;
-  padding: 2px 7px;
-  border-radius: 12px;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+.ipd-mono-code {
+  font-family: ui-monospace, Consolas, monospace;
+  color: #0369a1;
   font-weight: 700;
 }
 
-.ipd-tab-btn--active .ipd-tab-badge {
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-
-.ipd-search-filter-box {
+.ipd-dpb-right {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.ipd-search-input-wrapper {
-  position: relative;
-  min-width: 260px;
+.ipd-dpb-badge-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
 }
 
-.ipd-search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
+.ipd-dpb-badge-lbl {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  text-transform: uppercase;
 }
 
-.ipd-search-input {
-  width: 100%;
-  padding: 8px 12px 8px 36px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  font-size: 13px;
-  outline: none;
-  transition: border-color 0.2s;
+.ipd-dpb-bed-pill {
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  border: 1px solid #bfdbfe;
 }
 
-.ipd-search-input:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+.ipd-dpb-stay-pill {
+  background: #fef3c7;
+  color: #b45309;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  border: 1px solid #fde68a;
 }
 
-.ipd-filter-select {
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  font-size: 13px;
-  background: #ffffff;
+.ipd-dpb-doc-pill {
+  background: #f1f5f9;
   color: #334155;
-  outline: none;
-  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  border: 1px solid #cbd5e1;
 }
 
-/* Tables Section */
-.ipd-table-card {
+/* Discharge Form Container */
+.ipd-discharge-form-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ipd-discharge-modal-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: #f8fafc;
+  scrollbar-width: thin;
+  scrollbar-color: #0284c7 #e2e8f0;
+}
+
+/* Section Card */
+.ipd-action-card-section {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-}
-
-.ipd-table-responsive {
-  width: 100%;
-  overflow-x: auto;
-}
-
-.ipd-data-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: 13px;
-}
-
-.ipd-data-table th {
-  background: #f8fafc;
-  color: #475569;
-  font-weight: 700;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  border-radius: 10px;
   padding: 12px 16px;
-  border-bottom: 1px solid #e2e8f0;
-  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.ipd-data-table td {
-  padding: 14px 16px;
+.ipd-action-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   border-bottom: 1px solid #f1f5f9;
-  color: #1e293b;
-  vertical-align: middle;
+  padding-bottom: 6px;
 }
 
-.ipd-data-table tbody tr:hover {
-  background: #f8fafc;
+.ipd-section-step-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #0f3e68;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-/* Table cell styling */
-.ipd-patient-cell {
+.ipd-action-card-title {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #0a2540;
+}
+
+.ipd-action-card-desc {
+  font-size: 10.5px;
+  color: #64748b;
+  display: block;
+}
+
+/* Section 1: Financial & Department Clearances */
+.ipd-dues-loading-card {
+  background: #f0f9ff;
+  border: 1px dashed #7dd3fc;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 11px;
+  color: #0369a1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ipd-dues-dashboard-card {
+  background: #f8fbfe;
+  border: 1.5px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.ipd-dues-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ipd-dues-kpi-item {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px 9px;
   display: flex;
   flex-direction: column;
 }
 
-.ipd-patient-name {
+.ipd-kpi-tag {
+  font-size: 9px;
   font-weight: 700;
-  color: #0f172a;
+  color: #64748b;
+  text-transform: uppercase;
 }
 
-.ipd-patient-sub {
-  font-size: 11.5px;
-  color: #64748b;
+.ipd-kpi-val {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 1px 0;
+}
+
+.ipd-dues-kpi-item small {
+  font-size: 8.5px;
+  color: #94a3b8;
+}
+
+.ipd-kpi-cleared {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.ipd-kpi-pending {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.ipd-dues-dept-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 6px;
+}
+
+.ipd-dept-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.ipd-dept-chip--cleared {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.ipd-dept-chip--pending {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.ipd-dues-empty-alert {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
   display: flex;
   align-items: center;
   gap: 6px;
+  font-weight: 600;
 }
 
-.ipd-bed-badge {
+/* 3 Verification Checkboxes Styled as Action Cards */
+.ipd-clearance-interactive-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.ipd-clearance-check-card {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 9px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.ipd-clearance-check-card input[type="checkbox"] {
+  display: none;
+}
+
+.ipd-clearance-check-card:hover:not(.ipd-ccc--disabled) {
+  border-color: #0284c7;
+  background: #f8fbfe;
+  transform: translateY(-1px);
+}
+
+.ipd-ccc--checked {
+  border-color: #0284c7 !important;
+  background: #f0f9ff !important;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.12);
+}
+
+.ipd-ccc--disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.ipd-ccc-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ipd-ccc-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ipd-ccc-icon--blue {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.ipd-ccc-icon--emerald {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.ipd-ccc-icon--purple {
+  background: #f3e8ff;
+  color: #7e22ce;
+}
+
+.ipd-ccc-text strong {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0a2540;
+  display: block;
+  line-height: 1.25;
+}
+
+.ipd-ccc-text p {
+  margin: 1px 0 0;
+  font-size: 9.5px;
+  color: #64748b;
+  line-height: 1.2;
+}
+
+.ipd-ccc-warn {
+  display: block;
+  font-size: 9px;
+  color: #dc2626;
+  font-weight: 700;
+  margin-top: 1px;
+}
+
+.ipd-ccc-status-indicator {
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ipd-ccc--checked .ipd-ccc-status-indicator {
+  color: #0284c7;
+}
+
+/* Form Controls & Grids */
+.ipd-form-row--2cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ipd-field-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #0f2942;
+  margin-bottom: 4px;
+}
+
+.ipd-form-control {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 12px;
+  color: #0f172a;
+  background: #ffffff;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.ipd-form-control:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+.ipd-form-input--bold {
+  font-weight: 700;
+}
+
+.ipd-form-select {
+  cursor: pointer;
+  background: #ffffff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") no-repeat right 10px center / 13px;
+  appearance: none;
+  padding-right: 30px;
+}
+
+.ipd-form-textarea {
+  resize: vertical;
+  min-height: 55px;
+  line-height: 1.45;
+}
+
+/* Rx Medication Edit Table */
+.ipd-btn-add-rx {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
   padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-btn-add-rx:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.ipd-rx-table-container {
+  border: 1px solid #e2e8f0;
   border-radius: 6px;
-  font-weight: 600;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.ipd-rx-edit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  background: #ffffff;
+}
+
+.ipd-rx-edit-table th {
+  background: #f1f5f9;
+  color: #334155;
+  padding: 6px 8px;
+  font-weight: 800;
+  text-align: left;
+  font-size: 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.ipd-rx-edit-table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.ipd-table-input {
+  padding: 5px 7px;
+  font-size: 11px;
+  border-radius: 4px;
+}
+
+.ipd-table-input--bold {
+  font-weight: 700;
+}
+
+.ipd-rx-del-btn {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 5px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ipd-rx-del-btn:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
+/* Modal Footer */
+.ipd-discharge-modal-footer {
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.ipd-dmf-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #475569;
+}
+
+.ipd-dmf-notice strong {
+  color: #0f172a;
+}
+
+.ipd-dmf-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ipd-btn-cancel-modal {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: #475569;
+  padding: 8px 16px;
+  border-radius: 7px;
   font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-btn-cancel-modal:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.ipd-btn-confirm-discharge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  color: #ffffff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.35);
+  transition: all 0.2s ease;
+}
+
+.ipd-btn-confirm-discharge:hover {
+  background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(37, 99, 235, 0.45);
+}
+
+
+
+/* =========================================================
+   Discharge Print Slip & Clinical Summary Styles
+   ========================================================= */
+.ipd-print-modal-card {
+  max-width: 960px;
+  width: 95vw;
+  max-height: 94vh;
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35);
+  border: 1px solid #cbd5e1;
+}
+
+.ipd-print-modal-head {
+  background: #0a2540;
+  color: #ffffff;
+  padding: 14px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #1e3a5f;
+  flex-shrink: 0;
+}
+
+.ipd-print-modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ipd-print-modal-badge-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.ipd-modal-sub {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.ipd-modal-sub strong {
+  color: #38bdf8;
+}
+
+.ipd-print-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ipd-btn-print-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+  color: #ffffff;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+  transition: all 0.2s ease;
+}
+
+.ipd-btn-print-primary:hover {
+  background: linear-gradient(135deg, #0369a1, #1d4ed8);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.45);
+}
+
+.ipd-print-modal-body-scroll {
+  background: #f1f5f9;
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+/* Printable Sheet Canvas */
+.ipd-print-sheet {
+  background: #ffffff;
+  width: 100%;
+  max-width: 860px;
+  padding: 28px 32px;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  color: #0f172a;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.45;
+  border: 1.5px solid #0f3e68;
+  position: relative;
+}
+
+/* Top Hospital Header */
+.ipd-doc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.ipd-doc-header-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ipd-doc-logo-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0f3e68, #1e40af);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 8px rgba(15, 62, 104, 0.25);
+  flex-shrink: 0;
+}
+
+.ipd-doc-hospital-title {
+  font-size: 19px;
+  font-weight: 900;
+  color: #0a2540;
+  letter-spacing: 0.3px;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.ipd-doc-hospital-tagline {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0284c7;
+  margin: 2px 0 0;
+  letter-spacing: 0.3px;
+}
+
+.ipd-doc-hospital-meta {
+  font-size: 10px;
+  color: #64748b;
+  margin: 3px 0 0;
+  line-height: 1.3;
+}
+
+.ipd-doc-header-badge-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.ipd-doc-type-pill {
+  background: #0a2540;
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 6px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 6px rgba(10, 37, 64, 0.2);
+}
+
+.ipd-doc-type-primary {
+  font-size: 12.5px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  color: #ffffff;
+}
+
+.ipd-doc-type-sub {
+  font-size: 9px;
+  font-weight: 700;
+  color: #38bdf8;
+  letter-spacing: 0.5px;
+}
+
+.ipd-barcode-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ipd-barcode-lines {
+  height: 18px;
+  width: 140px;
+  background: repeating-linear-gradient(
+    90deg,
+    #0a2540,
+    #0a2540 2px,
+    transparent 2px,
+    transparent 4px,
+    #0a2540 4px,
+    #0a2540 7px,
+    transparent 7px,
+    transparent 9px
+  );
+}
+
+.ipd-barcode-code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 8.5px;
+  font-weight: 700;
+  color: #475569;
+  letter-spacing: 1px;
+  display: block;
+  text-align: center;
+  margin-top: 2px;
+}
+
+.ipd-doc-divider-stripe {
+  height: 3px;
+  background: linear-gradient(90deg, #0a2540 0%, #0284c7 70%, #d97706 100%);
+  margin: 10px 0 14px;
+  border-radius: 2px;
+}
+
+/* Demographics Grid */
+.ipd-demographics-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+
+.ipd-demo-col-head {
+  font-size: 10px;
+  font-weight: 800;
+  color: #0f3e68;
+  border-bottom: 1px solid #cbd5e1;
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ipd-demo-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11px;
+  padding: 2.5px 0;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.ipd-demo-lbl {
+  color: #64748b;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ipd-demo-val {
+  color: #0f172a;
+  font-weight: 700;
+  text-align: right;
+}
+
+.ipd-demo-val--highlight {
+  color: #0a2540;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.ipd-demo-val--mono {
+  font-family: ui-monospace, Consolas, monospace;
+  letter-spacing: 0.5px;
+}
+
+.ipd-demo-val--bold {
+  font-weight: 800;
+}
+
+.ipd-demo-val--blue {
+  color: #0369a1;
+}
+
+.ipd-bed-badge {
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 1px 7px;
+  border-radius: 4px;
+  border: 1px solid #bfdbfe;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.ipd-stay-highlight {
+  color: #b45309;
+  background: #fef3c7;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  border: 1px solid #fde68a;
+}
+
+.ipd-doc-status-tag {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.ipd-doc-status-tag--normal {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.ipd-doc-status-tag--lama,
+.ipd-doc-status-tag--dama {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.ipd-doc-status-tag--transferred {
   background: #e0f2fe;
   color: #0369a1;
   border: 1px solid #bae6fd;
 }
 
-.ipd-stay-pill {
-  display: inline-block;
-  padding: 3px 8px;
-  border-radius: 20px;
-  font-size: 11.5px;
-  font-weight: 700;
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.ipd-checklist-pills {
-  display: flex;
-  gap: 6px;
-}
-
-.ipd-chk-pill {
-  font-size: 11px;
-  padding: 2px 7px;
-  border-radius: 4px;
-  font-weight: 600;
+/* Vitals Strip */
+.ipd-vitals-strip {
   display: flex;
   align-items: center;
-  gap: 3px;
-}
-
-.ipd-chk-pill--cleared { background: #dcfce7; color: #15803d; }
-.ipd-chk-pill--pending { background: #fee2e2; color: #b91c1c; }
-
-/* Status Badges */
-.ipd-status-tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: capitalize;
-}
-
-.ipd-status-tag--normal { background: #dcfce7; color: #166534; }
-.ipd-status-tag--lama { background: #ffedd5; color: #c2410c; }
-.ipd-status-tag--dama { background: #fef08a; color: #854d0e; }
-.ipd-status-tag--death { background: #f1f5f9; color: #334155; }
-.ipd-status-tag--transferred { background: #e0e7ff; color: #4338ca; }
-.ipd-status-tag--absconded { background: #fee2e2; color: #991b1b; }
-
-.ipd-btn-discharge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: #ffffff;
-  border: none;
-  padding: 7px 14px;
-  border-radius: 8px;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.ipd-btn-discharge:hover {
-  opacity: 0.9;
-}
-
-.ipd-btn-summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #f1f5f9;
-  color: #1e293b;
-  border: 1px solid #cbd5e1;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.ipd-btn-summary:hover {
-  background: #e2e8f0;
-  color: #0f172a;
-}
-
-/* Modals */
-.ipd-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-  overflow-y: auto;
-}
-
-.ipd-modal-card {
-  background: #ffffff;
-  border-radius: 16px;
-  width: 100%;
-  max-width: 820px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-  animation: ipdModalFade 0.2s ease-out;
-}
-
-@keyframes ipdModalFade {
-  from { opacity: 0; transform: scale(0.97); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-.ipd-modal-header {
-  padding: 18px 24px;
-  border-bottom: 1px solid #e2e8f0;
-  display: flex;
   justify-content: space-between;
-  align-items: center;
-}
-
-.ipd-modal-title {
-  margin: 0;
-  font-size: 18px;
-  color: #0f172a;
-  font-weight: 700;
-}
-
-.ipd-modal-close-btn {
-  background: none;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
   border-radius: 6px;
+  padding: 6px 12px;
+  margin-bottom: 12px;
+  font-size: 11px;
 }
 
-.ipd-modal-close-btn:hover {
-  color: #0f172a;
-  background: #f1f5f9;
-}
-
-.ipd-modal-body {
-  padding: 24px;
-  overflow-y: auto;
+.ipd-vitals-strip-title {
   display: flex;
-  flex-direction: column;
-  gap: 20px;
-  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  font-weight: 800;
+  color: #166534;
+  font-size: 10.5px;
 }
 
-.ipd-modal-footer {
-  padding: 16px 24px;
-  border-top: 1px solid #e2e8f0;
+.ipd-vitals-pills-row {
   display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  background: #f8fafc;
-  border-bottom-left-radius: 16px;
-  border-bottom-right-radius: 16px;
-}
-
-/* Discharge Form Components */
-.ipd-form-section {
-  display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 14px;
 }
 
-.ipd-form-section-title {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #1e293b;
-  border-left: 4px solid #2563eb;
-  padding-left: 10px;
-  margin: 0;
+.ipd-vitals-pill {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  font-size: 11px;
 }
 
-.ipd-clearance-checklist {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-  background: #f8fafc;
-  padding: 14px;
-  border-radius: 10px;
+.ipd-vitals-lbl {
+  color: #475569;
+  font-weight: 600;
+}
+
+.ipd-vitals-num {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.ipd-vitals-pill small {
+  color: #64748b;
+  font-size: 9.5px;
+}
+
+/* Clinical Diagnosis & Course Section */
+.ipd-clinical-section {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ipd-clinical-block {
+  background: #ffffff;
   border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 12px;
 }
 
-.ipd-checklist-label {
+.ipd-clinical-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #0a2540;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 3px;
+}
+
+.ipd-clinical-header h4 {
+  margin: 0;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.ipd-diagnosis-box {
+  background: #eff6ff;
+  border-left: 4px solid #2563eb;
+  padding: 6px 10px;
+  border-radius: 0 4px 4px 0;
+  margin-top: 3px;
+}
+
+.ipd-diag-main {
+  font-size: 12px;
+  font-weight: 800;
+  color: #1e3a8a;
+}
+
+.ipd-clinical-body {
+  font-size: 11px;
+  color: #334155;
+  line-height: 1.5;
+  margin: 3px 0 0;
+  white-space: pre-line;
+}
+
+/* Inpatient Billing Summary Card */
+.ipd-billing-summary-card {
+  background: #f8fbfe;
+  border: 1.5px solid #0284c7;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.05);
+  page-break-inside: avoid;
+}
+
+.ipd-billing-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #cbd5e1;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+}
+
+.ipd-billing-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ipd-billing-card-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #e0f2fe;
+  color: #0284c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ipd-billing-card-title {
+  font-size: 11.5px;
+  font-weight: 900;
+  color: #0a2540;
+  margin: 0;
+  letter-spacing: 0.3px;
+}
+
+.ipd-billing-card-sub {
+  font-size: 9px;
+  color: #64748b;
+  margin: 1px 0 0;
+  font-weight: 600;
+}
+
+.ipd-badge-cleared {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+  padding: 3px 9px;
+  border-radius: 5px;
+  font-size: 10.5px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ipd-badge-pending {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  padding: 3px 9px;
+  border-radius: 5px;
+  font-size: 10.5px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ipd-billing-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ipd-billing-kpi {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px 9px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ipd-bk-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.ipd-bk-amount {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13.5px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.ipd-bk-amount--green {
+  color: #059669;
+}
+
+.ipd-bk-amount--zero {
+  color: #059669;
+}
+
+.ipd-bk-amount--red {
+  color: #dc2626;
+}
+
+.ipd-bk-hint {
+  font-size: 8.5px;
+  color: #94a3b8;
+  margin-top: 1px;
+}
+
+.ipd-billing-kpi--status {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.ipd-bk-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 900;
+  color: #166534;
+  margin: 1px 0;
+}
+
+.ipd-billing-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 5px;
+  border-top: 1px dashed #cbd5e1;
+  font-size: 10px;
+}
+
+.ipd-settled-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ipd-stag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #15803d;
+  font-weight: 700;
+  font-size: 9.5px;
+}
+
+.ipd-billing-auth-text {
+  color: #475569;
+  font-size: 9.5px;
+}
+
+/* Rx Medications Table */
+.ipd-rx-section {
+  margin-bottom: 12px;
+  page-break-inside: avoid;
+}
+
+.ipd-rx-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+  border-bottom: 1.5px solid #0a2540;
+  padding-bottom: 3px;
+}
+
+.ipd-rx-title-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ipd-rx-symbol {
+  font-family: serif;
+  font-size: 18px;
+  font-weight: 900;
+  color: #0a2540;
+  line-height: 1;
+}
+
+.ipd-rx-title {
+  font-size: 11px;
+  font-weight: 900;
+  color: #0a2540;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.ipd-rx-badge {
+  font-size: 9px;
+  color: #0369a1;
+  background: #e0f2fe;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.ipd-rx-table-pro {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10.5px;
+  margin-top: 4px;
+}
+
+.ipd-rx-table-pro th {
+  background: #0f2942;
+  color: #ffffff;
+  padding: 5px 8px;
+  font-weight: 800;
+  text-align: left;
+  font-size: 10px;
+  border: 1px solid #0f2942;
+}
+
+.ipd-rx-table-pro td {
+  padding: 5px 8px;
+  border: 1px solid #cbd5e1;
+  vertical-align: middle;
+}
+
+.ipd-rx-table-pro tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.ipd-rx-idx {
+  text-align: center;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.ipd-dose-pill {
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 10px;
+}
+
+.ipd-timing-text {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.ipd-days-pill {
+  background: #f1f5f9;
+  color: #334155;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 800;
+  font-size: 9.5px;
+  border: 1px solid #cbd5e1;
+}
+
+.ipd-rx-notes small {
+  color: #475569;
+  font-size: 9.5px;
+}
+
+/* Guidelines Grid */
+.ipd-guidelines-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.15fr;
+  gap: 8px;
+  margin-bottom: 14px;
+  page-break-inside: avoid;
+}
+
+.ipd-guide-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 7px 9px;
+  font-size: 10px;
+}
+
+.ipd-guide-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #0f3e68;
+  font-weight: 800;
+  font-size: 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 2px;
+}
+
+.ipd-guide-head h5 {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.ipd-guide-head--red {
+  color: #dc2626;
+}
+
+.ipd-guide-card--emergency {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.ipd-guide-body p {
+  margin: 2px 0;
+  color: #334155;
+  line-height: 1.35;
+}
+
+.ipd-guide-note {
+  display: block;
+  font-size: 8.5px;
+  color: #64748b;
+  margin-top: 3px;
+  line-height: 1.25;
+}
+
+.ipd-review-date-badge {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 800;
+}
+
+.ipd-redflag-text {
+  font-size: 9.5px;
+  color: #991b1b;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.ipd-emergency-callout {
+  background: #b91c1c;
+  color: #ffffff;
+  padding: 3px 7px;
+  border-radius: 4px;
+  font-weight: 800;
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+/* Institutional Signatures */
+.ipd-signatures-wrapper {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid #cbd5e1;
+  page-break-inside: avoid;
+}
+
+.ipd-sig-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+}
+
+.ipd-sig-line {
+  width: 85%;
+  height: 1px;
+  background: #0a2540;
+  margin-bottom: 5px;
+  border-top: 1px dashed #0a2540;
+}
+
+.ipd-sig-title {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #0a2540;
+}
+
+.ipd-sig-desc {
+  font-size: 9px;
+  color: #64748b;
+  margin-top: 2px;
+  max-width: 180px;
+  line-height: 1.25;
+}
+
+.ipd-sig-stamp-seal {
+  border: 1.5px dashed #94a3b8;
+  color: #94a3b8;
+  font-size: 8.5px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  letter-spacing: 1px;
+}
+
+.ipd-doc-footer-legal {
+  margin-top: 14px;
+  padding-top: 6px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  font-size: 8px;
+  color: #94a3b8;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* Modal Footer Bar */
+.ipd-print-modal-foot {
+  background: #ffffff;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.ipd-print-foot-hint {
+  font-size: 11.5px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* =========================================================
+   Print Media Override for Clinical Discharge Slip
+   ========================================================= */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  /* Hide all app chrome, sidebars, modal backdrops */
+  body, html {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .ipd-print-modal-overlay,
+  .ipd-modal-overlay {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+  }
+
+  .ipd-print-modal-card {
+    position: static !important;
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  .ipd-print-modal-head,
+  .ipd-modal-header,
+  .ipd-print-modal-foot,
+  .ipd-modal-footer,
+  .ipd-modal-close-btn,
+  .ipd-btn-print-primary {
+    display: none !important;
+  }
+
+  .ipd-print-modal-body-scroll {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  #ipd-printable-discharge-document,
+  #ipd-printable-discharge-document * {
+    visibility: visible !important;
+  }
+
+  #ipd-printable-discharge-document {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: 1.5px solid #0f3e68 !important;
+    padding: 16px !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .ipd-billing-summary-card,
+  .ipd-rx-section,
+  .ipd-guidelines-grid,
+  .ipd-signatures-wrapper {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}
+
+/* ==========================================================
+   IPD DISCHARGE WORKFLOW PAGE - ULTRA-PREMIUM HOSPITAL THEME
+   Eye-Catching, High-End Card Layout & Clear Visual Hierarchy
+   ========================================================== */
+
+.ipd-workflow-page-container {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 6px 10px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+  font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  animation: ipdFadeIn 0.2s ease-out;
+  background:
+    radial-gradient(1200px 500px at 100% 0%, rgba(120, 180, 235, 0.28), transparent 70%),
+    linear-gradient(160deg, #dbe9f6 0%, #c3d9ec 55%, #b3cde5 100%);
+  min-height: calc(100vh - 64px);
+}
+
+@keyframes ipdFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 1. Top Bar & Navigation (Compact & Sleek) */
+.ipd-workflow-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: linear-gradient(100deg, #0b2556 0%, #1e5a8e 100%);
+  box-shadow: 0 4px 14px rgba(8, 26, 61, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.ipd-workflow-top-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ipd-workflow-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.ipd-workflow-back-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateX(-2px);
+  color: #fef08a;
+}
+
+.ipd-workflow-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ipd-workflow-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.2;
+}
+
+.ipd-workflow-title-icon {
+  color: #f5c542;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.3));
+}
+
+.ipd-workflow-sub {
+  margin: 0;
+  font-size: 11px;
+  color: #cfe2f5;
+  font-weight: 500;
+}
+
+.ipd-workflow-top-actions {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 13px;
-  font-weight: 600;
+}
+
+.ipd-btn-preview-slip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(145deg, #ffd766 0%, #f5c542 100%);
+  color: #081a3d;
+  font-weight: 800;
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 7px;
+  border: 1px solid #e0ac1f;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.ipd-btn-preview-slip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 197, 66, 0.45);
+  background: #ffffff;
+  color: #0b2556;
+}
+
+/* 2. Patient Demographics & Stay Overview Banner */
+.ipd-workflow-patient-banner {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1.5px solid #9fbbd6;
+  border-left: 5px solid #0284c7;
+  border-radius: 9px;
+  padding: 8px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  box-shadow: 0 3px 10px rgba(8, 26, 61, 0.06);
+}
+
+.ipd-wpb-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ipd-wpb-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #081a3d 0%, #1e5a8e 100%);
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(8, 26, 61, 0.25);
+  border: 2px solid #d3e3f1;
+}
+
+.ipd-wpb-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ipd-wpb-name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: #081a3d;
+  line-height: 1.2;
+}
+
+.ipd-wpb-badge-inpatient {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ipd-wpb-meta-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #55698a;
+  margin-top: 2px;
+}
+
+.ipd-mono-code {
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-weight: 750;
+  color: #081a3d;
+}
+
+.ipd-wpb-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ipd-wpb-stat-box {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ipd-wpb-stat-lbl {
+  font-size: 10px;
+  font-weight: 750;
+  color: #55698a;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ipd-wpb-bed-pill {
+  background: #e6f0f9;
+  color: #0b2556;
+  border: 1px solid #9fbbd6;
+  font-size: 11.5px;
+  font-weight: 650;
+  padding: 2px 8px;
+  border-radius: 5px;
+}
+
+.ipd-wpb-bed-pill strong {
+  font-weight: 850;
+  color: #081a3d;
+}
+
+.ipd-wpb-val-bold {
+  font-size: 12px;
+  font-weight: 750;
+  color: #081a3d;
+}
+
+.ipd-wpb-stay-pill {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 5px;
+}
+
+.ipd-wpb-doc-pill {
+  background: #f1f5f9;
   color: #334155;
-  cursor: pointer;
+  border: 1px solid #cbd5e1;
+  font-size: 11px;
+  font-weight: 650;
+  padding: 2px 8px;
+  border-radius: 5px;
 }
 
-.ipd-checklist-label input[type="checkbox"] {
-  width: 17px;
-  height: 17px;
-  accent-color: #2563eb;
-  cursor: pointer;
+/* 3. Workflow Form Layout - 2-Column High-Density Grid */
+.ipd-workflow-form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  width: 100%;
 }
 
+.ipd-workflow-2col-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 10px;
+  width: 100%;
+  align-items: start;
+}
+
+.ipd-workflow-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* 4. Individual Step / Section Cards (Signature Ribbon Style) */
+.ipd-workflow-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1.5px solid #9fbbd6;
+  border-radius: 9px;
+  box-shadow: 0 4px 14px rgba(8, 26, 61, 0.08);
+  overflow: hidden;
+  transition: all 0.15s ease;
+}
+
+.ipd-workflow-card:hover {
+  border-color: #1e5a8e;
+  box-shadow: 0 6px 18px rgba(8, 26, 61, 0.12);
+}
+
+.ipd-action-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(180deg, #d3e4f4 0%, #bdd7ee 100%);
+  border-bottom: 1.5px solid #9fbbd6;
+  padding: 8px 14px;
+}
+
+.ipd-section-step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #081a3d 0%, #1e5a8e 100%);
+  border: 1px solid #081a3d;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.ipd-action-card-title {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #081a3d;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.ipd-action-card-desc {
+  display: block;
+  font-size: 11px;
+  color: #55698a;
+  font-weight: 500;
+  margin-top: 1px;
+}
+
+.ipd-workflow-card-body {
+  padding: 10px 14px 12px;
+}
+
+/* 5. Live Dues & Financial Clearance Audit */
+.ipd-dues-loading-card {
+  background: #f0f9ff;
+  border: 1.5px dashed #7dd3fc;
+  border-radius: 7px;
+  padding: 8px 12px;
+  font-size: 11.5px;
+  color: #0284c7;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.ipd-dues-dashboard-card {
+  background: #ffffff;
+  border: 1.5px solid #9fbbd6;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.ipd-dues-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.ipd-dues-kpi-item {
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 7px;
+  padding: 7px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ipd-dues-kpi-item.ipd-kpi-cleared {
+  border-color: #a7f3d0;
+  background: #f0fdf4;
+}
+
+.ipd-dues-kpi-item.ipd-kpi-pending {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.ipd-kpi-tag {
+  font-size: 10px;
+  font-weight: 750;
+  color: #55698a;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ipd-kpi-val {
+  font-size: 16px;
+  font-weight: 850;
+  color: #081a3d;
+  letter-spacing: -0.01em;
+}
+
+.ipd-text-green {
+  color: #0f9d6b !important;
+}
+
+.ipd-text-red {
+  color: #e11d1d !important;
+}
+
+.ipd-dues-kpi-item small {
+  font-size: 10px;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+.ipd-dues-dept-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #cbd5e1;
+}
+
+.ipd-dept-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 10.5px;
+}
+
+.ipd-dept-chip--cleared {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+}
+
+.ipd-dept-chip--pending {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.ipd-dept-chip-name {
+  font-weight: 600;
+}
+
+.ipd-dept-chip-status {
+  font-weight: 800;
+}
+
+.ipd-dues-empty-alert {
+  background: #f0fdf4;
+  border: 1.5px solid #a7f3d0;
+  color: #065f46;
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 6. Interactive 3 Clearance Checklist Cards */
+.ipd-clearance-interactive-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.ipd-clearance-check-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 1.5px solid #9fbbd6;
+  border-radius: 7px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  user-select: none;
+}
+
+.ipd-clearance-check-card input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ipd-clearance-check-card:hover {
+  border-color: #1e5a8e;
+  background: #f8fafc;
+}
+
+.ipd-clearance-check-card.ipd-ccc--checked {
+  background: #f0fdf4;
+  border-color: #0f9d6b;
+  box-shadow: 0 2px 6px rgba(15, 157, 107, 0.12);
+}
+
+.ipd-clearance-check-card.ipd-ccc--disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.ipd-ccc-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ipd-ccc-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ipd-ccc-icon--blue {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.ipd-ccc-icon--emerald {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.ipd-ccc-icon--purple {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
+.ipd-ccc-text strong {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 750;
+  color: #081a3d;
+  line-height: 1.2;
+}
+
+.ipd-ccc-text p {
+  margin: 1px 0 0 0;
+  font-size: 10px;
+  color: #55698a;
+}
+
+.ipd-ccc-warn {
+  display: block;
+  font-size: 10px;
+  font-weight: 750;
+  color: #e11d1d;
+  margin-top: 1px;
+}
+
+.ipd-ccc-status-indicator {
+  color: #9fbbd6;
+  transition: color 0.15s ease;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+.ipd-ccc--checked .ipd-ccc-status-indicator {
+  color: #0f9d6b;
+}
+
+/* 7. Form Controls, Labels, Inputs & Textareas (Clinical Standard) */
 .ipd-form-row {
+  display: flex;
+  gap: 10px;
+}
+
+.ipd-form-row--2cols {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 10px;
 }
 
 .ipd-form-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
 }
 
-.ipd-form-group label {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #475569;
+.ipd-field-label {
+  font-size: 11px;
+  font-weight: 750;
+  color: #081a3d;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .ipd-form-control {
-  padding: 9px 12px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  font-size: 13px;
-  outline: none;
+  width: 100%;
+  box-sizing: border-box;
   font-family: inherit;
+  border: 1.5px solid #9fbbd6;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #081a3d;
+  background: #ffffff;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .ipd-form-control:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  outline: none;
+  border-color: #1e5a8e;
+  box-shadow: 0 0 0 3px rgba(30, 90, 142, 0.2);
 }
 
-textarea.ipd-form-control {
-  resize: vertical;
-  min-height: 70px;
-}
-
-/* Discharge Print Slip Styles */
-.ipd-print-modal-card {
-  max-width: 900px;
-}
-
-.ipd-print-sheet {
-  background: #ffffff;
-  padding: 30px;
-  color: #0f172a;
-  font-family: system-ui, -apple-system, sans-serif;
-  line-height: 1.5;
-}
-
-.ipd-print-header {
-  border-bottom: 2px solid #0f172a;
-  padding-bottom: 14px;
-  margin-bottom: 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-}
-
-.ipd-print-hospital-name {
-  font-size: 22px;
-  font-weight: 900;
-  color: #1e3a8a;
-  margin: 0;
-  letter-spacing: -0.5px;
-}
-
-.ipd-print-hospital-sub {
-  font-size: 11.5px;
-  color: #475569;
-  margin: 2px 0 0;
-}
-
-.ipd-print-title-badge {
-  font-size: 16px;
-  font-weight: 800;
-  background: #f1f5f9;
-  padding: 6px 14px;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  text-transform: uppercase;
-}
-
-.ipd-print-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px 24px;
-  background: #f8fafc;
-  padding: 14px 18px;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  margin-bottom: 20px;
-  font-size: 12.5px;
-}
-
-.ipd-print-meta-item {
-  display: flex;
-  justify-content: space-between;
-  border-bottom: 1px dashed #e2e8f0;
-  padding-bottom: 4px;
-}
-
-.ipd-print-meta-item span:first-child {
-  color: #64748b;
-  font-weight: 600;
-}
-
-.ipd-print-meta-item span:last-child {
+.ipd-form-input--bold {
   font-weight: 700;
-  color: #0f172a;
 }
 
-.ipd-print-section {
-  margin-bottom: 18px;
+.ipd-form-select {
+  height: 36px;
+  cursor: pointer;
+  background-color: #ffffff;
 }
 
-.ipd-print-section-title {
-  font-size: 13px;
-  font-weight: 800;
-  text-transform: uppercase;
-  color: #1e293b;
-  margin: 0 0 6px;
-  border-bottom: 1px solid #cbd5e1;
-  padding-bottom: 3px;
+.ipd-form-textarea {
+  resize: vertical;
+  line-height: 1.35;
+  min-height: 52px;
 }
 
-.ipd-print-section-text {
-  font-size: 12.5px;
-  color: #334155;
-  margin: 0;
-  white-space: pre-line;
+/* 8. Discharge Medication (Rx) Table */
+.ipd-btn-add-rx {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #e6f0f9;
+  color: #0b2556;
+  border: 1.5px solid #9fbbd6;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
-.ipd-rx-table {
+.ipd-btn-add-rx:hover {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+}
+
+.ipd-rx-table-container {
+  width: 100%;
+  overflow-x: auto;
+  border: 1.5px solid #9fbbd6;
+  border-radius: 7px;
+  background: #ffffff;
+}
+
+.ipd-rx-edit-table {
   width: 100%;
   border-collapse: collapse;
+  text-align: left;
   font-size: 12px;
-  margin-top: 6px;
 }
 
-.ipd-rx-table th, .ipd-rx-table td {
-  border: 1px solid #cbd5e1;
-  padding: 7px 10px;
+.ipd-rx-edit-table th {
+  background: linear-gradient(180deg, #e4eff8 0%, #d3e4f4 100%);
+  color: #081a3d;
+  font-weight: 800;
+  padding: 6px 10px;
+  border-bottom: 1.5px solid #9fbbd6;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
-.ipd-rx-table th {
-  background: #f1f5f9;
+.ipd-rx-edit-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: middle;
+}
+
+.ipd-rx-edit-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.ipd-table-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #9fbbd6;
+  border-radius: 5px;
+  padding: 4px 8px;
+  height: 32px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #081a3d;
+  background: #ffffff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.ipd-table-input:focus {
+  outline: none;
+  border-color: #1e5a8e;
+  box-shadow: 0 0 0 2px rgba(30, 90, 142, 0.2);
+}
+
+.ipd-table-input--bold {
   font-weight: 700;
+}
+
+.ipd-rx-del-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-rx-del-btn:hover {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+}
+
+/* 9. Bottom Action Bar (Matching Image 3 & OPD Registration) */
+.ipd-workflow-action-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 990;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(10px);
+  border: 1.5px solid #9fbbd6;
+  border-radius: 9px;
+  box-shadow: 0 -4px 16px rgba(8, 26, 61, 0.12);
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.ipd-waf-info {
+  background: #081a3d;
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 6px rgba(8, 26, 61, 0.2);
+}
+
+.ipd-waf-info strong {
+  color: #f5c542;
+  font-weight: 850;
+}
+
+.ipd-waf-btns {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ipd-btn-cancel-modal {
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1.5px solid #9fbbd6;
+  color: #0b2556;
+  font-weight: 750;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-btn-cancel-modal:hover {
+  background: #e6f0f9;
+}
+
+.ipd-btn-confirm-discharge {
+  height: 40px;
+  padding: 0 22px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #0f9d6b 0%, #0a7e55 100%);
+  border: 1px solid #08734d;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(15, 157, 107, 0.35);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.ipd-btn-confirm-discharge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(15, 157, 107, 0.45);
+}
+
+/* 10. Empty State Card */
+.ipd-workflow-wrapper {
+  width: 100%;
+  max-width: 650px;
+  margin: 30px auto;
+  padding: 16px;
+}
+
+.ipd-empty-state-card {
+  background: #ffffff;
+  border: 1.5px dashed #9fbbd6;
+  border-radius: 10px;
+  padding: 28px 18px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 16px rgba(8, 26, 61, 0.04);
+}
+
+.ipd-empty-state-card h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #081a3d;
+}
+
+.ipd-empty-state-card p {
+  margin: 0;
+  font-size: 12px;
+  color: #55698a;
+  max-width: 380px;
+}
+
+.ipd-btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #0284c7;
+  color: #ffffff;
+  font-weight: 750;
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  margin-top: 6px;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);
+  transition: all 0.15s ease;
+}
+
+.ipd-btn-back:hover {
+  background: #0369a1;
+  transform: translateY(-1px);
+}
+
+/* 11. Responsive Media Queries */
+@media (max-width: 1024px) {
+  .ipd-workflow-2col-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .ipd-clearance-interactive-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================
+   ENTERPRISE HIMS DISCHARGE WINDOW - MATCHING HOSPITAL SUITE UI
+   Theme: Deep Navy Header Frame + Steel-Blue Body + Colored Ribbon Panels
+   ========================================================== */
+
+.hims-discharge-window-container {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 6px 16px;
+  display: flex;
+  justify-content: stretch;
+  background:
+    radial-gradient(1200px 400px at 100% 0%, rgba(120, 180, 235, 0.22), transparent 70%),
+    linear-gradient(160deg, #e4eef7 0%, #cbdced 55%, #bdcfdf 100%);
+  min-height: calc(100vh - 60px);
+}
+
+.hims-discharge-window {
+  width: 100%;
+  max-width: 100%;
+  background: #0b2556;
+  border: 2px solid #081a3d;
+  border-radius: 8px;
+  box-shadow: 0 12px 36px rgba(8, 26, 61, 0.25), 0 2px 6px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 1. Window Header (Deep Navy Bar with Gold Badge & Red [X] Exit) */
+.hims-window-header {
+  background: linear-gradient(180deg, #123a6b 0%, #0b2556 100%);
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid #081a3d;
+}
+
+.hims-window-title-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hims-window-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
+}
+
+.hims-window-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 850;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.hims-window-subtitle {
+  font-size: 12px;
+  color: #93c5fd;
+  font-weight: 600;
+  display: block;
+  margin-top: 2px;
+}
+
+.hims-window-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hims-window-close-btn {
+  background: #dc2626;
+  color: #ffffff;
+  border: 1px solid #b91c1c;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.hims-window-close-btn:hover {
+  background: #b91c1c;
+  transform: scale(1.05);
+}
+
+/* 2. Window Body Interior (#e3edf7 steel-blue) */
+.hims-window-body {
+  background: #e3edf7;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Patient Profile Card (Compact & High-Profile Hospital EHR Style) */
+.hims-patient-profile-card {
+  background: linear-gradient(135deg, #f8fafc 0%, #edf4fc 100%);
+  border: 1px solid #bfdbfe;
+  border-left: 5px solid #0284c7;
+  border-radius: 6px;
+  padding: 10px 16px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.08);
+}
+
+.hims-patient-profile-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 280px;
+}
+
+.hims-patient-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(2, 132, 199, 0.25);
+}
+
+.hims-patient-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hims-patient-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hims-patient-name {
+  font-size: 17px;
+  font-weight: 850;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.hims-badge-patient-demog {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 12px;
+  font-weight: 750;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid #bae6fd;
+}
+
+.hims-badge-patient-stay {
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 12px;
+  font-weight: 750;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid #bbf7d0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hims-patient-clinical-tags {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+  color: #475569;
+  flex-wrap: wrap;
+}
+
+.hims-patient-tag-doc {
+  font-weight: 750;
+  color: #3730a3;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+}
+
+.hims-patient-tag-phone {
+  color: #0284c7;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 650;
+  font-size: 13px;
+}
+
+.hims-patient-tag-date {
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+}
+
+.hims-patient-id-badges {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hims-id-badge {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 95px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.hims-id-badge-lbl {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.hims-id-badge-val {
+  font-size: 14px;
+  font-weight: 850;
+  color: #0f172a;
+}
+
+.hims-id-badge--bed {
+  border-color: #7dd3fc;
+  background: #f0f9ff;
+}
+
+.hims-id-badge-val--bed {
+  color: #0284c7;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+/* 3. Structured Panels with Colored Banner Headers */
+.hims-panel {
+  background: #ffffff;
+  border: 1px solid #b8cce0;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(11, 37, 86, 0.06);
+  margin-bottom: 8px;
+}
+
+.hims-panel-header {
+  padding: 8px 14px;
+  font-size: 13.5px;
+  font-weight: 850;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  text-transform: uppercase;
+}
+
+.hims-panel-header--blue {
+  background: linear-gradient(90deg, #d8e5f3 0%, #c8daf0 100%);
+  color: #0b2556;
+  border-left: 4px solid #1e5a8e;
+}
+
+.hims-panel-header--red {
+  background: linear-gradient(90deg, #fce8e8 0%, #fbd5d5 100%);
+  color: #991b1b;
+  border-left: 4px solid #dc2626;
+}
+
+.hims-panel-header--green {
+  background: linear-gradient(90deg, #e6f7ef 0%, #d1f2e1 100%);
+  color: #065f46;
+  border-left: 4px solid #059669;
+}
+
+.hims-panel-header--indigo {
+  background: linear-gradient(90deg, #ede9fe 0%, #e0e7ff 100%);
+  color: #3730a3;
+  border-left: 4px solid #4f46e5;
+}
+
+.hims-panel-header--amber {
+  background: linear-gradient(90deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+  border-left: 4px solid #d97706;
+}
+
+.hims-panel-content {
+  padding: 10px 12px;
+}
+
+/* 4. Form Grids & Crisp Input Fields */
+.hims-form-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px 12px;
+}
+
+.hims-form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+
+.hims-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hims-field-group--span4 {
+  grid-column: span 4;
+}
+
+.hims-field-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+  flex-wrap: wrap;
+}
+
+.hims-field-group label {
+  font-size: 13px;
+  font-weight: 750;
+  color: #1e293b;
+  letter-spacing: 0.01em;
+  margin-bottom: 2px;
+}
+
+.hims-preset-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  padding: 3px 8px;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.hims-preset-lbl {
+  font-size: 12px;
+  font-weight: 750;
+  color: #0369a1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.hims-select-mini {
+  height: 28px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #0f172a;
+  background: #ffffff;
+  border: 1px solid #94a3b8;
+  border-radius: 4px;
+  padding: 0 8px;
+  outline: none;
+  cursor: pointer;
+  max-width: 340px;
+  transition: all 0.15s ease;
+}
+
+.hims-select-mini:hover {
+  border-color: #0284c7;
+}
+
+.hims-select-mini:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
+}
+
+.hims-input,
+.hims-select,
+.hims-textarea {
+  height: 38px;
+  padding: 6px 11px;
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #0f172a;
+  background: #ffffff;
+  border: 1.5px solid #94a3b8;
+  border-radius: 5px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.hims-input:focus,
+.hims-select:focus,
+.hims-textarea:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.18);
+}
+
+.hims-input--readonly {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  cursor: default;
+}
+
+.hims-input--bold,
+.hims-select--bold {
+  font-weight: 750;
+  color: #0b2556;
+  font-size: 13.5px;
+}
+
+.hims-input--highlight {
+  font-weight: 750;
+  color: #0284c7;
+  background: #f0f9ff;
+  border-color: #7dd3fc;
+  font-size: 13.5px;
+}
+
+.hims-input--stay {
+  font-weight: 800;
+  color: #059669;
+  background: #f0fdf4;
+  border-color: #86efac;
+  font-size: 13.5px;
+}
+
+.hims-input--doc {
+  font-weight: 750;
+  color: #4338ca;
+  background: #f5f3ff;
+  border-color: #c7d2fe;
+  font-size: 13.5px;
+}
+
+.hims-textarea {
+  height: auto;
+  min-height: 60px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+/* 5. Live Dues Strip & Clearance Buttons */
+.hims-dues-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.hims-dues-kpi {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  padding: 6px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hims-dues-loading {
+  background: #f0f9ff;
+  border: 1px dashed #0284c7;
+  border-radius: 5px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0284c7;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.hims-kpi-lbl {
+  font-size: 12.5px;
+  font-weight: 750;
+  color: #475569;
+}
+
+.hims-kpi-val {
+  font-size: 16.5px;
+  font-weight: 850;
+  color: #0f172a;
+}
+
+.hims-text--green {
+  color: #059669 !important;
+}
+
+.hims-text--red {
+  color: #dc2626 !important;
+}
+
+.hims-kpi--cleared {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.hims-kpi--pending {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.hims-clearances-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.hims-clearance-btn {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
   text-align: left;
 }
 
-.ipd-print-signatures {
-  margin-top: 40px;
-  display: flex;
-  justify-content: space-between;
-  padding-top: 30px;
+.hims-clearance-btn:hover {
+  border-color: #0284c7;
+  background: #f0f9ff;
 }
 
-.ipd-sig-box {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  font-size: 12px;
-  color: #475569;
-  border-top: 1px solid #0f172a;
-  min-width: 180px;
-  padding-top: 6px;
-  font-weight: 600;
+.hims-clearance-btn--active {
+  border-color: #059669;
+  background: #f0fdf4;
 }
 
-/* Print Media Override */
-@media print {
-  body * {
-    visibility: hidden;
-  }
-  .ipd-print-sheet, .ipd-print-sheet * {
-    visibility: visible;
-  }
-  .ipd-print-sheet {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-  }
-  .ipd-modal-header, .ipd-modal-footer {
-    display: none !important;
-  }
-}
-
-/* Pending Dues Breakdown (Clearance) */
-.ipd-dues-loading {
+.hims-clearance-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #e0f2fe;
+  color: #0284c7;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 16px;
-  color: #64748b;
-  font-size: 13px;
-  background: #f8fafc;
-  border-radius: 8px;
-  border: 1px dashed #cbd5e1;
-}
-
-.ipd-dues-breakdown {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 14px 16px;
-}
-
-.ipd-dues-summary-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 8px 0;
-  border-bottom: 1px dashed #cbd5e1;
-  font-size: 13px;
-}
-
-.ipd-dues-summary-row:last-child {
-  border-bottom: none;
-}
-
-.ipd-dues-summary-row--pending {
-  border-bottom: none;
-  padding-top: 10px;
-  font-weight: 700;
-  border-top: 2px solid #e2e8f0;
-  margin-top: 4px;
-  padding-top: 12px;
-}
-
-.ipd-dues-label {
-  color: #64748b;
-  font-weight: 600;
-}
-
-.ipd-dues-val {
-  color: #0f172a;
-  font-weight: 700;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.ipd-dues-summary-row--pending .ipd-dues-val {
-  font-size: 16px;
-}
-
-.ipd-text-green { color: #15803d; }
-.ipd-text-red { color: #dc2626; }
-
-.ipd-dues-dept-list {
-  margin-top: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.ipd-dues-dept-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 10px;
-  background: #ffffff;
-  border: 1px solid #f1f5f9;
-  border-radius: 8px;
-  font-size: 12.5px;
-}
-
-.ipd-dues-dept-row--empty {
-  background: #f8fafc;
-  border-style: dashed;
-  color: #64748b;
   justify-content: center;
+  flex-shrink: 0;
 }
 
-.ipd-dues-dept-name {
-  color: #334155;
+.hims-clearance-btn--active .hims-clearance-icon {
+  background: #dcfce7;
+  color: #059669;
+}
+
+.hims-clearance-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.hims-clearance-text strong {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.hims-clearance-text span {
+  font-size: 12px;
   font-weight: 600;
-}
-
-.ipd-dues-dept-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 700;
-}
-
-.ipd-dues-dept-cleared { color: #15803d; }
-.ipd-dues-dept-pending { color: #b91c1c; }
-
-/* Full breakdown — fee-wise (department × source_type) rows */
-.ipd-dues-sources {
-  margin-top: 12px;
-}
-.ipd-dues-sources-title {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   color: #64748b;
-  margin-bottom: 6px;
 }
-.ipd-dues-source-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
+
+.hims-status-pill {
+  font-size: 12px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 12px;
+  letter-spacing: 0.02em;
+}
+
+.hims-status-pill--ok {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.hims-status-pill--warn {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+/* 6. Medication Table & Dynamic Dropdown */
+.hims-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.hims-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.hims-table th {
+  background: #f1f5f9;
+  color: #1e293b;
+  font-weight: 800;
   padding: 8px 10px;
-  background: #ffffff;
-  border: 1px dashed #e2e8f0;
-  border-radius: 8px;
+  border-bottom: 1.5px solid #cbd5e1;
+  text-align: left;
   font-size: 12.5px;
+  letter-spacing: 0.02em;
 }
-.ipd-dues-source-head {
+
+.hims-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: middle;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.hims-table-input {
+  width: 100%;
+  height: 34px;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #ffffff;
+  outline: none;
+}
+
+.hims-table-input:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
+}
+
+.hims-table-input--bold {
+  font-weight: 750;
+  color: #1e1b4b;
+}
+
+.hims-input-toggle-wrap {
   display: flex;
+  gap: 4px;
   align-items: center;
+}
+
+.hims-toggle-list-btn {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #7dd3fc;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 750;
+  padding: 5px 8px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hims-toggle-list-btn:hover {
+  background: #bae6fd;
+}
+
+.hims-badge-rx-count {
+  font-size: 12px;
+  font-weight: 800;
+  color: #4338ca;
+  background: #ffffff;
+  border: 1px solid #c7d2fe;
+  padding: 3px 10px;
+  border-radius: 12px;
+}
+
+.hims-rx-builder-bar {
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.hims-rx-quick-select-block {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #cbd5e1;
+}
+
+.hims-select--highlight {
+  border-color: #6366f1;
+  background: #fdfcff;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1e1b4b;
+  height: 38px;
+}
+
+.hims-select--highlight:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
+
+.hims-rx-params-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr 1fr 1.6fr auto;
   gap: 8px;
+  align-items: flex-end;
+}
+
+.hims-rx-flex-inst {
   min-width: 0;
 }
-.ipd-dues-source-dept {
-  color: #334155;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+
+.hims-rx-action-wrap {
+  justify-content: flex-end;
 }
-.ipd-dues-source-type {
-  color: #475569;
-  background: #f1f5f9;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 10.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
+
+.hims-btn-add-medicine-action {
+  height: 38px;
+  background: #4f46e5;
+  color: #ffffff;
+  border: 1px solid #4338ca;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.3);
+  transition: all 0.15s ease;
+}
+
+.hims-btn-add-medicine-action:hover {
+  background: #4338ca;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.4);
+}
+
+.hims-btn-subtle {
+  background: #e2e8f0;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 750;
+  padding: 0 10px;
+  cursor: pointer;
   white-space: nowrap;
 }
 
-.ipd-operational-clearances {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px dashed #cbd5e1;
+.hims-btn-subtle:hover {
+  background: #cbd5e1;
+}
+
+.hims-med-pill {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.hims-med-pill--dosage {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.hims-med-pill--freq {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.hims-med-pill--duration {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.hims-btn-add-rx {
+  background: #4f46e5;
+  color: #ffffff;
+  border: 1px solid #4338ca;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 750;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hims-btn-add-rx:hover {
+  background: #4338ca;
+}
+
+.hims-empty-rx-state {
+  padding: 24px 16px;
+  text-align: center;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 8px;
+  color: #475569;
+  font-size: 13.5px;
+  font-weight: 600;
 }
+
+.hims-btn-add-rx-inline {
+  background: #eef2ff;
+  color: #4338ca;
+  border: 1.5px dashed #818cf8;
+  border-radius: 6px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  margin-top: 4px;
+}
+
+.hims-btn-add-rx-inline:hover {
+  background: #e0e7ff;
+  border-color: #4f46e5;
+}
+
+.hims-btn-del-row {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hims-btn-del-row:hover {
+  background: #fca5a5;
+  color: #991b1b;
+}
+
+/* 7. Bottom Action Toolbar (Matching Image 1) */
+.hims-toolbar {
+  background: #d3e2f0;
+  border: 1px solid #b8cce0;
+  border-radius: 6px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.hims-toolbar-left,
+.hims-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hims-btn {
+  padding: 8px 18px;
+  height: 40px;
+  font-size: 13.5px;
+  font-weight: 850;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+  font-family: inherit;
+  letter-spacing: 0.01em;
+}
+
+.hims-btn--preview {
+  background: #f59e0b;
+  color: #ffffff;
+  border: 1px solid #d97706;
+  box-shadow: 0 2px 4px rgba(217, 119, 6, 0.25);
+}
+
+.hims-btn--preview:hover {
+  background: #d97706;
+}
+
+.hims-btn--exit {
+  background: #dc2626;
+  color: #ffffff;
+  border: 1px solid #b91c1c;
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.25);
+}
+
+.hims-btn--exit:hover {
+  background: #b91c1c;
+}
+
+.hims-btn--confirm {
+  background: #059669;
+  color: #ffffff;
+  border: 1px solid #047857;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
+}
+
+.hims-btn--confirm:hover {
+  background: #047857;
+}
+
+/* Responsive Media Queries */
+@media (max-width: 900px) {
+  .hims-form-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .hims-field-group--span4 {
+    grid-column: span 2;
+  }
+  .hims-dues-strip,
+  .hims-clearances-grid {
+    grid-template-columns: 1fr;
+  }
+  .hims-form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+  .hims-rx-params-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .hims-patient-profile-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 600px) {
+  .hims-form-grid-4 {
+    grid-template-columns: 1fr;
+  }
+  .hims-field-group--span4 {
+    grid-column: span 1;
+  }
+  .hims-rx-params-grid {
+    grid-template-columns: 1fr;
+  }
+  .hims-toolbar {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .hims-toolbar-left,
+  .hims-toolbar-right {
+    justify-content: stretch;
+  }
+  .hims-toolbar-left .hims-btn,
+  .hims-toolbar-right .hims-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+
+

@@ -673,10 +673,8 @@ export default function IPDAdmissionView() {
           </div>
           <div>
             <h1 className="opd-page-title">IPD Registration</h1>
-            <p className="opd-page-sub">Inpatient Registration, Admission &amp; Bed Allocation · इंडोर मरीज भर्ती एवं बेड आवंटन</p>
-            <div className="opd-breadcrumb">
-              <span>Home</span> &gt; <span>IPD</span> &gt; <span className="active">IPD Registration</span>
-            </div>
+           
+           
           </div>
         </div>
       </div>
@@ -804,18 +802,7 @@ export default function IPDAdmissionView() {
               </div>
             </div>
 
-            <div className="opd-pb-right">
-              <button
-                type="button"
-                className="opd-btn-view-patient"
-                onClick={() => {
-                  toast.success(`Patient: ${selectedPatient.name} (${selectedPatient.uhid})`, { icon: "👤" });
-                }}
-                title="View Complete Patient Profile"
-              >
-                <Icon name="LuEye" size={14} /> View Patient
-              </button>
-            </div>
+           
           </div>
         ) : (
           <div className="opd-patient-banner opd-banner-empty">
@@ -1056,92 +1043,7 @@ export default function IPDAdmissionView() {
              
             </div>
 
-            {/* Reason for Admission */}
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="opd-label mb-0">
-                  Reason for Admission <span className="req">*</span> <span className="opd-hint">· भर्ती का कारण</span>
-                </label>
-                {selectedReasons.length > 0 && (
-                  <span className="opd-badge-count">{selectedReasons.length} selected</span>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <select
-                  className="opd-select flex-1"
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (!val) return;
-                    toggleAdmissionReason(val);
-                  }}
-                  value=""
-                >
-                  <option value="">
-                    {selectedReasons.length === 0
-                      ? "Select Reason / भर्ती का कारण चुनें..."
-                      : "+ Add another reason / अन्य कारण जोड़ें..."}
-                  </option>
-                  {POPULAR_ADMISSION_REASONS.map((r) => (
-                    <option key={r} value={r} disabled={selectedReasons.includes(r)}>
-                      {selectedReasons.includes(r) ? `✓ ${r} (Added)` : r}
-                    </option>
-                  ))}
-                  <option value="Other">+ Custom Reason...</option>
-                </select>
-                <button
-                  type="button"
-                  className="opd-btn-tag-action"
-                  onClick={() => setShowOtherReasonInput(true)}
-                  title="Add Custom Reason"
-                >
-                  + Custom
-                </button>
-              </div>
-
-              {showOtherReasonInput && (
-                <div className="opd-custom-input-row mt-2">
-                  <input
-                    type="text"
-                    className="opd-input flex-1"
-                    placeholder="Type custom reason / अन्य कारण लिखें..."
-                    value={otherReasonText}
-                    onChange={(e) => setOtherReasonText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleAddOtherReason();
-                      }
-                    }}
-                    autoFocus
-                  />
-                  <button type="button" className="opd-btn-tag-save" onClick={handleAddOtherReason}>+ Add</button>
-                  <button type="button" className="opd-btn-tag-cancel" onClick={() => { setShowOtherReasonInput(false); setOtherReasonText(""); }}>✕</button>
-                </div>
-              )}
-
-              {selectedReasons.length > 0 && (
-                <div className="opd-tags-wrapper mt-2">
-                  {selectedReasons.map((r) => (
-                    <span key={r} className="opd-tag">
-                      {r}
-                      <button type="button" onClick={() => removeAdmissionReason(r)}>✕</button>
-                    </span>
-                  ))}
-                  {selectedReasons.length > 1 && (
-                    <button
-                      type="button"
-                      className="opd-clear-all-link"
-                      onClick={() => {
-                        setSelectedReasons([]);
-                        setReasonForAdmission("");
-                      }}
-                    >
-                      Clear All
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+           
           </div>
         </div>
 

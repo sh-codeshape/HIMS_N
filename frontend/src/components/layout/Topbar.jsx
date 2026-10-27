@@ -5,7 +5,7 @@ import Icon from "../common/Icon.jsx";
 import "./Topbar.css";
 
 export default function Topbar() {
-  const { user, logout } = useAuth();
+  const { user} = useAuth();
   return (
     <header className="topbar">
 
@@ -17,18 +17,7 @@ export default function Topbar() {
           </div>
         </div>
 
-      <div className="topbar__right">
-        <button className="topbar__icon-btn" type="button" title="Notifications">
-          <Icon name="LuBell" size={18} />
-        </button>
-
-       
-
-        <button className="topbar__logout" type="button" onClick={logout}>
-          <Icon name="LuLogOut" size={16} />
-          Logout
-        </button>
-      </div>
+    
     </header>
   );
 }

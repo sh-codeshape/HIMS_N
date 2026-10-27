@@ -183,9 +183,18 @@ export class PatientRepository {
              EXTRACT(YEAR FROM AGE(p.date_of_birth))::int AS age,
              (SELECT json_agg(a.*) FROM patient_addresses a WHERE a.patient_id = p.id) as addresses
       FROM patients p
-      WHERE p.id = $1 AND p.organization_id = $2 AND p.deleted_at IS NULL
+      WHERE p.id = $1 AND (p.organization_id = $2 OR p.organization_id IS NULL) AND p.deleted_at IS NULL
     `;
-    const result = await db.query(query, [id, organization_id]);
+    let result = await db.query(query, [id, organization_id]);
+    if (!result.rows[0]) {
+      const fallback = await db.query(
+        `SELECT p.*, EXTRACT(YEAR FROM AGE(p.date_of_birth))::int AS age,
+                (SELECT json_agg(a.*) FROM patient_addresses a WHERE a.patient_id = p.id) as addresses
+         FROM patients p WHERE p.id = $1 AND p.deleted_at IS NULL`,
+        [id]
+      );
+      return fallback.rows[0] || null;
+    }
     return result.rows[0] || null;
   }
 

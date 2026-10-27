@@ -153,80 +153,17 @@ export default function BedMatrixGrid() {
           </div>
           <div>
             <h1 className="ipd-title">IPD Bed Allotment &amp; Ward Matrix</h1>
-            <p className="ipd-subtitle">
-              Real-time bed availability, ward occupancy matrix &amp; instant patient allocation
-            </p>
+           
           </div>
         </div>
 
         <div className="ipd-header-right">
-          <div className="ipd-occupancy-badge">
-            <span className="ipd-occ-rate">{occupancyPercentage}%</span>
-            <span className="ipd-occ-label">Occupancy<br />Rate</span>
-          </div>
+         
 
-          <button
-            type="button"
-            className="ipd-refresh-btn"
-            onClick={loadData}
-            title="Refresh bed availability matrix"
-          >
-            <Icon name="LuRefreshCw" size={14} className={loading ? "spin" : ""} />
-            <span>Refresh</span>
-          </button>
+         
         </div>
       </div>
 
-      {/* ── 2. EYE-CATCHING KPI SUMMARY CARDS ── */}
-      <div className="ipd-kpi-grid">
-        {/* Total Beds */}
-        <div className="ipd-kpi-card ipd-kpi-card--total" onClick={() => setFilterStatus("All")} style={{ cursor: "pointer" }}>
-          <div className="ipd-kpi-info">
-            <h4>Total Registered Beds</h4>
-            <div className="ipd-kpi-number">{totalBeds}</div>
-            <p className="ipd-kpi-sub">Across All Wards &amp; Units</p>
-          </div>
-          <div className="ipd-kpi-icon-box">
-            <Icon name="LuBedDouble" size={24} />
-          </div>
-        </div>
-
-        {/* Available Beds */}
-        <div className="ipd-kpi-card ipd-kpi-card--available" onClick={() => setFilterStatus("available")} style={{ cursor: "pointer" }}>
-          <div className="ipd-kpi-info">
-            <h4>Vacant &amp; Sanitized</h4>
-            <div className="ipd-kpi-number">{availableBeds}</div>
-            <p className="ipd-kpi-sub">Ready for Immediate Allotment</p>
-          </div>
-          <div className="ipd-kpi-icon-box">
-            <Icon name="LuCheckCircle" size={24} />
-          </div>
-        </div>
-
-        {/* Occupied Beds */}
-        <div className="ipd-kpi-card ipd-kpi-card--occupied" onClick={() => setFilterStatus("occupied")} style={{ cursor: "pointer" }}>
-          <div className="ipd-kpi-info">
-            <h4>Occupied / Admitted</h4>
-            <div className="ipd-kpi-number">{occupiedBeds}</div>
-            <p className="ipd-kpi-sub">Active Inpatient Admissions</p>
-          </div>
-          <div className="ipd-kpi-icon-box">
-            <Icon name="LuUserCheck" size={24} />
-          </div>
-        </div>
-
-        {/* Under Maintenance */}
-        <div className="ipd-kpi-card ipd-kpi-card--maintenance" onClick={() => setFilterStatus("maintenance")} style={{ cursor: "pointer" }}>
-          <div className="ipd-kpi-info">
-            <h4>Under Maintenance</h4>
-            <div className="ipd-kpi-number">{maintenanceBeds}</div>
-            <p className="ipd-kpi-sub">Cleaning &amp; Sterilization</p>
-          </div>
-          <div className="ipd-kpi-icon-box">
-            <Icon name="LuSparkles" size={24} />
-          </div>
-        </div>
-      </div>
 
       {/* ── 3. CONTROLS & FILTER TOOLBAR ── */}
       <div className="ipd-toolbar-card">

@@ -132,7 +132,7 @@ export default function BedAllotment() {
       toast.error("Please select an available bed first!");
       return;
     }
-    toast.success(`Bed ${selectedBed.bedNo} successfully allotted to Rohit Kumar (UHID12345)!`, {
+    toast.success(`Bed ${selectedBed.bedNo} successfully allotted to ()!`, {
       icon: "🛏️",
     });
   };
@@ -285,7 +285,7 @@ export default function BedAllotment() {
 
             <div className="patient-info-col">
               <div className="patient-name-title">
-                Rohit Kumar
+               
                 <span className="patient-badge-exist">Existing Patient</span>
               </div>
               <span className="patient-meta-text" style={{ fontWeight: 700, color: "#2563eb" }}>

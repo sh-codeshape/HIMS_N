@@ -3,24 +3,7 @@ import toast from "react-hot-toast";
 import Icon from "../../components/common/Icon.jsx";
 import "./LabBilling.css";
 
-// Sample Patient Data matching screenshot
-const DEFAULT_PATIENT = {
-  uhid: "UHID12345",
-  name: "Rohit Kumar",
-  age: 28,
-  gender: "Male",
-  phone: "9876543210",
-  address: "Varanasi, Uttar Pradesh",
-  bloodGroup: "B+",
-  allergies: "NKA",
-  knownHistory: "Hypertension, Diabetes",
-  lastVisit: "29-09-2026",
-  referredBy: "Dr. Amit Sharma",
-  patientType: "OPD",
-  department: "General Medicine",
-  doctor: "Dr. Amit Sharma",
-  avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-};
+
 
 // Test Catalog List
 const ALL_LAB_TESTS = [
@@ -56,7 +39,7 @@ export default function LabBilling() {
   // Search state
   const [searchBy, setSearchBy] = useState("UHID");
   const [searchInput, setSearchInput] = useState("UHID12345");
-  const [patient, setPatient] = useState(DEFAULT_PATIENT);
+  const [patient, setPatient] = useState([]);
 
   // Category filter state
   const [activeCategory, setActiveCategory] = useState("Common Tests");
@@ -88,7 +71,7 @@ export default function LabBilling() {
   const handleSearchPatient = (e) => {
     if (e) e.preventDefault();
     if (searchInput.trim()) {
-      setPatient(DEFAULT_PATIENT);
+      setPatient([]);
       toast.success("Patient details loaded successfully.");
     }
   };

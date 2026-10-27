@@ -5,7 +5,7 @@ import { useAuth } from "../../auth/AuthContext.jsx";
 import { useRole } from "../../hooks/useRole";
 import { useModules } from "../../context/ModuleContext";
 import Icon from "../common/Icon.jsx";
-import codeShapeLogo from "../../assets/logos/codeshape-logo.png";
+import NarayanLogo from "/NarayanLogo.png";
 import "./Sidebar.css";
 
 export default function Sidebar() {     
@@ -109,7 +109,7 @@ export default function Sidebar() {
         {/* Hospital Brand Area */}
         <div className="sidebar__brand">
           <div className="sidebar__brand-logo-circle">
-            <img src={codeShapeLogo} alt="CodeShape Logo" className="sidebar__logo-img" />
+            <img src={NarayanLogo} alt="CodeShape Logo" className="sidebar__logo-img" />
           </div>
           <div className="sidebar__brand-text">
             <span className="sidebar__brand-hospital">Narayan Hospital</span>

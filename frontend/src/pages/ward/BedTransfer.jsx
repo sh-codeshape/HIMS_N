@@ -36,7 +36,7 @@ export default function BedTransfer() {
       return;
     }
     toast.success(
-      `Patient Rohit Kumar transferred from GW-101 - B3 to ${selectedTargetBed.bedNo} successfully!`,
+      `Patient transferred from GW-101 - B3 to ${selectedTargetBed.bedNo} successfully!`,
       { icon: "🔄" }
     );
   };
@@ -138,7 +138,7 @@ export default function BedTransfer() {
 
             <div className="patient-info-col">
               <div className="patient-name-title">
-                Rohit Kumar
+               
                 <span className="patient-badge-exist">Admitted</span>
               </div>
               <span className="patient-meta-text" style={{ fontWeight: 700, color: "#2563eb" }}>

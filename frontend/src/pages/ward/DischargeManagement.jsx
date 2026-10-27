@@ -113,7 +113,7 @@ export default function DischargeManagement() {
           <div className="discharge-avatar-box">RK</div>
           <div className="patient-main-info">
             <div className="patient-name-title">
-              Rohit Kumar
+          
               <span className="patient-badge-exist">Admitted</span>
             </div>
             <div className="patient-meta-row">
@@ -548,35 +548,7 @@ export default function DischargeManagement() {
             {/* Document Title Banner */}
             <div className="document-title-banner">DISCHARGE SUMMARY</div>
 
-            {/* Patient Meta Info Grid Table */}
-            <table className="doc-info-table">
-              <tbody>
-                <tr>
-                  <td><strong>UHID:</strong> UHID12345</td>
-                  <td><strong>IPD No.:</strong> IPD20260929001</td>
-                </tr>
-                <tr>
-                  <td><strong>Patient Name:</strong> Rohit Kumar</td>
-                  <td><strong>Age / Gender:</strong> 28 Years / Male</td>
-                </tr>
-                <tr>
-                  <td><strong>Department:</strong> General Medicine</td>
-                  <td><strong>Consultant:</strong> Dr. Amit Sharma</td>
-                </tr>
-                <tr>
-                  <td><strong>Ward / Room / Bed:</strong> GW102 (B-12)</td>
-                  <td><strong>Admission Type:</strong> Routine</td>
-                </tr>
-                <tr>
-                  <td><strong>Admission Date:</strong> 29-09-2026 10:30 AM</td>
-                  <td><strong>Discharge Date:</strong> 02-10-2026 04:20 PM</td>
-                </tr>
-                <tr>
-                  <td><strong>Length of Stay:</strong> 3 Days</td>
-                  <td><strong>Discharge Type:</strong> Normal</td>
-                </tr>
-              </tbody>
-            </table>
+        
 
             {/* Section 1: Diagnosis */}
             <div className="doc-section-head">Diagnosis</div>

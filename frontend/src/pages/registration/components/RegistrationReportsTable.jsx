@@ -7,7 +7,7 @@ import {
   LuSearch, LuX, LuDownload, LuFilter,
   LuEye, LuSquarePen, LuRefreshCw, LuBan, LuTrash2,
   LuPrinter, LuSave, LuCircleX, LuCircleCheck, LuChevronDown,
-  LuFolderSearch, LuBedDouble, LuFileText
+  LuFolderSearch, LuBedDouble, LuFileText, LuPlus
 } from "react-icons/lu";
 import "./RegistrationReportsTable.css";
 
@@ -282,6 +282,13 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
     const occupation = patient.occupation || customFields.occupation || "";
     const notes = patient.notes || patient.remarks || customFields.notes || customFields.remarks || "";
 
+    const regFee = Number(patient.registration_fee || patient.fee || customFields.registration_fee || customFields.fee || 100);
+    const cardFee = Number(patient.card_fee || customFields.card_fee || 100);
+    const totalFee = Number(patient.total_fee || patient.totalFee || customFields.total_fee || (regFee + cardFee));
+    const paymentMode = patient.paymentMode || patient.paymentType || customFields.payment_type || customFields.payment_mode || "Cash / Counter";
+    const paymentStatus = customFields.payment_status || "PAID";
+    const receiptNo = `REG-REC-${String(patient.uhid || "1001").replace(/[^0-9]/g, "").slice(-8) || "1001"}`;
+
     return {
       fullName,
       addressLine,
@@ -312,6 +319,12 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
       gender: patient.gender || "—",
       uhid: patient.uhid || "—",
       customFields,
+      regFee,
+      cardFee,
+      totalFee,
+      paymentMode,
+      paymentStatus,
+      receiptNo,
     };
   };
 
@@ -518,11 +531,14 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                     <LuFileText size={20} />
                   </div>
                   <div>
-                    <h3 className="rr-modal-title">Patient Registration Form</h3>
+                    <h3 className="rr-modal-title">
+                      Patient Registration Form
+                      <span className="rr-chip">Hospital Record</span>
+                    </h3>
                     <p className="rr-modal-meta">
-                      UHID: <strong className="rr-mono">{viewP.uhid || "—"}</strong>
+                      UHID: <strong className="rr-mono">{displayData.uhid || "—"}</strong>
                       <span style={{ margin: "0 8px", opacity: 0.6 }}>•</span>
-                      Reg Date: <strong>{viewP.registeredAt || viewP.regDate || "—"}</strong>
+                      Reg Date: <strong>{regDate || "—"}</strong>
                     </p>
                   </div>
                 </div>
@@ -547,6 +563,25 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
               {/* Form Content (Scrollable & Form Tables) */}
               <div className="rr-modal-body">
 
+                {/* Hospital Top Branding Header */}
+                <div className="rr-hosp-header">
+                  <div className="rr-hosp-brand">
+                    <div className="rr-hosp-logo">
+                      <LuPlus size={26} />
+                    </div>
+                    <div>
+                      <h2 className="rr-hosp-name">NARAYAN HOSPITAL &amp; MEDICAL RESEARCH CENTRE</h2>
+                      <p className="rr-hosp-sub">NABH Accredited Multi-Specialty Hospital • 24x7 Emergency &amp; Trauma Care</p>
+                      <p className="rr-hosp-addr">Station Road, Civil Lines, Kota, Rajasthan - 324001 • Tel: +91 744 2450000</p>
+                    </div>
+                  </div>
+                  <div className="rr-hosp-tag-box">
+                    <span className="rr-hosp-tag-lbl">REGISTRATION CARD &amp; RECORD</span>
+                    <span className="rr-hosp-tag-uhid">{displayData.uhid}</span>
+                    <span className="rr-hosp-tag-date">Date: {regDate}</span>
+                  </div>
+                </div>
+
                 {/* Patient Summary Header Card */}
                 <div className="rr-banner">
                   <div className="rr-banner-left">
@@ -560,14 +595,14 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                         <span>•</span>
                         <span>Reg. Date: <strong>{regDate}</strong></span>
                         <span>•</span>
-                        <span>Category: <strong>{displayData.category}</strong></span>
+                        <span>Category: <strong style={{ color: displayData.category === "IPD" ? "#7e22ce" : "#1d4ed8", background: displayData.category === "IPD" ? "#faf5ff" : "#eff6ff", border: `1px solid ${displayData.category === "IPD" ? "#e9d5ff" : "#bfdbfe"}`, padding: "1px 8px", borderRadius: 4 }}>{displayData.category}</strong></span>
                       </div>
                     </div>
                   </div>
                   <div className="rr-banner-right">
                     <small>Current Status</small>
-                    <span style={{ color: getStatus(displayData.status).color, display: "inline-flex", alignItems: "center", gap: "5px" }}>
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: getStatus(displayData.status).color, display: "inline-block" }} />
+                    <span style={{ background: `${getStatus(displayData.status).color}15`, color: getStatus(displayData.status).color, border: `1px solid ${getStatus(displayData.status).color}40`, padding: "3px 10px", borderRadius: "14px", fontWeight: 800, fontSize: "11.5px", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: getStatus(displayData.status).color, display: "inline-block" }} />
                       {displayData.status || "Waiting"}
                     </span>
                   </div>
@@ -579,7 +614,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                     <h4 className="rr-section-title">
                       <span className="rr-dot rr-dot--blue"></span> 1. Patient Details
                     </h4>
-                    <span className="rr-section-note">Personal & Demographics</span>
+                    <span className="rr-section-note">Personal &amp; Demographics</span>
                   </div>
                   <table className="rr-dtable">
                     <tbody>
@@ -599,7 +634,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                         <td className="rr-lbl">Date of Birth</td>
                         <td className="rr-val">{dobFormatted}</td>
                         <td className="rr-lbl">Blood Group</td>
-                        <td className="rr-val rr-val--blood">{displayData.bloodGroup}</td>
+                        <td className="rr-val rr-val--blood">{displayData.bloodGroup ? `🩸 ${displayData.bloodGroup}` : "—"}</td>
                       </tr>
                       <tr>
                         <td className="rr-lbl">Nationality</td>
@@ -607,7 +642,6 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                         <td className="rr-lbl">Aadhaar / ID</td>
                         <td className="rr-val">{displayData.idNumber || "—"}</td>
                       </tr>
-                     
                     </tbody>
                   </table>
                 </div>
@@ -618,7 +652,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                     <h4 className="rr-section-title">
                       <span className="rr-dot rr-dot--green"></span> 2. Contact Details
                     </h4>
-                    <span className="rr-section-note">Communication & Address</span>
+                    <span className="rr-section-note">Communication &amp; Address</span>
                   </div>
                   <table className="rr-dtable">
                     <tbody>
@@ -637,7 +671,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                       <tr>
                         <td className="rr-lbl">State</td>
                         <td className="rr-val">{displayData.state || "—"}</td>
-                        <td className="rr-lbl">Pincode & Country</td>
+                        <td className="rr-lbl">Pincode &amp; Country</td>
                         <td className="rr-val">{displayData.country || "India"} {displayData.postalCode ? `(${displayData.postalCode})` : ""}</td>
                       </tr>
                       <tr>
@@ -654,7 +688,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                     <h4 className="rr-section-title">
                       <span className="rr-dot rr-dot--red"></span> 3. Emergency Contact Details
                     </h4>
-                    <span className="rr-section-note">Guardian & Next of Kin</span>
+                    <span className="rr-section-note">Guardian &amp; Next of Kin</span>
                   </div>
                   <table className="rr-dtable">
                     <tbody>
@@ -676,9 +710,9 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                 <div className="rr-section">
                   <div className="rr-section-head">
                     <h4 className="rr-section-title">
-                      <span className="rr-dot rr-dot--violet"></span> 4. Clinical & Visit Information
+                      <span className="rr-dot rr-dot--violet"></span> 4. Clinical &amp; Visit Information
                     </h4>
-                    <span className="rr-section-note">Consultation & Department</span>
+                    <span className="rr-section-note">Consultation &amp; Department</span>
                   </div>
                   <table className="rr-dtable">
                     <tbody>
@@ -704,6 +738,73 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                       )}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Section 5: Registration Fee & Payment Receipt */}
+                <div className="rr-section">
+                  <div className="rr-section-head">
+                    <h4 className="rr-section-title">
+                      <span className="rr-dot rr-dot--green"></span> 5. Registration Fee &amp; Payment Receipt
+                    </h4>
+                    <span className="rr-section-note">Billing &amp; Financial Record (पंजीकरण शुल्क विवरण)</span>
+                  </div>
+                  <table className="rr-dtable">
+                    <tbody>
+                      <tr>
+                        <td className="rr-lbl">Registration Fee</td>
+                        <td className="rr-val rr-val--strong">₹ {Number(displayData.regFee).toFixed(2)}</td>
+                        <td className="rr-lbl">Hospital Smart Card Fee</td>
+                        <td className="rr-val rr-val--strong">₹ {Number(displayData.cardFee).toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td className="rr-lbl">Payment Mode</td>
+                        <td className="rr-val">{displayData.paymentMode}</td>
+                        <td className="rr-lbl">Receipt Number</td>
+                        <td className="rr-val rr-mono rr-val--uhid">{displayData.receiptNo}</td>
+                      </tr>
+                      <tr>
+                        <td className="rr-lbl">Total Amount Paid</td>
+                        <td className="rr-val rr-val--strong" style={{ color: "#047857", fontSize: "13px" }}>
+                          ₹ {Number(displayData.totalFee).toFixed(2)}
+                        </td>
+                        <td className="rr-lbl">Payment Status</td>
+                        <td className="rr-val">
+                          <span style={{ background: "#dcfce7", color: "#15803d", border: "1px solid #bbf7d0", padding: "2px 8px", borderRadius: 4, fontWeight: 800, fontSize: "11px", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                            ✓ {displayData.paymentStatus} (प्राप्त)
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Section 6: Hospital Instructions & Important Guidelines */}
+                <div className="rr-section rr-rules-section">
+                  <div className="rr-section-head">
+                    <h4 className="rr-section-title">
+                      <span className="rr-dot" style={{ backgroundColor: "#f59e0b" }}></span> 6. Hospital Instructions &amp; Patient Guidelines
+                    </h4>
+                    <span className="rr-section-note">Important Patient Information (दिशानिर्देश)</span>
+                  </div>
+                  <div className="rr-rules-list">
+                    <p>• <strong>Permanent UHID:</strong> This Unique Hospital Identification (UHID) is lifelong and valid for all future OPD, IPD, Diagnostics, Emergency &amp; Pharmacy services.</p>
+                    <p>• <strong>Hospital Card:</strong> Please preserve this registration slip and present it at the Registration Desk and Doctor Consultation Chambers on every visit.</p>
+                    <p>• <strong>24x7 Facilities:</strong> Emergency, ICU, Pathology Lab, Blood Bank, and Ambulance services operate 24x7 without interruption.</p>
+                  </div>
+                </div>
+
+                {/* Print Verification & Signatures Bar */}
+                <div className="rr-print-footer">
+                  <div className="rr-print-barcode-box">
+                    <div className="rr-barcode-lines"></div>
+                    <span className="rr-barcode-text">*{displayData.uhid}*</span>
+                    <span className="rr-gen-stamp">Generated: {new Date().toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="rr-print-sig-box">
+                    <div className="rr-sig-line"></div>
+                    <span className="rr-sig-label">Authorized Registration Officer / Hospital In-Charge</span>
+                    <span className="rr-hosp-seal">Narayan Hospital &amp; Medical Research Centre</span>
+                  </div>
                 </div>
 
               </div>
