@@ -18,6 +18,8 @@ router.get('/rooms', controller.getRooms);
 router.get('/categories', controller.getBedCategories);
 router.post('/sync-inventory', (0, authorize_1.authorize)(['bed.manage']), controller.syncAllBedsToInventory);
 router.get('/:id', (0, validate_1.validate)(bed_schema_1.getBedByIdSchema), controller.getBed);
+router.post('/wards', (0, authorize_1.authorize)(['bed.manage']), (0, validate_1.validate)(bed_schema_1.createWardSchema), controller.createWard);
+router.post('/rooms', (0, authorize_1.authorize)(['bed.manage']), (0, validate_1.validate)(bed_schema_1.createRoomSchema), controller.createRoom);
 router.post('/', (0, authorize_1.authorize)(['bed.manage']), (0, validate_1.validate)(bed_schema_1.createBedSchema), controller.createBed);
 router.put('/:id', (0, authorize_1.authorize)(['bed.manage']), (0, validate_1.validate)(bed_schema_1.updateBedSchema), controller.updateBed);
 router.delete('/:id', (0, authorize_1.authorize)(['bed.manage']), (0, validate_1.validate)(bed_schema_1.deleteBedSchema), controller.deleteBed);
