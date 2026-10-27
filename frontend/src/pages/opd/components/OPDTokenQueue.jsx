@@ -1,67 +1,13 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import Icon from "../../../components/common/Icon.jsx";
 import { mockStore } from "../../../mock/mockStore";
 import patientService from "../../../api/services/patientService";
 import opdService from "../../../api/services/opdService";
+import doctorService from "../../../services/doctorService";
 import PrintSlipHandler from "../../../services/PrintSlipHandler";
 import "./OPDTokenQueue.css";
-
-// ── Department & Doctor Fee Structure ──────────────────────────────────────────
-const DEPARTMENT_FEES = {
-  "General Medicine": 500,
-  Cardiology: 700,
-  Orthopedics: 600,
-  Pediatrics: 400,
-  Gynecology: 600,
-  "General Surgery": 750,
-  Neurology: 800,
-  Dermatology: 500,
-  ENT: 450,
-  Ophthalmology: 450,
-  Urology: 700,
-};
-
-const DOCTOR_LIST = {
-  "General Medicine": [
-    { id: "d1", name: "Dr. Amit Sharma", degree: "MBBS, MD (Medicine)", status: "Available", room: "101" },
-    { id: "d2", name: "Dr. Neha Singh", degree: "MBBS, MD (Medicine)", status: "Available", room: "102" },
-    { id: "d3", name: "Dr. Raj Verma", degree: "MBBS, MD (Medicine)", status: "Busy", room: "103" },
-  ],
-  Cardiology: [
-    { id: "d4", name: "Dr. Priya Deshmukh", degree: "MD (Cardiology)", status: "Available", room: "201" },
-    { id: "d5", name: "Dr. Suresh Gupta", degree: "DM (Cardiology)", status: "Available", room: "202" },
-  ],
-  Orthopedics: [
-    { id: "d6", name: "Dr. Anand Kulkarni", degree: "MS (Ortho)", status: "Available", room: "301" },
-    { id: "d7", name: "Dr. Vikram Rao", degree: "DNB (Ortho)", status: "Available", room: "302" },
-  ],
-  Pediatrics: [
-    { id: "d8", name: "Dr. Arvind Saxena", degree: "MD (Pediatrics)", status: "Available", room: "401" },
-  ],
-  Gynecology: [
-    { id: "d9", name: "Dr. Meenakshi Iyer", degree: "DGO (Gynae)", status: "Available", room: "501" },
-  ],
-  "General Surgery": [
-    { id: "d10", name: "Dr. Rajesh Sharma", degree: "MS (Surgery)", status: "Available", room: "601" },
-  ],
-  Neurology: [
-    { id: "d11", name: "Dr. Vinay Patil", degree: "DM (Neuro)", status: "Available", room: "701" },
-  ],
-  Dermatology: [
-    { id: "d12", name: "Dr. Sneha Joshi", degree: "MD (Derma)", status: "Available", room: "801" },
-  ],
-  ENT: [
-    { id: "d13", name: "Dr. Kiran Rathi", degree: "MS (ENT)", status: "Available", room: "901" },
-  ],
-  Ophthalmology: [
-    { id: "d14", name: "Dr. Rohit Agarwal", degree: "MS (Ophthal)", status: "Available", room: "1001" },
-  ],
-  Urology: [
-    { id: "d15", name: "Dr. Manoj Chaurasia", degree: "MCh (Urology)", status: "Available", room: "1101" },
-  ],
-};
 
 // ── Complaint Categories & Popular Complaints Dataset ──────────────────────────
 const COMPLAINT_CATEGORIES = [
@@ -173,9 +119,12 @@ export default function OPDTokenQueue() {
   const [attendantRelation, setAttendantRelation] = useState("");
   const [attendantPhone, setAttendantPhone] = useState("");
 
-  // Form Section 3: Department & Doctor
-  const [department, setDepartment] = useState("General Medicine");
-  const [selectedDoctor, setSelectedDoctor] = useState(DOCTOR_LIST["General Medicine"][0]);
+  // Form Section 3: Department & Doctor (loaded dynamically from DB)
+  const [departments, setDepartments] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [department, setDepartment] = useState("");
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [loadingDoctors, setLoadingDoctors] = useState(true);
 
   // Form Section 4: Consultation Details
   const [consultationType, setConsultationType] = useState("General OPD");
@@ -266,7 +215,7 @@ export default function OPDTokenQueue() {
             const found = results[0];
             setSelectedPatient(found);
             setSearchQuery(`${found.full_name || found.name || found.first_name} (${found.uhid})`);
-            if (found.department && DOCTOR_LIST[found.department]) {
+            if (found.department) {
               setDepartment(found.department);
             }
             try {
@@ -288,17 +237,64 @@ export default function OPDTokenQueue() {
     loadFromUrl();
   }, [searchParams]);
 
-  // Update Consultation Fee & Selected Doctor when Department changes
+  // Load departments and doctors dynamically from DB
+  const loadDoctorsAndDepartments = async () => {
+    try {
+      setLoadingDoctors(true);
+      const [depts, docs] = await Promise.all([
+        doctorService.getDepartments(),
+        doctorService.getDoctors(),
+      ]);
+      setDepartments(depts || []);
+      setDoctors(docs || []);
+      if (depts && depts.length > 0) {
+        setDepartment((prev) => prev || depts[0].name || depts[0]);
+      }
+    } catch (err) {
+      console.error("Failed to load departments and doctors:", err);
+    } finally {
+      setLoadingDoctors(false);
+    }
+  };
+
   useEffect(() => {
-    const fee = DEPARTMENT_FEES[department] || 500;
-    setConsultationFee(fee);
-    const docs = DOCTOR_LIST[department] || [];
-    if (docs.length > 0) {
-      setSelectedDoctor(docs[0]);
+    loadDoctorsAndDepartments();
+  }, []);
+
+  // Filter doctors belonging to the selected department
+  const currentDoctors = useMemo(() => {
+    if (!department) return doctors;
+    const clean = department.toLowerCase().trim();
+    return doctors.filter((doc) => {
+      const matchSpec = (doc.specialization || "").toLowerCase().trim() === clean;
+      const matchDept = (doc.department || "").toLowerCase().trim() === clean;
+      const matchId = String(doc.department_id || doc.departmentId || "").toLowerCase() === clean;
+      return matchSpec || matchDept || matchId;
+    });
+  }, [doctors, department]);
+
+  // Update Consultation Fee & Selected Doctor when Department, Doctor list, or Visit Type changes
+  useEffect(() => {
+    if (currentDoctors.length > 0) {
+      const stillValid = currentDoctors.find(
+        (d) => d.name === selectedDoctor?.name || d.id === selectedDoctor?.id
+      );
+      const doc = stillValid || currentDoctors[0];
+      setSelectedDoctor(doc);
+
+      const fee =
+        visitType === "Emergency"
+          ? (doc.emergency_fee || 800)
+          : visitType === "Re-visit / Follow-up"
+          ? (doc.old_patient_fee || 300)
+          : (doc.consultation_fee || 500);
+
+      setConsultationFee(fee);
     } else {
       setSelectedDoctor(null);
+      setConsultationFee(500);
     }
-  }, [department]);
+  }, [department, currentDoctors, visitType]);
 
   // Handle Patient Search Input Change
   const handleSearchChange = async (e) => {
@@ -411,8 +407,8 @@ export default function OPDTokenQueue() {
         gender: selectedPatient.gender || "Male",
         address: selectedPatient.address || "Sector 21, Noida, Uttar Pradesh",
         doctor: selectedDoctor.name,
-        doctorDegree: selectedDoctor.degree,
-        roomNo: selectedDoctor.room,
+        doctorDegree: selectedDoctor.qualification || selectedDoctor.degree || "",
+        roomNo: selectedDoctor.address || selectedDoctor.room || "OPD",
         department,
         chiefComplaint: `${chiefComplaintText} (${duration} ${durationUnit})`,
         symptoms,
@@ -450,8 +446,6 @@ export default function OPDTokenQueue() {
       window.print();
     }
   };
-
-  const currentDoctors = DOCTOR_LIST[department] || [];
 
   return (
     <div className="opd-container">
@@ -826,7 +820,10 @@ export default function OPDTokenQueue() {
                   <button
                     type="button"
                     className="opd-refresh-link"
-                    onClick={() => toast.success("Refreshed doctor list")}
+                    onClick={async () => {
+                      await loadDoctorsAndDepartments();
+                      toast.success("Refreshed doctors and departments from DB");
+                    }}
                   >
                     <Icon name="LuRefreshCw" size={12} /> Refresh
                   </button>
@@ -836,13 +833,17 @@ export default function OPDTokenQueue() {
                 className="opd-select"
                 value={department}
                 onChange={(e) => setDepartment(e.target.value)}
+                disabled={loadingDoctors}
               >
                 <option value="">— Select Department / विभाग चुनें —</option>
-                {Object.keys(DOCTOR_LIST).map((dep) => (
-                  <option key={dep} value={dep}>
-                    {dep}
-                  </option>
-                ))}
+                {departments.map((dep) => {
+                  const deptName = dep.name || dep;
+                  return (
+                    <option key={dep.id || deptName} value={deptName}>
+                      {deptName}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -855,10 +856,10 @@ export default function OPDTokenQueue() {
                 {selectedDoctor && (
                   <span
                     className={`opd-doc-status ${
-                      selectedDoctor.status === "Available" ? "status-avail" : "status-busy"
+                      selectedDoctor.is_active !== false ? "status-avail" : "status-busy"
                     }`}
                   >
-                    ● {selectedDoctor.status}
+                    ● {selectedDoctor.is_active !== false ? "Available" : "On Leave"}
                   </span>
                 )}
               </div>
@@ -867,13 +868,23 @@ export default function OPDTokenQueue() {
                 value={selectedDoctor?.name || ""}
                 onChange={(e) => {
                   const doc = currentDoctors.find((d) => d.name === e.target.value);
-                  if (doc) setSelectedDoctor(doc);
+                  if (doc) {
+                    setSelectedDoctor(doc);
+                    const fee =
+                      visitType === "Emergency"
+                        ? (doc.emergency_fee || 800)
+                        : visitType === "Re-visit / Follow-up"
+                        ? (doc.old_patient_fee || 300)
+                        : (doc.consultation_fee || 500);
+                    setConsultationFee(fee);
+                  }
                 }}
+                disabled={loadingDoctors}
               >
                 <option value="">— Select Doctor / डॉक्टर चुनें —</option>
                 {currentDoctors.map((doc) => (
-                  <option key={doc.name} value={doc.name}>
-                    {doc.name} ({doc.degree}) — {doc.status}
+                  <option key={doc.id || doc.name} value={doc.name}>
+                    {doc.name} ({doc.qualification || doc.degree || "Doctor"}) — {doc.is_active !== false ? "Available" : "On Leave"}
                   </option>
                 ))}
               </select>

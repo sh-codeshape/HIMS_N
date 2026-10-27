@@ -60,6 +60,42 @@ export class PractitionerRepository {
       const count = parseInt(countResult.rows[0].count) + 1;
       const staffCode = `DOC-${count.toString().padStart(4, '0')}`;
 
+      // Resolve or auto-provision department_id from specialization
+      let departmentId = data.department_id || null;
+      const specName = data.specialization || 'General Medicine';
+
+      if (!departmentId && specName) {
+        try {
+          const deptCheck = await client.query(
+            `SELECT id FROM departments 
+             WHERE organization_id = $1 AND (LOWER(name) = LOWER($2) OR LOWER(code) = LOWER($2)) 
+             LIMIT 1`,
+            [organizationId, specName]
+          );
+          if (deptCheck.rows.length > 0) {
+            departmentId = deptCheck.rows[0].id;
+          } else {
+            const baseCode = specName.replace(/[^A-Za-z0-9]/g, '').substring(0, 4).toUpperCase() || 'DEPT';
+            const deptCountRes = await client.query('SELECT COUNT(*) FROM departments WHERE facility_id = $1', [facilityId]);
+            const deptCode = `${baseCode}-${(parseInt(deptCountRes.rows[0]?.count || '0') + 1).toString().padStart(2, '0')}`;
+            
+            const newDeptRes = await client.query(
+              `INSERT INTO departments (
+                 organization_id, facility_id, code, name, department_type, is_active
+               )
+               VALUES ($1, $2, $3, $4, 'clinical', true)
+               RETURNING id`,
+              [organizationId, facilityId, deptCode, specName]
+            );
+            if (newDeptRes.rows.length > 0) {
+              departmentId = newDeptRes.rows[0].id;
+            }
+          }
+        } catch (err) {
+          console.warn('Could not auto-link department:', err);
+        }
+      }
+
       const customFields = {
         name_hindi: data.nameHindi || '',
         qualification_hindi: data.qualificationHindi || '',
@@ -89,7 +125,7 @@ export class PractitionerRepository {
 
       const staffResult = await client.query(staffQuery, [
         organizationId,
-        data.department_id || null,
+        departmentId,
         staffCode,
         firstName,
         lastName,
@@ -187,12 +223,31 @@ export class PractitionerRepository {
         lastName = parts.slice(1).join(' ') || null;
       }
 
+      let departmentId = data.department_id;
+      if (departmentId === undefined && data.specialization) {
+        try {
+          const deptCheck = await client.query(
+            `SELECT id FROM departments 
+             WHERE (LOWER(name) = LOWER($1) OR LOWER(code) = LOWER($1)) 
+             LIMIT 1`,
+            [data.specialization]
+          );
+          if (deptCheck.rows.length > 0) {
+            departmentId = deptCheck.rows[0].id;
+          }
+        } catch (err) {
+          console.warn('Could not auto-link department on update:', err);
+        }
+      }
+
       await client.query(
         `UPDATE staff 
          SET first_name = $1, last_name = $2, designation = COALESCE($3, designation), 
              phone = COALESCE($4, phone), email = COALESCE($5, email),
-             is_active = COALESCE($6, is_active), custom_fields = $7, updated_at = NOW()
-         WHERE id = $8`,
+             is_active = COALESCE($6, is_active), custom_fields = $7,
+             department_id = COALESCE($8, department_id),
+             updated_at = NOW()
+         WHERE id = $9`,
         [
           firstName,
           lastName,
@@ -201,6 +256,7 @@ export class PractitionerRepository {
           data.email || null,
           data.is_active !== undefined ? data.is_active : null,
           JSON.stringify(updatedCustom),
+          departmentId || null,
           staffId,
         ]
       );

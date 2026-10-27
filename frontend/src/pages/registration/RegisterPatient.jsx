@@ -6,6 +6,7 @@ import {
   LuBed, LuRotateCcw, LuGlobe, LuCircleX
 } from "react-icons/lu";
 import patientService from "../../api/services/patientService";
+import doctorService from "../../services/doctorService";
 import {
   required, phone, email, pincode, aadhaar, age as ageValidator,
   validateField,
@@ -96,7 +97,15 @@ export default function RegisterPatient() {
   const [searchResults, setSearchResults] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedPatientForFamily, setSelectedPatientForFamily] = useState(null);
+  const [availableDoctors, setAvailableDoctors] = useState([]);
   const searchRef = useRef(null);
+
+  useEffect(() => {
+    doctorService
+      .getDoctors()
+      .then((docs) => setAvailableDoctors(docs || []))
+      .catch((err) => console.error("Failed to load doctors:", err));
+  }, []);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -920,14 +929,11 @@ export default function RegisterPatient() {
                   className="rp-select"
                 >
                   <option value="">Select Doctor</option>
-                  <option value="Dr. Sadhana Chaurasiya (BAMS)">Dr. Sadhana Chaurasiya (BAMS)</option>
-                  <option value="Dr. Anand Prakash Tiwari (MS)Ay">Dr. Anand Prakash Tiwari (MS)Ay</option>
-                  <option value="Dr. Akhilesh Kumar Singh">Dr. Akhilesh Kumar Singh</option>
-                  <option value="Dr. Meenakshi Iyer">Dr. Meenakshi Iyer</option>
-                  <option value="Dr. Ranju Chaurasia">Dr. Ranju Chaurasia</option>
-                  <option value="Dr. Manoj Chaurasia">Dr. Manoj Chaurasia</option>
-                  <option value="Dr. Aman Sharma">Dr. Aman Sharma</option>
-                  <option value="Dr. Priya Deshmukh">Dr. Priya Deshmukh</option>
+                  {availableDoctors.map((doc) => (
+                    <option key={doc.id || doc.name} value={doc.name}>
+                      {doc.name} {doc.qualification ? `(${doc.qualification})` : ""} · {doc.specialization}
+                    </option>
+                  ))}
                 </select>
               </div>
 

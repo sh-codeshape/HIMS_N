@@ -11,6 +11,10 @@ const staffService = {
     const res = await axiosInstance.get(ENDPOINTS.STAFF.DOCTORS, { params });
     return res.data?.data ?? res.data ?? [];
   },
+  getDepartments: async () => {
+    const res = await axiosInstance.get(ENDPOINTS.STAFF.DEPARTMENTS);
+    return res.data?.data ?? res.data ?? [];
+  },
 };
 
 export default staffService;

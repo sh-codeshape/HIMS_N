@@ -498,6 +498,56 @@ const doctorService = {
       return true;
     }
   },
+
+  /**
+   * Get all departments from backend DB or derived from doctors
+   */
+  getDepartments: async () => {
+    try {
+      const res = await axiosInstance.get("/staff/departments", { skipErrorToast: true });
+      const list = res.data?.data ?? res.data ?? [];
+      if (Array.isArray(list) && list.length > 0) {
+        return list;
+      }
+    } catch {
+      // Backend unavailable or error, fall through
+    }
+
+    // Fallback: derive departments from doctors + standard clinical list
+    const doctors = await doctorService.getDoctors();
+    const deptNames = Array.from(
+      new Set(
+        doctors
+          .map((d) => d.specialization || d.department)
+          .filter(Boolean)
+      )
+    );
+    if (deptNames.length === 0) {
+      deptNames.push("General Medicine", "Cardiology", "Orthopedics", "Pediatrics", "Gynecology & Obstetrics");
+    }
+    return deptNames.map((name, idx) => ({
+      id: `dept-${idx + 1}`,
+      name,
+      code: name.replace(/[^A-Za-z0-9]/g, "").substring(0, 4).toUpperCase() || `D${idx + 1}`,
+      department_type: "clinical",
+      is_active: true,
+    }));
+  },
+
+  /**
+   * Filter doctors by department name or ID
+   */
+  getDoctorsByDepartment: async (deptIdentifier) => {
+    const all = await doctorService.getDoctors();
+    if (!deptIdentifier) return all;
+    const clean = String(deptIdentifier).toLowerCase().trim();
+    return all.filter((d) => {
+      const matchId = String(d.department_id || d.departmentId || "").toLowerCase() === clean;
+      const matchSpec = String(d.specialization || "").toLowerCase() === clean;
+      const matchDept = String(d.department || "").toLowerCase() === clean;
+      return matchId || matchSpec || matchDept;
+    });
+  },
 };
 
 export default doctorService;

@@ -17,20 +17,37 @@ export class StaffRepository {
     const query = `
       SELECT
         p.id as practitioner_id,
+        p.id,
         s.id as staff_id,
         s.first_name,
         s.last_name,
+        TRIM(CONCAT(s.first_name, ' ', COALESCE(s.last_name, ''))) as name,
         s.staff_code,
         s.department_id,
+        d.name as department,
         p.specialty_id,
         p.registration_no,
         p.qualifications,
-        s.is_active
+        s.phone,
+        s.email,
+        s.is_active,
+        COALESCE((s.custom_fields->>'consultation_fee')::numeric, 500) as consultation_fee,
+        COALESCE((s.custom_fields->>'old_patient_fee')::numeric, 300) as old_patient_fee,
+        COALESCE((s.custom_fields->>'emergency_fee')::numeric, 800) as emergency_fee,
+        s.custom_fields->>'name_hindi' as "nameHindi",
+        s.custom_fields->>'qualification_hindi' as "qualificationHindi",
+        COALESCE(s.custom_fields->>'specialization', d.name, 'General Medicine') as specialization,
+        s.custom_fields->>'gender' as gender,
+        s.custom_fields->>'display_schedule' as "displaySchedule",
+        s.custom_fields->>'address' as address,
+        s.custom_fields->>'avatar' as avatar
       FROM practitioners p
       JOIN staff s ON p.staff_id = s.id
+      LEFT JOIN departments d ON s.department_id = d.id
       WHERE s.organization_id = (SELECT organization_id FROM facilities WHERE id = $1 LIMIT 1)
         AND s.staff_type = 'doctor'
         AND s.is_active = true
+      ORDER BY s.first_name ASC
     `;
     const result = await db.query(query, [facilityId]);
     return result.rows;
