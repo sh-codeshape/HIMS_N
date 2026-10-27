@@ -17,7 +17,7 @@ const sidebarConfig = [
     label: "Dashboard",
     icon: "LuLayoutDashboard",
     path: "/dashboard",
-    allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION, PHARMACY],
+    allowedRoles: [], // Accessible to all authenticated users
   },
   {
     key: "registration",
@@ -96,6 +96,7 @@ const sidebarConfig = [
     icon: "LuFileText",
     path: "/reports/master",
     allowedRoles: [SUPER_ADMIN, ADMIN],
+    allowedPermissions: [PERMISSIONS.REPORTS_VIEW, "report.view", "report.financial"],
   },
   {
     key: "pharmacy",
@@ -116,8 +117,8 @@ const sidebarConfig = [
     allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR],
     children: [
       { label: "Dashboard", path: "/laboratory/dashboard", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.LABORATORY_VIEW] },
-      { label: "Add Test Report", path: "/laboratory/add-test-report", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.LABORATORY_ORDER] },
-      { label: "Report Summary", path: "/laboratory/report-summary", allowedRoles: [SUPER_ADMIN, ADMIN], allowedPermissions: [PERMISSIONS.LABORATORY_REPORT] },
+      { label: "Add Test Report", path: "/laboratory/add-test-report", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.LABORATORY_ORDER, "lab.enter_result"] },
+      { label: "Report Summary", path: "/laboratory/report-summary", allowedRoles: [SUPER_ADMIN, ADMIN], allowedPermissions: [PERMISSIONS.LABORATORY_REPORT, "lab.verify_result"] },
     ],
   },
   {
@@ -128,7 +129,7 @@ const sidebarConfig = [
     children: [
       { label: "X-Ray / MRI Schedule", path: "/radiology/schedule", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.RADIOLOGY_SCHEDULE] },
       { label: "DICOM Viewer / PACS", path: "/radiology/dicom-viewer", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.RADIOLOGY_VIEW] },
-      { label: "Scan Reports", path: "/radiology/scan-reports", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.RADIOLOGY_REPORT] },
+      { label: "Scan Reports", path: "/radiology/scan-reports", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.RADIOLOGY_REPORT, "imaging.report"] },
     ],
   },
   {
@@ -137,7 +138,7 @@ const sidebarConfig = [
     icon: "LuHospital",
     allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION],
     children: [
-      { label: "Floor & Bed Floor Map", path: "/ward/floor-map", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION], allowedPermissions: [PERMISSIONS.WARD_VIEW] },
+      { label: "Floor & Bed Floor Map", path: "/ward/floor-map", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION], allowedPermissions: [PERMISSIONS.WARD_VIEW, PERMISSIONS.BED_MANAGE] },
       { label: "Bed Allotment", path: "/ward/bed-allotment", allowedRoles: [SUPER_ADMIN, ADMIN, RECEPTION], allowedPermissions: [PERMISSIONS.BED_MANAGE] },
       { label: "Bed Transfer", path: "/ward/bed-transfer", allowedRoles: [SUPER_ADMIN, ADMIN, RECEPTION], allowedPermissions: [PERMISSIONS.BED_MANAGE] },
       { label: "Bed Availability", path: "/ward/bed-availability", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION], allowedPermissions: [PERMISSIONS.WARD_VIEW] },
@@ -152,10 +153,10 @@ const sidebarConfig = [
     allowedRoles: [SUPER_ADMIN, ADMIN],
     section: "FINANCIALS & ADMIN",
     children: [
-      { label: "Create Main Bill", path: "/billing-invoices/create-bill", allowedRoles: [SUPER_ADMIN, ADMIN] },
-      { label: "Advance Deposits", path: "/billing-invoices/advance-deposits", allowedRoles: [SUPER_ADMIN, ADMIN] },
-      { label: "TPA & Insurance Claims", path: "/billing-invoices/tpa-insurance", allowedRoles: [SUPER_ADMIN, ADMIN] },
-      { label: "Refund & Discounts", path: "/billing-invoices/refund-discounts", allowedRoles: [SUPER_ADMIN, ADMIN] },
+      { label: "Create Main Bill", path: "/billing-invoices/create-bill", allowedRoles: [SUPER_ADMIN, ADMIN], allowedPermissions: [PERMISSIONS.BILLING_CREATE, "invoice.create"] },
+      { label: "Advance Deposits", path: "/billing-invoices/advance-deposits", allowedRoles: [SUPER_ADMIN, ADMIN], allowedPermissions: [PERMISSIONS.BILLING_CREATE, "payment.collect"] },
+      { label: "TPA & Insurance Claims", path: "/billing-invoices/tpa-insurance", allowedRoles: [SUPER_ADMIN, ADMIN], allowedPermissions: ["insurance.manage", PERMISSIONS.BILLING_VIEW] },
+      { label: "Refund & Discounts", path: "/billing-invoices/refund-discounts", allowedRoles: [SUPER_ADMIN, ADMIN], allowedPermissions: [PERMISSIONS.BILLING_REFUND, "discount.apply", "discount.approve"] },
     ],
   },
   {
@@ -164,19 +165,19 @@ const sidebarConfig = [
     icon: "LuWarehouse",
     allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY],
     children: [
-      { label: "Dashboard", path: "/inventory/dashboard", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY] },
-      { label: "Asset Management", path: "/inventory/asset-management", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY] },
-      { label: "Items", path: "/inventory/items", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY] },
-      { label: "Categories", path: "/inventory/categories", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY] },
-      { label: "Stores", path: "/inventory/stores", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY] },
-      { label: "Suppliers", path: "/inventory/suppliers", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY] },
-      { label: "Stock", path: "/inventory/stock", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY] },
-      { label: "Stock Movements", path: "/inventory/stock-movements", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY] },
-      { label: "Stock Adjustment", path: "/inventory/stock-adjustment", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY] },
-      { label: "Purchase Orders", path: "/inventory/purchase-orders", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY] },
-      { label: "Goods Receipts", path: "/inventory/goods-receipts", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY] },
-      { label: "Stock Transfers", path: "/inventory/stock-transfers", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY] },
-      { label: "Expiry Tracker", path: "/inventory/expiry-tracker", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY] },
+      { label: "Dashboard", path: "/inventory/dashboard", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: [PERMISSIONS.INVENTORY_VIEW] },
+      { label: "Asset Management", path: "/inventory/asset-management", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: [PERMISSIONS.INVENTORY_MANAGE] },
+      { label: "Items", path: "/inventory/items", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: [PERMISSIONS.INVENTORY_VIEW] },
+      { label: "Categories", path: "/inventory/categories", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: [PERMISSIONS.INVENTORY_VIEW] },
+      { label: "Stores", path: "/inventory/stores", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: [PERMISSIONS.INVENTORY_VIEW] },
+      { label: "Suppliers", path: "/inventory/suppliers", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: [PERMISSIONS.INVENTORY_VIEW] },
+      { label: "Stock", path: "/inventory/stock", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: [PERMISSIONS.INVENTORY_VIEW] },
+      { label: "Stock Movements", path: "/inventory/stock-movements", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: [PERMISSIONS.INVENTORY_VIEW] },
+      { label: "Stock Adjustment", path: "/inventory/stock-adjustment", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: [PERMISSIONS.INVENTORY_MANAGE] },
+      { label: "Purchase Orders", path: "/inventory/purchase-orders", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: ["purchase.create", "purchase.approve", PERMISSIONS.INVENTORY_MANAGE] },
+      { label: "Goods Receipts", path: "/inventory/goods-receipts", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: ["grn.post", PERMISSIONS.INVENTORY_MANAGE] },
+      { label: "Stock Transfers", path: "/inventory/stock-transfers", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: [PERMISSIONS.INVENTORY_MANAGE] },
+      { label: "Expiry Tracker", path: "/inventory/expiry-tracker", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: [PERMISSIONS.INVENTORY_VIEW] },
     ],
   },
   {
@@ -185,9 +186,9 @@ const sidebarConfig = [
     icon: "LuFileHeart",
     allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR],
     children: [
-      { label: "Birth Certificates", path: "/medical-reports/birth-certificates", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR] },
-      { label: "Death Certificates", path: "/medical-reports/death-certificates", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR] },
-      { label: "MLC (Medico-Legal Cases)", path: "/medical-reports/mlc", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR] },
+      { label: "Birth Certificates", path: "/medical-reports/birth-certificates", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.REPORTS_VIEW, "clinical.read"] },
+      { label: "Death Certificates", path: "/medical-reports/death-certificates", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.REPORTS_VIEW, "clinical.read"] },
+      { label: "MLC (Medico-Legal Cases)", path: "/medical-reports/mlc", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.REPORTS_VIEW, "clinical.read"] },
     ],
   },
   {
@@ -196,8 +197,8 @@ const sidebarConfig = [
     icon: "LuShieldAlert",
     allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION],
     children: [
-      { label: "Ambulance Tracking", path: "/emergency/ambulance-tracking", allowedRoles: [SUPER_ADMIN, ADMIN, RECEPTION] },
-      { label: "Trauma Case Intake", path: "/emergency/trauma-intake", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION] },
+      { label: "Ambulance Tracking", path: "/emergency/ambulance-tracking", allowedRoles: [SUPER_ADMIN, ADMIN, RECEPTION], allowedPermissions: [PERMISSIONS.EMERGENCY_VIEW] },
+      { label: "Trauma Case Intake", path: "/emergency/trauma-intake", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION], allowedPermissions: [PERMISSIONS.EMERGENCY_CREATE, PERMISSIONS.EMERGENCY_VIEW] },
     ],
   },
   {
@@ -206,7 +207,7 @@ const sidebarConfig = [
     icon: "LuRepeat",
     allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION],
     children: [
-      { label: "Follow-Up List", path: "/follow-up/list", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION] },
+      { label: "Follow-Up List", path: "/follow-up/list", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION], allowedPermissions: [PERMISSIONS.OPD_VIEW, "appointment.manage", "clinical.read"] },
     ],
   },
   {

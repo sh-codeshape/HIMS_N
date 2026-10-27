@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { mockStore } from "../../../mock/mockStore";
 import { useAuth } from "../../../auth";
 import patientService from "../../../api/services/patientService";
+import doctorService from "../../../services/doctorService";
 import { ROLES } from "../../../auth/roles";
 import {
   LuSearch, LuX, LuDownload, LuFilter,
@@ -90,6 +91,13 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
   const [statusP, setStatusP]       = useState(null);
   const [newStatus, setNewStatus]   = useState("");
   const [cancelP, setCancelP]       = useState(null);
+  const [dynamicDoctors, setDynamicDoctors] = useState([]);
+  const [dynamicDepartments, setDynamicDepartments] = useState([]);
+
+  useEffect(() => {
+    doctorService.getDoctors().then(docs => setDynamicDoctors(docs || [])).catch(() => {});
+    doctorService.getDepartments().then(depts => setDynamicDepartments(depts || [])).catch(() => {});
+  }, []);
 
   const canEdit   = [ROLES.RECEPTION, ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(user?.role);
   const canDelete = [ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(user?.role);
@@ -1196,10 +1204,11 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                       className="rr-select"
                     >
                       <option value="">Select doctor / source</option>
-                      <option value="Dr. Ranju Chaurasia">Dr. Ranju Chaurasia</option>
-                      <option value="Dr. Manoj Chaurasia">Dr. Manoj Chaurasia</option>
-                      <option value="Dr. Aman Sharma">Dr. Aman Sharma</option>
-                      <option value="Dr. Priya Deshmukh">Dr. Priya Deshmukh</option>
+                      {dynamicDoctors.map((doc) => (
+                        <option key={doc.id || doc.name} value={doc.name}>
+                          {doc.name} {doc.specialization ? `(${doc.specialization})` : ""}
+                        </option>
+                      ))}
                       <option value="Self">Self</option>
                       <option value="Other Hospital">Other Hospital</option>
                     </select>
@@ -1215,11 +1224,10 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                       className="rr-select"
                     >
                       <option value="">Select department</option>
-                      {["General Medicine","Cardiology","Neurology","Orthopedics",
-                        "Gynecology","Pediatrics","Dermatology","ENT","Ophthalmology",
-                        "Urology","Surgery"].map((d) => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
+                      {dynamicDepartments.map((d) => {
+                        const name = d.name || d;
+                        return <option key={d.id || name} value={name}>{name}</option>;
+                      })}
                     </select>
                   </div>
 

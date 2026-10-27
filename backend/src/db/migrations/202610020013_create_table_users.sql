@@ -1,4 +1,4 @@
--- migrate:up
+1-- migrate:up
 CREATE TABLE users (
     id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id   uuid NOT NULL REFERENCES organizations(id),

@@ -76,7 +76,13 @@ export default function Button({
         </svg>
       )}
       {icon && !loading && (
-        <span className="flex-shrink-0">{typeof icon === "string" ? null : icon}</span>
+        <span className="flex-shrink-0">
+          {typeof icon === "function"
+            ? React.createElement(icon, { size: 16 })
+            : typeof icon === "object"
+            ? icon
+            : null}
+        </span>
       )}
       {children}
     </button>

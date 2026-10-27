@@ -6,30 +6,9 @@ import Icon from "../../../components/common/Icon.jsx";
 import { mockStore } from "../../../mock/mockStore";
 import patientService from "../../../api/services/patientService";
 import ipdService from "../../../api/services/ipdService";
+import doctorService from "../../../services/doctorService";
 import axiosInstance from "../../../api/axiosInstance";
 import "./IPDAdmissionView.css";
-
-
-
-const DOCTORS_BY_DEPT = {
-  "General Medicine": [
-    { id: "d1", name: "Dr. Amit Sharma", degree: "MD (General Medicine)" },
-    { id: "d2", name: "Dr. Neha Singh", degree: "MBBS, MD" },
-  ],
-  Cardiology: [
-    { id: "d3", name: "Dr. Priya Deshmukh", degree: "MD (Cardiology)" },
-    { id: "d4", name: "Dr. Suresh Gupta", degree: "DM (Cardiology)" },
-  ],
-  Orthopedics: [
-    { id: "d5", name: "Dr. Anand Kulkarni", degree: "MS (Ortho)" },
-  ],
-  Pediatrics: [
-    { id: "d6", name: "Dr. Arvind Saxena", degree: "MD (Pediatrics)" },
-  ],
-  Gynecology: [
-    { id: "d7", name: "Dr. Meenakshi Iyer", degree: "DGO (Gynae)" },
-  ],
-};
 
 const POPULAR_IPD_COMPLAINTS = [
   "Fever / High Grade Pyrexia",
@@ -260,8 +239,8 @@ export default function IPDAdmissionView() {
             { id: 3, bed_no: "GW-101-B3", ward_name: "General Ward", room_name: "GW-101", current_status: "occupied" },
             { id: 4, bed_no: "ICU-01", ward_name: "ICU", room_name: "ICU-1", current_status: "available" },
           ]),
-          axiosInstance.get("/staff/departments").then((r) => r.data?.data || []).catch(() => []),
-          axiosInstance.get("/staff/doctors").then((r) => r.data?.data || []).catch(() => []),
+          doctorService.getDepartments().catch(() => []),
+          doctorService.getDoctors().catch(() => []),
         ]);
 
         const mappedPatients = (patientsData || []).map((p) => ({
@@ -291,10 +270,12 @@ export default function IPDAdmissionView() {
 
         const mappedDoctors = (docsData || []).map((d) => ({
           id: d.practitioner_id || d.id,
-          name: `${d.first_name || ""} ${d.last_name || ""}`.trim() || d.name || "Doctor",
-          departmentId: d.department_id,
-          qualifications: d.qualifications,
-          registrationNo: d.registration_no,
+          name: d.name || `${d.first_name || ""} ${d.last_name || ""}`.trim() || "Doctor",
+          departmentId: d.department_id || d.departmentId,
+          specialization: d.specialization || d.department,
+          qualifications: d.qualification || d.qualifications || "",
+          registrationNo: d.registration_no || "",
+          is_active: d.is_active !== undefined ? d.is_active : true,
         }));
 
         setPatients(mappedPatients.length ? mappedPatients : (mockStore.getPatients ? mockStore.getPatients() : []));
@@ -321,7 +302,11 @@ export default function IPDAdmissionView() {
   // Sync selectedDoctor with department change
   useEffect(() => {
     if (department && doctors.length > 0) {
-      const docs = doctors.filter((d) => d.departmentId === department.id);
+      const docs = doctors.filter((d) => {
+        const matchId = d.departmentId && department.id && String(d.departmentId) === String(department.id);
+        const matchName = d.specialization && department.name && d.specialization.toLowerCase() === department.name.toLowerCase();
+        return matchId || matchName;
+      });
       setSelectedDoctor(docs.length > 0 ? docs[0] : null);
     }
   }, [department, doctors]);
@@ -905,11 +890,15 @@ export default function IPDAdmissionView() {
               >
                 <option value="">Select Doctor</option>
                 {(department
-                  ? doctors.filter((d) => d.departmentId === department.id)
+                  ? doctors.filter((d) => {
+                      const matchId = d.departmentId && department.id && String(d.departmentId) === String(department.id);
+                      const matchName = d.specialization && department.name && d.specialization.toLowerCase() === department.name.toLowerCase();
+                      return matchId || matchName;
+                    })
                   : doctors
                 ).map((doc) => (
                   <option key={doc.id} value={doc.id}>
-                    {doc.name} {doc.qualifications ? `(${doc.qualifications})` : ""}
+                    {doc.name} {doc.qualifications ? `(${doc.qualifications})` : ""} {doc.is_active === false ? "(On Leave)" : ""}
                   </option>
                 ))}
               </select>

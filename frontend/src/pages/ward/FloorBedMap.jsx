@@ -23,7 +23,38 @@ export default function FloorBedMap() {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [showAddBedModal, setShowAddBedModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [bedToDelete, setBedToDelete] = useState(null);
   const [transferForm, setTransferForm] = useState({ fromBedId: "", toBedId: "" });
+
+  // Edit Bed form state
+  const [editBedForm, setEditBedForm] = useState({
+    id: "",
+    bed_no: "",
+    ward_id: "",
+    room_id: "",
+    room_no: "",
+    room_type: "general",
+    bed_category_id: "",
+    bed_charge_service_id: "",
+    status: "available",
+    features: {
+      oxygen: false,
+      monitor: false,
+      ventilator: false,
+      motorized: false,
+      emergency_call_bell: false,
+      iv_pole: false,
+      suction: false,
+      side_rails: false,
+    },
+    is_active: true,
+    patientName: "",
+    uhid: "",
+  });
 
   // Add Bed form state
   const [wards, setWards] = useState([]);
@@ -171,12 +202,21 @@ export default function FloorBedMap() {
     bedNo: b.bed_no,
     room: b.room_name || b.room_id || "-",
     wardName: b.ward_name || "-",
+    wardId: b.ward_id,
+    roomId: b.room_id,
+    bedCategoryId: b.bed_category_id,
+    categoryName: b.category_name || "-",
+    bedChargeRate: b.bed_charge_rate || 0,
+    features: typeof b.features === "object" && b.features !== null ? b.features : {},
+    isActive: b.is_active !== undefined ? b.is_active : true,
     patientName: b.patient_first_name || b.patient_last_name ? `${b.patient_first_name || ""} ${b.patient_last_name || ""}`.trim() : "-",
     uhid: b.patient_uhid || "-",
     ageGender: b.patient_id ? `${calculateBedAge(b.date_of_birth) ?? "-"} Y / ${b.gender || "-"}` : "-",
     admissionDate: b.admission_id ? new Date(b.admitted_at).toLocaleDateString("en-GB") : "-",
-    department: b.department_name || "-",
-    status: b.current_status,
+    doctorName: b.doctor_first_name || b.doctor_last_name ? `Dr. ${b.doctor_first_name || ""} ${b.doctor_last_name || ""}`.trim() : "-",
+    department: b.department_name || b.ward_type || "-",
+    status: b.current_status || b.status || "available",
+    rawBed: b,
   });
 
   const bedsView = useMemo(() => bedsData.map(bedViewFromApi), [bedsData]);
@@ -315,6 +355,9 @@ export default function FloorBedMap() {
         features: addBedForm.features,
       };
       const bed = await ipdService.addBed(payload);
+      if (bed) {
+        setBedsData((prev) => [...prev, bed]);
+      }
       toast.success(`Bed ${addBedForm.bed_no} added successfully!`, { icon: "🛏️" });
       setShowAddBedModal(false);
       setAddBedForm({
@@ -336,6 +379,147 @@ export default function FloorBedMap() {
     } catch (err) {
       console.error(err);
       toast.error(err?.response?.data?.error?.message || "Failed to add bed");
+    }
+  };
+
+  // Rooms available for the ward selected in the Edit Bed form
+  const editRoomsForWard = useMemo(() => {
+    if (!editBedForm.ward_id) return rooms;
+    return rooms.filter((r) => r.ward_id === editBedForm.ward_id);
+  }, [rooms, editBedForm.ward_id]);
+
+  // Open Edit Bed modal with full current configuration
+  const handleOpenEditModal = (bed) => {
+    const raw = bedsData.find((b) => b.id === bed.id) || bed.rawBed || bed;
+    const feats = typeof raw.features === "object" && raw.features !== null ? raw.features : {};
+    setEditBedForm({
+      id: raw.id,
+      bed_no: raw.bed_no || bed.bedNo || "",
+      ward_id: raw.ward_id || bed.wardId || "",
+      room_id: raw.room_id || bed.roomId || "",
+      room_no: raw.room_name || raw.room_no || bed.room || "",
+      room_type: raw.room_type || "general",
+      bed_category_id: raw.bed_category_id || bed.bedCategoryId || "",
+      bed_charge_service_id: raw.bed_charge_service_id || "",
+      status: (raw.current_status || raw.status || bed.status || "available").toLowerCase(),
+      features: {
+        oxygen: !!feats.oxygen,
+        monitor: !!feats.monitor,
+        ventilator: !!feats.ventilator,
+        motorized: !!feats.motorized,
+        emergency_call_bell: !!feats.emergency_call_bell,
+        iv_pole: !!feats.iv_pole,
+        suction: !!feats.suction,
+        side_rails: !!feats.side_rails,
+      },
+      is_active: raw.is_active !== undefined ? raw.is_active : true,
+      patientName: bed.patientName !== "-" ? bed.patientName : (raw.patient_first_name || raw.patient_last_name ? `${raw.patient_first_name || ""} ${raw.patient_last_name || ""}`.trim() : null),
+      uhid: bed.uhid !== "-" ? bed.uhid : (raw.patient_uhid || null),
+    });
+    setSelectedBedModal(null);
+    setShowEditModal(true);
+  };
+
+  // Handle Edit Bed submission -> PUT /beds/:id
+  const handleEditBedSubmit = async (e) => {
+    e.preventDefault();
+    if (!editBedForm.bed_no.trim()) {
+      toast.error("Bed number is required");
+      return;
+    }
+    if (!editBedForm.ward_id) {
+      toast.error("Please select a ward");
+      return;
+    }
+
+    try {
+      setEditLoading(true);
+      const selectedCategory = bedCategories.find((c) => c.id === editBedForm.bed_category_id);
+      const selectedWard = wards.find((w) => w.id === editBedForm.ward_id);
+      const selectedRoom = rooms.find((r) => r.id === editBedForm.room_id);
+
+      const payload = {
+        bed_no: editBedForm.bed_no.trim(),
+        ward_id: editBedForm.ward_id,
+        room_id: editBedForm.room_id || null,
+        room_no: editBedForm.room_no || selectedRoom?.room_no || undefined,
+        room_type: editBedForm.room_type,
+        bed_category_id: editBedForm.bed_category_id || null,
+        bed_charge_service_id: selectedCategory?.bed_charge_service_id || undefined,
+        status: editBedForm.status,
+        features: editBedForm.features,
+        is_active: editBedForm.is_active,
+      };
+
+      const updated = await ipdService.updateBed(editBedForm.id, payload);
+
+      setBedsData((prev) =>
+        prev.map((b) => {
+          if (b.id === editBedForm.id) {
+            return {
+              ...b,
+              ...(updated || {}),
+              bed_no: editBedForm.bed_no.trim(),
+              ward_id: editBedForm.ward_id,
+              ward_name: selectedWard?.name || b.ward_name,
+              floor: selectedWard?.floor || b.floor,
+              room_id: editBedForm.room_id || b.room_id,
+              room_name: editBedForm.room_no || selectedRoom?.room_no || b.room_name,
+              bed_category_id: editBedForm.bed_category_id,
+              category_name: selectedCategory?.name || b.category_name,
+              bed_charge_rate: selectedCategory?.daily_rate || b.bed_charge_rate,
+              status: editBedForm.status,
+              current_status: editBedForm.status,
+              features: editBedForm.features,
+              is_active: editBedForm.is_active,
+            };
+          }
+          return b;
+        })
+      );
+
+      toast.success(`Bed ${editBedForm.bed_no} updated successfully!`, { icon: "✅" });
+      setShowEditModal(false);
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.error?.message || err?.message || "Failed to update bed");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  // Open Delete Confirmation modal
+  const handlePromptDeleteBed = (bed) => {
+    const raw = bedsData.find((b) => b.id === bed.id) || bed.rawBed || bed;
+    setBedToDelete({
+      id: raw.id,
+      bedNo: raw.bed_no || bed.bedNo || "-",
+      room: raw.room_name || raw.room_no || bed.room || "-",
+      wardName: raw.ward_name || bed.wardName || "-",
+      status: (raw.current_status || raw.status || bed.status || "available").toLowerCase(),
+      patientName: bed.patientName !== "-" ? bed.patientName : (raw.patient_first_name || raw.patient_last_name ? `${raw.patient_first_name || ""} ${raw.patient_last_name || ""}`.trim() : null),
+      uhid: bed.uhid !== "-" ? bed.uhid : (raw.patient_uhid || null),
+    });
+    setShowDeleteConfirmModal(true);
+  };
+
+  // Confirm delete bed -> DELETE /beds/:id
+  const handleDeleteBedConfirm = async () => {
+    if (!bedToDelete?.id) return;
+    try {
+      setDeleteLoading(true);
+      await ipdService.deleteBed(bedToDelete.id);
+      setBedsData((prev) => prev.filter((b) => b.id !== bedToDelete.id));
+      toast.success(`Bed ${bedToDelete.bedNo} deleted successfully!`, { icon: "🗑️" });
+      setShowDeleteConfirmModal(false);
+      setBedToDelete(null);
+      setSelectedBedModal(null);
+      setShowEditModal(false);
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.error?.message || err?.message || "Failed to delete bed");
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -913,18 +1097,19 @@ export default function FloorBedMap() {
                         </button>
                         <button
                           type="button"
-                          className="table-action-icon-btn"
-                          title="More Options"
-                          onClick={() => {
-                            if (bed.status === "available") {
-                              setAllotForm({ ...allotForm, bedNo: bed.bedNo, room: bed.room });
-                              setShowAllotModal(true);
-                            } else {
-                              setSelectedBedModal(bed);
-                            }
-                          }}
+                          className="table-action-icon-btn table-action-icon-btn--edit"
+                          title="Edit Bed"
+                          onClick={() => handleOpenEditModal(bed)}
                         >
-                          <Icon name="LuMoreVertical" size={14} />
+                          <Icon name="LuPencil" size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="table-action-icon-btn table-action-icon-btn--delete"
+                          title="Delete Bed"
+                          onClick={() => handlePromptDeleteBed(bed)}
+                        >
+                          <Icon name="LuTrash2" size={14} />
                         </button>
                       </div>
                     </td>
@@ -947,9 +1132,12 @@ export default function FloorBedMap() {
         <div className="floor-map-modal-overlay" onClick={() => setSelectedBedModal(null)}>
           <div className="floor-map-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="floor-map-modal-header">
-              <h3 className="floor-map-modal-title">
-                Bed Details: {selectedBedModal.bedNo}
-              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ color: '#2563eb' }}><Icon name="LuBed" size={20} /></span>
+                <h3 className="floor-map-modal-title">
+                  Bed Details: {selectedBedModal.bedNo}
+                </h3>
+              </div>
               <button
                 type="button"
                 className="floor-map-modal-close"
@@ -959,14 +1147,23 @@ export default function FloorBedMap() {
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Room / Ward:</span>
-                <strong style={{ fontSize: '0.85rem' }}>{selectedBedModal.room}</strong>
+                <strong style={{ fontSize: '0.85rem' }}>
+                  {selectedBedModal.room} {selectedBedModal.wardName !== "-" ? `(${selectedBedModal.wardName})` : ""}
+                </strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Category & Rate:</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0f172a' }}>
+                  {selectedBedModal.categoryName || "General"}
+                  {selectedBedModal.bedChargeRate ? ` — ₹${Number(selectedBedModal.bedChargeRate).toLocaleString()} / day` : ""}
+                </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Current Status:</span>
-                <span className={`status-badge status-badge--${selectedBedModal.status.toLowerCase()}`}>
+                <span className={`status-badge status-badge--${(selectedBedModal.status || "available").toLowerCase()}`}>
                   {selectedBedModal.status}
                 </span>
               </div>
@@ -990,38 +1187,78 @@ export default function FloorBedMap() {
                 <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Department:</span>
                 <span style={{ fontSize: '0.85rem' }}>{selectedBedModal.department}</span>
               </div>
+              {selectedBedModal.doctorName && selectedBedModal.doctorName !== "-" && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Attending Doctor:</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{selectedBedModal.doctorName}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.2rem' }}>
+                <span style={{ color: '#64748b', fontSize: '0.825rem' }}>Amenities / Equipment:</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                  {Object.entries(selectedBedModal.features || {})
+                    .filter(([k, v]) => v === true && k !== 'is_bed_asset')
+                    .map(([k]) => (
+                      <span key={k} className="amenity-chip amenity-chip--active">
+                        ✓ {k.replace(/_/g, ' ')}
+                      </span>
+                    ))}
+                  {Object.entries(selectedBedModal.features || {}).filter(([k, v]) => v === true && k !== 'is_bed_asset').length === 0 && (
+                    <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Standard Bed</span>
+                  )}
+                </div>
+              </div>
             </div>
 
-            <div className="modal-actions-row">
-              {selectedBedModal.status === "occupied" && (
-                <button
-                  type="button"
-                  className="modal-btn-submit"
-                  style={{ background: '#ef4444' }}
-                  onClick={() => handleVacateBed(selectedBedModal.id)}
-                >
-                  Vacate / Discharge
-                </button>
-              )}
-              {selectedBedModal.status === "available" && (
-                <button
-                  type="button"
-                  className="modal-btn-submit"
-                  onClick={() => {
-                    setAllotForm({ ...allotForm, bedNo: selectedBedModal.bedNo, room: selectedBedModal.room });
-                    setShowAllotModal(true);
-                  }}
-                >
-                  Allocate Bed
-                </button>
-              )}
+            <div className="modal-actions-row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
               <button
                 type="button"
-                className="modal-btn-cancel"
-                onClick={() => setSelectedBedModal(null)}
+                className="modal-btn-delete"
+                onClick={() => handlePromptDeleteBed(selectedBedModal)}
               >
-                Close
+                <Icon name="LuTrash2" size={15} />
+                <span>Delete Bed</span>
               </button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="modal-btn-edit"
+                  onClick={() => handleOpenEditModal(selectedBedModal)}
+                >
+                  <Icon name="LuPencil" size={15} />
+                  <span>Edit Bed</span>
+                </button>
+                {selectedBedModal.status === "occupied" && (
+                  <button
+                    type="button"
+                    className="modal-btn-submit"
+                    style={{ background: '#ef4444' }}
+                    onClick={() => handleVacateBed(selectedBedModal.id)}
+                  >
+                    Vacate / Discharge
+                  </button>
+                )}
+                {selectedBedModal.status === "available" && (
+                  <button
+                    type="button"
+                    className="modal-btn-submit"
+                    onClick={() => {
+                      setAllotForm({ ...allotForm, bedNo: selectedBedModal.bedNo, room: selectedBedModal.room });
+                      setShowAllotModal(true);
+                      setSelectedBedModal(null);
+                    }}
+                  >
+                    Allocate Bed
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="modal-btn-cancel"
+                  onClick={() => setSelectedBedModal(null)}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1475,6 +1712,301 @@ export default function FloorBedMap() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 11. Edit Bed Modal - Full Configuration of All Bed Properties */}
+      {showEditModal && (
+        <div className="floor-map-modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="floor-map-modal-card floor-map-modal-card--lg" onClick={(e) => e.stopPropagation()}>
+            <div className="floor-map-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ color: '#2563eb' }}><Icon name="LuPencil" size={20} /></span>
+                <h3 className="floor-map-modal-title">Edit Bed: {editBedForm.bed_no}</h3>
+              </div>
+              <button
+                type="button"
+                className="floor-map-modal-close"
+                onClick={() => setShowEditModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {editBedForm.status === "occupied" && editBedForm.patientName && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px', padding: '0.65rem 0.85rem', marginBottom: '0.85rem', fontSize: '0.8rem', color: '#991b1b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Icon name="LuUsers" size={16} />
+                <span>Currently occupied by <strong>{editBedForm.patientName}</strong> (UHID: {editBedForm.uhid || "-"})</span>
+              </div>
+            )}
+
+            <form onSubmit={handleEditBedSubmit}>
+              <div className="modal-form-grid-2">
+                <div className="modal-form-group">
+                  <label className="modal-form-label">Bed No. *</label>
+                  <input
+                    type="text"
+                    className="modal-form-input"
+                    value={editBedForm.bed_no}
+                    onChange={(e) => setEditBedForm({ ...editBedForm, bed_no: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="modal-form-group">
+                  <label className="modal-form-label">Status *</label>
+                  <select
+                    className="modal-form-select"
+                    value={editBedForm.status}
+                    onChange={(e) => setEditBedForm({ ...editBedForm, status: e.target.value })}
+                  >
+                    <option value="available">Available</option>
+                    <option value="occupied">Occupied</option>
+                    <option value="reserved">Reserved</option>
+                    <option value="cleaning">Cleaning</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="blocked">Blocked</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="modal-form-grid-2">
+                <div className="modal-form-group">
+                  <label className="modal-form-label">Ward *</label>
+                  <select
+                    className="modal-form-select"
+                    value={editBedForm.ward_id}
+                    onChange={(e) => {
+                      const newWardId = e.target.value;
+                      setEditBedForm({
+                        ...editBedForm,
+                        ward_id: newWardId,
+                        room_id: "",
+                        room_no: "",
+                      });
+                    }}
+                    required
+                  >
+                    <option value="">-- Select Ward --</option>
+                    {wards.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name} {w.floor ? `(${w.floor})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="modal-form-group">
+                  <label className="modal-form-label">Room</label>
+                  <select
+                    className="modal-form-select"
+                    value={editBedForm.room_id}
+                    onChange={(e) => {
+                      const rId = e.target.value;
+                      const matched = editRoomsForWard.find((r) => r.id === rId);
+                      setEditBedForm({
+                        ...editBedForm,
+                        room_id: rId,
+                        room_no: matched?.room_no || editBedForm.room_no,
+                      });
+                    }}
+                  >
+                    <option value="">-- Custom / Select Room --</option>
+                    {editRoomsForWard.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.room_no} {r.room_type ? `(${r.room_type})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {!editBedForm.room_id && (
+                <div className="modal-form-group">
+                  <label className="modal-form-label">Custom Room No. (optional)</label>
+                  <input
+                    type="text"
+                    className="modal-form-input"
+                    placeholder="e.g. GW-101 or ISO-1"
+                    value={editBedForm.room_no}
+                    onChange={(e) => setEditBedForm({ ...editBedForm, room_no: e.target.value })}
+                  />
+                </div>
+              )}
+
+              <div className="modal-form-grid-2">
+                <div className="modal-form-group">
+                  <label className="modal-form-label">Bed Category / Class</label>
+                  <select
+                    className="modal-form-select"
+                    value={editBedForm.bed_category_id}
+                    onChange={(e) => setEditBedForm({ ...editBedForm, bed_category_id: e.target.value })}
+                  >
+                    <option value="">-- Standard / General --</option>
+                    {bedCategories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} {c.daily_rate ? `— ₹${Number(c.daily_rate).toLocaleString()} / day` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="modal-form-group">
+                  <label className="modal-form-label">Operational State</label>
+                  <div style={{ display: 'flex', alignItems: 'center', height: '38px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8125rem' }}>
+                      <input
+                        type="checkbox"
+                        checked={editBedForm.is_active}
+                        onChange={(e) => setEditBedForm({ ...editBedForm, is_active: e.target.checked })}
+                      />
+                      Active Bed (available in IPD)
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-form-group">
+                <label className="modal-form-label">Features & Biomedical Amenities</label>
+                <div className="amenities-grid">
+                  {[
+                    { key: "oxygen", label: "Oxygen Port" },
+                    { key: "monitor", label: "Cardiac Monitor" },
+                    { key: "ventilator", label: "Ventilator" },
+                    { key: "motorized", label: "Motorized Bed" },
+                    { key: "emergency_call_bell", label: "Call Bell" },
+                    { key: "iv_pole", label: "IV Infusion Pole" },
+                    { key: "suction", label: "Wall Suction" },
+                    { key: "side_rails", label: "Safety Rails" },
+                  ].map((feat) => (
+                    <label key={feat.key} className="amenity-checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={!!editBedForm.features?.[feat.key]}
+                        onChange={(e) =>
+                          setEditBedForm({
+                            ...editBedForm,
+                            features: {
+                              ...editBedForm.features,
+                              [feat.key]: e.target.checked,
+                            },
+                          })
+                        }
+                      />
+                      <span>{feat.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="modal-actions-row" style={{ justifyContent: 'space-between' }}>
+                <button
+                  type="button"
+                  className="modal-btn-delete"
+                  onClick={() => {
+                    handlePromptDeleteBed(editBedForm);
+                  }}
+                >
+                  <Icon name="LuTrash2" size={15} />
+                  <span>Delete Bed</span>
+                </button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className="modal-btn-cancel"
+                    onClick={() => setShowEditModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="modal-btn-submit"
+                    disabled={editLoading}
+                  >
+                    {editLoading ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 12. Delete Bed Confirmation Modal */}
+      {showDeleteConfirmModal && bedToDelete && (
+        <div className="floor-map-modal-overlay" onClick={() => setShowDeleteConfirmModal(false)}>
+          <div className="floor-map-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="floor-map-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ color: '#dc2626' }}><Icon name="LuTrash2" size={20} /></span>
+                <h3 className="floor-map-modal-title">Delete Bed: {bedToDelete.bedNo}</h3>
+              </div>
+              <button
+                type="button"
+                className="floor-map-modal-close"
+                onClick={() => setShowDeleteConfirmModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {bedToDelete.status === "occupied" ? (
+              <div className="delete-warning-box">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}>
+                  <Icon name="LuAlertTriangle" size={16} />
+                  <span>Cannot Delete Occupied Bed</span>
+                </div>
+                <div>
+                  Patient <strong>{bedToDelete.patientName || "Admitted Patient"}</strong> (UHID: {bedToDelete.uhid || "-"}) is currently occupying this bed.
+                </div>
+                <div style={{ marginTop: '0.25rem', fontSize: '0.775rem' }}>
+                  Please vacate, discharge, or transfer the patient before deleting this bed from the ward.
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+                <p style={{ margin: 0, fontSize: '0.875rem', color: '#334155' }}>
+                  Are you sure you want to delete <strong>Bed {bedToDelete.bedNo}</strong> in <strong>{bedToDelete.room}</strong> ({bedToDelete.wardName})?
+                </p>
+                <div style={{ background: '#f8fafc', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.8rem', color: '#64748b' }}>
+                  This action will soft-delete the bed and remove it from active floor maps and ward allocations.
+                </div>
+              </div>
+            )}
+
+            <div className="modal-actions-row">
+              <button
+                type="button"
+                className="modal-btn-cancel"
+                onClick={() => setShowDeleteConfirmModal(false)}
+              >
+                Cancel
+              </button>
+              {bedToDelete.status === "occupied" ? (
+                <button
+                  type="button"
+                  className="modal-btn-submit"
+                  style={{ background: '#ef4444' }}
+                  onClick={() => {
+                    handleVacateBed(bedToDelete.id);
+                    setShowDeleteConfirmModal(false);
+                  }}
+                >
+                  Vacate / Discharge First
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="modal-btn-submit"
+                  style={{ background: '#dc2626' }}
+                  disabled={deleteLoading}
+                  onClick={handleDeleteBedConfirm}
+                >
+                  {deleteLoading ? "Deleting..." : "Confirm Delete"}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

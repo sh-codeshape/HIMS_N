@@ -1,0 +1,187 @@
+at rback role management module,  you have impletmented things but the thing is it does create role and all but when we create a user, with the role create from there, even with every tick selected it's unable to login 
+
+
+ {
+    "success": true,
+    "message": "Modules retrieved successfully",
+    "data": [
+        {
+            "id": "e59184ae-4918-40a2-8a16-e2d25f96f1e9",
+            "module_key": "billing",
+            "label": "Billing",
+            "is_enabled": true,
+            "disabled_by": null,
+            "disabled_at": null,
+            "updated_at": "2026-10-25T15:34:47.680Z"
+        },
+        {
+            "id": "cf9ca8f1-1be0-43b6-a6db-6bb26ee1f37f",
+            "module_key": "billingInvoices",
+            "label": "Billing & Invoices",
+            "is_enabled": true,
+            "disabled_by": null,
+            "disabled_at": null,
+            "updated_at": "2026-10-22T12:07:48.630Z"
+        },
+        {
+            "id": "1cb71042-8557-425f-bc50-778666c77823",
+            "module_key": "bulkMessaging",
+            "label": "Bulk Messaging",
+            "is_enabled": false,
+            "disabled_by": "a62eef50-05ca-47f4-8f1b-513dc36c3b50",
+            "disabled_at": "2026-10-22T11:57:42.783Z",
+            "updated_at": "2026-10-22T11:57:42.798Z"
+        },
+        {
+            "id": "4081fb7d-904e-4528-ac78-82170a138b77",
+            "module_key": "dashboard",
+            "label": "Dashboard",
+            "is_enabled": true,
+            "disabled_by": null,
+            "disabled_at": null,
+            "updated_at": "2026-10-22T09:04:13.396Z"
+        },
+        {
+            "id": "dd799934-eff6-4ede-bf8a-5e7c74faa590",
+            "module_key": "developerConsole",
+            "label": "Developer Console",
+            "is_enabled": true,
+            "disabled_by": null,
+            "disabled_at": null,
+            "updated_at": "2026-10-22T09:04:13.396Z"
+        },
+        {
+            "id": "7947d0ee-dc7b-417d-9293-5eda36d890fe",
+            "module_key": "emergency",
+            "label": "Emergency Dispatch",
+            "is_enabled": true,
+            "disabled_by": null,
+            "disabled_at": null,
+            "updated_at": "2026-10-22T09:04:13.396Z"
+        },
+        {
+            "id": "166a9b9d-9da0-47c6-bb7d-49a10edfcd59",
+            "module_key": "followup",
+            "label": "Follow-Up",
+            "is_enabled": true,
+            "disabled_by": null,
+            "disabled_at": null,
+            "updated_at": "2026-10-22T09:04:13.396Z"
+        },
+        {
+            "id": "3bf5755b-ffca-44bc-bf8b-15a1de3c9043",
+            "module_key": "inventory",
+            "label": "Inventory Management",
+            "is_enabled": true,
+            "disabled_by": null,
+            "disabled_at": null,
+            "updated_at": "2026-10-22T09:04:13.396Z"
+        },
+        {
+            "id": "80004f78-4114-4121-9dce-28c8fbcf8b44",
+            "module_key": "ipd",
+            "label": "IPD / Ward",
+            "is_enabled": true,
+            "disabled_by": null,
+            "disabled_at": null,
+            "updated_at": "2026-10-22T09:04:13.396Z"
+        },
+        {
+            "id": "addc8994-9571-4cb4-874d-82d5d86de766",
+            "module_key": "laboratory",
+            "label": "Laboratory",
+            "is_enabled": true,
+            "disabled_by": null,
+            "disabled_at": null,
+            "updated_at": "2026-10-22T09:13:32.301Z"
+        },
+        {
+            "id": "810b4282-23fe-4a34-9609-40bd5d23b2a8",
+            "module_key": "masterReports",
+            "label": "Master Reports",
+            "is_enabled": true,
+            "disabled_by": null,
+            "disabled_at": null,
+            "updated_at": "2026-10-22T09:04:13.396Z"
+        },
+        {
+            "id": "ef06c483-78d2-4cb2-85a1-e7bb478e1fe8",
+            "module_key": "medicalReports",
+            "label": "Medical Reports",
+            "is_enabled": true,
+            "disabled_by": null,
+            "disabled_at": null,
+            "updated_at": "2026-10-22T09:04:13.396Z"
+        },
+        {
+            "id": "d0d8d1bf-c56e-4134-8d80-1c11982dcf71",
+            "module_key": "opd",
+            "label": "OPD",
+            "is_enabled": true,
+            "disabled_by": null,
+            "disabled_at": null,
+            "updated_at": "2026-10-22T09:04:13.396Z"
+        },
+        {
+            "id": "b85f33b5-74ff-4ffb-b8d8-f8d5da2852c7",
+            "module_key": "patients",
+            "label": "Patients",
+            "is_enabled": true,
+            "disabled_by": null,
+            "disabled_at": null,
+            "updated_at": "2026-10-22T09:04:13.396Z"
+        },
+        {
+            "id": "d0efa780-3305-4ab2-a585-ece5f237d7fa",
+            "module_key": "pharmacy",
+            "label": "Pharmacy / OOM",
+            "is_enabled": false,
+            "disabled_by": "f5114460-e6dc-429c-baf5-9c23036a9e69",
+            "disabled_at": "2026-10-22T09:13:31.371Z",
+            "updated_at": "2026-10-22T09:13:31.678Z"
+        },
+        {
+            "id": "8e40c4d6-c04f-4331-86d5-cc1521be970a",
+            "module_key": "radiology",
+            "label": "Radiology & Imaging",
+            "is_enabled": false,
+            "disabled_by": "a62eef50-05ca-47f4-8f1b-513dc36c3b50",
+            "disabled_at": "2026-10-22T11:57:24.083Z",
+            "updated_at": "2026-10-22T11:57:24.110Z"
+        },
+        {
+            "id": "6c6a1d36-604f-49f9-8344-afb9ce6d9ccb",
+            "module_key": "registration",
+            "label": "Registration",
+            "is_enabled": true,
+            "disabled_by": null,
+            "disabled_at": null,
+            "updated_at": "2026-10-22T09:04:13.396Z"
+        },
+        {
+            "id": "0d2821b9-d178-41a3-8a5f-2c6929e1d68f",
+            "module_key": "staff",
+            "label": "Doctors & Staff",
+            "is_enabled": true,
+            "disabled_by": null,
+            "disabled_at": null,
+            "updated_at": "2026-10-22T09:04:13.396Z"
+        },
+        {
+            "id": "9d6a02dd-40da-410a-a853-887706e2d7f8",
+            "module_key": "ward",
+            "label": "IPD / OPD Ward",
+            "is_enabled": true,
+            "disabled_by": null,
+            "disabled_at": null,
+            "updated_at": "2026-10-22T09:04:13.396Z"
+        }
+    ]
+}
+
+
+
+well this is what i have been getting /modules, but the page is blank 403 acceess denied ?
+
+
+so can  

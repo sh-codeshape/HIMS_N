@@ -59,15 +59,18 @@ export const updateBedSchema = z.object({
     id: z.string().uuid()
   }),
   body: z.object({
+    facility_id: z.string().uuid().optional(),
     ward_id: z.string().uuid().optional(),
     room_id: z.string().uuid().optional().nullable(),
+    room_no: z.string().min(1).max(40).optional(),
+    room_type: z.string().optional(),
     bed_category_id: z.string().uuid().optional().nullable(),
     bed_charge_service_id: z.string().uuid().optional().nullable(),
     bed_no: z.string().min(1).max(40).optional(),
     status: z.enum(BED_STATUSES).optional(),
     features: z.record(z.string(), z.unknown()).optional(),
     is_active: z.boolean().optional(),
-  }).partial(),
+  }).passthrough(),
 });
 
 export const deleteBedSchema = z.object({

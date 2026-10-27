@@ -202,9 +202,22 @@ async function seed() {
       }
     };
 
-    // Default permission sets per role (super admin = everything)
-    const allCodes = permissionsToSeed.map((p) => p.code);
+    // Default permission sets per role (super admin = everything except developer tooling;
+    // the standalone developer role is seeded directly via seed-developer.ts)
+    const allCodes = permissionsToSeed.map((p) => p.code).filter((c) => !c.startsWith('developer.'));
     await assignPermsToRole('super_admin', allCodes);
+
+    // Clean up any developer tooling that may already be linked to the super admin role
+    const superAdminRoleLookup = await client.query(`SELECT id FROM roles WHERE code = 'super_admin' AND organization_id = $1`, [organizationId]);
+    const superAdminRoleIdForCleanup = superAdminRoleLookup.rows[0]?.id;
+    if (superAdminRoleIdForCleanup) {
+      await client.query(
+        `DELETE FROM role_permissions
+         WHERE role_id = $1
+           AND permission_id IN (SELECT id FROM permissions WHERE code LIKE 'developer.%')`,
+        [superAdminRoleIdForCleanup]
+      );
+    }
 
     const adminCodes = allCodes.filter((c) => c !== 'roles.manage' && c !== 'users.manage');
     await assignPermsToRole('admin', adminCodes);

@@ -1,0 +1,23 @@
+
+
+
+
+postgres:
+  image: postgres:16-alpine
+  container_name: hims-postgres
+  ports:
+    - "5433:5432"
+  environment:
+    POSTGRES_USER: ${DB_USER:-hims}
+    POSTGRES_PASSWORD: ${DB_PASSWORD:-hims}
+    POSTGRES_DB: ${DB_NAME:-hims_db}
+  volumes:
+    - hims-postgres-data:/var/lib/postgresql/data
+    - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-hims} -d ${DB_NAME:-hims_db}"]
+    interval: 5s
+    timeout: 5s
+    retries: 30
+    start_period: 30s
+  restart: unless-stopped

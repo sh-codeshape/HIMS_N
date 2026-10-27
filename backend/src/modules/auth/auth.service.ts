@@ -39,9 +39,25 @@ export class AuthService {
     }
 
     const zeroUuid = '00000000-0000-0000-0000-000000000000';
-    const facilityId = user.default_facility_id && user.default_facility_id !== zeroUuid
+    let facilityId = user.default_facility_id && user.default_facility_id !== zeroUuid
       ? user.default_facility_id
       : undefined;
+
+    if (!facilityId) {
+      const facRes = await db.query(
+        `SELECT id FROM facilities 
+         WHERE (organization_id = $1 OR id != '00000000-0000-0000-0000-000000000000'::uuid) 
+           AND id != '00000000-0000-0000-0000-000000000000'::uuid 
+           AND is_active = true 
+         ORDER BY (CASE WHEN organization_id = $1 THEN 0 ELSE 1 END), created_at ASC 
+         LIMIT 1`,
+        [user.organization_id]
+      );
+      if (facRes.rows.length > 0) {
+        facilityId = facRes.rows[0].id;
+        await db.query(`UPDATE users SET default_facility_id = $1 WHERE id = $2`, [facilityId, user.id]);
+      }
+    }
 
     if (!facilityId) {
       throw new UnauthorizedError('This user is not assigned to a valid facility. Please seed or assign a facility first.');
@@ -102,7 +118,19 @@ export class AuthService {
         full_name,
         email: data.email,
         phone: data.phone,
+        is_superadmin: false,
       });
+
+      // Assign roles if provided (e.g. a role created via the Role Management module)
+      if (data.roleIds && data.roleIds.length > 0) {
+        for (const roleId of data.roleIds) {
+          await client.query(
+            `INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)`,
+            [newUser.id, roleId]
+          );
+        }
+      }
+
       await client.query('COMMIT');
     } catch (error) {
       await client.query('ROLLBACK');
@@ -111,11 +139,17 @@ export class AuthService {
       client.release();
     }
 
+    const rolesResult = await authRepository.getUserRolesAndPermissions(newUser.id);
+    const roles: string[] = rolesResult.roles;
+
     return {
       id: newUser.id,
       username: newUser.username,
       name: newUser.full_name,
-      role: newUser.is_superadmin ? 'super_admin' : 'admin',
+      // Backward-compatible primary role field; resolves to the first assigned role
+      // (or 'super_admin' for super-admin flagged accounts) instead of blindly returning 'admin'.
+      role: newUser.is_superadmin ? 'super_admin' : (roles[0] || 'admin'),
+      roles,
     };
   }
 }

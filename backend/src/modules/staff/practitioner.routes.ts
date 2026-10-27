@@ -12,6 +12,10 @@ router.use(moduleGuard('staff'));
 
 // Doctors/Practitioners
 router.get('/', authorize(['staff.view', 'staff.manage']), controller.getPractitioners);
+router.post('/', authorize(['staff.manage']), controller.createPractitioner);
+router.put('/:id', authorize(['staff.manage']), controller.updatePractitioner);
+router.patch('/:id/toggle', authorize(['staff.manage']), controller.togglePractitioner);
+router.delete('/:id', authorize(['staff.manage']), controller.deletePractitioner);
 
 // Doctor Schedules
 router.get('/:id/schedules', authorize(['staff.view', 'staff.manage']), controller.getSchedules);

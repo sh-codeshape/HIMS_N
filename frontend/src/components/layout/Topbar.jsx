@@ -15,7 +15,7 @@ export default function Topbar() {
             <span className="topbar__user-name">{user?.name ?? "User"}</span>
             <span className="topbar__user-role">{ROLE_LABELS[user?.role] ?? ""}</span>
           </div>
-        </div>
+      </div>
 
     
     </header>

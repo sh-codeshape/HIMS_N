@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import Icon from "../../../components/common/Icon.jsx";
 import opdService from "../../../api/services/opdService";
 import patientService from "../../../api/services/patientService";
+import PrintSlipHandler from "../../../services/PrintSlipHandler";
+import { DEFAULT_HOSPITAL_CONFIG } from "../../../data/printlslip.data.jsx";
 import { useAuth } from "../../../auth";
 import { ROLES } from "../../../auth/roles";
 import "./OPDReportsView.css";
@@ -166,7 +168,118 @@ export default function OPDReportsView() {
     }
   };
 
-  const handleOpenPrintSlip = async (row) => {
+  const handlePrintReport = (targetRow, targetPatient) => {
+    const row = targetRow || viewRow;
+    const patient = targetPatient || viewPatient || {};
+    const w = window.open("", "_blank", "width=900,height=750");
+    if (!w) return;
+
+    const esc = (value) =>
+      String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+    const fullName =
+      patient.full_name || patient.name || row?.patientName || "Unknown Patient";
+    const address = [
+      patient.address || patient.address_line1 || "",
+      patient.city ? ", " + patient.city : "",
+      patient.state ? ", " + patient.state : "",
+      patient.pincode || patient.postal_code
+        ? " (" + (patient.pincode || patient.postal_code) + ")"
+        : "",
+    ].join("");
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <title>OPD Patient Consultation Report</title>
+  <style>
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { font-family: "Segoe UI", Arial, sans-serif; margin: 0; padding: 24px; color: #081a3d; background: #fff; }
+    .header { background: linear-gradient(100deg, #081a3d, #1e5a8e); border-bottom: 3.5px solid #f5c542; border-radius: 8px 8px 0 0; padding: 14px 20px; color: #fff; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { font-size: 18px; margin: 0; font-weight: 800; letter-spacing: .2px; }
+    .header .muted { color: #dbe9f6; font-size: 11.5px; margin-top: 3px; }
+    .badge { background: #f5c542; color: #081a3d; font-weight: 800; font-size: 12px; padding: 5px 12px; border-radius: 6px; }
+    h2 { font-size: 12.5px; margin: 16px 0 6px; color: #081a3d; background: #f0f7ff; padding: 6px 12px; border-left: 4px solid #123a6b; border-radius: 4px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+    td { border: 1px solid #d3e3f1; padding: 8px 10px; font-size: 12px; }
+    .label { background: #f8fbfe; font-weight: 700; width: 22%; color: #123a6b; }
+    .foot { margin-top: 24px; padding-top: 10px; border-top: 1.5px solid #d3e3f1; font-size: 11px; color: #55698a; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>${esc(DEFAULT_HOSPITAL_CONFIG.hospital?.name || "Hospital")}</h1>
+      <div class="muted">OPD Patient Consultation Report</div>
+    </div>
+    <div class="badge">Token: ${esc(row?.tokenNo || "-")}</div>
+  </div>
+  <h2>1. Patient Details</h2>
+  <table>
+    <tr><td class="label">Patient Name</td><td><strong>${esc(fullName)}</strong></td><td class="label">UHID</td><td><strong style="color:#1d4ed8">${esc(patient.uhid || row?.uhid || "-")}</strong></td></tr>
+    <tr><td class="label">Gender / Age</td><td>${esc(patient.gender || row?.gender || "-")} / ${esc(patient.age || patient.ageYrs || "-")} Yrs</td><td class="label">Mobile No.</td><td>${esc(patient.phone || patient.mobile1 || row?.phone || "-")}</td></tr>
+    <tr><td class="label">Blood Group</td><td>${esc(patient.blood_group || patient.bloodGroup || "-")}</td><td class="label">Date / Time</td><td>${esc(row?.date || "")} ${esc(row?.time || "")}</td></tr>
+    <tr><td class="label">Token Number</td><td>${esc(row?.tokenNo || "-")}</td><td class="label">Address</td><td>${esc(address.trim() || "-")}</td></tr>
+  </table>
+  <h2>2. Consultation Details</h2>
+  <table>
+    <tr><td class="label">Doctor</td><td><strong>${esc(row?.doctor || "-")}</strong></td><td class="label">Department</td><td>${esc(row?.department || "-")}</td></tr>
+    <tr><td class="label">Chief Complaint</td><td colspan="3">${esc(row?.chiefComplaint || "-")}</td></tr>
+    <tr><td class="label">Current Status</td><td colspan="3"><span style="display:inline-block;padding:2px 8px;border-radius:12px;background:#e0f2fe;color:#0284c7;font-weight:700;">${esc(row?.status || "-")}</span></td></tr>
+  </table>
+  <div class="foot">${esc(DEFAULT_HOSPITAL_CONFIG.hospital?.name || "Hospital")} &bull; Hospital Management System &bull; OPD Report</div>
+</body>
+</html>`;
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => {
+      w.print();
+      w.close();
+    }, 300);
+  };
+
+  const handlePrintSlip = async (targetRow, targetPatient) => {
+    const row = targetRow || viewRow;
+    let patient = targetPatient || viewPatient;
+    if (!patient && row?.patientId) {
+      try {
+        patient = await patientService.getById(row.patientId);
+      } catch (err) {
+        console.error("Failed to load patient for slip print:", err);
+      }
+    }
+
+    const booking = {
+      patient_name: patient?.full_name || patient?.name || row?.patientName || "—",
+      uhid: patient?.uhid || row?.uhid,
+      age: patient?.age || patient?.ageYrs || row?.age,
+      gender: patient?.gender || row?.gender,
+      mobile: patient?.phone || patient?.mobile1 || row?.phone,
+      address: [
+        patient?.address || patient?.address_line1 || "",
+        patient?.city || row?.city || "",
+        patient?.state || row?.state || "",
+      ].filter(Boolean).join(", "),
+      token_number: row?.tokenNo,
+      date: row?.date,
+      time_slot: row?.time,
+      doctor_name: row?.doctor,
+      department_name: row?.department,
+      problemDescription: row?.chiefComplaint,
+      status: row?.status,
+      consultation_fee: row?.fee || 500,
+    };
+
+    PrintSlipHandler.printBooking(booking);
+  };
+
+  const handleDirectPrint = async (row) => {
+    setViewRow(row);
     let patient = null;
     if (row.patientId) {
       try {
@@ -621,7 +734,22 @@ export default function OPDReportsView() {
                 </div>
               </div>
               <div className="opdr-head-actions">
-                
+                <button
+                  type="button"
+                  onClick={() => handlePrintSlip()}
+                  className="opdr-btn opdr-btn--navy opdr-btn--sm"
+                  title="Print Official A4 Consultation Slip"
+                >
+                  <Icon name="LuReceipt" size={14} /> Slip
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePrintReport()}
+                  className="opdr-btn opdr-btn--green opdr-btn--sm"
+                  title="Print Consultation Form"
+                >
+                  <Icon name="LuPrinter" size={14} /> Print
+                </button>
                 <button
                   type="button"
                   className="opdr-close-btn"
@@ -786,7 +914,15 @@ export default function OPDReportsView() {
             <div className="opdr-modal-foot">
               <button
                 type="button"
-                onClick={() => handleOpenPrintSlip(viewRow)}
+                onClick={() => handlePrintSlip()}
+                className="opdr-btn opdr-btn--navy"
+                title="Print Official A4 Consultation Slip"
+              >
+                <Icon name="LuReceipt" size={15} /> Print OPD Slip
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePrintReport()}
                 className="opdr-btn opdr-btn--green"
               >
                 <Icon name="LuPrinter" size={15} /> Print Consultation Slip

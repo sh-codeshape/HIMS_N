@@ -21,6 +21,47 @@ export class PractitionerController {
     res.json({ success: true, data: practitioners });
   };
 
+  createPractitioner = async (req: Request, res: Response) => {
+    const organizationId = req.user?.organizationId as string;
+    const facilityId = (req.user?.facilityId || req.body.facilityId || '00000000-0000-0000-0000-000000000000') as string;
+
+    const newPractitioner = await this.repository.createPractitioner(organizationId, facilityId, req.body);
+    res.status(201).json({ success: true, data: newPractitioner });
+  };
+
+  updatePractitioner = async (req: Request, res: Response) => {
+    const practitionerId = req.params.id as string;
+    const updated = await this.repository.updatePractitioner(practitionerId, req.body);
+
+    if (!updated) {
+      return res.status(404).json({ success: false, error: { message: 'Doctor not found' } });
+    }
+
+    res.json({ success: true, data: updated });
+  };
+
+  togglePractitioner = async (req: Request, res: Response) => {
+    const practitionerId = req.params.id as string;
+    const toggled = await this.repository.togglePractitioner(practitionerId);
+
+    if (!toggled) {
+      return res.status(404).json({ success: false, error: { message: 'Doctor not found' } });
+    }
+
+    res.json({ success: true, data: toggled });
+  };
+
+  deletePractitioner = async (req: Request, res: Response) => {
+    const practitionerId = req.params.id as string;
+    const deleted = await this.repository.deletePractitioner(practitionerId);
+
+    if (!deleted) {
+      return res.status(404).json({ success: false, error: { message: 'Doctor not found' } });
+    }
+
+    res.json({ success: true, data: deleted });
+  };
+
   getSchedules = async (req: Request, res: Response) => {
     const practitionerId = req.params.id as string;
     const facilityId = req.user?.facilityId || (req.query.facilityId as string) || '00000000-0000-0000-0000-000000000000';

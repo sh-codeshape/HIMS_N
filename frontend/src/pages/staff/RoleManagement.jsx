@@ -300,6 +300,13 @@ export default function RoleManagement() {
     return acc;
   }, {});
 
+  // The standalone `developer` role is seeded directly via seed-developer.ts and is not part
+  // of the super admin / hospital admin permission surface, so its module group is only shown
+  // when the developer role itself is selected.
+  const groupedPermissionEntries = Object.entries(groupedPermissions).filter(
+    ([module]) => module !== "developer" || selectedRole?.code === "developer"
+  );
+
   const tabLabel = {
     roles: "Roles",
     users: "Users & Assigned Roles",
@@ -423,7 +430,7 @@ export default function RoleManagement() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                  {Object.entries(groupedPermissions).map(([module, perms]) => (
+                  {groupedPermissionEntries.map(([module, perms]) => (
                     <div key={module} className="border rounded-lg overflow-hidden">
                       <div className="bg-gray-50 px-4 py-2 border-b font-medium text-gray-700 capitalize">
                         {module.replace(/_/g, " ")} Module
@@ -721,7 +728,7 @@ export default function RoleManagement() {
                 Grant or revoke permissions directly to this user. These apply in addition to role-inherited permissions.
               </p>
               <div className="space-y-4">
-                {Object.entries(groupedPermissions).map(([module, perms]) => (
+                {groupedPermissionEntries.map(([module, perms]) => (
                   <div key={module} className="border rounded-lg overflow-hidden">
                     <div className="bg-gray-50 px-4 py-2 border-b font-medium text-gray-700 capitalize">
                       {module.replace(/_/g, " ")} Module

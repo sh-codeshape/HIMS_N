@@ -14,7 +14,9 @@ export class RolesService {
       ORDER BY name ASC
     `;
     const result = await db.query(query, [organizationId]);
-    return result.rows;
+    // The standalone `developer` role is seeded directly via seed-developer.ts (god mode)
+    // and is managed outside the super admin RBAC flow, so it is not listed here.
+    return result.rows.filter((r) => r.code !== 'developer');
   }
 
   async createRole(organizationId: string, data: {

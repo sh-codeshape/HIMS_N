@@ -42,6 +42,7 @@ export const ENDPOINTS = {
   STAFF: {
     BASE: "/staff",
     DOCTORS: "/staff/doctors",
+    DEPARTMENTS: "/staff/departments",
     DUTY_ROSTER: "/staff/duty-roster",
     CONSULTANT_COMMISSION: "/staff/consultant-commission",
     LEAVE_APPLICATIONS: "/staff/leave-applications",
