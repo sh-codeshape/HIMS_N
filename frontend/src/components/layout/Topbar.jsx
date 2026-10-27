@@ -13,9 +13,9 @@ export default function Topbar() {
           <div className="topbar__avatar">{user?.name?.[0]?.toUpperCase() ?? "U"}</div>
           <div className="topbar__user-meta">
             <span className="topbar__user-name">{user?.name ?? "User"}</span>
-            <span className="topbar__user-role">{ROLE_LABELS[user?.role] ?? user?.role ?? ""}</span>
+            <span className="topbar__user-role">{ROLE_LABELS[user?.role] ?? ""}</span>
           </div>
-        </div>
+      </div>
 
       <div className="topbar__right">
         <button className="topbar__icon-btn" type="button" title="Notifications">

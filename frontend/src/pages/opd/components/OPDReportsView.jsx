@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import Icon from "../../../components/common/Icon.jsx";
 import opdService from "../../../api/services/opdService";
 import patientService from "../../../api/services/patientService";
+import PrintSlipHandler from "../../../services/PrintSlipHandler";
+import { DEFAULT_HOSPITAL_CONFIG } from "../../../data/printlslip.data.jsx";
 import { useAuth } from "../../../auth";
 import { ROLES } from "../../../auth/roles";
 import "./OPDReportsView.css";
@@ -207,7 +209,7 @@ export default function OPDReportsView() {
 <body>
   <div class="header">
     <div>
-      <h1>Narayan Hospital</h1>
+      <h1>${esc(DEFAULT_HOSPITAL_CONFIG.hospital?.name || "Hospital")}</h1>
       <div class="muted">OPD Patient Consultation Report</div>
     </div>
     <div class="badge">Token: ${esc(row?.tokenNo || "-")}</div>
@@ -225,7 +227,7 @@ export default function OPDReportsView() {
     <tr><td class="label">Chief Complaint</td><td colspan="3">${esc(row?.chiefComplaint || "-")}</td></tr>
     <tr><td class="label">Current Status</td><td colspan="3"><span style="display:inline-block;padding:2px 8px;border-radius:12px;background:#e0f2fe;color:#0284c7;font-weight:700;">${esc(row?.status || "-")}</span></td></tr>
   </table>
-  <div class="foot">Narayan Hospital &bull; Hospital Management System &bull; OPD Report</div>
+  <div class="foot">${esc(DEFAULT_HOSPITAL_CONFIG.hospital?.name || "Hospital")} &bull; Hospital Management System &bull; OPD Report</div>
 </body>
 </html>`;
     w.document.open();
@@ -236,6 +238,41 @@ export default function OPDReportsView() {
       w.print();
       w.close();
     }, 300);
+  };
+
+  const handlePrintSlip = async (targetRow, targetPatient) => {
+    const row = targetRow || viewRow;
+    let patient = targetPatient || viewPatient;
+    if (!patient && row?.patientId) {
+      try {
+        patient = await patientService.getById(row.patientId);
+      } catch (err) {
+        console.error("Failed to load patient for slip print:", err);
+      }
+    }
+
+    const booking = {
+      patient_name: patient?.full_name || patient?.name || row?.patientName || "—",
+      uhid: patient?.uhid || row?.uhid,
+      age: patient?.age || patient?.ageYrs || row?.age,
+      gender: patient?.gender || row?.gender,
+      mobile: patient?.phone || patient?.mobile1 || row?.phone,
+      address: [
+        patient?.address || patient?.address_line1 || "",
+        patient?.city || row?.city || "",
+        patient?.state || row?.state || "",
+      ].filter(Boolean).join(", "),
+      token_number: row?.tokenNo,
+      date: row?.date,
+      time_slot: row?.time,
+      doctor_name: row?.doctor,
+      department_name: row?.department,
+      problemDescription: row?.chiefComplaint,
+      status: row?.status,
+      consultation_fee: row?.fee || 500,
+    };
+
+    PrintSlipHandler.printBooking(booking);
   };
 
   const handleDirectPrint = async (row) => {
@@ -660,6 +697,14 @@ export default function OPDReportsView() {
               <div className="opdr-head-actions">
                 <button
                   type="button"
+                  onClick={() => handlePrintSlip()}
+                  className="opdr-btn opdr-btn--navy opdr-btn--sm"
+                  title="Print Official A4 Consultation Slip"
+                >
+                  <Icon name="LuReceipt" size={14} /> Slip
+                </button>
+                <button
+                  type="button"
                   onClick={() => handlePrintReport()}
                   className="opdr-btn opdr-btn--green opdr-btn--sm"
                   title="Print Consultation Form"
@@ -828,6 +873,14 @@ export default function OPDReportsView() {
 
             {/* Modal Footer */}
             <div className="opdr-modal-foot">
+              <button
+                type="button"
+                onClick={() => handlePrintSlip()}
+                className="opdr-btn opdr-btn--navy"
+                title="Print Official A4 Consultation Slip"
+              >
+                <Icon name="LuReceipt" size={15} /> Print OPD Slip
+              </button>
               <button
                 type="button"
                 onClick={() => handlePrintReport()}

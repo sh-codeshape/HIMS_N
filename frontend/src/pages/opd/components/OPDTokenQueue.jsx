@@ -5,6 +5,7 @@ import Icon from "../../../components/common/Icon.jsx";
 import { mockStore } from "../../../mock/mockStore";
 import patientService from "../../../api/services/patientService";
 import opdService from "../../../api/services/opdService";
+import PrintSlipHandler from "../../../services/PrintSlipHandler";
 import "./OPDTokenQueue.css";
 
 // ── Department & Doctor Fee Structure ──────────────────────────────────────────
@@ -443,7 +444,11 @@ export default function OPDTokenQueue() {
   };
 
   const handlePrintSlip = () => {
-    window.print();
+    if (opdSlipData) {
+      PrintSlipHandler.printBooking(opdSlipData);
+    } else {
+      window.print();
+    }
   };
 
   const currentDoctors = DOCTOR_LIST[department] || [];

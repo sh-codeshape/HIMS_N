@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import Icon from "../../../components/common/Icon.jsx";
-import { jwtDecode } from "jwt-decode";
 import Button from "../../../components/common/Button.jsx";
 import patientService from "../../../api/services/patientService";
 import billingInvoicesService from "../../../api/services/billingInvoicesService";
@@ -263,19 +262,10 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
 
     const patient = selectedPatient;
 
-    let facilityId = "00000000-0000-0000-0000-000000000000";
-    try {
-      const token = localStorage.getItem("hims_token");
-      const decoded = token ? jwtDecode(token) : null;
-      facilityId = decoded?.facilityId || decoded?.facility_id || facilityId;
-    } catch (e) {
-      // keep fallback
-    }
-
     try {
       const payload = {
         patient_id: patient.id,
-        facility_id: facilityId,
+        facility_id: "00000000-0000-0000-0000-000000000000",
         invoice_type: billingType.toLowerCase(),
         items: billItems.map((item) => ({
           name: item.name,
@@ -619,7 +609,7 @@ export default function BillingInvoiceForm({ billingType = "OPD" }) {
                 <option value="UPI / PhonePe">UPI (GPay / PhonePe / QR)</option>
                 <option value="Cash">Cash Counter</option>
                 <option value="Debit Card">Debit / Credit Card (POS)</option>
-                <option value="TPA Insurance">TPA / Health Insurance Claim</option>
+                {/* <option value="TPA Insurance">TPA / Health Insurance Claim</option> */}
               </select>
             </div>
           </div>
