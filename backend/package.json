@@ -3,17 +3,19 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "db:migrate": "./bin/dbmate -d src/db/migrations up",
-    "db:rollback": "dbmate -d src/db/migrations down",
+    "db:rollback": "./bin/dbmate -d src/db/migrations down",
     "db:seed": "tsx src/db/seed.ts",
     "db:seed-beds": "tsx src/db/seed-beds.ts",
     "test": "vitest",
     "lint": "eslint src --ext .ts"
-  },
+  }
+,
   "keywords": [],
   "author": "",
   "license": "ISC",
