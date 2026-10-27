@@ -734,22 +734,8 @@ export default function OPDReportsView() {
                 </div>
               </div>
               <div className="opdr-head-actions">
-                <button
-                  type="button"
-                  onClick={() => handlePrintSlip()}
-                  className="opdr-btn opdr-btn--navy opdr-btn--sm"
-                  title="Print Official A4 Consultation Slip"
-                >
-                  <Icon name="LuReceipt" size={14} /> Slip
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePrintReport()}
-                  className="opdr-btn opdr-btn--green opdr-btn--sm"
-                  title="Print Consultation Form"
-                >
-                  <Icon name="LuPrinter" size={14} /> Print
-                </button>
+                
+               
                 <button
                   type="button"
                   className="opdr-close-btn"
@@ -920,13 +906,7 @@ export default function OPDReportsView() {
               >
                 <Icon name="LuReceipt" size={15} /> Print OPD Slip
               </button>
-              <button
-                type="button"
-                onClick={() => handlePrintReport()}
-                className="opdr-btn opdr-btn--green"
-              >
-                <Icon name="LuPrinter" size={15} /> Print Consultation Slip
-              </button>
+              
               <button
                 type="button"
                 onClick={() => setViewRow(null)}

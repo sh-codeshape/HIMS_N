@@ -48,6 +48,7 @@ const sidebarConfig = [
       { label: "IPD Admission", path: "/ipd/admission", allowedRoles: [SUPER_ADMIN, ADMIN, RECEPTION], allowedPermissions: [PERMISSIONS.IPD_CREATE] },
       { label: "Bed Allotment", path: "/ipd/bed-allotment", allowedRoles: [SUPER_ADMIN, ADMIN, RECEPTION], allowedPermissions: [PERMISSIONS.BED_MANAGE] },
       { label: "IPD Discharge", path: "/ipd/discharge", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.IPD_VIEW] },
+      { label: "IPD Discharge Summary", path: "/ipd/discharge-summary", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION], allowedPermissions: [PERMISSIONS.IPD_VIEW] },
       { label: "IPD Reports", path: "/ipd/reports", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.IPD_VIEW] },
     ],
   },
@@ -57,7 +58,7 @@ const sidebarConfig = [
     icon: "LuReceipt",
     allowedRoles: [SUPER_ADMIN, ADMIN, RECEPTION, PHARMACY],
     children: [
-      { label: "OPD Billing", path: "/billing/opd", allowedRoles: [SUPER_ADMIN, ADMIN, RECEPTION], allowedPermissions: [PERMISSIONS.BILLING_CREATE] },
+     
       { label: "IPD Billing", path: "/billing/ipd", allowedRoles: [SUPER_ADMIN, ADMIN, RECEPTION], allowedPermissions: [PERMISSIONS.BILLING_CREATE] },
       { label: "Pharmacy Billing", path: "/billing/pharmacy", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: [PERMISSIONS.PHARMACY_POS] },
       { label: "Lab Billing", path: "/billing/lab", allowedRoles: [SUPER_ADMIN, ADMIN, RECEPTION], allowedPermissions: [PERMISSIONS.BILLING_CREATE] },
@@ -73,7 +74,7 @@ const sidebarConfig = [
     allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION],
     children: [
       { label: "Patient Directory", path: "/patients/directory", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION], allowedPermissions: [PERMISSIONS.PATIENTS_VIEW] },
-      { label: "EMR / Medical History", path: "/patients/emr", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.PATIENTS_EMR] },
+     
       { label: "Discharge Summary", path: "/patients/discharge-summary", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.PATIENTS_VIEW] },
     ],
   },
@@ -86,8 +87,8 @@ const sidebarConfig = [
       { label: "Doctor Duty Roster", path: "/staff/duty-roster", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.STAFF_VIEW] },
       { label: "Staff Management", path: "/staff/management", allowedRoles: [SUPER_ADMIN, ADMIN], allowedPermissions: [PERMISSIONS.USERS_MANAGE] },
       { label: "Role Management", path: "/staff/roles", allowedRoles: [SUPER_ADMIN], allowedPermissions: [PERMISSIONS.ROLES_MANAGE] },
-      { label: "Consultant Commission", path: "/staff/consultant-commission", allowedRoles: [SUPER_ADMIN, ADMIN], allowedPermissions: [PERMISSIONS.STAFF_VIEW] },
-      { label: "Leave Applications", path: "/staff/leave-applications", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.STAFF_VIEW] },
+     
+     
     ],
   },
   {
@@ -98,18 +99,7 @@ const sidebarConfig = [
     allowedRoles: [SUPER_ADMIN, ADMIN],
     allowedPermissions: [PERMISSIONS.REPORTS_VIEW, "report.view", "report.financial"],
   },
-  {
-    key: "pharmacy",
-    label: "Pharmacy / OOM",
-    icon: "LuPill",
-    allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY],
-    children: [
-      { label: "Medicine Sales (POS)", path: "/pharmacy/pos", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: [PERMISSIONS.PHARMACY_POS] },
-      { label: "Purchase Orders", path: "/pharmacy/purchase-orders", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: [PERMISSIONS.PHARMACY_PURCHASE] },
-      { label: "Expiry Tracker", path: "/pharmacy/expiry-tracker", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: [PERMISSIONS.PHARMACY_STOCK] },
-      { label: "Drug Database", path: "/pharmacy/drug-database", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: [PERMISSIONS.PHARMACY_VIEW] },
-    ],
-  },
+  
   {
     key: "laboratory",
     label: "Pathology",
@@ -134,7 +124,7 @@ const sidebarConfig = [
   },
   {
     key: "ward",
-    label: "IPD / OPD Ward",
+    label: "Floor Mapping",
     icon: "LuHospital",
     allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION],
     children: [
@@ -143,22 +133,10 @@ const sidebarConfig = [
       { label: "Bed Transfer", path: "/ward/bed-transfer", allowedRoles: [SUPER_ADMIN, ADMIN, RECEPTION], allowedPermissions: [PERMISSIONS.BED_MANAGE] },
       { label: "Bed Availability", path: "/ward/bed-availability", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION], allowedPermissions: [PERMISSIONS.WARD_VIEW] },
       { label: "Discharge Management", path: "/ward/discharge-management", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION], allowedPermissions: [PERMISSIONS.IPD_VIEW] },
-      { label: "Nursing Station Log", path: "/ward/nursing-log", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.STAFF_VIEW] },
+     
     ],
   },
-  {
-    key: "billingInvoices",
-    label: "Billing & Invoices",
-    icon: "LuFileStack",
-    allowedRoles: [SUPER_ADMIN, ADMIN],
-    section: "FINANCIALS & ADMIN",
-    children: [
-      { label: "Create Main Bill", path: "/billing-invoices/create-bill", allowedRoles: [SUPER_ADMIN, ADMIN], allowedPermissions: [PERMISSIONS.BILLING_CREATE, "invoice.create"] },
-      { label: "Advance Deposits", path: "/billing-invoices/advance-deposits", allowedRoles: [SUPER_ADMIN, ADMIN], allowedPermissions: [PERMISSIONS.BILLING_CREATE, "payment.collect"] },
-      { label: "TPA & Insurance Claims", path: "/billing-invoices/tpa-insurance", allowedRoles: [SUPER_ADMIN, ADMIN], allowedPermissions: ["insurance.manage", PERMISSIONS.BILLING_VIEW] },
-      { label: "Refund & Discounts", path: "/billing-invoices/refund-discounts", allowedRoles: [SUPER_ADMIN, ADMIN], allowedPermissions: [PERMISSIONS.BILLING_REFUND, "discount.apply", "discount.approve"] },
-    ],
-  },
+  
   {
     key: "inventory",
     label: "Inventory Management",
@@ -180,17 +158,7 @@ const sidebarConfig = [
       { label: "Expiry Tracker", path: "/inventory/expiry-tracker", allowedRoles: [SUPER_ADMIN, ADMIN, PHARMACY], allowedPermissions: [PERMISSIONS.INVENTORY_VIEW] },
     ],
   },
-  {
-    key: "medicalReports",
-    label: "Medical Reports",
-    icon: "LuFileHeart",
-    allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR],
-    children: [
-      { label: "Birth Certificates", path: "/medical-reports/birth-certificates", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.REPORTS_VIEW, "clinical.read"] },
-      { label: "Death Certificates", path: "/medical-reports/death-certificates", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.REPORTS_VIEW, "clinical.read"] },
-      { label: "MLC (Medico-Legal Cases)", path: "/medical-reports/mlc", allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR], allowedPermissions: [PERMISSIONS.REPORTS_VIEW, "clinical.read"] },
-    ],
-  },
+ 
   {
     key: "emergency",
     label: "Emergency Dispatch",

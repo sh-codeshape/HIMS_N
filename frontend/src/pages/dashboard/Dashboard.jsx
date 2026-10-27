@@ -839,28 +839,8 @@ export default function Dashboard() {
                 >
                   Close
                 </button>
-                <button
-                  type="button"
-                  className="dash-btn-action-alt"
-                  onClick={() => {
-                    const target = viewPatient;
-                    setViewPatient(null);
-                    handleOpenPrint(target);
-                  }}
-                >
-                  <Icon name="LuPrinter" size={14} /> Print Slip
-                </button>
-                <button
-                  type="button"
-                  className="dash-btn-action-alt"
-                  onClick={() => {
-                    const target = viewPatient;
-                    setViewPatient(null);
-                    handleOpenPrescribe(target);
-                  }}
-                >
-                  <Icon name="LuPill" size={14} /> Prescribe Rx
-                </button>
+               
+               
                 <button
                   type="button"
                   className="dash-btn-pri"

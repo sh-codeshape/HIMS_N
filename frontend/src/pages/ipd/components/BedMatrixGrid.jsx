@@ -6,23 +6,10 @@ import patientService from "../../../api/services/patientService";
 import staffService from "../../../api/services/staffService";
 import "./BedMatrixGrid.css";
 
-const FALLBACK_BEDS = [
-  { id: 1, bed_no: "GW-101-B1", ward_name: "General Ward", room_name: "Room GW-101", current_status: "available", daily_rate: 800 },
-  { id: 2, bed_no: "GW-101-B2", ward_name: "General Ward", room_name: "Room GW-101", current_status: "available", daily_rate: 800 },
-  { id: 3, bed_no: "GW-101-B3", ward_name: "General Ward", room_name: "Room GW-101", current_status: "occupied", patient_first_name: "Suman", patient_last_name: "Yadav", patient_uhid: "1026-0062", doctor_first_name: "Sadhana", doctor_last_name: "Chaurasiya", admitted_at: "2026-10-22T09:30:00Z", admission_id: "adm-103", daily_rate: 800 },
-  { id: 4, bed_no: "GW-101-B4", ward_name: "General Ward", room_name: "Room GW-101", current_status: "maintenance", daily_rate: 800 },
-  { id: 5, bed_no: "GW-102-B1", ward_name: "General Ward", room_name: "Room GW-102", current_status: "available", daily_rate: 800 },
-  { id: 6, bed_no: "GW-102-B2", ward_name: "General Ward", room_name: "Room GW-102", current_status: "occupied", patient_first_name: "Rohan", patient_last_name: "Sharma", patient_uhid: "1026-0063", doctor_first_name: "Akhilesh", doctor_last_name: "Singh", admitted_at: "2026-10-24T11:15:00Z", admission_id: "adm-106", daily_rate: 800 },
-  { id: 7, bed_no: "ICU-01", ward_name: "ICU", room_name: "Critical Bay 1", current_status: "available", daily_rate: 3500 },
-  { id: 8, bed_no: "ICU-02", ward_name: "ICU", room_name: "Critical Bay 1", current_status: "occupied", patient_first_name: "Anita", patient_last_name: "Patel", patient_uhid: "1026-0071", doctor_first_name: "Anand", doctor_last_name: "Tiwari", admitted_at: "2026-10-25T14:00:00Z", admission_id: "adm-108", daily_rate: 3500 },
-  { id: 9, bed_no: "PVT-201", ward_name: "Private Ward", room_name: "Deluxe Suite 201", current_status: "available", daily_rate: 2400 },
-  { id: 10, bed_no: "PVT-202", ward_name: "Private Ward", room_name: "Deluxe Suite 202", current_status: "occupied", patient_first_name: "Shyam", patient_last_name: "Tripathi", patient_uhid: "1026-0074", doctor_first_name: "Meenakshi", doctor_last_name: "Iyer", admitted_at: "2026-10-26T08:45:00Z", admission_id: "adm-110", daily_rate: 2400 },
-  { id: 11, bed_no: "SP-301-A", ward_name: "Semi-Private", room_name: "Room 301", current_status: "available", daily_rate: 1500 },
-  { id: 12, bed_no: "EMG-01", ward_name: "Emergency", room_name: "Trauma Bay", current_status: "available", daily_rate: 1800 },
-];
+
 
 export default function BedMatrixGrid() {
-  const [beds, setBeds] = useState(FALLBACK_BEDS);
+  const [beds, setBeds] = useState([]);
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [filterWard, setFilterWard] = useState("All");
@@ -37,16 +24,16 @@ export default function BedMatrixGrid() {
     try {
       setLoading(true);
       const [bedsData, patientsData, staffData] = await Promise.all([
-        ipdService.getBedMatrix().catch(() => FALLBACK_BEDS),
+        ipdService.getBedMatrix().catch(() => []),
         patientService.getAll().catch(() => []),
         staffService.getDoctors().catch(() => []),
       ]);
-      setBeds(Array.isArray(bedsData) && bedsData.length ? bedsData : FALLBACK_BEDS);
+      setBeds(Array.isArray(bedsData) ? bedsData : []);
       setPatients(Array.isArray(patientsData) ? patientsData : []);
       setDoctors(Array.isArray(staffData) ? staffData : []);
     } catch (err) {
       console.error(err);
-      setBeds(FALLBACK_BEDS);
+      setBeds([]);
       setPatients([]);
       setDoctors([]);
     } finally {
@@ -59,7 +46,7 @@ export default function BedMatrixGrid() {
   }, []);
 
   // Filtered beds based on Ward, Status, and Search Query
-  const filteredBeds = beds.filter((b) => {
+  const filteredBeds = (beds || []).filter((b) => {
     // Ward filter
     const matchWard =
       filterWard === "All" ||
@@ -85,10 +72,10 @@ export default function BedMatrixGrid() {
   });
 
   // KPI Calculations
-  const totalBeds = beds.length;
-  const availableBeds = beds.filter((b) => (b.current_status || "available").toLowerCase() === "available").length;
-  const occupiedBeds = beds.filter((b) => (b.current_status || "").toLowerCase() === "occupied").length;
-  const maintenanceBeds = beds.filter((b) => (b.current_status || "").toLowerCase() === "maintenance").length;
+  const totalBeds = (beds || []).length;
+  const availableBeds = (beds || []).filter((b) => (b.current_status || "available").toLowerCase() === "available").length;
+  const occupiedBeds = (beds || []).filter((b) => (b.current_status || "").toLowerCase() === "occupied").length;
+  const maintenanceBeds = (beds || []).filter((b) => (b.current_status || "").toLowerCase() === "maintenance").length;
   const occupancyPercentage = totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0;
 
   const handleAllotBed = async (e) => {
