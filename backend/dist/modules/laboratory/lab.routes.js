@@ -1,0 +1,18 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.labRoutes = void 0;
+const express_1 = require("express");
+const lab_controller_1 = require("./lab.controller");
+const validate_1 = require("../../middleware/validate");
+const authenticate_1 = require("../../middleware/authenticate");
+const moduleGuard_1 = require("../../middleware/moduleGuard");
+const lab_schema_1 = require("./lab.schema");
+const router = (0, express_1.Router)();
+const controller = new lab_controller_1.LabController();
+router.use(authenticate_1.authenticate);
+router.use((0, moduleGuard_1.moduleGuard)('laboratory'));
+router.get('/tests', controller.getLabTests);
+router.get('/definitions', controller.getTestDefinitions);
+router.post('/orders', (0, validate_1.validate)(lab_schema_1.createLabOrderSchema), controller.createLabOrder);
+router.patch('/results/:id', (0, validate_1.validate)(lab_schema_1.updateLabResultSchema), controller.updateLabResult);
+exports.labRoutes = router;

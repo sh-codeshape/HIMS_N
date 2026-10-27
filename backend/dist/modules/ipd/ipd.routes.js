@@ -1,0 +1,21 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ipdRoutes = void 0;
+const express_1 = require("express");
+const ipd_controller_1 = require("./ipd.controller");
+const validate_1 = require("../../middleware/validate");
+const authenticate_1 = require("../../middleware/authenticate");
+const moduleGuard_1 = require("../../middleware/moduleGuard");
+const ipd_schema_1 = require("./ipd.schema");
+const router = (0, express_1.Router)();
+const controller = new ipd_controller_1.IpdController();
+router.use(authenticate_1.authenticate); // Require authentication for all IPD routes
+router.use((0, moduleGuard_1.moduleGuard)('ipd'));
+router.post('/admissions', (0, validate_1.validate)(ipd_schema_1.createIpdAdmissionSchema), controller.admitPatient);
+router.get('/admissions', controller.getAdmissions);
+router.post('/admissions/:id/discharge', (0, validate_1.validate)(ipd_schema_1.dischargePatientSchema), controller.dischargePatient);
+router.get('/admissions/:id/discharge-summary', controller.getDischargeSummary);
+router.post('/admissions/:id/discharge-summary', controller.saveDischargeSummary);
+router.get('/reports/stats', controller.getIpdReportStats);
+router.get('/admissions/:id/pending-dues', controller.getPendingDues);
+exports.ipdRoutes = router;
