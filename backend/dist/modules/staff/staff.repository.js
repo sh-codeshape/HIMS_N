@@ -1,0 +1,234 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.StaffRepository = void 0;
+const database_1 = require("../../config/database");
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
+class StaffRepository {
+    async getDepartments(organizationId) {
+        const query = `
+      SELECT id, code, name, department_type, is_active
+      FROM departments
+      WHERE organization_id = $1 AND is_active = true
+      ORDER BY name ASC
+    `;
+        const result = await database_1.db.query(query, [organizationId]);
+        return result.rows;
+    }
+    async getDoctors(facilityId) {
+        const query = `
+      SELECT
+        p.id as practitioner_id,
+        p.id,
+        s.id as staff_id,
+        s.first_name,
+        s.last_name,
+        TRIM(CONCAT(s.first_name, ' ', COALESCE(s.last_name, ''))) as name,
+        s.staff_code,
+        s.department_id,
+        d.name as department,
+        p.specialty_id,
+        p.registration_no,
+        p.qualifications,
+        s.phone,
+        s.email,
+        s.is_active,
+        COALESCE((s.custom_fields->>'consultation_fee')::numeric, 500) as consultation_fee,
+        COALESCE((s.custom_fields->>'old_patient_fee')::numeric, 300) as old_patient_fee,
+        COALESCE((s.custom_fields->>'emergency_fee')::numeric, 800) as emergency_fee,
+        s.custom_fields->>'name_hindi' as "nameHindi",
+        s.custom_fields->>'qualification_hindi' as "qualificationHindi",
+        COALESCE(s.custom_fields->>'specialization', d.name, 'General Medicine') as specialization,
+        s.custom_fields->>'gender' as gender,
+        s.custom_fields->>'display_schedule' as "displaySchedule",
+        s.custom_fields->>'address' as address,
+        s.custom_fields->>'avatar' as avatar
+      FROM practitioners p
+      JOIN staff s ON p.staff_id = s.id
+      LEFT JOIN departments d ON s.department_id = d.id
+      WHERE s.organization_id = (SELECT organization_id FROM facilities WHERE id = $1 LIMIT 1)
+        AND s.staff_type = 'doctor'
+        AND s.is_active = true
+      ORDER BY s.first_name ASC
+    `;
+        const result = await database_1.db.query(query, [facilityId]);
+        return result.rows;
+    }
+    async getStaffList(organizationId) {
+        const query = `
+      SELECT s.*, u.username, u.email as user_email,
+        (
+          SELECT json_agg(json_build_object('id', r.id, 'name', r.name))
+          FROM user_roles ur
+          JOIN roles r ON ur.role_id = r.id
+          WHERE ur.user_id = s.user_id
+        ) as roles
+      FROM staff s
+      LEFT JOIN users u ON s.user_id = u.id
+      WHERE s.organization_id = $1
+      ORDER BY s.created_at DESC
+    `;
+        const result = await database_1.db.query(query, [organizationId]);
+        return result.rows;
+    }
+    async getStaffById(organizationId, staffId) {
+        const query = `
+      SELECT s.*, u.username, u.email as user_email,
+        (
+          SELECT json_agg(json_build_object('id', r.id, 'name', r.name))
+          FROM user_roles ur
+          JOIN roles r ON ur.role_id = r.id
+          WHERE ur.user_id = s.user_id
+        ) as roles
+      FROM staff s
+      LEFT JOIN users u ON s.user_id = u.id
+      WHERE s.id = $1 AND s.organization_id = $2
+    `;
+        const result = await database_1.db.query(query, [staffId, organizationId]);
+        return result.rows[0];
+    }
+    async createStaff(organizationId, data) {
+        const client = await database_1.db.getClient();
+        try {
+            await client.query('BEGIN');
+            let userId = null;
+            // 1. Create User
+            if (data.create_user && data.email) {
+                const username = data.email.split('@')[0]; // Simple username generation
+                const fullName = `${data.first_name} ${data.last_name || ''}`.trim();
+                const defaultPassword = data.password || 'Password@123';
+                const passwordHash = await bcryptjs_1.default.hash(defaultPassword, 10);
+                // Fall back to the organization's default facility when none is provided,
+                // so newly created users are always assigned to a valid facility.
+                let defaultFacilityId = data.default_facility_id || null;
+                if (!defaultFacilityId) {
+                    const facilityResult = await client.query(`SELECT id FROM facilities 
+             WHERE (organization_id = $1 OR id != '00000000-0000-0000-0000-000000000000'::uuid) 
+               AND id != '00000000-0000-0000-0000-000000000000'::uuid 
+               AND is_active = true 
+             ORDER BY (CASE WHEN organization_id = $1 THEN 0 ELSE 1 END), created_at ASC 
+             LIMIT 1`, [organizationId]);
+                    defaultFacilityId = facilityResult.rows[0]?.id || null;
+                }
+                const userQuery = `
+          INSERT INTO users (organization_id, username, email, full_name, password_hash, default_facility_id)
+          VALUES ($1, $2, $3, $4, $5, $6)
+          RETURNING id
+        `;
+                const userResult = await client.query(userQuery, [
+                    organizationId,
+                    username,
+                    data.email,
+                    fullName,
+                    passwordHash,
+                    defaultFacilityId
+                ]);
+                userId = userResult.rows[0].id;
+                // Assign Roles
+                if (data.role_ids && data.role_ids.length > 0) {
+                    const roleValues = data.role_ids.map((roleId, index) => `($1, $${index + 2})`).join(', ');
+                    const roleQuery = `INSERT INTO user_roles (user_id, role_id) VALUES ${roleValues}`;
+                    await client.query(roleQuery, [userId, ...data.role_ids]);
+                }
+            }
+            // 2. Create Staff
+            // Generate staff code if not provided
+            let staffCode = data.staff_code;
+            if (!staffCode) {
+                const countResult = await client.query('SELECT COUNT(*) FROM staff WHERE organization_id = $1', [organizationId]);
+                const count = parseInt(countResult.rows[0].count) + 1;
+                staffCode = `EMP-${count.toString().padStart(4, '0')}`;
+            }
+            const staffQuery = `
+        INSERT INTO staff (
+          organization_id, user_id, department_id, staff_code, first_name, last_name, 
+          staff_type, designation, phone, email, joined_on, is_active
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING *
+      `;
+            const staffResult = await client.query(staffQuery, [
+                organizationId,
+                userId,
+                data.department_id || null,
+                staffCode,
+                data.first_name,
+                data.last_name || null,
+                data.staff_type,
+                data.designation || null,
+                data.phone || null,
+                data.email || null,
+                data.joined_on || null,
+                data.is_active !== false
+            ]);
+            await client.query('COMMIT');
+            return staffResult.rows[0];
+        }
+        catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        }
+        finally {
+            client.release();
+        }
+    }
+    async updateStaff(organizationId, staffId, data) {
+        const client = await database_1.db.getClient();
+        try {
+            await client.query('BEGIN');
+            // Update Staff Details
+            const updates = [];
+            const values = [organizationId, staffId];
+            let paramIndex = 3;
+            const allowedFields = ['department_id', 'first_name', 'last_name', 'staff_type', 'designation', 'phone', 'email', 'joined_on', 'left_on', 'is_active'];
+            for (const field of allowedFields) {
+                if (data[field] !== undefined) {
+                    updates.push(`${field} = $${paramIndex}`);
+                    values.push(data[field]);
+                    paramIndex++;
+                }
+            }
+            updates.push(`updated_at = NOW()`);
+            if (updates.length > 0) {
+                const query = `
+          UPDATE staff 
+          SET ${updates.join(', ')}
+          WHERE organization_id = $1 AND id = $2
+          RETURNING *
+        `;
+                await client.query(query, values);
+            }
+            // If user exists and roles or password need updating
+            if (data.role_ids !== undefined || data.password) {
+                const staffRes = await client.query('SELECT user_id FROM staff WHERE id = $1', [staffId]);
+                const userId = staffRes.rows[0]?.user_id;
+                if (userId) {
+                    if (data.password) {
+                        const passwordHash = await bcryptjs_1.default.hash(data.password, 10);
+                        await client.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, userId]);
+                    }
+                    if (data.role_ids !== undefined) {
+                        await client.query('DELETE FROM user_roles WHERE user_id = $1', [userId]);
+                        if (data.role_ids && data.role_ids.length > 0) {
+                            const roleValues = data.role_ids.map((roleId, index) => `($1, $${index + 2})`).join(', ');
+                            const roleQuery = `INSERT INTO user_roles (user_id, role_id) VALUES ${roleValues}`;
+                            await client.query(roleQuery, [userId, ...data.role_ids]);
+                        }
+                    }
+                }
+            }
+            await client.query('COMMIT');
+            return this.getStaffById(organizationId, staffId);
+        }
+        catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        }
+        finally {
+            client.release();
+        }
+    }
+}
+exports.StaffRepository = StaffRepository;

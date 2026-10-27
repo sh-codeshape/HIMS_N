@@ -1,0 +1,114 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.authRepository = exports.AuthRepository = void 0;
+const database_1 = require("../../config/database");
+const rolesQueryText = `
+  SELECT r.code
+  FROM user_roles ur
+  JOIN roles r ON ur.role_id = r.id
+  WHERE ur.user_id = $1
+`;
+class AuthRepository {
+    async findByUsername(username) {
+        const query = `
+      SELECT
+        u.id,
+        u.organization_id,
+        COALESCE(
+          NULLIF(u.default_facility_id, '00000000-0000-0000-0000-000000000000'::uuid),
+          (
+            SELECT f.id
+            FROM public.facilities f
+            WHERE f.organization_id = u.organization_id
+            ORDER BY f.created_at ASC
+            LIMIT 1
+          )
+        ) AS default_facility_id,
+        u.username,
+        u.email,
+        u.password_hash,
+        u.full_name,
+        u.is_active,
+        u.is_superadmin
+      FROM public.users u
+      WHERE u.username = $1 OR u.email = $1
+    `;
+        const result = await database_1.db.query(query, [username]);
+        return result.rows[0] || null;
+    }
+    async createUser(client, data) {
+        const query = `
+      INSERT INTO users (
+        organization_id, username, password_hash, full_name, email, phone, is_superadmin
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id, organization_id, default_facility_id, username, email, password_hash, full_name, is_active, is_superadmin
+    `;
+        const values = [
+            data.organization_id,
+            data.username,
+            data.password_hash,
+            data.full_name,
+            data.email ?? null,
+            data.phone ?? null,
+            data.is_superadmin ?? false,
+        ];
+        const result = await client.query(query, values);
+        return result.rows[0];
+    }
+    async getUserRolesAndPermissions(userId) {
+        const rolesResult = await database_1.db.query(rolesQueryText, [userId]);
+        const roles = rolesResult.rows.map((row) => row.code);
+        const permissionsQuery = `
+      SELECT DISTINCT p.code
+      FROM user_roles ur
+      JOIN role_permissions rp ON ur.role_id = rp.role_id
+      JOIN permissions p ON rp.permission_id = p.id
+      WHERE ur.user_id = $1
+    `;
+        const permissionsResult = await database_1.db.query(permissionsQuery, [userId]);
+        const permissions = permissionsResult.rows.map((row) => row.code);
+        return { roles, permissions };
+    }
+    /**
+     * Effective permissions = role-inherited permissions UNION direct user grants.
+     * Direct grants are what a super admin assigns to a specific user so that
+     * the user can see certain pages regardless of their roles.
+     */
+    async getUserEffectivePermissions(userId) {
+        const rolesResult = await database_1.db.query(rolesQueryText, [userId]);
+        const roles = rolesResult.rows.map((row) => row.code);
+        const permissionsQuery = `
+      SELECT DISTINCT p.code
+      FROM (
+        SELECT rp.permission_id
+        FROM user_roles ur
+        JOIN role_permissions rp ON rp.role_id = ur.role_id
+        WHERE ur.user_id = $1
+        UNION
+        SELECT up.permission_id
+        FROM user_permissions up
+        WHERE up.user_id = $1
+          AND (up.expires_at IS NULL OR up.expires_at > now())
+      ) granted
+      JOIN permissions p ON p.id = granted.permission_id
+    `;
+        const permissionsResult = await database_1.db.query(permissionsQuery, [userId]);
+        const permissions = permissionsResult.rows.map((row) => row.code);
+        return { roles, permissions };
+    }
+    /**
+     * Returns the list of enabled module keys from module_registry.
+     * Used to enrich the JWT so the frontend knows which modules are active.
+     */
+    async getEnabledModules() {
+        const query = `
+      SELECT module_key
+      FROM module_registry
+      WHERE is_enabled = true
+    `;
+        const result = await database_1.db.query(query);
+        return result.rows.map((row) => row.module_key);
+    }
+}
+exports.AuthRepository = AuthRepository;
+exports.authRepository = new AuthRepository();
