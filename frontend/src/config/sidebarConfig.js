@@ -124,7 +124,7 @@ const sidebarConfig = [
   },
   {
     key: "ward",
-    label: "IPD / OPD Ward",
+    label: "Floor Mapping",
     icon: "LuHospital",
     allowedRoles: [SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION],
     children: [

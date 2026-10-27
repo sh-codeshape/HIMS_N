@@ -9,7 +9,7 @@ import "./BedMatrixGrid.css";
 
 
 export default function BedMatrixGrid() {
-  const [beds, setBeds] = useState();
+  const [beds, setBeds] = useState([]);
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [filterWard, setFilterWard] = useState("All");
@@ -24,16 +24,16 @@ export default function BedMatrixGrid() {
     try {
       setLoading(true);
       const [bedsData, patientsData, staffData] = await Promise.all([
-        ipdService.getBedMatrix(),
+        ipdService.getBedMatrix().catch(() => []),
         patientService.getAll().catch(() => []),
         staffService.getDoctors().catch(() => []),
       ]);
-      setBeds(Array.isArray(bedsData) && bedsData.length ? bedsData : FALLBACK_BEDS);
+      setBeds(Array.isArray(bedsData) ? bedsData : []);
       setPatients(Array.isArray(patientsData) ? patientsData : []);
       setDoctors(Array.isArray(staffData) ? staffData : []);
     } catch (err) {
       console.error(err);
-      setBeds();
+      setBeds([]);
       setPatients([]);
       setDoctors([]);
     } finally {
@@ -46,7 +46,7 @@ export default function BedMatrixGrid() {
   }, []);
 
   // Filtered beds based on Ward, Status, and Search Query
-  const filteredBeds = beds.filter((b) => {
+  const filteredBeds = (beds || []).filter((b) => {
     // Ward filter
     const matchWard =
       filterWard === "All" ||
@@ -72,10 +72,10 @@ export default function BedMatrixGrid() {
   });
 
   // KPI Calculations
-  const totalBeds = beds.length;
-  const availableBeds = beds.filter((b) => (b.current_status || "available").toLowerCase() === "available").length;
-  const occupiedBeds = beds.filter((b) => (b.current_status || "").toLowerCase() === "occupied").length;
-  const maintenanceBeds = beds.filter((b) => (b.current_status || "").toLowerCase() === "maintenance").length;
+  const totalBeds = (beds || []).length;
+  const availableBeds = (beds || []).filter((b) => (b.current_status || "available").toLowerCase() === "available").length;
+  const occupiedBeds = (beds || []).filter((b) => (b.current_status || "").toLowerCase() === "occupied").length;
+  const maintenanceBeds = (beds || []).filter((b) => (b.current_status || "").toLowerCase() === "maintenance").length;
   const occupancyPercentage = totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0;
 
   const handleAllotBed = async (e) => {
