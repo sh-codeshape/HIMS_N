@@ -11,7 +11,8 @@
     "db:migrate": "./bin/dbmate -d src/db/migrations up",
     "db:rollback": "./bin/dbmate -d src/db/migrations down",
     "db:seed": "tsx src/db/seed.ts",
-    "db:seed-beds": "tsx src/db/seed-beds.ts",
+    "db:seed-beds": "tsx src/db/seed-floor-map.ts",
+    "db:seed-floors": "tsx src/db/seed-floor-map.ts",
     "test": "vitest",
     "lint": "eslint src --ext .ts"
   }
