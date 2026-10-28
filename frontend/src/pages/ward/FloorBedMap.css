@@ -1123,3 +1123,139 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Secondary header button */
+.floor-map-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #ffffff;
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.floor-map-btn-secondary:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+/* Modal Tab Toggle (Segmented Control) */
+.modal-tab-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #f1f5f9;
+  padding: 0.25rem;
+  border-radius: 10px;
+  margin-bottom: 1.15rem;
+  border: 1px solid #e2e8f0;
+}
+
+.modal-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.modal-tab-btn--active {
+  background: #ffffff;
+  color: #2563eb;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.modal-tab-btn:hover:not(.modal-tab-btn--active) {
+  color: #0f172a;
+}
+
+/* Empty room state in blueprint */
+.blueprint-room--empty {
+  border-style: dashed;
+  background: #fbfcfe;
+}
+
+.blueprint-empty-room-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.25rem;
+  min-height: 52px;
+}
+
+.blueprint-empty-room-label {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.blueprint-room-add-bed-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px dashed #bfdbfe;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.675rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.blueprint-room-add-bed-btn:hover {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+.blueprint-room__type-badge {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.blueprint-empty-floor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  gap: 0.75rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px dashed #cbd5e1;
+  margin: 1rem;
+}
+
+.blueprint-empty-floor__text {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
+  max-width: 380px;
+}

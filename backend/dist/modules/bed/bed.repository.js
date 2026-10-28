@@ -11,6 +11,7 @@ class BedRepository {
         r.room_no as room_name, 
         w.name as ward_name, 
         w.ward_type as ward_type,
+        w.floor as floor,
         b.status as current_status,
         bc.name as category_name,
         bc.is_icu,
@@ -40,7 +41,7 @@ class BedRepository {
       LEFT JOIN patients p ON adm.patient_id = p.id
       LEFT JOIN practitioners prac ON adm.attending_practitioner_id = prac.id OR adm.admitting_practitioner_id = prac.id
       LEFT JOIN staff s ON prac.staff_id = s.id
-      WHERE b.facility_id = $1 AND b.is_active = true
+      WHERE (b.facility_id = $1 OR b.facility_id = '00000000-0000-0000-0000-000000000000' OR $1 = '00000000-0000-0000-0000-000000000000') AND b.is_active = true
       ORDER BY w.name, r.room_no, b.bed_no
     `;
         const result = await database_1.db.query(query, [facilityId]);
@@ -59,8 +60,8 @@ class BedRepository {
         bc.code as bed_category_code,
         bc.name as bed_category_name
       FROM wards w
-      JOIN bed_categories bc ON w.bed_category_id = bc.id
-      WHERE w.facility_id = $1
+      LEFT JOIN bed_categories bc ON w.bed_category_id = bc.id
+      WHERE (w.facility_id = $1 OR w.facility_id = '00000000-0000-0000-0000-000000000000' OR $1 = '00000000-0000-0000-0000-000000000000') AND w.is_active = true
       ORDER BY w.floor NULLS LAST, w.name
     `;
         const result = await database_1.db.query(query, [facilityId]);
@@ -78,7 +79,7 @@ class BedRepository {
         w.ward_type
       FROM rooms r
       JOIN wards w ON r.ward_id = w.id
-      WHERE w.facility_id = $1
+      WHERE (w.facility_id = $1 OR w.facility_id = '00000000-0000-0000-0000-000000000000' OR $1 = '00000000-0000-0000-0000-000000000000') AND r.is_active = true AND w.is_active = true
       ORDER BY w.floor NULLS LAST, w.name, r.room_no
     `;
         const result = await database_1.db.query(query, [facilityId]);
@@ -86,7 +87,7 @@ class BedRepository {
     }
     async getBedById(bedId, facilityId) {
         const query = `
-      SELECT b.*, r.room_no as room_name, w.name as ward_name, w.ward_type as ward_type, bc.name as category_name, bc.is_icu,
+      SELECT b.*, b.status as current_status, r.room_no as room_name, w.name as ward_name, w.floor as floor, w.ward_type as ward_type, bc.name as category_name, bc.is_icu,
              srv.id as bed_charge_service_id, srv.code as bed_charge_service_code, srv.name as bed_charge_service_name,
              COALESCE(srv.default_rate, 0) as bed_charge_rate,
              b.features->>'inventory_item_id' as inventory_item_id
@@ -260,8 +261,8 @@ class BedRepository {
             }
             else {
                 const wardInsert = await database_1.db.query(`INSERT INTO wards (
-            organization_id, facility_id, code, name, ward_type, gender_policy, floor, is_active, created_at, updated_at, created_by, updated_by
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, true, NOW(), NOW(), $8, $9) RETURNING *;`, [
+            organization_id, facility_id, code, name, ward_type, gender_policy, floor, bed_category_id, is_active, created_at, updated_at, created_by, updated_by
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, NOW(), NOW(), $9, $10) RETURNING *;`, [
                     orgId,
                     data.facility_id,
                     data.ward_code,
@@ -269,6 +270,7 @@ class BedRepository {
                     data.ward_type || 'general',
                     data.gender_policy || 'any',
                     data.floor || null,
+                    data.bed_category_id || null,
                     data.created_by || null,
                     data.updated_by || null,
                 ]);
@@ -324,6 +326,33 @@ class BedRepository {
             await this.syncBedToInventoryItem(createdBed);
         }
         return (await this.getBedById(createdBed.id, data.facility_id)) || createdBed;
+    }
+    async createWard(data) {
+        const facilityId = data.facility_id || '00000000-0000-0000-0000-000000000000';
+        const existing = await database_1.db.query(`SELECT id FROM wards WHERE facility_id = $1 AND code = $2 AND is_active = true LIMIT 1;`, [facilityId, data.code]);
+        if (existing.rows.length > 0) {
+            throw new AppError_1.ConflictError(`Ward code '${data.code}' already exists`);
+        }
+        const insert = await database_1.db.query(`INSERT INTO wards (
+        organization_id, facility_id, code, name, ward_type, gender_policy, floor, bed_category_id, is_active, created_at, updated_at, created_by, updated_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW(), $10, $11) RETURNING *;`, [
+            data.organization_id || '00000000-0000-0000-0000-000000000000',
+            facilityId,
+            data.code,
+            data.name,
+            data.ward_type || 'general',
+            data.gender_policy || 'any',
+            data.floor || null,
+            data.bed_category_id || null,
+            data.is_active === undefined ? true : data.is_active,
+            data.created_by || null,
+            data.updated_by || null,
+        ]);
+        return insert.rows[0];
+    }
+    async createRoom(data) {
+        const insert = await database_1.db.query(`INSERT INTO rooms (ward_id, room_no, room_type, is_active) VALUES ($1, $2, $3, $4) RETURNING *;`, [data.ward_id, data.room_no, data.room_type || 'general', data.is_active === undefined ? true : data.is_active]);
+        return insert.rows[0];
     }
     async updateBed(bedId, data, facilityId) {
         let bedChargeServiceId = data.bed_charge_service_id;

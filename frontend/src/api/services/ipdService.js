@@ -18,6 +18,14 @@ const ipdService = {
     const res = await axiosInstance.post("/beds", payload);
     return res.data?.data ?? res.data ?? null;
   },
+  createWard: async (payload) => {
+    const res = await axiosInstance.post("/beds/wards", payload);
+    return res.data?.data ?? res.data ?? null;
+  },
+  createRoom: async (payload) => {
+    const res = await axiosInstance.post("/beds/rooms", payload);
+    return res.data?.data ?? res.data ?? null;
+  },
   getBed: async (bedId) => {
     const res = await axiosInstance.get(`/beds/${bedId}`);
     return res.data?.data ?? res.data ?? null;

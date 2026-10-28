@@ -37,6 +37,20 @@ class BedService {
         }
         return bed;
     }
+    async createWard(data) {
+        const ward = await this.repository.createWard(data);
+        if (!ward) {
+            throw new AppError_1.NotFoundError('Failed to create ward');
+        }
+        return ward;
+    }
+    async createRoom(data) {
+        const room = await this.repository.createRoom(data);
+        if (!room) {
+            throw new AppError_1.NotFoundError('Failed to create room');
+        }
+        return room;
+    }
     async updateBed(bedId, data, facilityId, updatedBy) {
         const bed = await this.repository.getBedById(bedId, facilityId);
         if (!bed) {

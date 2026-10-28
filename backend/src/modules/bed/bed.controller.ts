@@ -16,7 +16,7 @@ export class BedController {
   // then fall back to the default facility where beds actually live.
   private resolveBedFacilityId(req: Request): string {
     const ZERO_UUID = '00000000-0000-0000-0000-000000000000';
-    return (req.query.facilityId || ZERO_UUID) as string;
+    return (req.body?.facility_id || req.query?.facilityId || ZERO_UUID) as string;
   }
 
   getBeds = async (req: Request, res: Response, next: NextFunction) => {
@@ -105,6 +105,45 @@ export class BedController {
         updated_by: userId,
       });
       sendSuccess(res, bed, 'Bed created successfully', 201);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  createWard = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const facilityId = this.resolveBedFacilityId(req);
+      const userId = req.user?.userId;
+      const ward = await this.service.createWard({
+        organization_id: req.user?.organizationId,
+        facility_id: facilityId,
+        code: req.body.code,
+        name: req.body.name,
+        ward_type: req.body.ward_type,
+        gender_policy: req.body.gender_policy,
+        floor: req.body.floor,
+        bed_category_id: req.body.bed_category_id ?? null,
+        is_active: req.body.is_active ?? true,
+        created_by: userId,
+        updated_by: userId,
+      });
+      sendSuccess(res, ward, 'Ward created successfully', 201);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  createRoom = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const room = await this.service.createRoom({
+        ward_id: req.body.ward_id,
+        room_no: req.body.room_no,
+        room_type: req.body.room_type,
+        is_active: req.body.is_active ?? true,
+        created_by: req.user?.userId,
+        updated_by: req.user?.userId,
+      });
+      sendSuccess(res, room, 'Room created successfully', 201);
     } catch (error) {
       next(error);
     }

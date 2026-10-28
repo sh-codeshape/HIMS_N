@@ -13,12 +13,12 @@
 export const DEFAULT_HOSPITAL_CONFIG = {
   // Hospital identity & branding
   hospital: {
-    name: 'KG Nanda Hospital',
+    name: 'Naryan Hospital',
     tagline: 'Super Speciality Healthcare & Research Institute',
     registrationNo: 'REG/UP/2024/098',
     logo: {
       src: '/image/image.png', // Fallback path in public folder (also supports /NarayanLogo.png or full URLs)
-      alt: 'KG Nanda Hospital Logo',
+      alt: 'Naryan Hospital',
       height: '44px',
       maxWidth: '140px',
       show: true,
@@ -44,25 +44,20 @@ export const DEFAULT_HOSPITAL_CONFIG = {
 
   // Footer & Contact information (WhatsApp chatbot, Helplines, website, etc.)
   contacts: {
-    whatsapp: {
-      show: true,
-      label: 'WhatsApp Chatbot',
-      number: '+91 8853991899',
-    },
+    // whatsapp: {
+    //   show: true,
+    //   // label: 'WhatsApp Chatbot',
+    //   number: '+91 8853991899',
+    // },
     helplines: [
       {
         show: true,
         label: 'Helpline',
-        number: '+91 9838850287',
-      },
-      {
-        show: true,
-        label: '',
-        number: '+91 8840376333',
+        number: '+91 7388660408',
       },
     ],
-    email: 'info@kgnandahospital.com',
-    website: 'www.kgnandahospital.com',
+    // email: 'info@kgnandahospital.com',
+    // website: 'www.kgnandahospital.com',
   },
 
   // Counter notices and labels

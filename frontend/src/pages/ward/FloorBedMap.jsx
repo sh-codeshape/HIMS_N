@@ -23,6 +23,26 @@ export default function FloorBedMap() {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [showAddBedModal, setShowAddBedModal] = useState(false);
+  const [addBedSubmitting, setAddBedSubmitting] = useState(false);
+  const [showAddWardModal, setShowAddWardModal] = useState(false);
+  const [addWardSubmitting, setAddWardSubmitting] = useState(false);
+  const [addModalTab, setAddModalTab] = useState("room"); // "room" | "ward"
+  const [addRoomForm, setAddRoomForm] = useState({
+    floor: "Ground Floor",
+    ward_id: "",
+    room_no: "",
+    room_type: "general",
+  });
+  const [addWardForm, setAddWardForm] = useState({
+    floor: "Ground Floor",
+    code: "",
+    name: "",
+    ward_type: "general",
+    gender_policy: "any",
+    bed_category_id: "",
+    initial_room_no: "",
+    room_type: "general",
+  });
   const [showEditModal, setShowEditModal] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
@@ -64,16 +84,16 @@ export default function FloorBedMap() {
     ward_id: "",
     ward_code: "",
     ward_name: "",
-    ward_type: "",
-    floor: "",
-    gender_policy: "",
+    ward_type: "general",
+    floor: "Ground Floor",
+    gender_policy: "any",
     bed_category_id: "",
     bed_charge_service_id: "",
     room_id: "",
     room_no: "",
-    room_type: "",
+    room_type: "general",
     bed_no: "",
-    status: "",
+    status: "available",
     features: { oxygen: false, monitor: false, ventilator: false },
   });
 
@@ -84,37 +104,42 @@ export default function FloorBedMap() {
     ageGender: "",
     department: "",
     room: "",
-    bedNo: "2"
+    bedNo: ""
   });
 
-  // Load ward / room / bed master for floor map + bed addition
-  useEffect(() => {
-    const loadWardMaster = async () => {
-      try {
-        const [bedsData, wardsData, roomsData, catsData] = await Promise.all([
-          ipdService.getBedMatrix().catch(() => []),
-          ipdService.getBedWards().catch(() => []),
-          ipdService.getBedRooms().catch(() => []),
-          ipdService.getBedCategories().catch(() => []),
-        ]);
-        setBedsData(Array.isArray(bedsData) ? bedsData : []);
-        setWards(Array.isArray(wardsData) ? wardsData : []);
-        setRooms(Array.isArray(roomsData) ? roomsData : []);
-        setCategoriesList(Array.isArray(catsData) ? catsData : catsData?.data || []);
-        if (Array.isArray(wardsData) && wardsData.length > 0) {
-          const floorNames = Array.from(
-            new Set(wardsData.map((w) => w.floor).filter(Boolean))
-          );
-          if (floorNames.length > 0 && !floorNames.includes(activeFloor)) {
-            setActiveFloor(floorNames[0]);
-          }
+  // Load ward / room / bed master for floor map + bed addition (pure real data from API)
+  const loadWardMaster = async (targetFloor = null) => {
+    try {
+      setBedsLoading(true);
+      const [bedsRes, wardsRes, roomsRes, catsRes] = await Promise.all([
+        ipdService.getBedMatrix().catch(() => []),
+        ipdService.getBedWards().catch(() => []),
+        ipdService.getBedRooms().catch(() => []),
+        ipdService.getBedCategories().catch(() => []),
+      ]);
+      setBedsData(Array.isArray(bedsRes) ? bedsRes : []);
+      setWards(Array.isArray(wardsRes) ? wardsRes : []);
+      setRooms(Array.isArray(roomsRes) ? roomsRes : []);
+      setCategoriesList(Array.isArray(catsRes) ? catsRes : catsRes?.data || []);
+
+      if (targetFloor) {
+        setActiveFloor(targetFloor);
+      } else if (Array.isArray(wardsRes) && wardsRes.length > 0) {
+        const floorNames = Array.from(
+          new Set(wardsRes.map((w) => w.floor).filter(Boolean))
+        );
+        if (floorNames.length > 0 && !floorNames.includes(activeFloor)) {
+          setActiveFloor(floorNames[0]);
         }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setBedsLoading(false);
       }
-    };
+    } catch (err) {
+      console.error("Failed to load ward master data:", err);
+    } finally {
+      setBedsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadWardMaster();
   }, []);
 
@@ -221,24 +246,41 @@ export default function FloorBedMap() {
 
   const bedsView = useMemo(() => bedsData.map(bedViewFromApi), [bedsData]);
 
-  // Filtered beds for table
+  // Available rooms for filter (derived dynamically from real beds)
+  const tableRoomOptions = useMemo(() => {
+    const set = new Set();
+    bedsView.forEach((b) => {
+      const bFloor = wards.find((w) => w.id === b.wardId)?.floor || b.rawBed?.floor || "Unknown";
+      if (!activeFloor || bFloor === activeFloor) {
+        if (b.room && b.room !== "-") set.add(b.room);
+      }
+    });
+    return Array.from(set).sort();
+  }, [bedsView, activeFloor, wards]);
+
+  // Filtered beds for table (matching active floor + user filters)
   const filteredBedsForTable = useMemo(() => {
     return bedsView.filter((b) => {
+      const bFloor = wards.find((w) => w.id === b.wardId)?.floor || b.rawBed?.floor || "Unknown";
+      const matchesFloor = !activeFloor || bFloor === activeFloor;
+
       const matchesSearch =
         String(b.bedNo ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         String(b.patientName ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         String(b.uhid ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        String(b.room ?? "").toLowerCase().includes(searchTerm.toLowerCase());
+        String(b.room ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(b.wardName ?? "").toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesStatus =
-        statusFilter === "All Status" || b.status === statusFilter;
+        statusFilter === "All Status" ||
+        String(b.status || "").toLowerCase() === statusFilter.toLowerCase();
 
       const matchesRoom =
         roomFilter === "All Rooms" || b.room === roomFilter;
 
-      return matchesSearch && matchesStatus && matchesRoom;
+      return matchesFloor && matchesSearch && matchesStatus && matchesRoom;
     });
-  }, [bedsView, searchTerm, statusFilter, roomFilter]);
+  }, [bedsView, searchTerm, statusFilter, roomFilter, activeFloor, wards]);
 
   // Ward options scoped to the active floor (from live ward data)
   const wardOptions = useMemo(() => {
@@ -263,20 +305,55 @@ export default function FloorBedMap() {
     return floorBeds;
   }, [bedsData, wards, activeFloor, effectiveWardFilter]);
 
-  // Group beds of the active floor (+ ward) into rooms for the blueprint
+  // Group rooms & beds of the active floor (+ ward) into room cards for the blueprint
   const blueprintRooms = useMemo(() => {
     const map = new Map();
+
+    // 1. Seed all real rooms belonging to this floor and selected ward
+    const floorRooms = rooms.filter((r) => {
+      const matchFloor = (r.floor || "Unknown") === activeFloor;
+      const matchWard =
+        effectiveWardFilter === "All" ||
+        r.ward_name === effectiveWardFilter ||
+        wards.find((w) => w.id === r.ward_id)?.name === effectiveWardFilter;
+      return matchFloor && matchWard;
+    });
+
+    floorRooms.forEach((r) => {
+      const key = `${r.ward_id}::${r.room_no}`;
+      map.set(key, {
+        key,
+        room_id: r.id,
+        room_no: r.room_no,
+        room_type: r.room_type || "general",
+        ward_id: r.ward_id,
+        ward_name: r.ward_name || wards.find((w) => w.id === r.ward_id)?.name || "",
+        beds: [],
+      });
+    });
+
+    // 2. Populate beds into their respective rooms
     bedsInFloor.forEach((b) => {
-      const key = `${b.ward_id || "ward"}::${b.room_id || b.room_name}`;
+      const roomLabel = b.room_name || b.room_no || "General Space";
+      const key = `${b.ward_id || "ward"}::${roomLabel}`;
       if (!map.has(key)) {
-        map.set(key, { key, room_no: b.room_name || b.room_id, ward_id: b.ward_id, beds: [] });
+        map.set(key, {
+          key,
+          room_id: b.room_id || null,
+          room_no: roomLabel,
+          room_type: b.ward_type || "general",
+          ward_id: b.ward_id,
+          ward_name: b.ward_name || wards.find((w) => w.id === b.ward_id)?.name || "",
+          beds: [],
+        });
       }
       map.get(key).beds.push(b);
     });
+
     return Array.from(map.values()).sort((a, b) =>
-      String(a.room_no).localeCompare(String(b.room_no))
+      String(a.room_no).localeCompare(String(b.room_no), undefined, { numeric: true })
     );
-  }, [bedsInFloor]);
+  }, [rooms, bedsInFloor, activeFloor, effectiveWardFilter, wards]);
 
   const blueprintRoomRows = useMemo(() => {
     const rows = [];
@@ -323,62 +400,220 @@ export default function FloorBedMap() {
     setSelectedBedModal(null);
   };
 
+  // Open Add Bed modal prefilled with current floor/ward context
+  const handleOpenAddBedModal = () => {
+    const currentWard =
+      wards.find(
+        (w) =>
+          w.floor === activeFloor &&
+          (w.name === selectedWardFilter || w.code === selectedWardFilter)
+      ) || wards.find((w) => w.floor === activeFloor);
+
+    setAddBedForm({
+      ward_id: currentWard?.id || (wards.length > 0 ? wards[0].id : ""),
+      ward_code: "",
+      ward_name: "",
+      ward_type: currentWard?.ward_type || "general",
+      floor: currentWard?.floor || activeFloor || "Ground Floor",
+      gender_policy: currentWard?.gender_policy || "any",
+      bed_category_id: currentWard?.bed_category_id || "",
+      bed_charge_service_id: "",
+      room_id: "",
+      room_no: "",
+      room_type: "general",
+      bed_no: "",
+      status: "available",
+      features: { oxygen: false, monitor: false, ventilator: false },
+    });
+    setShowAddBedModal(true);
+  };
+
   // Handle Add Bed (floor-wise) submission -> POST /beds
   const handleAddBedSubmit = async (e) => {
     e.preventDefault();
-    if (!addBedForm.bed_no) {
+    const bedNoClean = (addBedForm.bed_no || "").trim();
+    if (!bedNoClean) {
       toast.error("Bed number is required");
       return;
     }
-    if (!addBedForm.ward_id && !addBedForm.ward_code) {
+    if (!addBedForm.ward_id && !addBedForm.ward_code?.trim()) {
       toast.error("Please select an existing ward or enter a new ward code");
       return;
     }
 
     try {
+      setAddBedSubmitting(true);
       const selectedCategory = bedCategories.find((c) => c.id === addBedForm.bed_category_id);
+      const floorVal = (addBedForm.floor || "").trim() || activeFloor || "Ground Floor";
       const payload = {
         facility_id: "00000000-0000-0000-0000-000000000000",
         ward_id: addBedForm.ward_id || undefined,
-        ward_code: addBedForm.ward_code || undefined,
-        ward_name: addBedForm.ward_name || undefined,
-        ward_type: addBedForm.ward_type,
-        floor: addBedForm.floor || undefined,
-        gender_policy: addBedForm.gender_policy,
+        ward_code: !addBedForm.ward_id ? (addBedForm.ward_code || "").trim() : undefined,
+        ward_name: !addBedForm.ward_id ? (addBedForm.ward_name || "").trim() || undefined : undefined,
+        ward_type: addBedForm.ward_type || "general",
+        floor: floorVal,
+        gender_policy: addBedForm.gender_policy || "any",
         bed_category_id: addBedForm.bed_category_id || null,
         bed_charge_service_id: selectedCategory?.bed_charge_service_id || undefined,
         room_id: addBedForm.room_id || null,
-        room_no: addBedForm.room_no || undefined,
-        room_type: addBedForm.room_type,
-        bed_no: addBedForm.bed_no,
-        status: addBedForm.status,
-        features: addBedForm.features,
+        room_no: (addBedForm.room_no || "").trim() || undefined,
+        room_type: addBedForm.room_type || "general",
+        bed_no: bedNoClean,
+        status: (addBedForm.status || "available").toLowerCase(),
+        features: addBedForm.features || {},
       };
-      const bed = await ipdService.addBed(payload);
-      if (bed) {
-        setBedsData((prev) => [...prev, bed]);
-      }
-      toast.success(`Bed ${addBedForm.bed_no} added successfully!`, { icon: "🛏️" });
+
+      await ipdService.addBed(payload);
+      toast.success(`Bed ${bedNoClean} added successfully!`, { icon: "🛏️" });
       setShowAddBedModal(false);
-      setAddBedForm({
-        ward_id: "",
-        ward_code: "",
-        ward_name: "",
-        ward_type: "general",
-        floor: "",
-        gender_policy: "any",
-        bed_category_id: "",
-        bed_charge_service_id: "",
-        room_id: "",
-        room_no: "",
-        room_type: "general",
-        bed_no: "",
-        status: "available",
-        features: { oxygen: false, monitor: false, ventilator: false },
-      });
+
+      // Re-fetch all real beds, wards, rooms from database
+      await loadWardMaster(floorVal);
     } catch (err) {
       console.error(err);
-      toast.error(err?.response?.data?.error?.message || "Failed to add bed");
+      const details = err?.response?.data?.error?.details;
+      let detailMsg = "";
+      if (Array.isArray(details) && details.length > 0) {
+        detailMsg = details.map((d) => `${d.path?.slice(1)?.join(".") || "field"}: ${d.message}`).join(", ");
+      }
+      const msg = detailMsg || err?.response?.data?.error?.message || err?.message || "Failed to add bed";
+      toast.error(msg);
+    } finally {
+      setAddBedSubmitting(false);
+    }
+  };
+
+  // Open Add Ward / Room modal with preselected tab, ward, and floor
+  const handleOpenAddWardRoomModal = (initialTab = "room", preselectedWardId = null, preselectedFloor = null) => {
+    const floorToUse = preselectedFloor || activeFloor || "Ground Floor";
+    const availableWardsForFloor = wards.filter((w) => w.floor === floorToUse);
+    const wardIdToUse = preselectedWardId || availableWardsForFloor[0]?.id || wards[0]?.id || "";
+
+    setAddModalTab(initialTab);
+    setAddRoomForm({
+      floor: floorToUse,
+      ward_id: wardIdToUse,
+      room_no: "",
+      room_type: "general",
+    });
+    setAddWardForm({
+      floor: floorToUse,
+      code: "",
+      name: "",
+      ward_type: "general",
+      gender_policy: "any",
+      bed_category_id: "",
+      initial_room_no: "",
+      room_type: "general",
+    });
+    setShowAddWardModal(true);
+  };
+
+  // Open Add Bed modal pre-targeted for a specific room clicked on the blueprint
+  const handleOpenAddBedForRoom = (roomGroup) => {
+    const matchedWard =
+      wards.find((w) => w.id === roomGroup.ward_id) ||
+      wards.find((w) => w.name === roomGroup.ward_name);
+    setAddBedForm({
+      ward_id: roomGroup.ward_id || matchedWard?.id || "",
+      ward_code: "",
+      ward_name: "",
+      ward_type: roomGroup.room_type || matchedWard?.ward_type || "general",
+      floor: matchedWard?.floor || activeFloor || "Ground Floor",
+      gender_policy: matchedWard?.gender_policy || "any",
+      bed_category_id: matchedWard?.bed_category_id || "",
+      bed_charge_service_id: "",
+      room_id: roomGroup.room_id || "",
+      room_no: roomGroup.room_no || "",
+      room_type: roomGroup.room_type || "general",
+      bed_no: "",
+      status: "available",
+      features: { oxygen: false, monitor: false, ventilator: false },
+    });
+    setShowAddBedModal(true);
+  };
+
+  // Handle Add Room submit -> standalone room creation under an existing ward
+  const handleAddRoomSubmit = async (e) => {
+    e.preventDefault();
+    const roomNoClean = (addRoomForm.room_no || "").trim();
+    if (!addRoomForm.ward_id) {
+      toast.error("Please select a target ward");
+      return;
+    }
+    if (!roomNoClean) {
+      toast.error("Room number / name is required");
+      return;
+    }
+
+    try {
+      setAddWardSubmitting(true);
+      const selectedWard = wards.find((w) => w.id === addRoomForm.ward_id);
+      await ipdService.createRoom({
+        ward_id: addRoomForm.ward_id,
+        room_no: roomNoClean,
+        room_type: addRoomForm.room_type || "general",
+      });
+
+      toast.success(`Room "${roomNoClean}" added to ${selectedWard?.name || "ward"} successfully!`, {
+        icon: "🚪",
+      });
+      setShowAddWardModal(false);
+      await loadWardMaster(addRoomForm.floor || activeFloor);
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.error?.message || err?.message || "Failed to create room");
+    } finally {
+      setAddWardSubmitting(false);
+    }
+  };
+
+  // Handle Add Ward submit -> standalone ward (+ optional initial room) creation
+  const handleAddWardSubmit = async (e) => {
+    e.preventDefault();
+    const wardCodeClean = (addWardForm.code || "").trim();
+    const wardNameClean = (addWardForm.name || "").trim();
+    const floorClean = (addWardForm.floor || "").trim() || activeFloor || "Ground Floor";
+    const initialRoomClean = (addWardForm.initial_room_no || "").trim();
+
+    if (!wardCodeClean || !wardNameClean) {
+      toast.error("Ward Code and Ward Name are required");
+      return;
+    }
+
+    try {
+      setAddWardSubmitting(true);
+      const createdWard = await ipdService.createWard({
+        facility_id: "00000000-0000-0000-0000-000000000000",
+        code: wardCodeClean,
+        name: wardNameClean,
+        ward_type: addWardForm.ward_type || "general",
+        gender_policy: addWardForm.gender_policy || "any",
+        floor: floorClean,
+        bed_category_id: addWardForm.bed_category_id || null,
+      });
+
+      if (initialRoomClean && createdWard?.id) {
+        await ipdService.createRoom({
+          ward_id: createdWard.id,
+          room_no: initialRoomClean,
+          room_type: addWardForm.room_type || "general",
+        });
+      }
+
+      toast.success(
+        initialRoomClean
+          ? `Ward "${wardNameClean}" and Room "${initialRoomClean}" created on ${floorClean}!`
+          : `Ward "${wardNameClean}" created on ${floorClean}!`,
+        { icon: "🏥" }
+      );
+      setShowAddWardModal(false);
+      await loadWardMaster(floorClean);
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.error?.message || err?.message || "Failed to create ward");
+    } finally {
+      setAddWardSubmitting(false);
     }
   };
 
@@ -480,6 +715,7 @@ export default function FloorBedMap() {
 
       toast.success(`Bed ${editBedForm.bed_no} updated successfully!`, { icon: "✅" });
       setShowEditModal(false);
+      await loadWardMaster();
     } catch (err) {
       console.error(err);
       toast.error(err?.response?.data?.error?.message || err?.message || "Failed to update bed");
@@ -515,6 +751,7 @@ export default function FloorBedMap() {
       setBedToDelete(null);
       setSelectedBedModal(null);
       setShowEditModal(false);
+      await loadWardMaster();
     } catch (err) {
       console.error(err);
       toast.error(err?.response?.data?.error?.message || err?.message || "Failed to delete bed");
@@ -536,26 +773,16 @@ export default function FloorBedMap() {
         console.error(err);
       }
     }
-    const updated = bedsData.map((b) => {
-      if (b.id === bedId) {
-        return {
-          ...b,
-          patient_first_name: null,
-          patient_last_name: null,
-          patient_id: null,
-          patient_uhid: null,
-          gender: null,
-          date_of_birth: null,
-          admission_id: null,
-          status: "available",
-          current_status: "available",
-        };
-      }
-      return b;
-    });
-    setBedsData(updated);
-    toast.success("Bed vacated and set to Available!", { icon: "🧹" });
-    setSelectedBedModal(null);
+    try {
+      await ipdService.updateBedStatus(bedId, "available");
+      toast.success("Bed vacated and set to Available!", { icon: "🧹" });
+      await loadWardMaster();
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.error?.message || "Failed to update bed status");
+    } finally {
+      setSelectedBedModal(null);
+    }
   };
 
   // Quick action helpers
@@ -609,10 +836,19 @@ export default function FloorBedMap() {
           <button
             type="button"
             className="floor-map-btn-primary"
-            onClick={() => setShowAddBedModal(true)}
+            onClick={handleOpenAddBedModal}
           >
             <Icon name="LuPlus" size={18} />
             <span>Add Bed</span>
+          </button>
+
+          <button
+            type="button"
+            className="floor-map-btn-primary"
+            onClick={() => setShowAddWardModal(true)}
+          >
+            <Icon name="LuPlus" size={18} />
+            <span>Add Ward / Room</span>
           </button>
         </div>
       </div>
@@ -810,7 +1046,7 @@ export default function FloorBedMap() {
                                 <span className="blueprint-bed-icon">
                                   <Icon name="LuBed" size={18} />
                                 </span>
-                                <span className="blueprint-bed-num">{idx + 1}</span>
+                                <span className="blueprint-bed-num" title={b.bed_no}>{b.bed_no || idx + 1}</span>
                               </div>
                             ))}
                           </div>
@@ -1026,10 +1262,12 @@ export default function FloorBedMap() {
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="All Status">All Status</option>
-              <option value="Occupied">Occupied</option>
-              <option value="Available">Available</option>
-              <option value="Reserved">Reserved</option>
-              <option value="Maintenance">Maintenance</option>
+              <option value="available">Available</option>
+              <option value="occupied">Occupied</option>
+              <option value="reserved">Reserved</option>
+              <option value="cleaning">Cleaning</option>
+              <option value="maintenance">Maintenance</option>
+              <option value="blocked">Blocked</option>
             </select>
 
             <select
@@ -1038,13 +1276,11 @@ export default function FloorBedMap() {
               onChange={(e) => setRoomFilter(e.target.value)}
             >
               <option value="All Rooms">All Rooms</option>
-              <option value="GW-101">GW-101</option>
-              <option value="GW-102">GW-102</option>
-              <option value="GW-103">GW-103</option>
-              <option value="Isolation">Isolation</option>
-              <option value="GW-104">GW-104</option>
-              <option value="GW-105">GW-105</option>
-              <option value="GW-106">GW-106</option>
+              {tableRoomOptions.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -1427,6 +1663,7 @@ export default function FloorBedMap() {
                     });
                     toast.success("Bed transfer processed successfully!");
                     setShowTransferModal(false);
+                    await loadWardMaster();
                   } catch (err) {
                     toast.error(err?.response?.data?.error?.message || "Bed transfer failed");
                   }
@@ -1493,14 +1730,9 @@ export default function FloorBedMap() {
                   }
                   try {
                     await ipdService.updateBedStatus(selectedBedModal.id, "maintenance");
-                    setBedsData((prev) =>
-                      prev.map((b) =>
-                        b.id === selectedBedModal.id
-                          ? { ...b, status: "maintenance", current_status: "maintenance" }
-                          : b
-                      )
-                    );
                     toast.success("Bed status updated to Maintenance!");
+                    setShowBlockModal(false);
+                    await loadWardMaster();
                   } catch (err) {
                     toast.error(err?.response?.data?.error?.message || "Failed to update bed status");
                   } finally {
@@ -1520,7 +1752,12 @@ export default function FloorBedMap() {
         <div className="floor-map-modal-overlay" onClick={() => setShowAddBedModal(false)}>
           <div className="floor-map-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="floor-map-modal-header">
-              <h3 className="floor-map-modal-title">Add New Bed</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ color: "#2563eb" }}>
+                  <Icon name="LuPlus" size={20} />
+                </span>
+                <h3 className="floor-map-modal-title">Add New Bed</h3>
+              </div>
               <button
                 type="button"
                 className="floor-map-modal-close"
@@ -1537,9 +1774,15 @@ export default function FloorBedMap() {
                   type="text"
                   className="modal-form-input"
                   placeholder="e.g. Ground Floor"
+                  list="add-bed-floors-list"
                   value={addBedForm.floor}
                   onChange={(e) => setAddBedForm({ ...addBedForm, floor: e.target.value })}
                 />
+                <datalist id="add-bed-floors-list">
+                  {floorsList.map((fl) => (
+                    <option key={fl.name} value={fl.name} />
+                  ))}
+                </datalist>
               </div>
 
               <div className="modal-form-group">
@@ -1547,7 +1790,20 @@ export default function FloorBedMap() {
                 <select
                   className="modal-form-select"
                   value={addBedForm.ward_id}
-                  onChange={(e) => setAddBedForm({ ...addBedForm, ward_id: e.target.value })}
+                  onChange={(e) => {
+                    const wid = e.target.value;
+                    const selWard = wards.find((w) => w.id === wid);
+                    setAddBedForm({
+                      ...addBedForm,
+                      ward_id: wid,
+                      floor: selWard?.floor || addBedForm.floor || activeFloor || "Ground Floor",
+                      ward_type: selWard?.ward_type || addBedForm.ward_type || "general",
+                      gender_policy: selWard?.gender_policy || addBedForm.gender_policy || "any",
+                      bed_category_id: selWard?.bed_category_id || addBedForm.bed_category_id || "",
+                      room_id: "",
+                      room_no: "",
+                    });
+                  }}
                 >
                   <option value="">-- New Ward (auto-create) --</option>
                   {wards.map((w) => (
@@ -1559,7 +1815,7 @@ export default function FloorBedMap() {
               </div>
 
               {addBedForm.ward_id === "" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem", background: "#f8fafc", padding: "0.85rem", borderRadius: "8px", border: "1px dashed #cbd5e1" }}>
                   <div className="modal-form-group">
                     <label className="modal-form-label">New Ward Code *</label>
                     <input
@@ -1568,7 +1824,7 @@ export default function FloorBedMap() {
                       placeholder="e.g. GW-108"
                       value={addBedForm.ward_code}
                       onChange={(e) => setAddBedForm({ ...addBedForm, ward_code: e.target.value })}
-                      required
+                      required={!addBedForm.ward_id}
                     />
                   </div>
                   <div className="modal-form-group">
@@ -1586,7 +1842,7 @@ export default function FloorBedMap() {
                       <label className="modal-form-label">Ward Type</label>
                       <select
                         className="modal-form-select"
-                        value={addBedForm.ward_type}
+                        value={addBedForm.ward_type || "general"}
                         onChange={(e) => setAddBedForm({ ...addBedForm, ward_type: e.target.value })}
                       >
                         <option value="general">General</option>
@@ -1607,7 +1863,7 @@ export default function FloorBedMap() {
                       <label className="modal-form-label">Gender Policy</label>
                       <select
                         className="modal-form-select"
-                        value={addBedForm.gender_policy}
+                        value={addBedForm.gender_policy || "any"}
                         onChange={(e) => setAddBedForm({ ...addBedForm, gender_policy: e.target.value })}
                       >
                         <option value="any">Any</option>
@@ -1619,18 +1875,56 @@ export default function FloorBedMap() {
                 </div>
               )}
 
-              {addBedForm.ward_id && (
-                <div className="modal-form-group">
-                  <label className="modal-form-label">Room No.</label>
-                  <input
-                    type="text"
-                    className="modal-form-input"
-                    placeholder="e.g. GW-101"
-                    value={addBedForm.room_no}
-                    onChange={(e) => setAddBedForm({ ...addBedForm, room_no: e.target.value })}
-                  />
-                </div>
-              )}
+              <div className="modal-form-group">
+                <label className="modal-form-label">Room No.</label>
+                <input
+                  type="text"
+                  className="modal-form-input"
+                  placeholder="e.g. GW-101"
+                  list="add-bed-rooms-list"
+                  value={addBedForm.room_no}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const matched = rooms.find((r) => (!addBedForm.ward_id || r.ward_id === addBedForm.ward_id) && r.room_no === val);
+                    setAddBedForm({
+                      ...addBedForm,
+                      room_no: val,
+                      room_id: matched ? matched.id : "",
+                    });
+                  }}
+                />
+                <datalist id="add-bed-rooms-list">
+                  {rooms
+                    .filter((r) => !addBedForm.ward_id || r.ward_id === addBedForm.ward_id)
+                    .map((r) => (
+                      <option key={r.id} value={r.room_no}>
+                        {r.room_no} {r.ward_name ? `(${r.ward_name})` : ""}
+                      </option>
+                    ))}
+                </datalist>
+              </div>
+
+              <div className="modal-form-group">
+                <label className="modal-form-label">Room Type</label>
+                <select
+                  className="modal-form-select"
+                  value={addBedForm.room_type || "general"}
+                  onChange={(e) => setAddBedForm({ ...addBedForm, room_type: e.target.value })}
+                >
+                  <option value="general">General</option>
+                  <option value="semi_private">Semi Private</option>
+                  <option value="private">Private</option>
+                  <option value="icu">ICU</option>
+                  <option value="nicu">NICU</option>
+                  <option value="picu">PICU</option>
+                  <option value="hdu">HDU</option>
+                  <option value="isolation">Isolation</option>
+                  <option value="emergency">Emergency</option>
+                  <option value="maternity">Maternity</option>
+                  <option value="daycare">Daycare</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
                 <div className="modal-form-group">
@@ -1665,7 +1959,7 @@ export default function FloorBedMap() {
                   <label className="modal-form-label">Status</label>
                   <select
                     className="modal-form-select"
-                    value={addBedForm.status}
+                    value={addBedForm.status || "available"}
                     onChange={(e) => setAddBedForm({ ...addBedForm, status: e.target.value })}
                   >
                     <option value="available">Available</option>
@@ -1684,8 +1978,11 @@ export default function FloorBedMap() {
                       { key: "oxygen", label: "Oxygen" },
                       { key: "monitor", label: "Monitor" },
                       { key: "ventilator", label: "Ventilator" },
+                      { key: "motorized", label: "Motorized" },
+                      { key: "emergency_call_bell", label: "Call Bell" },
+                      { key: "suction", label: "Suction" },
                     ].map((f) => (
-                      <label key={f.key} style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                      <label key={f.key} style={{ display: "flex", alignItems: "center", gap: "0.4rem", cursor: "pointer", fontSize: "0.85rem" }}>
                         <input
                           type="checkbox"
                           checked={!!addBedForm.features?.[f.key]}
@@ -1707,8 +2004,166 @@ export default function FloorBedMap() {
                 <button type="button" className="modal-btn-cancel" onClick={() => setShowAddBedModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="modal-btn-submit">
-                  Add Bed
+                <button type="submit" className="modal-btn-submit" disabled={addBedSubmitting}>
+                  {addBedSubmitting ? "Adding Bed..." : "Add Bed"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 10.5 Add Ward / Room Modal - Standalone ward (+ optional room) creation */}
+      {showAddWardModal && (
+        <div className="floor-map-modal-overlay" onClick={() => setShowAddWardModal(false)}>
+          <div className="floor-map-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="floor-map-modal-header">
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ color: "#2563eb" }}>
+                  <Icon name="LuBuilding" size={20} />
+                </span>
+                <h3 className="floor-map-modal-title">Add Ward / Room</h3>
+              </div>
+              <button
+                type="button"
+                className="floor-map-modal-close"
+                onClick={() => setShowAddWardModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddWardRoomSubmit}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+                <div className="modal-form-group">
+                  <label className="modal-form-label">New Ward Code *</label>
+                  <input
+                    type="text"
+                    className="modal-form-input"
+                    placeholder="e.g. GW-201"
+                    value={addWardRoomForm.code}
+                    onChange={(e) => setAddWardRoomForm({ ...addWardRoomForm, code: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="modal-form-group">
+                  <label className="modal-form-label">New Ward Name *</label>
+                  <input
+                    type="text"
+                    className="modal-form-input"
+                    placeholder="e.g. General Ward - Third Shift"
+                    value={addWardRoomForm.name}
+                    onChange={(e) => setAddWardRoomForm({ ...addWardRoomForm, name: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.85rem" }}>
+                  <div className="modal-form-group">
+                    <label className="modal-form-label">Ward Type</label>
+                    <select
+                      className="modal-form-select"
+                      value={addWardRoomForm.ward_type || "general"}
+                      onChange={(e) => setAddWardRoomForm({ ...addWardRoomForm, ward_type: e.target.value })}
+                    >
+                      <option value="general">General</option>
+                      <option value="semi_private">Semi Private</option>
+                      <option value="private">Private</option>
+                      <option value="icu">ICU</option>
+                      <option value="nicu">NICU</option>
+                      <option value="picu">PICU</option>
+                      <option value="hdu">HDU</option>
+                      <option value="isolation">Isolation</option>
+                      <option value="emergency">Emergency</option>
+                      <option value="maternity">Maternity</option>
+                      <option value="daycare">Daycare</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="modal-form-group">
+                    <label className="modal-form-label">Gender Policy</label>
+                    <select
+                      className="modal-form-select"
+                      value={addWardRoomForm.gender_policy || "any"}
+                      onChange={(e) => setAddWardRoomForm({ ...addWardRoomForm, gender_policy: e.target.value })}
+                    >
+                      <option value="any">Any</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="modal-form-group">
+                  <label className="modal-form-label">Floor</label>
+                  <input
+                    type="text"
+                    className="modal-form-input"
+                    placeholder="e.g. 4th Floor"
+                    value={addWardRoomForm.floor}
+                    onChange={(e) => setAddWardRoomForm({ ...addWardRoomForm, floor: e.target.value })}
+                  />
+                </div>
+
+                <div className="modal-form-group">
+                  <label className="modal-form-label">Bed Category</label>
+                  <select
+                    className="modal-form-select"
+                    value={addWardRoomForm.bed_category_id}
+                    onChange={(e) => setAddWardRoomForm({ ...addWardRoomForm, bed_category_id: e.target.value })}
+                  >
+                    <option value="">-- None / Default (General) --</option>
+                    {bedCategories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} {c.daily_rate ? `— ₹${Number(c.daily_rate).toLocaleString()} / day` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="modal-form-group">
+                  <label className="modal-form-label">Room No. (optional — creates room under the new ward)</label>
+                  <input
+                    type="text"
+                    className="modal-form-input"
+                    placeholder="e.g. GW-201-01"
+                    value={addWardRoomForm.room_no}
+                    onChange={(e) => setAddWardRoomForm({ ...addWardRoomForm, room_no: e.target.value })}
+                  />
+                </div>
+
+                {addWardRoomForm.room_no?.trim() && (
+                  <div className="modal-form-group">
+                    <label className="modal-form-label">Room Type</label>
+                    <select
+                      className="modal-form-select"
+                      value={addWardRoomForm.room_type || "general"}
+                      onChange={(e) => setAddWardRoomForm({ ...addWardRoomForm, room_type: e.target.value })}
+                    >
+                      <option value="general">General</option>
+                      <option value="semi_private">Semi Private</option>
+                      <option value="private">Private</option>
+                      <option value="icu">ICU</option>
+                      <option value="nicu">NICU</option>
+                      <option value="picu">PICU</option>
+                      <option value="hdu">HDU</option>
+                      <option value="isolation">Isolation</option>
+                      <option value="emergency">Emergency</option>
+                      <option value="maternity">Maternity</option>
+                      <option value="daycare">Daycare</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-actions-row">
+                <button type="button" className="modal-btn-cancel" onClick={() => setShowAddWardModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="modal-btn-submit" disabled={addWardSubmitting}>
+                  {addWardSubmitting ? "Creating..." : "Create"}
                 </button>
               </div>
             </form>
