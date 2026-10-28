@@ -57,6 +57,14 @@ const normalizeGender = (value) => {
   return "unknown";
 };
 
+// Auto-formats Aadhaar into 4 4 4 digit blocks (XXXX XXXX XXXX)
+const formatAadhaar = (val) => {
+  if (!val) return "";
+  const digits = String(val).replace(/\D/g, "").slice(0, 12);
+  const parts = digits.match(/.{1,4}/g);
+  return parts ? parts.join(" ") : "";
+};
+
 const INITIAL_FORM = {
   firstName: "", middleName: "", lastName: "", gender: "",
   dob: "", age: "", bloodGroup: "", maritalStatus: "",
@@ -152,7 +160,7 @@ export default function RegisterPatient() {
       age: p.age || p.ageYrs || "",
       bloodGroup: p.blood_group || p.bloodGroup || "",
       maritalStatus: p.marital_status || p.maritalStatus || "",
-      aadhaar: p.aadhaar_number || p.aadhaar || p.idNo || "",
+      aadhaar: formatAadhaar(p.aadhaar_number || p.aadhaar || p.idNo || ""),
       occupation: p.occupation || "",
       nationality: p.nationality || "Indian",
       mobile: p.phone || p.mobile1 || p.mobile || "",
@@ -264,12 +272,15 @@ export default function RegisterPatient() {
   const handleChange = (e) => {
     let { name, value, type, checked } = e.target;
 
-    // Restrict digits and lengths for phone and aadhaar
+    // Restrict digits and lengths for phone, pincode, and aadhaar
     if (["mobile", "altMobile", "emgNumber"].includes(name)) {
       value = value.replace(/\D/g, "").slice(0, 10);
     }
+    if (name === "pincode") {
+      value = value.replace(/\D/g, "").slice(0, 6);
+    }
     if (name === "aadhaar") {
-      value = value.replace(/\D/g, "").slice(0, 12);
+      value = formatAadhaar(value);
     }
 
     setFormData((p) => ({ ...p, [name]: type === "checkbox" ? checked : value }));
@@ -328,7 +339,7 @@ export default function RegisterPatient() {
       country: normalizeCountryCode(formData.country, "IN"),
 
       // Identifiers
-      aadhaar_number: formData.aadhaar?.trim() || undefined,
+      aadhaar_number: formData.aadhaar ? formData.aadhaar.replace(/\s+/g, "").trim() || undefined : undefined,
       pan_number: formData.pan?.trim() || undefined,
 
       // Emergency Contact
@@ -364,40 +375,65 @@ export default function RegisterPatient() {
       return false;
     }
 
-    // Optional format checks if non-empty
-    if (formData.mobile && formData.mobile.trim() && !/^\d{10}$/.test(formData.mobile.trim())) {
-      setErrors((p) => ({ ...p, mobile: "Mobile must be 10 digits." }));
-      setFieldTouched("mobile");
-      showToast("⚠️ Mobile must be 10 digits.", "error");
-      return false;
+    // Optional format checks if non-empty (None of these fields are mandatory)
+    if (formData.mobile && formData.mobile.trim()) {
+      const res = phone(formData.mobile);
+      if (!res.isValid) {
+        setErrors((p) => ({ ...p, mobile: res.message }));
+        setFieldTouched("mobile");
+        showToast(`⚠️ ${res.message}`, "error");
+        return false;
+      }
     }
 
-    if (formData.altMobile && formData.altMobile.trim() && !/^\d{10}$/.test(formData.altMobile.trim())) {
-      setErrors((p) => ({ ...p, altMobile: "Alternate mobile must be 10 digits." }));
-      setFieldTouched("altMobile");
-      showToast("⚠️ Alternate mobile must be 10 digits.", "error");
-      return false;
+    if (formData.altMobile && formData.altMobile.trim()) {
+      const res = phone(formData.altMobile);
+      if (!res.isValid) {
+        setErrors((p) => ({ ...p, altMobile: res.message }));
+        setFieldTouched("altMobile");
+        showToast(`⚠️ ${res.message}`, "error");
+        return false;
+      }
     }
 
-    if (formData.emgNumber && formData.emgNumber.trim() && !/^\d{10}$/.test(formData.emgNumber.trim())) {
-      setErrors((p) => ({ ...p, emgNumber: "Emergency number must be 10 digits." }));
-      setFieldTouched("emgNumber");
-      showToast("⚠️ Emergency contact number must be 10 digits.", "error");
-      return false;
+    if (formData.emgNumber && formData.emgNumber.trim()) {
+      const res = phone(formData.emgNumber);
+      if (!res.isValid) {
+        setErrors((p) => ({ ...p, emgNumber: res.message }));
+        setFieldTouched("emgNumber");
+        showToast(`⚠️ ${res.message}`, "error");
+        return false;
+      }
     }
 
-    if (formData.aadhaar && formData.aadhaar.trim() && !/^\d{12}$/.test(formData.aadhaar.trim())) {
-      setErrors((p) => ({ ...p, aadhaar: "Aadhaar must be 12 digits." }));
-      setFieldTouched("aadhaar");
-      showToast("⚠️ Aadhaar must be 12 digits.", "error");
-      return false;
+    if (formData.pincode && formData.pincode.trim()) {
+      const res = pincode(formData.pincode);
+      if (!res.isValid) {
+        setErrors((p) => ({ ...p, pincode: res.message }));
+        setFieldTouched("pincode");
+        showToast(`⚠️ ${res.message}`, "error");
+        return false;
+      }
     }
 
-    if (formData.email && formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
-      setErrors((p) => ({ ...p, email: "Invalid email format." }));
-      setFieldTouched("email");
-      showToast("⚠️ Invalid email format.", "error");
-      return false;
+    if (formData.aadhaar && formData.aadhaar.trim()) {
+      const res = aadhaar(formData.aadhaar);
+      if (!res.isValid) {
+        setErrors((p) => ({ ...p, aadhaar: res.message }));
+        setFieldTouched("aadhaar");
+        showToast(`⚠️ ${res.message}`, "error");
+        return false;
+      }
+    }
+
+    if (formData.email && formData.email.trim()) {
+      const res = email(formData.email);
+      if (!res.isValid) {
+        setErrors((p) => ({ ...p, email: res.message }));
+        setFieldTouched("email");
+        showToast(`⚠️ ${res.message}`, "error");
+        return false;
+      }
     }
 
     return true;
@@ -697,11 +733,11 @@ export default function RegisterPatient() {
                 <input
                   type="text"
                   name="aadhaar"
-                  placeholder="12-digit aadhaar"
+                  placeholder="XXXX XXXX XXXX"
                   value={formData.aadhaar}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  maxLength={12}
+                  maxLength={14}
                   className={`rp-input${errCls("aadhaar", "rp-input")}`}
                 />
                 <FieldError message={fieldError("aadhaar") ? errors.aadhaar : null} />
@@ -773,12 +809,21 @@ export default function RegisterPatient() {
                 <label className="rp-label">Country</label>
                 <select
                   name="country"
-                  value={formData.country}
+                  value={formData.country || "India"}
                   onChange={handleChange}
                   onBlur={handleBlur}
                   className="rp-select"
                 >
                   <option value="India">India</option>
+                  <option value="Nepal">Nepal</option>
+                  <option value="Bhutan">Bhutan</option>
+                  <option value="Bangladesh">Bangladesh</option>
+                  <option value="Sri Lanka">Sri Lanka</option>
+                  <option value="United Arab Emirates">United Arab Emirates (UAE)</option>
+                  <option value="United States">United States (USA)</option>
+                  <option value="United Kingdom">United Kingdom (UK)</option>
+                  <option value="Canada">Canada</option>
+                  <option value="Australia">Australia</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
@@ -909,7 +954,11 @@ export default function RegisterPatient() {
                   className={`rp-select${errCls("emgRelation", "rp-select")}`}
                 >
                   <option value="">Select relationship</option>
-                  {["Spouse", "Parent", "Child", "Sibling", "Friend", "Other"].map((r) => (
+                  {[
+                    "Father", "Mother", "Spouse", "Son", "Daughter",
+                    "Brother", "Sister", "Parent", "Child", "Sibling",
+                    "Guardian", "Relative", "Friend", "Other"
+                  ].map((r) => (
                     <option key={r} value={r}>{r}</option>
                   ))}
                 </select>

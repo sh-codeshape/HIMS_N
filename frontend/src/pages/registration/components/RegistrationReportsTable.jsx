@@ -541,7 +541,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                   <div>
                     <h3 className="rr-modal-title">
                       Patient Registration Form
-                      <span className="rr-chip">Hospital Record</span>
+                     
                     </h3>
                     <p className="rr-modal-meta">
                       UHID: <strong className="rr-mono">{displayData.uhid || "—"}</strong>
@@ -551,13 +551,7 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
                   </div>
                 </div>
                 <div className="rr-head-actions">
-                  <button
-                    onClick={() => window.print()}
-                    className="rr-btn rr-btn--green rr-btn--sm"
-                    title="Print Registration Form"
-                  >
-                    <LuPrinter size={14} /> Print
-                  </button>
+                 
                   <button
                     onClick={() => setViewP(null)}
                     className="rr-close"
@@ -820,30 +814,9 @@ export default function RegistrationReportsTable({ patients: initialPatients = [
               {/* Modal Footer Controls */}
               <div className="rr-modal-foot">
                 <div className="rr-foot-group">
-                  <button
-                    onClick={() => window.print()}
-                    className="rr-btn rr-btn--green rr-btn--sm"
-                  >
-                    <LuPrinter size={14} /> Print Form
-                  </button>
-                  <button
-                    onClick={() => { const p = viewP; setViewP(null); openEdit(p); }}
-                    className="rr-btn rr-btn--gold rr-btn--sm"
-                  >
-                    <LuSquarePen size={14} /> Edit Record
-                  </button>
-                  <button
-                    onClick={() => { const p = viewP; setViewP(null); setStatusP(p); setNewStatus(p.status || "Waiting"); }}
-                    className="rr-btn rr-btn--violet rr-btn--sm"
-                  >
-                    <LuRefreshCw size={13} /> Update Status
-                  </button>
-                  <button
-                    onClick={() => { const p = viewP; setViewP(null); setCancelP(p); }}
-                    className="rr-btn rr-btn--red rr-btn--sm"
-                  >
-                    <LuBan size={14} /> Cancel
-                  </button>
+                 
+                  
+                 
                 </div>
                 <button
                   onClick={() => setViewP(null)}

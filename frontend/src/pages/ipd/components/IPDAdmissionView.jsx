@@ -667,9 +667,7 @@ export default function IPDAdmissionView() {
       <form onSubmit={handleConfirmAdmission} className="opd-form-flow">
         {/* ── 1. PATIENT SEARCH CARD ── */}
         <div ref={patientSearchRef} className="opd-search-card">
-          <label className="opd-search-label">
-            Search Patient (UHID / Mobile / Name) <span className="opd-hint">· मरीज खोजें</span>
-          </label>
+         
           <div className="opd-search-row">
             <div className="opd-search-input-wrapper">
               <Icon name="LuSearch" size={16} className="opd-search-icon" />

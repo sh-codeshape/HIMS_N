@@ -29,7 +29,7 @@ export const required = (value, fieldName = "This field") => {
   return { isValid: true, message: null };
 };
 
-export const phone = (value, { requiredField = true, country = "IN" } = {}) => {
+export const phone = (value, { requiredField = false, country = "IN" } = {}) => {
   if (!value || String(value).trim() === "") {
     return requiredField
       ? { isValid: false, message: "Phone number is required." }
@@ -43,7 +43,21 @@ export const phone = (value, { requiredField = true, country = "IN" } = {}) => {
       return {
         isValid: false,
         message:
-          "Enter a valid 10-digit Indian mobile number (e.g. 9876543210).",
+          "Enter a valid 10-digit Indian mobile number starting with 6-9.",
+      };
+    }
+    // Reject all identical digits (e.g., 9999999999, 8888888888, 7777777777, 6666666666)
+    if (/^(\d)\1{9}$/.test(digits)) {
+      return {
+        isValid: false,
+        message: "Enter a valid mobile number (repeated digits like 9999999999 are not allowed).",
+      };
+    }
+    // Reject dummy numbers starting with 6-9 followed by all zeros or all identical digits (e.g., 9000000000, 6000000000)
+    if (/^[6-9]0{8,9}$/.test(digits) || /^[6-9](\d)\1{8}$/.test(digits)) {
+      return {
+        isValid: false,
+        message: "Enter a valid mobile number (dummy numbers like 9000000000 or 6000000000 are not allowed).",
       };
     }
     return { isValid: true, message: null };
@@ -75,8 +89,13 @@ export const pincode = (value, { requiredField = false } = {}) => {
       : { isValid: true, message: null };
   }
   const digits = String(value).replace(/\D/g, "");
-  if (!/^\d{6}$/.test(digits)) {
-    return { isValid: false, message: "Enter a valid 6-digit pincode." };
+  // Indian pincodes are 6 digits and cannot start with 0 (e.g. 000000 is invalid)
+  if (!/^[1-9][0-9]{5}$/.test(digits)) {
+    return { isValid: false, message: "Enter a valid 6-digit pincode (cannot start with 0 or be 000000)." };
+  }
+  // Reject all identical digits (e.g., 111111, 999999)
+  if (/^(\d)\1{5}$/.test(digits)) {
+    return { isValid: false, message: "Enter a valid 6-digit pincode (cannot be repetitive dummy digits)." };
   }
   return { isValid: true, message: null };
 };
@@ -88,8 +107,16 @@ export const aadhaar = (value, { requiredField = false } = {}) => {
       : { isValid: true, message: null };
   }
   const digits = String(value).replace(/\D/g, "");
-  if (!/^\d{12}$/.test(digits)) {
-    return { isValid: false, message: "Aadhaar must be exactly 12 digits." };
+  if (digits.length !== 12) {
+    return { isValid: false, message: "Aadhaar must be exactly 12 digits (4 4 4 format)." };
+  }
+  // UIDAI Aadhaar standard: Aadhaar never starts with 0 or 1
+  if (!/^[2-9]/.test(digits)) {
+    return { isValid: false, message: "Invalid Aadhaar number (cannot start with 0 or 1)." };
+  }
+  // Reject all identical digits (e.g., 222222222222, 999999999999)
+  if (/^(\d)\1{11}$/.test(digits)) {
+    return { isValid: false, message: "Enter a valid Aadhaar number (cannot be repetitive dummy digits)." };
   }
   return { isValid: true, message: null };
 };
