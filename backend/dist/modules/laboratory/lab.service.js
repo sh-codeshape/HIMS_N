@@ -34,7 +34,7 @@ class LabService {
             organizationId,
             patientId: payload.patientId,
             encounterId: payload.encounterId,
-            testDefinitionIds: payload.testDefinitionIds,
+            testDefinitionIds: payload.testDefinitionIds || [],
             orderedBy: payload.orderedBy,
             priority: payload.priority,
             clinicalInfo: payload.clinicalInfo,
@@ -44,6 +44,7 @@ class LabService {
             collectedBy: payload.collectedBy,
             fasting: payload.fasting,
             barcode: payload.barcode,
+            items: payload.items,
             userId
         });
     }

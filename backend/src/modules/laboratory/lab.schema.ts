@@ -5,7 +5,7 @@ export const createLabOrderSchema = z.object({
     patientId: z.string().uuid(),
     encounterId: z.string().uuid().optional().nullable(),
     facilityId: z.string().uuid().optional().nullable(),
-    testDefinitionIds: z.array(z.string().min(1, 'Test identifier cannot be empty')).min(1, 'At least one test definition must be selected'),
+    testDefinitionIds: z.array(z.string().min(1, 'Test identifier cannot be empty')).optional(),
     orderedBy: z.string().optional().nullable(),
     priority: z.enum(['routine', 'urgent', 'stat']).optional().default('routine'),
     clinicalInfo: z.string().optional().nullable(),
@@ -15,7 +15,25 @@ export const createLabOrderSchema = z.object({
     collectedBy: z.string().optional().nullable(),
     fasting: z.string().optional().nullable(),
     barcode: z.string().optional().nullable(),
-  })
+    items: z.array(z.object({
+      testDefinitionId: z.string().min(1, 'Test identifier cannot be empty'),
+      specimenType: z.string().optional().nullable(),
+      container: z.string().optional().nullable(),
+      processingSource: z.enum(['in_house', 'outsource_send', 'outsource_return', 'external_upload']).optional().default('in_house'),
+      outsourceLabId: z.string().uuid().optional().nullable(),
+      barcode: z.string().optional().nullable(),
+      collectedBy: z.string().optional().nullable(),
+      collectionTime: z.string().optional().nullable(),
+      fasting: z.string().optional().nullable(),
+      price: z.number().optional().nullable(),
+      collectAtHospital: z.boolean().optional().default(true),
+      outsourceCost: z.number().optional().nullable(),
+      outsourceRefNo: z.string().optional().nullable(),
+    })).optional()
+  }).refine(
+    (data) => (Array.isArray(data.items) && data.items.length > 0) || (Array.isArray(data.testDefinitionIds) && data.testDefinitionIds.length > 0),
+    { message: 'At least one test definition must be selected' }
+  )
 });
 
 export const updateLabResultSchema = z.object({

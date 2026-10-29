@@ -47,7 +47,18 @@ export class LabRepository {
       JOIN lab_test_definitions ltd ON ltd.service_id = oi.service_id
       JOIN services s ON s.id = ltd.service_id
       JOIN patients p ON p.id = o.patient_id
-      LEFT JOIN lab_specimens ls ON ls.order_id = o.id
+      LEFT JOIN LATERAL (
+        SELECT ls_sub.* 
+        FROM lab_specimens ls_sub
+        WHERE ls_sub.order_id = o.id 
+          AND (
+            ls_sub.id = (SELECT lr.specimen_id FROM lab_results lr WHERE lr.order_item_id = oi.id AND lr.specimen_id IS NOT NULL LIMIT 1)
+            OR ls_sub.specimen_type ILIKE ltd.specimen_type || '%'
+            OR ltd.specimen_type ILIKE ls_sub.specimen_type || '%'
+          )
+        ORDER BY (ls_sub.id = (SELECT lr.specimen_id FROM lab_results lr WHERE lr.order_item_id = oi.id AND lr.specimen_id IS NOT NULL LIMIT 1)) DESC, ls_sub.created_at ASC
+        LIMIT 1
+      ) ls ON true
       LEFT JOIN outsource_labs ol ON ol.id = oi.outsource_lab_id
       LEFT JOIN charges c ON c.id = oi.charge_id
       WHERE o.order_type = 'lab'
@@ -88,21 +99,26 @@ export class LabRepository {
   async getTestDefinitions(organizationId?: string, includeInactive: boolean = false) {
     const activeFilter = includeInactive ? '' : 'AND s.is_active = true';
     const query = `
-      SELECT 
-        ltd.*, 
-        s.id as service_id,
-        s.id,
-        s.name, 
-        s.code, 
-        s.description, 
-        s.is_active,
-        COALESCE(s.default_rate, 350) as price,
-        (SELECT COUNT(*) FROM lab_parameters lp WHERE lp.test_service_id = s.id AND lp.is_active = true) as parameter_count
-      FROM lab_test_definitions ltd
-      JOIN services s ON s.id = ltd.service_id
-      WHERE ($1::uuid IS NULL OR s.organization_id = $1::uuid OR s.organization_id = '00000000-0000-0000-0000-000000000000')
-        ${activeFilter}
-      ORDER BY ltd.lab_section ASC, s.name ASC
+      WITH distinct_tests AS (
+        SELECT DISTINCT ON (LOWER(COALESCE(NULLIF(s.code, ''), s.name)))
+          ltd.*, 
+          s.id as service_id,
+          s.id,
+          s.name, 
+          s.code, 
+          s.description, 
+          s.is_active,
+          COALESCE(s.default_rate, 350) as price,
+          (SELECT COUNT(*) FROM lab_parameters lp WHERE lp.test_service_id = s.id AND lp.is_active = true) as parameter_count
+        FROM lab_test_definitions ltd
+        JOIN services s ON s.id = ltd.service_id
+        WHERE ($1::uuid IS NULL OR s.organization_id = $1::uuid OR s.organization_id = '00000000-0000-0000-0000-000000000000')
+          ${activeFilter}
+        ORDER BY LOWER(COALESCE(NULLIF(s.code, ''), s.name)), 
+                 (s.organization_id IS NOT NULL AND s.organization_id != '00000000-0000-0000-0000-000000000000') DESC, 
+                 s.created_at DESC
+      )
+      SELECT * FROM distinct_tests ORDER BY lab_section ASC, name ASC
     `;
     const result = await db.query(query, [organizationId || null]);
     return result.rows;
@@ -207,7 +223,7 @@ export class LabRepository {
     organizationId: string;
     patientId: string;
     encounterId?: string | null;
-    testDefinitionIds: string[];
+    testDefinitionIds?: string[];
     orderedBy?: string | null;
     priority?: string;
     clinicalInfo?: string | null;
@@ -217,6 +233,21 @@ export class LabRepository {
     collectedBy?: string | null;
     fasting?: string | null;
     barcode?: string | null;
+    items?: Array<{
+      testDefinitionId: string;
+      specimenType?: string | null;
+      container?: string | null;
+      processingSource?: string;
+      outsourceLabId?: string | null;
+      barcode?: string | null;
+      collectedBy?: string | null;
+      collectionTime?: string | null;
+      fasting?: string | null;
+      price?: number | null;
+      collectAtHospital?: boolean;
+      outsourceCost?: number | null;
+      outsourceRefNo?: string | null;
+    }>;
     userId?: string;
   }) {
     const client = await db.getClient();
@@ -333,151 +364,292 @@ export class LabRepository {
       ]);
       const orderId = orderRes.rows[0].id;
 
-      // 6. Create Specimen
-      const specimenNo = data.barcode || `LAB${Date.now().toString().slice(-8)}`;
-      const specimenType = data.specimenType || 'Blood';
-      const processingSource = data.processingSource || 'in_house';
-      const outsourceLabId = processingSource.startsWith('outsource') ? (data.outsourceLabId || null) : null;
-
-      let collectedByStaffId: string | null = null;
-      if (data.collectedBy) {
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.collectedBy);
-        if (isUuid) {
-          collectedByStaffId = data.collectedBy;
-        } else {
-          try {
-            await client.query('SAVEPOINT coll_sp');
-            const cleanName = data.collectedBy.split(' ')[0].replace(/[^a-zA-Z]/g, '');
-            const sRes = await client.query(
-              `SELECT id FROM staff WHERE first_name ILIKE $1 OR last_name ILIKE $1 LIMIT 1`,
-              [`%${cleanName}%`]
-            );
-            collectedByStaffId = sRes.rows[0]?.id || null;
-            await client.query('RELEASE SAVEPOINT coll_sp');
-          } catch {
-            await client.query('ROLLBACK TO SAVEPOINT coll_sp');
-            collectedByStaffId = null;
-          }
+      // 6. Helper to resolve staff member ID for specimen collector
+      const resolveStaffId = async (collectorStr?: string | null): Promise<string | null> => {
+        if (!collectorStr) return null;
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(collectorStr);
+        if (isUuid) return collectorStr;
+        try {
+          await client.query('SAVEPOINT coll_sp');
+          const cleanName = collectorStr.split(' ')[0].replace(/[^a-zA-Z]/g, '');
+          const sRes = await client.query(
+            `SELECT id FROM staff WHERE first_name ILIKE $1 OR last_name ILIKE $1 LIMIT 1`,
+            [`%${cleanName}%`]
+          );
+          await client.query('RELEASE SAVEPOINT coll_sp');
+          return sRes.rows[0]?.id || null;
+        } catch {
+          await client.query('ROLLBACK TO SAVEPOINT coll_sp');
+          return null;
         }
-      }
+      };
+
+      const defaultCollectedByStaffId = await resolveStaffId(data.collectedBy);
 
       const specimenQuery = `
         INSERT INTO lab_specimens (
           organization_id, facility_id, specimen_no, patient_id, encounter_id, 
           order_id, specimen_type, status, processing_source, outsource_lab_id,
-          collected_at, collected_by, created_by
+          collected_at, collected_by, outsource_cost, outsource_ref_no, created_by
         ) VALUES (
           $1, $2, $3, $4, $5, 
           $6, $7, 'collected', $8, $9,
-          now(), $10, $11
+          $10, $11, $12, $13, $14
         ) RETURNING id, specimen_no
       `;
-      const specRes = await client.query(specimenQuery, [
-        data.organizationId,
-        data.facilityId,
-        specimenNo,
-        data.patientId,
-        encounterId,
-        orderId,
-        specimenType,
-        processingSource,
-        outsourceLabId,
-        collectedByStaffId,
-        data.userId || null
-      ]);
-      const specimenId = specRes.rows[0].id;
 
-      // 7. Insert Order Items, Auto-generate Charges, and Initialize Parameter Results
+      let primarySpecimenId: string | null = null;
+      let primarySpecimenNo: string | null = null;
       const createdItemIds: string[] = [];
 
-      for (const testIdOrCode of data.testDefinitionIds) {
-        // Resolve UUID or test code (e.g. 'LAB-CBC')
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(testIdOrCode);
-        let serviceId: string;
-        let svcRes: any;
+      if (data.items && data.items.length > 0) {
+        // Multi-specimen / Multi-source fulfillment logic
+        const specimenMap = new Map<string, { id: string; specimen_no: string }>();
 
-        if (isUuid) {
-          serviceId = testIdOrCode;
-          svcRes = await client.query(
-            `SELECT id, name, code, COALESCE(default_rate, 350) as price FROM services WHERE id = $1`,
+        for (let i = 0; i < data.items.length; i++) {
+          const item = data.items[i];
+          const itemBarcode = item.barcode || `LAB${Date.now().toString().slice(-6)}${i + 1}`;
+          const itemSpecimenType = item.specimenType || 'Blood';
+          const itemSource = item.processingSource || 'in_house';
+          const itemOutsourceId = itemSource.startsWith('outsource') ? (item.outsourceLabId || null) : null;
+          
+          let itemCollectorId = defaultCollectedByStaffId;
+          if (item.collectedBy && item.collectedBy !== data.collectedBy) {
+            itemCollectorId = await resolveStaffId(item.collectedBy);
+          }
+
+          const itemCollectionTime = item.collectionTime ? new Date(item.collectionTime) : new Date();
+
+          if (!specimenMap.has(itemBarcode)) {
+            const specRes = await client.query(specimenQuery, [
+              data.organizationId,
+              data.facilityId,
+              itemBarcode,
+              data.patientId,
+              encounterId,
+              orderId,
+              itemSpecimenType,
+              itemSource,
+              itemOutsourceId,
+              itemCollectionTime,
+              itemCollectorId,
+              item.outsourceCost || null,
+              item.outsourceRefNo || null,
+              data.userId || null
+            ]);
+            specimenMap.set(itemBarcode, specRes.rows[0]);
+            if (!primarySpecimenId) {
+              primarySpecimenId = specRes.rows[0].id;
+              primarySpecimenNo = specRes.rows[0].specimen_no;
+            }
+          }
+
+          const specInfo = specimenMap.get(itemBarcode)!;
+          const testIdOrCode = item.testDefinitionId;
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(testIdOrCode);
+          let serviceId: string;
+          let svcRes: any;
+
+          if (isUuid) {
+            serviceId = testIdOrCode;
+            svcRes = await client.query(
+              `SELECT id, name, code, COALESCE(default_rate, 350) as price FROM services WHERE id = $1`,
+              [serviceId]
+            );
+          } else {
+            svcRes = await client.query(
+              `SELECT id, name, code, COALESCE(default_rate, 350) as price FROM services WHERE code = $1 OR UPPER(code) = UPPER($1) LIMIT 1`,
+              [testIdOrCode]
+            );
+            if (svcRes.rows.length === 0) {
+              throw new ValidationError(`Test definition '${testIdOrCode}' not found`);
+            }
+            serviceId = svcRes.rows[0].id;
+          }
+
+          const svc = svcRes.rows[0] || { name: 'Lab Investigation', code: 'LAB', price: 350 };
+          const isHospitalBilled = item.collectAtHospital !== false;
+          const chargedPrice = isHospitalBilled
+            ? (item.price !== undefined && item.price !== null ? Number(item.price) : (Number(svc.price) || 350))
+            : 0;
+          const chargeDesc = isHospitalBilled
+            ? svc.name
+            : `${svc.name} (Direct Pay to Outsource Lab)`;
+          const chargeStatus = isHospitalBilled ? 'billable' : 'billed';
+
+          // Insert Order Item with its specific source and outsource lab
+          const itemRes = await client.query(
+            `INSERT INTO order_items (
+              order_id, service_id, quantity, status, processing_source, outsource_lab_id, created_by
+            ) VALUES ($1, $2, 1, 'ordered', $3, $4, $5) RETURNING id`,
+            [orderId, serviceId, itemSource, itemOutsourceId, data.userId || null]
+          );
+          const orderItemId = itemRes.rows[0].id;
+          createdItemIds.push(orderItemId);
+
+          // Auto-create Charge for Cross-Module Billing
+          const chargeRes = await client.query(
+            `INSERT INTO charges (
+              organization_id, facility_id, patient_id, encounter_id,
+              service_id, description, department_id,
+              quantity, unit_price, discount_percent, discount_amount,
+              taxable_amount, tax_amount, net_amount,
+              responsibility, status, source_type, source_id, created_by
+            ) VALUES (
+              $1, $2, $3, $4,
+              $5, $6, $7,
+              1, $8, 0, 0,
+              $8, 0, $8,
+              'patient', $9, 'order_item', $10, $11
+            ) RETURNING id`,
+            [
+              data.organizationId,
+              data.facilityId,
+              data.patientId,
+              encounterId,
+              serviceId,
+              chargeDesc,
+              labDeptId,
+              chargedPrice,
+              chargeStatus,
+              orderItemId,
+              data.userId || null
+            ]
+          );
+          const chargeId = chargeRes.rows[0].id;
+
+          await client.query(
+            `UPDATE order_items SET charge_id = $1 WHERE id = $2`,
+            [chargeId, orderItemId]
+          );
+
+          // Initialize preliminary results in lab_results tied to this specific specimen
+          const paramsRes = await client.query(
+            `SELECT id, name, unit FROM lab_parameters WHERE test_service_id = $1 AND is_active = true ORDER BY sort_order ASC`,
             [serviceId]
           );
-        } else {
-          svcRes = await client.query(
-            `SELECT id, name, code, COALESCE(default_rate, 350) as price FROM services WHERE code = $1 OR UPPER(code) = UPPER($1) LIMIT 1`,
-            [testIdOrCode]
-          );
-          if (svcRes.rows.length === 0) {
-            throw new ValidationError(`Test definition '${testIdOrCode}' not found`);
+
+          for (const param of paramsRes.rows) {
+            await client.query(
+              `INSERT INTO lab_results (
+                order_item_id, parameter_id, specimen_id, unit, status, created_by
+              ) VALUES (
+                $1, $2, $3, $4, 'preliminary', $5
+              ) ON CONFLICT (order_item_id, parameter_id) DO NOTHING`,
+              [orderItemId, param.id, specInfo.id, param.unit, data.userId || null]
+            );
           }
-          serviceId = svcRes.rows[0].id;
         }
+      } else {
+        // Legacy single specimen flow for backward compatibility
+        const specimenNo = data.barcode || `LAB${Date.now().toString().slice(-8)}`;
+        const specimenType = data.specimenType || 'Blood';
+        const processingSource = data.processingSource || 'in_house';
+        const outsourceLabId = processingSource.startsWith('outsource') ? (data.outsourceLabId || null) : null;
 
-        const svc = svcRes.rows[0] || { name: 'Lab Investigation', code: 'LAB', price: 350 };
-        const price = Number(svc.price) || 350;
+        const specRes = await client.query(specimenQuery, [
+          data.organizationId,
+          data.facilityId,
+          specimenNo,
+          data.patientId,
+          encounterId,
+          orderId,
+          specimenType,
+          processingSource,
+          outsourceLabId,
+          new Date(),
+          defaultCollectedByStaffId,
+          null,
+          null,
+          data.userId || null
+        ]);
+        primarySpecimenId = specRes.rows[0].id;
+        primarySpecimenNo = specRes.rows[0].specimen_no;
 
-        // Insert Order Item
-        const itemRes = await client.query(
-          `INSERT INTO order_items (
-            order_id, service_id, quantity, status, processing_source, outsource_lab_id, created_by
-          ) VALUES ($1, $2, 1, 'ordered', $3, $4, $5) RETURNING id`,
-          [orderId, serviceId, processingSource, outsourceLabId, data.userId || null]
-        );
-        const orderItemId = itemRes.rows[0].id;
-        createdItemIds.push(orderItemId);
+        const testIds = data.testDefinitionIds || [];
+        for (const testIdOrCode of testIds) {
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(testIdOrCode);
+          let serviceId: string;
+          let svcRes: any;
 
-        // Auto-create Charge for Cross-Module Billing
-        const chargeRes = await client.query(
-          `INSERT INTO charges (
-            organization_id, facility_id, patient_id, encounter_id,
-            service_id, description, department_id,
-            quantity, unit_price, discount_percent, discount_amount,
-            taxable_amount, tax_amount, net_amount,
-            responsibility, status, source_type, source_id, created_by
-          ) VALUES (
-            $1, $2, $3, $4,
-            $5, $6, $7,
-            1, $8, 0, 0,
-            $8, 0, $8,
-            'patient', 'billable', 'order_item', $9, $10
-          ) RETURNING id`,
-          [
-            data.organizationId,
-            data.facilityId,
-            data.patientId,
-            encounterId,
-            serviceId,
-            svc.name,
-            labDeptId,
-            price,
-            orderItemId,
-            data.userId || null
-          ]
-        );
-        const chargeId = chargeRes.rows[0].id;
+          if (isUuid) {
+            serviceId = testIdOrCode;
+            svcRes = await client.query(
+              `SELECT id, name, code, COALESCE(default_rate, 350) as price FROM services WHERE id = $1`,
+              [serviceId]
+            );
+          } else {
+            svcRes = await client.query(
+              `SELECT id, name, code, COALESCE(default_rate, 350) as price FROM services WHERE code = $1 OR UPPER(code) = UPPER($1) LIMIT 1`,
+              [testIdOrCode]
+            );
+            if (svcRes.rows.length === 0) {
+              throw new ValidationError(`Test definition '${testIdOrCode}' not found`);
+            }
+            serviceId = svcRes.rows[0].id;
+          }
 
-        // Link charge_id back to order_items
-        await client.query(
-          `UPDATE order_items SET charge_id = $1 WHERE id = $2`,
-          [chargeId, orderItemId]
-        );
+          const svc = svcRes.rows[0] || { name: 'Lab Investigation', code: 'LAB', price: 350 };
+          const price = Number(svc.price) || 350;
 
-        // Fetch configured analytes / parameters for this test
-        const paramsRes = await client.query(
-          `SELECT id, name, unit FROM lab_parameters WHERE test_service_id = $1 AND is_active = true ORDER BY sort_order ASC`,
-          [serviceId]
-        );
-
-        // Initialize preliminary results in lab_results
-        for (const param of paramsRes.rows) {
-          await client.query(
-            `INSERT INTO lab_results (
-              order_item_id, parameter_id, specimen_id, unit, status, created_by
-            ) VALUES (
-              $1, $2, $3, $4, 'preliminary', $5
-            ) ON CONFLICT (order_item_id, parameter_id) DO NOTHING`,
-            [orderItemId, param.id, specimenId, param.unit, data.userId || null]
+          const itemRes = await client.query(
+            `INSERT INTO order_items (
+              order_id, service_id, quantity, status, processing_source, outsource_lab_id, created_by
+            ) VALUES ($1, $2, 1, 'ordered', $3, $4, $5) RETURNING id`,
+            [orderId, serviceId, processingSource, outsourceLabId, data.userId || null]
           );
+          const orderItemId = itemRes.rows[0].id;
+          createdItemIds.push(orderItemId);
+
+          const chargeRes = await client.query(
+            `INSERT INTO charges (
+              organization_id, facility_id, patient_id, encounter_id,
+              service_id, description, department_id,
+              quantity, unit_price, discount_percent, discount_amount,
+              taxable_amount, tax_amount, net_amount,
+              responsibility, status, source_type, source_id, created_by
+            ) VALUES (
+              $1, $2, $3, $4,
+              $5, $6, $7,
+              1, $8, 0, 0,
+              $8, 0, $8,
+              'patient', 'billable', 'order_item', $9, $10
+            ) RETURNING id`,
+            [
+              data.organizationId,
+              data.facilityId,
+              data.patientId,
+              encounterId,
+              serviceId,
+              svc.name,
+              labDeptId,
+              price,
+              orderItemId,
+              data.userId || null
+            ]
+          );
+          const chargeId = chargeRes.rows[0].id;
+
+          await client.query(
+            `UPDATE order_items SET charge_id = $1 WHERE id = $2`,
+            [chargeId, orderItemId]
+          );
+
+          const paramsRes = await client.query(
+            `SELECT id, name, unit FROM lab_parameters WHERE test_service_id = $1 AND is_active = true ORDER BY sort_order ASC`,
+            [serviceId]
+          );
+
+          for (const param of paramsRes.rows) {
+            await client.query(
+              `INSERT INTO lab_results (
+                order_item_id, parameter_id, specimen_id, unit, status, created_by
+              ) VALUES (
+                $1, $2, $3, $4, 'preliminary', $5
+              ) ON CONFLICT (order_item_id, parameter_id) DO NOTHING`,
+              [orderItemId, param.id, primarySpecimenId, param.unit, data.userId || null]
+            );
+          }
         }
       }
 
@@ -485,8 +657,8 @@ export class LabRepository {
       return {
         orderId,
         orderNo,
-        specimenId,
-        specimenNo,
+        specimenId: primarySpecimenId,
+        specimenNo: primarySpecimenNo,
         orderItemIds: createdItemIds
       };
     } catch (e) {

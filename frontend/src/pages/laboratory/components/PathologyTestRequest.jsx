@@ -5,10 +5,7 @@ import Icon from "../../../components/common/Icon.jsx";
 import patientService from "../../../api/services/patientService";
 import laboratoryService from "../../../api/services/laboratoryService";
 import doctorService from "../../../api/services/doctorService";
-<<<<<<< HEAD
-=======
 import staffService from "../../../api/services/staffService";
->>>>>>> upstream/main
 import "./PathologyView.css";
 
 export default function PathologyTestRequest() {
@@ -19,12 +16,8 @@ export default function PathologyTestRequest() {
   const [patientList, setPatientList] = useState([]);
   const [filteredPatients, setFilteredPatients] = useState([]);
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
-<<<<<<< HEAD
-  const [doctorList, setDoctorList] = useState([]);
-=======
   const [doctorsList, setDoctorsList] = useState([]);
   const [techniciansList, setTechniciansList] = useState([]);
->>>>>>> upstream/main
   const [patient, setPatient] = useState({
     id: "",
     uhid: "",
@@ -83,23 +76,26 @@ export default function PathologyTestRequest() {
         console.warn("Patient API load warning:", err?.message);
       }
 
-      // Fetch real doctors from database
-      try {
-        const docsRes = await doctorService.getAll();
-        const dData = docsRes?.data || docsRes || [];
-        if (isMounted && Array.isArray(dData) && dData.length > 0) {
-          setDoctorList(dData);
-        }
-      } catch (err) {
-        console.warn("Doctors load warning:", err?.message);
-      }
-
       // 2. Fetch real test definitions from database
       try {
         const defsRes = await laboratoryService.getTestDefinitions();
         if (isMounted) {
           if (Array.isArray(defsRes) && defsRes.length > 0) {
-            const normalized = defsRes.map((d) => ({
+            // Deduplicate tests by code or lowercased name so each test is loaded only once
+            const seen = new Set();
+            const uniqueDefs = [];
+            for (const d of defsRes) {
+              const codeKey = (d.code || "").trim().toLowerCase();
+              const nameKey = (d.name || "").trim().toLowerCase();
+              const uniqueKey = codeKey || nameKey;
+              if (uniqueKey && !seen.has(uniqueKey)) {
+                seen.add(uniqueKey);
+                if (nameKey) seen.add(nameKey);
+                uniqueDefs.push(d);
+              }
+            }
+
+            const normalized = uniqueDefs.map((d) => ({
               id: d.service_id || d.id,
               service_id: d.service_id || d.id,
               code: d.code || `L-${(d.id || "").slice(0, 4)}`,
@@ -230,16 +226,96 @@ export default function PathologyTestRequest() {
     toast.success(`Patient ${fullName} selected!`, { icon: "👤" });
   };
 
-  // Toggle test selection
+  // Helper to generate clinical specimen barcode
+  const generateBarcode = (prefix = "LAB") =>
+    `${prefix}${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
+
+  // Toggle test selection with per-test sample & source configuration
   const handleToggleTest = (test) => {
     setSelectedTests((prev) => {
       const exists = prev.some((t) => t.id === test.id || t.code === test.code);
       if (exists) {
         return prev.filter((t) => (t.id ? t.id !== test.id : t.code !== test.code));
       } else {
-        return [...prev, test];
+        const defaultSpecimen = test.sampleType || test.specimen_type || "Blood";
+        const existingSameSpecimen = prev.find((t) => (t.sampleType || t.specimen_type) === defaultSpecimen);
+
+        const newTestItem = {
+          ...test,
+          sampleType: defaultSpecimen,
+          processingSource: "in_house",
+          outsourceLabId: outsourceLabs[0]?.id || "",
+          collectAtHospital: true,
+          outsourceCost: null,
+          outsourceRefNo: "",
+          barcode: existingSameSpecimen ? existingSameSpecimen.barcode : generateBarcode("LAB"),
+          collectedBy: collectedBy || (techniciansList[0]?.label || "Hospital Phlebotomist"),
+          collectionTime: collectionTime || new Date().toISOString().slice(0, 16),
+          fasting: test.fasting_required ? "Fasting 8-10 Hours" : "Standard",
+          notes: "",
+        };
+        return [...prev, newTestItem];
       }
     });
+  };
+
+  const handleUpdateTestDetail = (identifier, field, value) => {
+    setSelectedTests((prev) =>
+      prev.map((item) => {
+        if (item.id === identifier || item.code === identifier) {
+          return { ...item, [field]: value };
+        }
+        return item;
+      })
+    );
+  };
+
+  // Batch actions across all selected tests
+  const handleApplySourceToAll = (source) => {
+    setSelectedTests((prev) =>
+      prev.map((t) => ({
+        ...t,
+        processingSource: source,
+        outsourceLabId: source.startsWith("outsource") ? (t.outsourceLabId || outsourceLabs[0]?.id || "") : t.outsourceLabId,
+      }))
+    );
+    toast.success(`Set processing source to "${source === "in_house" ? "In-house" : "Outsourced"}" for all tests`);
+  };
+
+  const handleApplyCollectorToAll = (collectorName) => {
+    if (!collectorName) return;
+    setCollectedBy(collectorName);
+    setSelectedTests((prev) =>
+      prev.map((t) => ({
+        ...t,
+        collectedBy: collectorName,
+      }))
+    );
+    toast.success(`Assigned phlebotomist "${collectorName}" to all tests`);
+  };
+
+  const handleGroupBySpecimenType = () => {
+    setSelectedTests((prev) => {
+      const typeBarcodeMap = {};
+      return prev.map((t) => {
+        const spec = t.sampleType || "Blood";
+        if (!typeBarcodeMap[spec]) {
+          typeBarcodeMap[spec] = generateBarcode("LAB");
+        }
+        return { ...t, barcode: typeBarcodeMap[spec] };
+      });
+    });
+    toast.success("Barcodes grouped by physical specimen tube/container!", { icon: "🏷️" });
+  };
+
+  const handleRegenerateAllBarcodes = () => {
+    setSelectedTests((prev) =>
+      prev.map((t) => ({
+        ...t,
+        barcode: generateBarcode("LAB"),
+      }))
+    );
+    toast.success("Generated unique barcodes for all tests", { icon: "🔄" });
   };
 
   const handleRemoveSelectedTest = (codeOrId) => {
@@ -263,6 +339,7 @@ export default function PathologyTestRequest() {
       "Sputum",
       "CSF",
       "Swab",
+      "Tissue / Biopsy",
       ...catalog.map((c) => c.sampleType).filter(Boolean),
     ])
   );
@@ -277,10 +354,55 @@ export default function PathologyTestRequest() {
     return true;
   });
 
-  // Calculate billing amounts
-  const grossTotal = selectedTests.reduce((sum, t) => sum + (t.price || 0), 0);
+  // Calculate billing amounts & outsource margins
+  // Only billable tests (collectAtHospital !== false) are charged to patient at hospital counter.
+  // Direct pay tests (collectAtHospital === false) show up on lab orders and specimen dispatch, but with ₹0 hospital charge.
+  const billableTests = selectedTests.filter((t) => t.collectAtHospital !== false);
+  const directPayOutsourceTests = selectedTests.filter(
+    (t) => t.processingSource?.startsWith("outsource") && t.collectAtHospital === false
+  );
+
+  const grossTotal = billableTests.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
   const discountAmount = Math.min(Number(discount) || 0, grossTotal);
   const netPayable = Math.max(0, grossTotal - discountAmount);
+
+  const inHouseTests = selectedTests.filter((t) => !t.processingSource?.startsWith("outsource"));
+  const outsourceTests = selectedTests.filter((t) => t.processingSource?.startsWith("outsource"));
+
+  const inHouseTotal = inHouseTests.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
+  const outsourceBilledTotal = outsourceTests
+    .filter((t) => t.collectAtHospital !== false)
+    .reduce((sum, t) => sum + (Number(t.price) || 0), 0);
+  const outsourceTotal = outsourceTests.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
+
+  // Group outsource tests by partner lab to calculate contractor cost & hospital margin
+  const outsourceByLab = outsourceTests.reduce((acc, t) => {
+    const lab = outsourceLabs.find((l) => l.id === t.outsourceLabId);
+    const labId = t.outsourceLabId || "unknown";
+    if (!acc[labId]) {
+      acc[labId] = {
+        name: lab?.name || "Third-Party Outsource Lab",
+        rate: Number(lab?.contract_rate) || 0,
+        tat: lab?.turnaround_days || 2,
+        tests: [],
+        totalRevenue: 0,
+        estimatedCost: 0,
+        directPayCount: 0,
+      };
+    }
+    const isDirectPay = t.collectAtHospital === false;
+    const testPrice = isDirectPay ? 0 : (Number(t.price) || 0);
+    const contractRate = acc[labId].rate;
+    const testCost = t.outsourceCost != null && t.outsourceCost !== ""
+      ? Number(t.outsourceCost)
+      : (Number(t.price) || 0) * (1 - contractRate / 100);
+
+    acc[labId].tests.push(t);
+    acc[labId].totalRevenue += testPrice;
+    acc[labId].estimatedCost += testCost;
+    if (isDirectPay) acc[labId].directPayCount += 1;
+    return acc;
+  }, {});
 
   // Submit test order
   const handleSubmitOrder = async (e) => {
@@ -295,83 +417,94 @@ export default function PathologyTestRequest() {
       return;
     }
 
-    if (testSource.includes("Third Party") && !selectedOutsourceLabId) {
-      toast.error("Please select a third-party laboratory partner for outsourced test");
+    const missingLab = selectedTests.find(
+      (t) => t.processingSource?.startsWith("outsource") && !t.outsourceLabId
+    );
+    if (missingLab) {
+      toast.error(`Please select a third-party laboratory partner for outsourced test: ${missingLab.name}`);
       return;
     }
 
     setSubmitting(true);
     try {
-      let processingSource = "in_house";
-      if (testSource.includes("Send")) processingSource = "outsource_send";
-      else if (testSource.includes("Return")) processingSource = "outsource_return";
-      else if (testSource.includes("Upload")) processingSource = "external_upload";
+      // Build normalized items array with multi-specimen and outsource collection fields
+      const items = selectedTests.map((t, idx) => {
+        const testDefId =
+          (t.service_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t.service_id) && t.service_id) ||
+          (t.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t.id) && t.id) ||
+          t.code ||
+          t.name;
 
-      const chosenLab = outsourceLabs.find((l) => l.id === selectedOutsourceLabId);
+        return {
+          testDefinitionId: testDefId,
+          specimenType: t.sampleType || "Blood",
+          container: t.container || null,
+          processingSource: t.processingSource || "in_house",
+          outsourceLabId: t.processingSource?.startsWith("outsource") ? t.outsourceLabId : null,
+          barcode: t.barcode || `LAB${Date.now().toString().slice(-6)}${idx + 1}`,
+          collectedBy: t.collectedBy || collectedBy || "Hospital Phlebotomist",
+          collectionTime: t.collectionTime || collectionTime || new Date().toISOString(),
+          fasting: t.fasting || "Standard",
+          price: Number(t.price) || 0,
+          collectAtHospital: t.collectAtHospital !== false,
+          outsourceCost: t.outsourceCost != null && t.outsourceCost !== "" ? Number(t.outsourceCost) : null,
+          outsourceRefNo: t.outsourceRefNo || null,
+        };
+      });
 
-      // Resolve test definition identifiers (prefer real DB UUIDs)
-      const testDefinitionIds = selectedTests
-        .map((t) => {
-          if (t.service_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t.service_id)) {
-            return t.service_id;
-          }
-          if (t.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t.id)) {
-            return t.id;
-          }
-          const found = catalog.find((c) => c.code === t.code || c.id === t.id || c.name === t.name);
-          if (found?.service_id) return found.service_id;
-          if (found?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(found.id)) return found.id;
-          return t.code || t.id;
-        })
-        .filter(Boolean);
-
-      if (testDefinitionIds.length === 0) {
-        toast.error("Please select at least one valid lab test");
-        return;
-      }
-
-      // 1. Prepare backend payload
       const orderPayload = {
         patientId: patient.id || patientList[0]?.id || "00000000-0000-0000-0000-000000000000",
-        testDefinitionIds,
         orderedBy: patient.doctor || null,
         priority: "routine",
         clinicalInfo: patient.clinicalNotes || remarks || null,
-        processingSource,
-        outsourceLabId: processingSource.startsWith("outsource") ? selectedOutsourceLabId : null,
-        specimenType: sampleType,
-        collectedBy,
-        barcode: barcodeNo,
+        items,
+        testDefinitionIds: items.map((it) => it.testDefinitionId),
+        processingSource: items.some((it) => it.processingSource.startsWith("outsource")) ? "outsource_send" : "in_house",
+        specimenType: items[0]?.specimenType || "Blood",
+        barcode: items[0]?.barcode || barcodeNo,
+        collectedBy: items[0]?.collectedBy || collectedBy,
       };
 
       const serverRes = await laboratoryService.createLabOrder(orderPayload);
 
-      // 2. Standardized order record for instant print preview
+      // Group items by unique barcode for printing barcode labels
+      const barcodeMap = {};
+      selectedTests.forEach((t) => {
+        const b = t.barcode || "LAB-DEF";
+        if (!barcodeMap[b]) {
+          const lab = outsourceLabs.find((l) => l.id === t.outsourceLabId);
+          barcodeMap[b] = {
+            barcode: b,
+            sampleType: t.sampleType || "Blood",
+            source: t.processingSource?.startsWith("outsource") ? `Outsourced (${lab?.name || "Partner Lab"})` : "In-house (Central Lab)",
+            collectedBy: t.collectedBy || collectedBy || "Hospital Phlebotomist",
+            collectionTime: t.collectionTime ? new Date(t.collectionTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Now",
+            tests: [],
+          };
+        }
+        barcodeMap[b].tests.push(t.name);
+      });
+
+      const specimenGroups = Object.values(barcodeMap);
+
       const newOrder = {
         id: serverRes?.orderNo || `REQ-${Date.now().toString().slice(-6)}`,
         orderId: serverRes?.orderId,
         uhid: patient.uhid || `P2026${Date.now().toString().slice(-4)}`,
         patientName: patient.name,
         ageGender: `${patient.age || "30"} Y / ${patient.gender?.[0] || "M"}`,
-        testName: selectedTests.map((t) => t.name).join(", "),
-        sampleType,
-        source: processingSource.startsWith("outsource") ? (chosenLab?.name || "Outsourced Lab") : "In-house",
-        outsourceLabName: chosenLab?.name || null,
-        status: "Collected",
-        requestedBy: patient.doctor || "Self / Walk-in",
-        requestTime: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        requestDate: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
-        barcode: serverRes?.specimenNo || barcodeNo,
+        specimenGroups,
+        testCount: selectedTests.length,
         totalAmount: netPayable,
         paymentStatus,
         paymentMode,
-        reportDate: "Today",
-        approvedBy: "—",
+        doctor: patient.doctor || "Self / Walk-in",
+        requestDate: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+        requestTime: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
 
       toast.success("Lab test request registered and saved to database!", { icon: "🧪" });
 
-      // Open print slip preview modal
       setPrintSlipModal(newOrder);
 
       // Reset form
@@ -579,29 +712,12 @@ export default function PathologyTestRequest() {
                   value={patient.doctor}
                   onChange={(e) => setPatient({ ...patient, doctor: e.target.value })}
                 >
-<<<<<<< HEAD
-                  <option value="">Select Doctor / चिकित्सक चुनें</option>
-                  {doctorList.map((doc) => {
-                    const dName = doc.name || doc.full_name || `Dr. ${doc.first_name || ""} ${doc.last_name || ""}`.trim();
-                    const dSpec = doc.specialization ? ` (${doc.specialization})` : "";
-                    return (
-                      <option key={doc.id || dName} value={`${dName}${dSpec}`}>
-                        {dName}{dSpec}
-                      </option>
-                    );
-                  })}
-=======
-                  {doctorsList.length > 0 ? (
-                    doctorsList.map((doc) => (
-                      <option key={doc.id} value={doc.label}>
-                        {doc.label}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="Self / Walk-in">Self / Walk-in</option>
-                  )}
->>>>>>> upstream/main
                   <option value="Self / Walk-in">Self / Walk-in</option>
+                  {doctorsList.map((doc) => (
+                    <option key={doc.id} value={doc.label}>
+                      {doc.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -765,131 +881,337 @@ export default function PathologyTestRequest() {
           </div>
         </section>
 
-        {/* ── CARD 3: SAMPLE & SOURCE DETAILS ── */}
+        {/* ── CARD 3: SAMPLE & SOURCE FULFILLMENT ── */}
         <section className="path-card">
           <div className="path-card-head">
             <div className="card-head-title">
               <span className="card-step-badge">3</span>
-              <h3>Sample &amp; Source Details</h3>
+              <h3>Sample &amp; Source Fulfillment</h3>
             </div>
-           
+            {selectedTests.length > 0 && (
+              <span className="card-head-sub">
+                {selectedTests.length} Tests | {new Set(selectedTests.map((t) => t.barcode)).size} Physical Samples
+              </span>
+            )}
           </div>
 
           <div className="path-card-body">
-            <div className="path-form-grid-3">
-              <div className="form-group">
-                <label>Test Processing Source</label>
-                <select
-                  value={testSource}
-                  onChange={(e) => setTestSource(e.target.value)}
-                >
-                  <option value="In-house">In-house (Main Central Lab)</option>
-                  <option value="Third Party (Send)">Third Party (Outsourced - Send)</option>
-                  <option value="Third Party (Return)">Third Party (Return / Received)</option>
-                  <option value="Already Done (Upload)">Already Done (External Report Upload)</option>
-                </select>
+            {selectedTests.length === 0 ? (
+              <div className="path-empty-selection">
+                <Icon name="LuFlaskConical" size={32} />
+                <p>
+                  No tests selected yet. Please select one or more diagnostic investigations from Step 2 above to configure individual specimen tubes, barcodes, and in-house vs. outsourced lab routing.
+                </p>
               </div>
-
-              {testSource.includes("Third Party") && (
-                <div className="form-group">
-                  <label className="text-indigo-600 font-semibold flex items-center justify-between">
-                    <span>Outsource Partner Lab *</span>
-                    <a href="/settings/outsource-labs" className="text-xs text-indigo-500 hover:underline">
-                      + Manage Labs
-                    </a>
-                  </label>
-                  <select
-                    value={selectedOutsourceLabId}
-                    onChange={(e) => setSelectedOutsourceLabId(e.target.value)}
-                    required
-                    style={{ borderColor: "#4f46e5" }}
-                  >
-                    <option value="">-- Select Third-Party Lab --</option>
-                    {outsourceLabs.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name} {l.code ? `(${l.code})` : ""} - {l.turnaround_days || 2}d TAT ({Number(l.contract_rate) || 0}% margin)
-                      </option>
-                    ))}
-                  </select>
+            ) : (
+              <div className="specimen-fulfillment-container">
+                {/* Batch Actions Bar */}
+                <div className="specimen-batch-bar">
+                  <div className="batch-title">
+                    <Icon name="LuLayers" size={15} />
+                    <span>Quick Batch Controls:</span>
+                  </div>
+                  <div className="batch-actions-group">
+                    <button
+                      type="button"
+                      className="batch-btn"
+                      onClick={handleGroupBySpecimenType}
+                      title="Tests with identical specimen types will share the same tube & barcode"
+                    >
+                      <Icon name="LuPipette" size={13} /> Group Barcodes by Specimen Tube
+                    </button>
+                    <button
+                      type="button"
+                      className="batch-btn"
+                      onClick={() => handleApplySourceToAll("in_house")}
+                    >
+                      🏥 All In-house
+                    </button>
+                    <button
+                      type="button"
+                      className="batch-btn"
+                      onClick={() => handleApplySourceToAll("outsource_send")}
+                    >
+                      🔬 All Outsource
+                    </button>
+                    <button
+                      type="button"
+                      className="batch-btn"
+                      onClick={handleRegenerateAllBarcodes}
+                      title="Generate distinct barcodes for every test"
+                    >
+                      <Icon name="LuRefreshCw" size={12} /> Unique Barcodes
+                    </button>
+                  </div>
                 </div>
-              )}
 
-              <div className="form-group">
-                <label>Primary Specimen Type</label>
-                <select
-                  value={sampleType}
-                  onChange={(e) => setSampleType(e.target.value)}
-                >
-                  {availableSpecimenTypes.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                {/* List of itemized test fulfillment cards */}
+                {selectedTests.map((test, idx) => {
+                  const isOutsource = test.processingSource?.startsWith("outsource");
+                  const partnerLab = outsourceLabs.find((l) => l.id === test.outsourceLabId);
+                  const marginPct = Number(partnerLab?.contract_rate) || 0;
+                  const estimatedOutsourceCost = (test.price || 350) * (1 - marginPct / 100);
+                  const hospitalMargin = (test.price || 350) - estimatedOutsourceCost;
 
-              <div className="form-group">
-                <label>Sample Collection Date &amp; Time</label>
-                <input
-                  type="datetime-local"
-                  value={collectionTime}
-                  onChange={(e) => setCollectionTime(e.target.value)}
-                />
-              </div>
+                  return (
+                    <div
+                      key={test.id || test.code || idx}
+                      className={`itemized-test-card ${isOutsource ? "is-outsourced" : ""}`}
+                    >
+                      <div className="itemized-test-header">
+                        <div className="test-title-col">
+                          <span className="test-seq-index">{idx + 1}</span>
+                          <span className="test-header-name">{test.name}</span>
+                          <span className="test-tag-section">{test.category || "General"}</span>
+                        </div>
+                        <div className="test-header-right">
+                          <span className={`test-price-tag ${test.collectAtHospital === false ? "line-through text-slate-400 bg-slate-100" : ""}`}>
+                            ₹{test.price || 350}
+                          </span>
+                          {test.collectAtHospital === false && (
+                            <span className="text-xs bg-amber-100 text-amber-800 font-semibold px-2 py-0.5 rounded">
+                              Direct Pay / ₹0 Billed
+                            </span>
+                          )}
+                          <span className={`source-status-badge ${isOutsource ? "source-status-outsource" : "source-status-inhouse"}`}>
+                            {isOutsource ? `🔬 Outsourced: ${partnerLab?.name || "Select Lab"}` : "🏥 In-house Central Lab"}
+                          </span>
+                        </div>
+                      </div>
 
-              <div className="form-group">
-                <label>Collected By (Phlebotomist / Tech)</label>
-                <input
-                  type="text"
-                  placeholder="Enter Phlebotomist / Staff Name"
-                  value={collectedBy}
-                  onChange={(e) => setCollectedBy(e.target.value)}
-<<<<<<< HEAD
-                />
-=======
-                >
-                  {techniciansList.length > 0 ? (
-                    techniciansList.map((tech) => (
-                      <option key={tech.id} value={tech.label}>
-                        {tech.label}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="Hospital Phlebotomist">Hospital Phlebotomist</option>
-                  )}
-                </select>
->>>>>>> upstream/main
-              </div>
+                      <div className="itemized-test-grid">
+                        {/* 1. Processing Source */}
+                        <div className="form-group-compact">
+                          <label>Processing Routing</label>
+                          <select
+                            value={test.processingSource || "in_house"}
+                            onChange={(e) => handleUpdateTestDetail(test.id || test.code, "processingSource", e.target.value)}
+                          >
+                            <option value="in_house">In-house (Main Central Lab)</option>
+                            <option value="outsource_send">Third Party Outsource (Send to Partner)</option>
+                            <option value="outsource_return">Third Party Outsource (Return / Received)</option>
+                            <option value="external_upload">External Report Upload</option>
+                          </select>
+                        </div>
 
-              <div className="form-group">
-                <label>Sample Barcode / Specimen ID</label>
-                <div className="barcode-input-group">
-                  <input
-                    type="text"
-                    value={barcodeNo}
-                    onChange={(e) => setBarcodeNo(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="btn-refresh-barcode"
-                    title="Generate New Barcode"
-                    onClick={() => setBarcodeNo(`LAB${Date.now().toString().slice(-8)}`)}
-                  >
-                    <Icon name="LuRefreshCw" size={14} />
-                  </button>
-                </div>
-              </div>
+                        {/* 2. Outsource Partner Lab & Fee Collection Control (if Outsource) */}
+                        {isOutsource && (
+                          <div className="col-span-full outsource-billing-box p-3 rounded-lg border border-purple-200 bg-purple-50/70 mt-1 mb-2">
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <span className="text-xs font-bold text-purple-900 tracking-wide flex items-center gap-1.5">
+                                <Icon name="LuBuilding" size={14} className="text-purple-600" />
+                                Outsource Lab &amp; Payment Charge Control
+                              </span>
+                              <a
+                                href="/settings/outsource-labs"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-purple-600 hover:text-purple-800 underline font-medium"
+                              >
+                                + Partner Labs Directory
+                              </a>
+                            </div>
 
-              <div className="form-group">
-                <label>Fast / Special Condition</label>
-                <select defaultValue="Standard">
-                  <option value="Standard">Standard / Random</option>
-                  <option value="Fasting 8-10 Hours">Fasting 8-10 Hours</option>
-                  <option value="Post-Prandial 2 Hours">Post-Prandial 2 Hours</option>
-                  <option value="Stat / Emergency">Stat / Emergency Urgent</option>
-                </select>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                              {/* Partner Lab Selector */}
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                  Outsource Partner Lab <span className="text-rose-500">*</span>
+                                </label>
+                                <select
+                                  value={test.outsourceLabId || ""}
+                                  onChange={(e) => handleUpdateTestDetail(test.id || test.code, "outsourceLabId", e.target.value)}
+                                  className="w-full text-xs py-1.5 px-2 rounded border border-slate-300 bg-white"
+                                  required
+                                >
+                                  <option value="">-- Choose Partner Lab --</option>
+                                  {outsourceLabs.map((l) => (
+                                    <option key={l.id} value={l.id}>
+                                      {l.name} ({Number(l.contract_rate) || 0}% margin, {l.turnaround_days || 2}d TAT)
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              {/* Fee Collection Mode */}
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                  Fee Collection Mode
+                                </label>
+                                <select
+                                  value={test.collectAtHospital === false ? "direct_pay" : "hospital_collect"}
+                                  onChange={(e) =>
+                                    handleUpdateTestDetail(
+                                      test.id || test.code,
+                                      "collectAtHospital",
+                                      e.target.value === "hospital_collect"
+                                    )
+                                  }
+                                  className="w-full text-xs py-1.5 px-2 rounded border border-purple-300 bg-white font-medium text-purple-900"
+                                >
+                                  <option value="hospital_collect">
+                                    💰 Collect at Hospital Counter (₹{test.price || 0})
+                                  </option>
+                                  <option value="direct_pay">
+                                    🚫 Direct Pay to External Lab / Not Taken (₹0)
+                                  </option>
+                                </select>
+                              </div>
+
+                              {/* Contractor Cost to Hospital */}
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                  Contractor Cost Payable (₹)
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={test.outsourceCost != null ? test.outsourceCost : estimatedOutsourceCost.toFixed(0)}
+                                  onChange={(e) =>
+                                    handleUpdateTestDetail(
+                                      test.id || test.code,
+                                      "outsourceCost",
+                                      e.target.value === "" ? null : Number(e.target.value)
+                                    )
+                                  }
+                                  placeholder={`Est: ₹${estimatedOutsourceCost.toFixed(0)}`}
+                                  className="w-full text-xs py-1.5 px-2 rounded border border-slate-300 bg-white"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Status Helper Banner */}
+                            <div className="mt-2 pt-2 border-t border-purple-200/60 flex flex-wrap items-center justify-between text-xs gap-1">
+                              {test.collectAtHospital === false ? (
+                                <span className="text-amber-800 font-medium flex items-center gap-1">
+                                  <span>⚠️</span>
+                                  Patient will pay partner lab directly. Specimen routing tracked in EMR, but <strong>₹0.00</strong> charged on hospital bill.
+                                </span>
+                              ) : (
+                                <span className="text-purple-900 flex items-center gap-2">
+                                  <span>Hospital Charges: <strong>₹{Number(test.price || 0).toFixed(0)}</strong></span>
+                                  <span>|</span>
+                                  <span>Partner Payable: <strong>₹{(test.outsourceCost != null ? Number(test.outsourceCost) : estimatedOutsourceCost).toFixed(0)}</strong></span>
+                                  <span>|</span>
+                                  <span className="text-emerald-700 font-semibold">
+                                    Hospital Net Gain: ₹{(Number(test.price || 0) - (test.outsourceCost != null ? Number(test.outsourceCost) : estimatedOutsourceCost)).toFixed(0)}
+                                  </span>
+                                </span>
+                              )}
+                              <span className="text-slate-500 font-medium">
+                                TAT: {partnerLab?.turnaround_days || 2} Days
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 3. Specimen Type */}
+                        <div className="form-group-compact">
+                          <label>Specimen / Sample Type</label>
+                          <select
+                            value={test.sampleType || "Blood"}
+                            onChange={(e) => handleUpdateTestDetail(test.id || test.code, "sampleType", e.target.value)}
+                          >
+                            {availableSpecimenTypes.map((type) => (
+                              <option key={type} value={type}>
+                                {type}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* 4. Barcode / Container ID */}
+                        <div className="form-group-compact">
+                          <label>Sample Barcode / Tube ID</label>
+                          <div className="barcode-input-group">
+                            <input
+                              type="text"
+                              value={test.barcode || ""}
+                              onChange={(e) => handleUpdateTestDetail(test.id || test.code, "barcode", e.target.value)}
+                              placeholder="Tube Barcode"
+                            />
+                            <button
+                              type="button"
+                              className="btn-refresh-barcode"
+                              title="Generate Unique Barcode"
+                              onClick={() => handleUpdateTestDetail(test.id || test.code, "barcode", generateBarcode("LAB"))}
+                            >
+                              <Icon name="LuRefreshCw" size={13} />
+                            </button>
+                          </div>
+                          {selectedTests.length > 1 && (
+                            <div className="barcode-link-wrap">
+                              <span className="text-xs text-slate-500">Same tube as:</span>
+                              <select
+                                onChange={(e) => {
+                                  if (e.target.value) {
+                                    handleUpdateTestDetail(test.id || test.code, "barcode", e.target.value);
+                                  }
+                                }}
+                                defaultValue=""
+                              >
+                                <option value="">-- Link Tube --</option>
+                                {selectedTests
+                                  .filter((ot) => (ot.id || ot.code) !== (test.id || test.code))
+                                  .map((ot) => (
+                                    <option key={ot.id || ot.code} value={ot.barcode}>
+                                      {ot.name} ({ot.barcode})
+                                    </option>
+                                  ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 5. Phlebotomist / Collector */}
+                        <div className="form-group-compact">
+                          <label>Collected By</label>
+                          <select
+                            value={test.collectedBy || collectedBy}
+                            onChange={(e) => handleUpdateTestDetail(test.id || test.code, "collectedBy", e.target.value)}
+                          >
+                            {techniciansList.length > 0 ? (
+                              techniciansList.map((tech) => (
+                                <option key={tech.id} value={tech.label}>
+                                  {tech.label}
+                                </option>
+                              ))
+                            ) : (
+                              <option value="Hospital Phlebotomist">Hospital Phlebotomist</option>
+                            )}
+                          </select>
+                        </div>
+
+                        {/* 6. Collection Time */}
+                        <div className="form-group-compact">
+                          <label>Collection Timestamp</label>
+                          <input
+                            type="datetime-local"
+                            value={test.collectionTime || collectionTime}
+                            onChange={(e) => handleUpdateTestDetail(test.id || test.code, "collectionTime", e.target.value)}
+                          />
+                        </div>
+
+                        {/* 7. Fasting / Condition */}
+                        <div className="form-group-compact">
+                          <label>Patient Condition</label>
+                          <select
+                            value={test.fasting || "Standard"}
+                            onChange={(e) => handleUpdateTestDetail(test.id || test.code, "fasting", e.target.value)}
+                          >
+                            <option value="Standard">Standard / Random</option>
+                            <option value="Fasting 8-10 Hours">Fasting 8-10 Hours</option>
+                            <option value="Post-Prandial 2 Hours">Post-Prandial 2 Hours</option>
+                            <option value="Stat / Emergency">Stat / Emergency Urgent</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+            )}
           </div>
         </section>
 
@@ -900,7 +1222,6 @@ export default function PathologyTestRequest() {
               <span className="card-step-badge">4</span>
               <h3>Billing &amp; Payment</h3>
             </div>
-           
           </div>
 
           <div className="path-card-body">
@@ -974,9 +1295,58 @@ export default function PathologyTestRequest() {
               {/* Right Column: Financial Summary Card */}
               <div className="billing-summary-col">
                 <div className="billing-calculation-card">
-                  <div className="calc-title">Invoice Breakdown</div>
+                  <div className="calc-title">Invoice &amp; Fulfillment Breakdown</div>
+
+                  {/* Split Summary Pills */}
+                  <div className="billing-split-pills">
+                    <div className="split-pill split-pill-inhouse">
+                      <span className="split-lbl">🏥 In-house</span>
+                      <span className="split-val">₹{inHouseTotal.toFixed(2)}</span>
+                      <span className="text-xs text-slate-500 font-medium">{inHouseTests.length} tests (100% Hospital)</span>
+                    </div>
+                    {outsourceTests.length > 0 && (
+                      <div className="split-pill split-pill-outsource">
+                        <span className="split-lbl">🔬 Outsourced</span>
+                        <span className="split-val">₹{outsourceBilledTotal.toFixed(2)}</span>
+                        <span className="text-xs text-purple-600 font-medium">
+                          {outsourceTests.length} tests ({outsourceTests.length - directPayOutsourceTests.length} billed
+                          {directPayOutsourceTests.length > 0 ? `, ${directPayOutsourceTests.length} direct pay` : ""})
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Direct Pay Notice if any outsourced tests are marked Direct Pay */}
+                  {directPayOutsourceTests.length > 0 && (
+                    <div className="p-2.5 my-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-start gap-2">
+                      <Icon name="LuAlertCircle" size={15} className="shrink-0 mt-0.5 text-amber-600" />
+                      <div>
+                        <strong>{directPayOutsourceTests.length} Outsourced Test(s) Excluded from Hospital Counter Bill:</strong>
+                        <div className="text-amber-800 mt-0.5">
+                          {directPayOutsourceTests.map((t) => t.name).join(", ")}
+                          <span className="text-slate-500"> — (Patient pays external lab directly; ₹0.00 charged on hospital invoice).</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Outsource Partner Lab Breakdown */}
+                  {Object.keys(outsourceByLab).length > 0 && (
+                    <div className="outsource-partners-breakdown">
+                      <div className="font-bold text-purple-900 mb-1 flex items-center gap-1">
+                        <Icon name="LuBuilding" size={13} /> External Partner Laboratories:
+                      </div>
+                      {Object.values(outsourceByLab).map((partner, pIdx) => (
+                        <div key={pIdx} className="partner-breakdown-row">
+                          <span>{partner.name} ({partner.tests.length} tests{partner.directPayCount > 0 ? `, ${partner.directPayCount} direct pay` : ""}):</span>
+                          <strong>Billed: ₹{partner.totalRevenue.toFixed(2)} | Payable: ₹{partner.estimatedCost.toFixed(2)}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="calc-row">
-                    <span>Tests Selected ({selectedTests.length})</span>
+                    <span>Gross Investigation Charges</span>
                     <span className="font-semibold">₹{grossTotal.toFixed(2)}</span>
                   </div>
                   <div className="calc-row">
@@ -1020,12 +1390,15 @@ export default function PathologyTestRequest() {
         </section>
       </form>
 
-      {/* ── PRINT BARCODE & SAMPLE ACCESSION SLIP MODAL ── */}
+      {/* ── PRINT MULTI-SPECIMEN BARCODE LABELS MODAL ── */}
       {printSlipModal && (
         <div className="path-modal-overlay">
-          <div className="path-modal-container slip-modal-width">
+          <div className="path-modal-container slip-modal-width" style={{ maxWidth: "780px" }}>
             <div className="path-modal-header no-print">
-              <h3>Sample Accessioning &amp; Barcode Label</h3>
+              <div className="flex items-center gap-2">
+                <Icon name="LuBarcode" size={18} className="text-sky-600" />
+                <h3 className="m-0 font-bold">Sample Accessioning &amp; Barcode Labels ({printSlipModal.specimenGroups?.length || 1} Physical Samples)</h3>
+              </div>
               <button
                 type="button"
                 className="btn-modal-close"
@@ -1036,29 +1409,26 @@ export default function PathologyTestRequest() {
             </div>
 
             <div className="path-modal-body print-area">
-              <div className="barcode-slip-card">
-                <div className="slip-hospital-title">
-                  <strong>NARAYAN HOSPITAL LAB</strong>
-                </div>
-                <div className="slip-barcode-render">
-                  <div className="fake-barcode-lines">
-                    <div className="barcode-bars-graphic"></div>
+              <div className="multi-barcode-grid">
+                {(printSlipModal.specimenGroups || []).map((grp, gIdx) => (
+                  <div key={gIdx} className="barcode-single-tube-label">
+                    <div className="tube-label-header">
+                      <span className="tube-hosp-name">NARAYAN HOSPITAL LAB</span>
+                      <span className="tube-specimen-badge">{grp.sampleType}</span>
+                    </div>
+                    <div className="tube-barcode-center">
+                      <div className="tube-barcode-bars">||| | |||| | ||||| | |||</div>
+                      <div className="tube-barcode-code font-mono font-bold">{grp.barcode}</div>
+                    </div>
+                    <div className="tube-label-body">
+                      <div><strong>UHID:</strong> {printSlipModal.uhid} | <strong>Pt:</strong> {printSlipModal.patientName}</div>
+                      <div><strong>Age/Sex:</strong> {printSlipModal.ageGender} | <strong>Dr:</strong> {printSlipModal.doctor}</div>
+                      <div><strong>Tests:</strong> {grp.tests.join(", ")}</div>
+                      <div><strong>Routing:</strong> {grp.source}</div>
+                      <div><strong>Time:</strong> {printSlipModal.requestDate} {grp.collectionTime}</div>
+                    </div>
                   </div>
-                  <div className="slip-barcode-text font-mono font-bold">
-                    {printSlipModal.barcode}
-                  </div>
-                </div>
-                <div className="slip-details-grid">
-                  <div><strong>UHID:</strong> {printSlipModal.uhid}</div>
-                  <div><strong>Patient:</strong> {printSlipModal.patientName}</div>
-                  <div><strong>Age/Sex:</strong> {printSlipModal.ageGender}</div>
-                  <div><strong>Specimen:</strong> {printSlipModal.sampleType}</div>
-                  <div><strong>Tests:</strong> {printSlipModal.testName}</div>
-                  <div><strong>Source:</strong> {printSlipModal.source}</div>
-                  <div><strong>Collected:</strong> {printSlipModal.requestDate} {printSlipModal.requestTime}</div>
-                  <div><strong>Doctor:</strong> {printSlipModal.requestedBy}</div>
-                  <div><strong>Amount Paid:</strong> ₹{printSlipModal.totalAmount} ({printSlipModal.paymentStatus})</div>
-                </div>
+                ))}
               </div>
             </div>
 
@@ -1075,7 +1445,7 @@ export default function PathologyTestRequest() {
                 className="btn-quick-primary"
                 onClick={() => window.print()}
               >
-                <Icon name="LuPrinter" size={15} /> Print Barcode Label
+                <Icon name="LuPrinter" size={15} /> Print All Barcode Labels
               </button>
             </div>
           </div>

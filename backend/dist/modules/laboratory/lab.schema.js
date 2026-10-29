@@ -7,7 +7,7 @@ exports.createLabOrderSchema = zod_1.z.object({
         patientId: zod_1.z.string().uuid(),
         encounterId: zod_1.z.string().uuid().optional().nullable(),
         facilityId: zod_1.z.string().uuid().optional().nullable(),
-        testDefinitionIds: zod_1.z.array(zod_1.z.string().min(1, 'Test identifier cannot be empty')).min(1, 'At least one test definition must be selected'),
+        testDefinitionIds: zod_1.z.array(zod_1.z.string().min(1, 'Test identifier cannot be empty')).optional(),
         orderedBy: zod_1.z.string().optional().nullable(),
         priority: zod_1.z.enum(['routine', 'urgent', 'stat']).optional().default('routine'),
         clinicalInfo: zod_1.z.string().optional().nullable(),
@@ -17,7 +17,22 @@ exports.createLabOrderSchema = zod_1.z.object({
         collectedBy: zod_1.z.string().optional().nullable(),
         fasting: zod_1.z.string().optional().nullable(),
         barcode: zod_1.z.string().optional().nullable(),
-    })
+        items: zod_1.z.array(zod_1.z.object({
+            testDefinitionId: zod_1.z.string().min(1, 'Test identifier cannot be empty'),
+            specimenType: zod_1.z.string().optional().nullable(),
+            container: zod_1.z.string().optional().nullable(),
+            processingSource: zod_1.z.enum(['in_house', 'outsource_send', 'outsource_return', 'external_upload']).optional().default('in_house'),
+            outsourceLabId: zod_1.z.string().uuid().optional().nullable(),
+            barcode: zod_1.z.string().optional().nullable(),
+            collectedBy: zod_1.z.string().optional().nullable(),
+            collectionTime: zod_1.z.string().optional().nullable(),
+            fasting: zod_1.z.string().optional().nullable(),
+            price: zod_1.z.number().optional().nullable(),
+            collectAtHospital: zod_1.z.boolean().optional().default(true),
+            outsourceCost: zod_1.z.number().optional().nullable(),
+            outsourceRefNo: zod_1.z.string().optional().nullable(),
+        })).optional()
+    }).refine((data) => (Array.isArray(data.items) && data.items.length > 0) || (Array.isArray(data.testDefinitionIds) && data.testDefinitionIds.length > 0), { message: 'At least one test definition must be selected' })
 });
 exports.updateLabResultSchema = zod_1.z.object({
     params: zod_1.z.object({
