@@ -3,7 +3,6 @@ import toast from "react-hot-toast";
 import Icon from "../../../components/common/Icon.jsx";
 import Input from "../../../components/common/Input.jsx";
 import Button from "../../../components/common/Button.jsx";
-import { mockStore } from "../../../mock/mockStore"; // Keep for fallback or remove if not needed elsewhere
 import patientService from "../../../api/services/patientService";
 import "./PatientRegistrationForm.css";
 
@@ -19,15 +18,6 @@ const DEPARTMENTS = [
   "Dermatology",
   "Neurology",
 ];
-
-const DOCTOR_OPTIONS = {
-  "General Medicine": "Dr. Priyadarshan Joshi",
-  "General Surgery": "Dr. Rajesh Sharma",
-  "Cardiology": "Dr. Priya Deshmukh",
-  "Orthopedics": "Dr. Anand Kulkarni",
-  "Pediatrics": "Dr. Arvind Saxena",
-  "Gynecology & Obstetrics": "Dr. Meenakshi Iyer",
-};
 
 export default function PatientRegistrationForm({ onRegistered }) {
   const [form, setForm] = useState({
@@ -230,7 +220,7 @@ export default function PatientRegistrationForm({ onRegistered }) {
           {lastRegistered ? (
             <div className="pat-card-preview">
               <div className="pat-card-top">
-                <span className="pat-card-hosp">K.G. NANDA HOSPITAL</span>
+                <span className="pat-card-hosp">NARAYAN HOSPITAL</span>
                 <span className="pat-card-badge">UHID SMART CARD</span>
               </div>
               <div className="pat-card-body">

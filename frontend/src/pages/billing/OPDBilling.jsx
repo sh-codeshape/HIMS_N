@@ -564,7 +564,7 @@ export default function OPDBilling() {
               <div className="opdb-pb-doc-box">
                 <div className="opdb-pb-doc-lbl">Consultant Doctor</div>
                 <div className="opdb-pb-doc-name">
-                  {selectedPatient.doctor || "Dr. Amit Sharma (General Medicine)"}
+                  {selectedPatient.doctor || ")"}
                 </div>
               </div>
             </div>
@@ -1067,7 +1067,7 @@ export default function OPDBilling() {
                   <div className="opdb-inv-meta-item">
                     <label>Consultant:</label>
                     <span>
-                      {generatedInvoice.patient.doctor || "Dr. Amit Sharma (General Medicine)"}
+                      {generatedInvoice.patient.doctor || ""}
                     </span>
                   </div>
                   <div className="opdb-inv-meta-item">
@@ -1287,7 +1287,7 @@ export default function OPDBilling() {
                                     phone: inv.phone || "—",
                                     gender: inv.gender || "—",
                                     age: inv.age || "—",
-                                    doctor: inv.doctor_name || "Dr. Amit Sharma",
+                                    doctor: inv.doctor_name || "",
                                   },
                                   items: Array.isArray(inv.items) && inv.items.length > 0 ? inv.items : [
                                     { name: "OPD Consultation & Clinical Services", category: "Consultation", rate: Number(inv.total_amount || 500), qty: 1, discount: 0 }

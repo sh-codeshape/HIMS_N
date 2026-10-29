@@ -59,29 +59,36 @@ export default function PatientDirectoryTable() {
       try {
         setLoading(true);
         const data = await patientService.getAll();
-        if (data && data.length > 0) {
-          const mapped = data.map((p, index) => {
-            const age = p.date_of_birth
+        const pList = data?.data || data || [];
+        if (Array.isArray(pList) && pList.length > 0) {
+          const mapped = pList.map((p, index) => {
+            const age = p.age 
+              ? p.age 
+              : p.date_of_birth
               ? Math.floor((new Date() - new Date(p.date_of_birth).getTime()) / 3.15576e10)
-              : 30 + (index % 20);
+              : "—";
+            const fullName = p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() || "—";
             return {
               id: p.id || index + 1,
-              uhid: p.uhid || `UHID${12345 + index}`,
-              name: p.full_name || p.name || `Patient ${index + 1}`,
+              uhid: p.uhid || "—",
+              name: fullName,
               age,
-              gender: p.gender ? p.gender.charAt(0).toUpperCase() + p.gender.slice(1) : index % 2 === 0 ? "Male" : "Female",
-              phone: p.phone || `98765${43210 + index}`,
-              type: p.category || (index % 3 === 0 ? "IPD" : index % 5 === 0 ? "Emergency" : "OPD"),
-              lastVisitDate: p.created_at ? new Date(p.created_at).toLocaleDateString("en-GB") : "28-09-2026",
-              department: p.department || (index % 2 === 0 ? "General Medicine" : "Cardiology"),
-              status: index % 3 === 1 ? "Admitted" : index % 3 === 2 ? "Discharged" : "Active",
-              bloodGroup: p.blood_group || "O+"
+              gender: p.gender ? p.gender.charAt(0).toUpperCase() + p.gender.slice(1) : "—",
+              phone: p.phone || p.mobile || "—",
+              type: p.category || p.patient_type || "OPD",
+              lastVisitDate: p.created_at ? new Date(p.created_at).toLocaleDateString("en-GB") : "—",
+              department: p.department || "—",
+              status: p.status || "Active",
+              bloodGroup: p.blood_group || "—"
             };
           });
           setPatients(mapped);
+        } else {
+          setPatients([]);
         }
       } catch (error) {
-        console.log("Using default patient directory data");
+        console.warn("Failed to load patient directory:", error?.message);
+        setPatients([]);
       } finally {
         setLoading(false);
       }
@@ -615,7 +622,7 @@ export default function PatientDirectoryTable() {
                 </div>
                 <div className="pd-info-item">
                   <label>Attending Consultant</label>
-                  <span>Dr. Rajesh Sharma (General Physician)</span>
+                  <span>{selectedPatient.attendingDoctor || selectedPatient.doctor || "—"}</span>
                 </div>
               </div>
             </div>

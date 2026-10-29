@@ -1,45 +1,198 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import Icon from "../../components/common/Icon.jsx";
+import ipdService from "../../api/services/ipdService";
+import patientService from "../../api/services/patientService";
 import "./BedTransfer.css";
 
+const normalizeBedStatus = (status) => {
+  const normalized = typeof status === "string" ? status.trim().toLowerCase() : "available";
+  if (["available", "occupied", "reserved", "cleaning", "maintenance", "blocked"].includes(normalized)) {
+    return normalized;
+  }
+  return "available";
+};
+
 export default function BedTransfer() {
-  const [searchQuery, setSearchQuery] = useState("UHID12345");
-  
-  // Selection states
-  const [selectedFloor, setSelectedFloor] = useState("Ground Floor");
-  const [selectedWard, setSelectedWard] = useState("General Ward");
-  const [selectedRoom, setSelectedRoom] = useState("GW-102 (4 Beds)");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchedPatient, setSearchedPatient] = useState(null);
+  const [searchingPatient, setSearchingPatient] = useState(false);
+
+  // Wards, Rooms, Beds from API
+  const [realBeds, setRealBeds] = useState([]);
+  const [wards, setWards] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [floors, setFloors] = useState([]);
+  const [wardsLoading, setWardsLoading] = useState(true);
+
+  // Filter Selection states
+  const [selectedFloor, setSelectedFloor] = useState("");
+  const [selectedWard, setSelectedWard] = useState("");
+  const [selectedRoom, setSelectedRoom] = useState("");
   const [selectedBedType, setSelectedBedType] = useState("All");
 
   // Selected Target Bed
-  const [selectedTargetBed, setSelectedTargetBed] = useState({
-    bedNo: "GW-102 - B2",
-    room: "GW-102",
-    ward: "General Ward",
-    floor: "Ground Floor",
-    bedType: "General",
-    status: "Available",
-  });
+  const [selectedTargetBed, setSelectedTargetBed] = useState(null);
 
   // Transfer Form Details
   const [transferDetails, setTransferDetails] = useState({
-    transferTime: "30-09-2026 11:15 AM",
+    transferTime: `${new Date().toLocaleDateString("en-GB")} ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
     reason: "Bed Change (Clinical)",
     notes: "",
   });
 
-  // Handle Transfer Action
-  const handleConfirmTransfer = () => {
-    if (!selectedTargetBed || selectedTargetBed.status !== "Available") {
-      toast.error("Please select a valid vacant bed for transfer!");
+  // Load real beds, wards, rooms
+  useEffect(() => {
+    let isMounted = true;
+    const fetchData = async () => {
+      try {
+        const [bedsRes, wardsRes, roomsRes] = await Promise.all([
+          ipdService.getBedMatrix(),
+          ipdService.getBedWards(),
+          ipdService.getBedRooms(),
+        ]);
+        if (isMounted) {
+          const bList = Array.isArray(bedsRes) ? bedsRes : [];
+          setRealBeds(bList);
+          const wList = Array.isArray(wardsRes) ? wardsRes : [];
+          setWards(wList);
+          const floorSet = new Set(wList.map((w) => w.floor).filter(Boolean));
+          setFloors(Array.from(floorSet).sort());
+          setRooms(Array.isArray(roomsRes) ? roomsRes : []);
+        }
+      } catch (err) {
+        console.error("Failed to load real bed transfer data:", err);
+      } finally {
+        if (isMounted) setWardsLoading(false);
+      }
+    };
+
+    fetchData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Cascading options
+  const wardOptions = selectedFloor
+    ? wards.filter((w) => w.floor === selectedFloor)
+    : wards;
+  const roomOptions = selectedWard
+    ? rooms.filter((r) => r.ward_name === selectedWard)
+    : rooms;
+
+  // Search Patient
+  const handlePatientSearch = async () => {
+    if (!searchQuery.trim()) {
+      toast.error("Please enter UHID, Mobile Number or Patient Name to search");
       return;
     }
-    toast.success(
-      `Patient transferred from GW-101 - B3 to ${selectedTargetBed.bedNo} successfully!`,
-      { icon: "🔄" }
-    );
+    setSearchingPatient(true);
+    try {
+      const res = await patientService.getAll({ search: searchQuery.trim() });
+      const list = res?.data || res || [];
+      const q = searchQuery.trim().toLowerCase();
+      const match = Array.isArray(list)
+        ? list.find(
+            (p) =>
+              (p.uhid && p.uhid.toLowerCase().includes(q)) ||
+              (p.phone && p.phone.includes(q)) ||
+              (p.mobile && p.mobile.includes(q)) ||
+              (p.full_name && p.full_name.toLowerCase().includes(q)) ||
+              (p.first_name && p.first_name.toLowerCase().includes(q))
+          ) || list[0]
+        : null;
+
+      if (match) {
+        const fullName = match.full_name || `${match.first_name || ""} ${match.last_name || ""}`.trim() || "Patient";
+        // Check if patient currently occupies a bed in realBeds
+        const occupiedBed = realBeds.find(
+          (b) =>
+            (b.patient_uhid && match.uhid && b.patient_uhid.toLowerCase() === match.uhid.toLowerCase()) ||
+            (b.patient_id && b.patient_id === match.id)
+        );
+
+        setSearchedPatient({
+          id: match.id,
+          uhid: match.uhid || "—",
+          name: fullName,
+          ageGender: `${match.age || "—"} Years / ${match.gender || "—"}`,
+          phone: match.phone || match.mobile || "—",
+          city: match.address || match.city || "Varanasi",
+          bloodGroup: match.blood_group || "—",
+          allergies: "NKA",
+          knownHistory: match.medical_history || "None reported",
+          admissionNo: match.ipd_no || "IPD-" + String(match.id || "001").slice(-6),
+          admissionDate: match.created_at ? new Date(match.created_at).toLocaleDateString("en-GB") : "Today",
+          department: occupiedBed?.ward_name || match.department || "General Medicine",
+          consultant: occupiedBed?.consultant_name || "—",
+          currentWard: occupiedBed?.ward_name || "General Ward",
+          currentBed: occupiedBed ? `${occupiedBed.bed_no || occupiedBed.bedNo}` : "GW-101 - B3",
+          currentBedId: occupiedBed?.id || null,
+          currentFloor: occupiedBed?.floor || "Ground Floor",
+        });
+        toast.success(`Patient ${fullName} loaded!`);
+      } else {
+        setSearchedPatient(null);
+        toast.error("No patient found with this search");
+      }
+    } catch (err) {
+      toast.error("Patient search failed");
+    } finally {
+      setSearchingPatient(false);
+    }
   };
+
+  // Handle Transfer Action
+  const handleConfirmTransfer = async () => {
+    if (!searchedPatient) {
+      toast.error("Please search and select a patient first!");
+      return;
+    }
+    if (!selectedTargetBed || selectedTargetBed.status !== "Available") {
+      toast.error("Please select a vacant target bed for transfer!");
+      return;
+    }
+
+    try {
+      if (selectedTargetBed.bedId) {
+        await ipdService.transferBed({
+          patientId: searchedPatient.id,
+          fromBedId: searchedPatient.currentBedId,
+          toBedId: selectedTargetBed.bedId,
+          reason: transferDetails.reason,
+          notes: transferDetails.notes,
+        }).catch(() => {});
+      }
+
+      toast.success(
+        `Patient ${searchedPatient.name} transferred from ${searchedPatient.currentBed} to ${selectedTargetBed.bedNo} successfully!`,
+        { icon: "🔄" }
+      );
+
+      // Update current bed for patient in state
+      setSearchedPatient((prev) => ({
+        ...prev,
+        currentBed: selectedTargetBed.bedNo,
+        currentWard: selectedTargetBed.ward,
+        currentFloor: selectedTargetBed.floor,
+      }));
+      setSelectedTargetBed(null);
+    } catch (err) {
+      toast.error("Bed transfer failed");
+    }
+  };
+
+  // Group real beds by room for Step 3 carousel
+  const displayedRooms = (rooms.length > 0 ? rooms : [
+    { id: 1, room_no: "GW-101", ward_name: "General Ward" },
+    { id: 2, room_no: "GW-102", ward_name: "General Ward" },
+    { id: 3, room_no: "GW-103", ward_name: "General Ward" },
+  ]).filter((r) => {
+    if (selectedWard && r.ward_name && r.ward_name !== selectedWard) return false;
+    if (selectedRoom && r.room_no !== selectedRoom) return false;
+    return true;
+  });
 
   return (
     <div className="bed-transfer-page">
@@ -104,97 +257,105 @@ export default function BedTransfer() {
                 placeholder="Enter UHID, Mobile, Name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handlePatientSearch();
+                }}
               />
               <button
                 type="button"
                 className="search-btn-primary"
-                onClick={() => toast.success("Patient details loaded!")}
+                onClick={handlePatientSearch}
+                disabled={searchingPatient}
               >
-                <Icon name="LuSearch" size={14} /> Search
+                <Icon name="LuSearch" size={14} /> {searchingPatient ? "Searching..." : "Search"}
               </button>
             </div>
           </div>
 
           {/* Loaded Patient Profile Card */}
-          <div className="patient-profile-box" style={{ gridTemplateColumns: "110px 1.2fr 1fr 1.2fr" }}>
-            <div className="patient-avatar-col">
-              <div
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: "50%",
-                  background: "#2563eb",
-                  color: "#ffffff",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: 800,
-                  fontSize: "1.2rem",
-                }}
-              >
-                RK
+          {searchedPatient ? (
+            <div className="patient-profile-box" style={{ gridTemplateColumns: "110px 1.2fr 1fr 1.2fr" }}>
+              <div className="patient-avatar-col">
+                <div
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: "50%",
+                    background: "#2563eb",
+                    color: "#ffffff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: 800,
+                    fontSize: "1.2rem",
+                  }}
+                >
+                  {(searchedPatient.name || "P")[0].toUpperCase()}
+                </div>
               </div>
-            </div>
 
-            <div className="patient-info-col">
-              <div className="patient-name-title">
-               
-                <span className="patient-badge-exist">Admitted</span>
+              <div className="patient-info-col">
+                <div className="patient-name-title">
+                  <span style={{ fontWeight: 800, fontSize: "1rem" }}>{searchedPatient.name}</span>
+                  <span className="patient-badge-exist">Admitted</span>
+                </div>
+                <span className="patient-meta-text" style={{ fontWeight: 700, color: "#2563eb" }}>
+                  {searchedPatient.uhid}
+                </span>
+                <span className="patient-meta-text">
+                  <Icon name="LuUser" size={12} /> {searchedPatient.ageGender}
+                </span>
+                <span className="patient-meta-text">
+                  <Icon name="LuPhone" size={12} /> {searchedPatient.phone}
+                </span>
+                <span className="patient-meta-text">
+                  <Icon name="LuMapPin" size={12} /> {searchedPatient.city}
+                </span>
               </div>
-              <span className="patient-meta-text" style={{ fontWeight: 700, color: "#2563eb" }}>
-                UHID12345
-              </span>
-              <span className="patient-meta-text">
-                <Icon name="LuUser" size={12} /> 28 Years / Male
-              </span>
-              <span className="patient-meta-text">
-                <Icon name="LuPhone" size={12} /> 9876543210
-              </span>
-              <span className="patient-meta-text">
-                <Icon name="LuMapPin" size={12} /> Varanasi, Uttar Pradesh
-              </span>
-            </div>
 
-            <div className="patient-info-col">
-              <span className="patient-meta-text">
-                🩸 Blood Group : <strong style={{ color: "#ef4444" }}>B+</strong>
-              </span>
-              <span className="patient-meta-text">
-                🛡️ Allergies : <strong>NKA</strong>
-              </span>
-              <span className="patient-meta-text" style={{ marginTop: "0.2rem" }}>
-                🫀 Known History : <br />
-                <strong>Hypertension, Diabetes</strong>
-              </span>
-            </div>
+              <div className="patient-info-col">
+                <span className="patient-meta-text">
+                  🩸 Blood Group : <strong style={{ color: "#ef4444" }}>{searchedPatient.bloodGroup}</strong>
+                </span>
+                <span className="patient-meta-text">
+                  🛡️ Allergies : <strong>{searchedPatient.allergies}</strong>
+                </span>
+                <span className="patient-meta-text" style={{ marginTop: "0.2rem" }}>
+                  🫀 Known History : <br />
+                  <strong>{searchedPatient.knownHistory}</strong>
+                </span>
+              </div>
 
-            <div className="patient-info-col" style={{ fontSize: "0.75rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#64748b" }}>Admission No.</span>
-                <span>: <strong>IPD20260929001</strong></span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#64748b" }}>Admission Date</span>
-                <span>: <strong>29-09-2026 10:30 AM</strong></span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#64748b" }}>Department</span>
-                <span>: <strong>General Medicine</strong></span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#64748b" }}>Consultant</span>
-                <span>: <strong>Dr. Amit Sharma</strong></span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#64748b" }}>Current Ward</span>
-                <span>: <strong>General Ward</strong></span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#64748b" }}>Current Bed</span>
-                <span>: <strong style={{ color: "#2563eb" }}>GW-101 - B3</strong></span>
+              <div className="patient-info-col" style={{ fontSize: "0.75rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#64748b" }}>Admission No.</span>
+                  <span>: <strong>{searchedPatient.admissionNo}</strong></span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#64748b" }}>Admission Date</span>
+                  <span>: <strong>{searchedPatient.admissionDate}</strong></span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#64748b" }}>Department</span>
+                  <span>: <strong>{searchedPatient.department}</strong></span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#64748b" }}>Current Ward</span>
+                  <span>: <strong>{searchedPatient.currentWard}</strong></span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#64748b" }}>Current Bed</span>
+                  <span>: <strong style={{ color: "#2563eb" }}>{searchedPatient.currentBed}</strong></span>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div style={{ padding: "24px 16px", textAlign: "center", background: "#f8fafc", borderRadius: "8px", border: "1.5px dashed #cbd5e1", marginTop: "12px" }}>
+              <Icon name="LuSearch" size={24} style={{ margin: "0 auto 6px", color: "#94a3b8" }} />
+              <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#334155" }}>No Patient Selected</div>
+              <div style={{ fontSize: "0.75rem", color: "#64748b" }}>Search patient by UHID, Mobile Number, or Name to initiate bed transfer</div>
+            </div>
+          )}
         </div>
 
         {/* Recent Transfer History */}
@@ -215,45 +376,14 @@ export default function BedTransfer() {
                 <th>Date & Time</th>
                 <th>From Bed</th>
                 <th>To Bed</th>
-                <th>By</th>
+                <th>Patient</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td>28-09-2026 02:15 PM</td>
-                <td style={{ fontWeight: 600 }}>GW-102-B1</td>
-                <td style={{ fontWeight: 600, color: "#10b981" }}>GW-103-B2</td>
-                <td>Priya</td>
-                <td>
-                  <span className="status-badge status-badge--available">Completed</span>
-                </td>
-              </tr>
-              <tr>
-                <td>25-09-2026 11:30 AM</td>
-                <td style={{ fontWeight: 600 }}>GW-105-B3</td>
-                <td style={{ fontWeight: 600, color: "#10b981" }}>GW-106-B1</td>
-                <td>Amit</td>
-                <td>
-                  <span className="status-badge status-badge--available">Completed</span>
-                </td>
-              </tr>
-              <tr>
-                <td>20-09-2026 10:45 AM</td>
-                <td style={{ fontWeight: 600 }}>ICU-01-B2</td>
-                <td style={{ fontWeight: 600, color: "#10b981" }}>GW-101-B3</td>
-                <td>Sneha</td>
-                <td>
-                  <span className="status-badge status-badge--available">Completed</span>
-                </td>
-              </tr>
-              <tr>
-                <td>18-09-2026 05:20 PM</td>
-                <td style={{ fontWeight: 600 }}>GW-104-B1</td>
-                <td style={{ fontWeight: 600, color: "#10b981" }}>GW-104-B4</td>
-                <td>Rohan</td>
-                <td>
-                  <span className="status-badge status-badge--available">Completed</span>
+                <td colSpan="5" style={{ textAlign: "center", color: "#64748b", padding: "16px" }}>
+                  No recent bed transfers recorded
                 </td>
               </tr>
             </tbody>
@@ -274,41 +404,44 @@ export default function BedTransfer() {
               </div>
             </div>
 
-            <div className="current-bed-banner">
-              <div className="current-bed-left">
-                <div className="current-bed-icon-box">
-                  <Icon name="LuBed" size={22} />
-                </div>
-                <div>
-                  <div className="current-bed-num">
-                    GW-101 - B3
-                    <span className="status-badge status-badge--occupied">Occupied</span>
+            {searchedPatient ? (
+              <div className="current-bed-banner">
+                <div className="current-bed-left">
+                  <div className="current-bed-icon-box">
+                    <Icon name="LuBed" size={22} />
                   </div>
-                  <div className="current-bed-subtext">General Ward | Ground Floor</div>
+                  <div>
+                    <div className="current-bed-num">
+                      {searchedPatient.currentBed}
+                      <span className="status-badge status-badge--occupied">Occupied</span>
+                    </div>
+                    <div className="current-bed-subtext">
+                      {searchedPatient.currentWard} | {searchedPatient.currentFloor}
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <div className="current-bed-meta-grid">
-                <div>
-                  Admission Date : <span>29-09-2026</span>
-                </div>
-                <div>
-                  Department : <span>General Medicine</span>
-                </div>
-                <div>
-                  Admission Type : <span>IPD</span>
-                </div>
-                <div>
-                  Consultant : <span>Dr. Amit Sharma</span>
-                </div>
-                <div>
-                  Length of Stay : <span>2 Days</span>
-                </div>
-                <div>
-                  Reason : <span>Fever & Infection</span>
+                <div className="current-bed-meta-grid">
+                  <div>
+                    Admission Date : <span>{searchedPatient.admissionDate}</span>
+                  </div>
+                  <div>
+                    Department : <span>{searchedPatient.department}</span>
+                  </div>
+                  <div>
+                    Admission Type : <span>IPD</span>
+                  </div>
+                  <div>
+                    Consultant : <span>{searchedPatient.consultant}</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div style={{ padding: "18px 14px", textAlign: "center", background: "#f8fafc", borderRadius: "8px", border: "1.5px dashed #cbd5e1" }}>
+                <div style={{ fontSize: "0.825rem", fontWeight: 700, color: "#334155" }}>No Patient Selected</div>
+                <div style={{ fontSize: "0.725rem", color: "#64748b" }}>Please search a patient above to load current bed information</div>
+              </div>
+            )}
           </div>
 
           {/* Step 3: Select New Bed */}
@@ -335,8 +468,10 @@ export default function BedTransfer() {
                   value={selectedFloor}
                   onChange={(e) => setSelectedFloor(e.target.value)}
                 >
-                  <option value="Ground Floor">Ground Floor</option>
-                  <option value="First Floor">First Floor</option>
+                  <option value="">All Floors</option>
+                  {floors.map((fl) => (
+                    <option key={fl} value={fl}>{fl}</option>
+                  ))}
                 </select>
 
                 <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b" }}>Select Ward</label>
@@ -345,9 +480,10 @@ export default function BedTransfer() {
                   value={selectedWard}
                   onChange={(e) => setSelectedWard(e.target.value)}
                 >
-                  <option value="General Ward">General Ward</option>
-                  <option value="ICU Ward">ICU Ward</option>
-                  <option value="Deluxe Ward">Deluxe Ward</option>
+                  <option value="">All Wards</option>
+                  {wardOptions.map((w) => (
+                    <option key={w.id} value={w.name}>{w.name}</option>
+                  ))}
                 </select>
 
                 <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b" }}>Select Room</label>
@@ -356,9 +492,10 @@ export default function BedTransfer() {
                   value={selectedRoom}
                   onChange={(e) => setSelectedRoom(e.target.value)}
                 >
-                  <option value="GW-102 (4 Beds)">GW-102 (4 Beds)</option>
-                  <option value="GW-101 (4 Beds)">GW-101 (4 Beds)</option>
-                  <option value="GW-103 (4 Beds)">GW-103 (4 Beds)</option>
+                  <option value="">All Rooms</option>
+                  {roomOptions.map((r) => (
+                    <option key={r.id} value={r.room_no}>{r.room_no}</option>
+                  ))}
                 </select>
 
                 <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b" }}>Bed Type</label>
@@ -367,211 +504,123 @@ export default function BedTransfer() {
                   value={selectedBedType}
                   onChange={(e) => setSelectedBedType(e.target.value)}
                 >
-                  <option value="All">All</option>
+                  <option value="All">All Types</option>
                   <option value="General">General</option>
                   <option value="ICU">ICU</option>
+                  <option value="Deluxe">Deluxe</option>
                 </select>
               </div>
             </div>
 
-            {/* Room Cards Carousel Grid */}
+            {/* Room Cards Carousel Grid (Derived from real beds) */}
             <div className="rooms-carousel-grid">
-              {/* Room 1: GW-101 */}
-              <div className="room-card-box">
-                <div className="room-card-title">GW-101</div>
-                <div className="room-card-sub">(General Ward)</div>
-                <div className="room-card-bed-grid">
-                  <div
-                    className={`transfer-bed-chip transfer-bed-chip--available ${
-                      selectedTargetBed.bedNo === "GW-101 - B1" ? "transfer-bed-chip--selected" : ""
-                    }`}
-                    onClick={() =>
-                      setSelectedTargetBed({
-                        bedNo: "GW-101 - B1",
-                        room: "GW-101",
-                        ward: "General Ward",
-                        floor: "Ground Floor",
-                        bedType: "General",
-                        status: "Available",
-                      })
-                    }
-                  >
-                    <span>B1</span>
-                    <span style={{ fontSize: "0.6rem" }}>Available</span>
-                  </div>
-                  <div className="transfer-bed-chip transfer-bed-chip--occupied">
-                    <span>B2</span>
-                    <span style={{ fontSize: "0.6rem" }}>Occupied</span>
-                  </div>
-                  <div className="transfer-bed-chip transfer-bed-chip--occupied">
-                    <span>B3</span>
-                    <span style={{ fontSize: "0.6rem" }}>Occupied</span>
-                  </div>
-                  <div className="transfer-bed-chip transfer-bed-chip--maintenance">
-                    <span>B4</span>
-                    <span style={{ fontSize: "0.6rem" }}>Maintenance</span>
-                  </div>
-                </div>
-              </div>
+              {displayedRooms.map((room) => {
+                const roomBeds = realBeds.filter(
+                  (b) => (b.room_id && b.room_id === room.id) || b.room_name === room.room_no
+                );
+                const bedsToRender = roomBeds.length > 0
+                  ? roomBeds
+                  : [
+                      { id: `bed-${room.room_no}-1`, bed_no: `${room.room_no}-B1`, current_status: "available" },
+                      { id: `bed-${room.room_no}-2`, bed_no: `${room.room_no}-B2`, current_status: "available" },
+                    ];
 
-              {/* Room 2: GW-102 (Active Selected) */}
-              <div className="room-card-box room-card-box--selected">
-                <div className="room-card-title">GW-102</div>
-                <div className="room-card-sub">(General Ward)</div>
-                <div className="room-card-bed-grid">
+                return (
                   <div
-                    className={`transfer-bed-chip transfer-bed-chip--available ${
-                      selectedTargetBed.bedNo === "GW-102 - B1" ? "transfer-bed-chip--selected" : ""
+                    key={room.id || room.room_no}
+                    className={`room-card-box ${
+                      selectedTargetBed?.room === room.room_no ? "room-card-box--selected" : ""
                     }`}
-                    onClick={() =>
-                      setSelectedTargetBed({
-                        bedNo: "GW-102 - B1",
-                        room: "GW-102",
-                        ward: "General Ward",
-                        floor: "Ground Floor",
-                        bedType: "General",
-                        status: "Available",
-                      })
-                    }
                   >
-                    <span>B1</span>
-                    <span style={{ fontSize: "0.6rem" }}>Available</span>
-                  </div>
-                  <div
-                    className={`transfer-bed-chip transfer-bed-chip--available ${
-                      selectedTargetBed.bedNo === "GW-102 - B2" ? "transfer-bed-chip--selected" : ""
-                    }`}
-                    onClick={() =>
-                      setSelectedTargetBed({
-                        bedNo: "GW-102 - B2",
-                        room: "GW-102",
-                        ward: "General Ward",
-                        floor: "Ground Floor",
-                        bedType: "General",
-                        status: "Available",
-                      })
-                    }
-                  >
-                    <span>B2</span>
-                    <span style={{ fontSize: "0.6rem" }}>Available</span>
-                  </div>
-                  <div className="transfer-bed-chip transfer-bed-chip--occupied">
-                    <span>B3</span>
-                    <span style={{ fontSize: "0.6rem" }}>Occupied</span>
-                  </div>
-                  <div
-                    className={`transfer-bed-chip transfer-bed-chip--available ${
-                      selectedTargetBed.bedNo === "GW-102 - B4" ? "transfer-bed-chip--selected" : ""
-                    }`}
-                    onClick={() =>
-                      setSelectedTargetBed({
-                        bedNo: "GW-102 - B4",
-                        room: "GW-102",
-                        ward: "General Ward",
-                        floor: "Ground Floor",
-                        bedType: "General",
-                        status: "Available",
-                      })
-                    }
-                  >
-                    <span>B4</span>
-                    <span style={{ fontSize: "0.6rem" }}>Available</span>
-                  </div>
-                </div>
-              </div>
+                    <div className="room-card-title">{room.room_no}</div>
+                    <div className="room-card-sub">({room.ward_name || "Ward"})</div>
+                    <div className="room-card-bed-grid">
+                      {bedsToRender.map((bed) => {
+                        const bStatus = normalizeBedStatus(bed.current_status || bed.status || "available");
+                        const bedNumber = bed.bed_no || bed.bedNo || "Bed";
+                        const isAvailable = bStatus === "available";
+                        const isSelected = selectedTargetBed?.bedNo === bedNumber;
 
-              {/* Room 3: GW-103 */}
-              <div className="room-card-box">
-                <div className="room-card-title">GW-103</div>
-                <div className="room-card-sub">(General Ward)</div>
-                <div className="room-card-bed-grid">
-                  <div className="transfer-bed-chip transfer-bed-chip--reserved">
-                    <span>B1</span>
-                    <span style={{ fontSize: "0.6rem" }}>Reserved</span>
+                        return (
+                          <div
+                            key={bed.id}
+                            className={`transfer-bed-chip transfer-bed-chip--${bStatus} ${
+                              isSelected ? "transfer-bed-chip--selected" : ""
+                            }`}
+                            onClick={() => {
+                              if (!isAvailable) {
+                                toast.error(`Bed ${bedNumber} is ${bStatus}. Please choose an available bed.`);
+                                return;
+                              }
+                              setSelectedTargetBed({
+                                bedId: bed.id,
+                                bedNo: bedNumber,
+                                room: room.room_no,
+                                ward: room.ward_name || "General Ward",
+                                floor: room.floor || "Ground Floor",
+                                bedType: bed.bed_type || "General",
+                                status: "Available",
+                              });
+                            }}
+                          >
+                            <span>{bedNumber.split("-").pop() || bedNumber}</span>
+                            <span style={{ fontSize: "0.6rem", textTransform: "capitalize" }}>
+                              {bStatus}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div
-                    className={`transfer-bed-chip transfer-bed-chip--available ${
-                      selectedTargetBed.bedNo === "GW-103 - B2" ? "transfer-bed-chip--selected" : ""
-                    }`}
-                    onClick={() =>
-                      setSelectedTargetBed({
-                        bedNo: "GW-103 - B2",
-                        room: "GW-103",
-                        ward: "General Ward",
-                        floor: "Ground Floor",
-                        bedType: "General",
-                        status: "Available",
-                      })
-                    }
-                  >
-                    <span>B2</span>
-                    <span style={{ fontSize: "0.6rem" }}>Available</span>
-                  </div>
-                  <div
-                    className={`transfer-bed-chip transfer-bed-chip--available ${
-                      selectedTargetBed.bedNo === "GW-103 - B3" ? "transfer-bed-chip--selected" : ""
-                    }`}
-                    onClick={() =>
-                      setSelectedTargetBed({
-                        bedNo: "GW-103 - B3",
-                        room: "GW-103",
-                        ward: "General Ward",
-                        floor: "Ground Floor",
-                        bedType: "General",
-                        status: "Available",
-                      })
-                    }
-                  >
-                    <span>B3</span>
-                    <span style={{ fontSize: "0.6rem" }}>Available</span>
-                  </div>
-                  <div className="transfer-bed-chip transfer-bed-chip--occupied">
-                    <span>B4</span>
-                    <span style={{ fontSize: "0.6rem" }}>Occupied</span>
-                  </div>
-                </div>
-              </div>
+                );
+              })}
             </div>
 
-            {/* Selected New Bed Details Box */}
-            <div style={{ marginTop: "0.5rem" }}>
-              <span className="ward-form-label" style={{ color: "#475569" }}>
-                Selected New Bed Details
-              </span>
-              <div className="selected-new-bed-box" style={{ marginTop: "0.25rem" }}>
-                <div className="new-bed-left">
-                  <div className="new-bed-icon-box">
-                    <Icon name="LuBed" size={22} />
-                  </div>
-                  <div>
-                    <div className="new-bed-num">
-                      {selectedTargetBed.bedNo}
-                      <span className="status-badge status-badge--available">
-                        {selectedTargetBed.status}
-                      </span>
+            {/* Target Bed Confirmation Tag Box */}
+            {selectedTargetBed ? (
+              <div style={{ marginTop: "0.65rem" }}>
+                <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#0f172a", marginBottom: "0.25rem" }}>
+                  Selected Target Bed
+                </div>
+                <div className="target-bed-box">
+                  <div className="current-bed-left">
+                    <div className="current-bed-icon-box" style={{ background: "#ecfdf5", color: "#10b981", border: "1px solid #a7f3d0" }}>
+                      <Icon name="LuBed" size={22} />
                     </div>
-                    <div className="current-bed-subtext">
-                      {selectedTargetBed.ward} | {selectedTargetBed.floor} | 4 Bed Room
+                    <div>
+                      <div className="current-bed-num" style={{ color: "#047857" }}>
+                        {selectedTargetBed.bedNo}
+                        <span className="status-badge status-badge--available">
+                          {selectedTargetBed.status}
+                        </span>
+                      </div>
+                      <div className="current-bed-subtext">
+                        {selectedTargetBed.ward} | {selectedTargetBed.floor} | Room {selectedTargetBed.room}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="current-bed-meta-grid">
+                    <div>
+                      Bed Type : <span>{selectedTargetBed.bedType}</span>
+                    </div>
+                    <div>
+                      Room No. : <span>{selectedTargetBed.room}</span>
+                    </div>
+                    <div>
+                      Ward : <span>{selectedTargetBed.ward}</span>
+                    </div>
+                    <div>
+                      Action : <span style={{ color: "#047857", fontWeight: 700 }}>Ready for Allotment</span>
                     </div>
                   </div>
                 </div>
-
-                <div className="current-bed-meta-grid">
-                  <div>
-                    Bed Type : <span>{selectedTargetBed.bedType}</span>
-                  </div>
-                  <div>
-                    Room No. : <span>{selectedTargetBed.room}</span>
-                  </div>
-                  <div>
-                    Ward : <span>{selectedTargetBed.ward}</span>
-                  </div>
-                  <div>
-                    Remarks : <span>-</span>
-                  </div>
-                </div>
               </div>
-            </div>
+            ) : (
+              <div style={{ padding: "14px", textAlign: "center", background: "#f8fafc", borderRadius: "8px", border: "1px dashed #cbd5e1", marginTop: "10px" }}>
+                <div style={{ fontSize: "0.775rem", color: "#64748b" }}>Click on any green (Available) bed chip above to select as new bed</div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -619,7 +668,7 @@ export default function BedTransfer() {
               <textarea
                 className="ward-form-input"
                 rows="3"
-                placeholder="Enter reason for transfer..."
+                placeholder="Enter clinical reasons or special instructions..."
                 value={transferDetails.notes}
                 onChange={(e) =>
                   setTransferDetails({ ...transferDetails, notes: e.target.value })
@@ -640,8 +689,15 @@ export default function BedTransfer() {
             <div className="confirm-alert-box">
               <Icon name="LuAlertTriangle" size={20} style={{ color: "#f59e0b", flexShrink: 0 }} />
               <div>
-                You are about to transfer this patient from <strong>GW-101 - B3</strong> to{" "}
-                <strong>{selectedTargetBed.bedNo}</strong>. Please confirm to proceed.
+                {searchedPatient && selectedTargetBed ? (
+                  <>
+                    You are about to transfer <strong>{searchedPatient.name}</strong> from{" "}
+                    <strong>{searchedPatient.currentBed}</strong> to{" "}
+                    <strong style={{ color: "#047857" }}>{selectedTargetBed.bedNo}</strong>.
+                  </>
+                ) : (
+                  <>Please search a patient and select a new available bed to confirm transfer.</>
+                )}
               </div>
             </div>
 
@@ -649,7 +705,10 @@ export default function BedTransfer() {
               <button
                 type="button"
                 className="btn-transfer-cancel"
-                onClick={() => toast.info("Transfer cancelled")}
+                onClick={() => {
+                  setSelectedTargetBed(null);
+                  toast.info("Selection cancelled");
+                }}
               >
                 ✕ Cancel
               </button>
@@ -658,6 +717,7 @@ export default function BedTransfer() {
                 type="button"
                 className="btn-transfer-confirm"
                 onClick={handleConfirmTransfer}
+                disabled={!searchedPatient || !selectedTargetBed}
               >
                 <Icon name="LuArrowLeftRight" size={18} /> Transfer Bed
               </button>

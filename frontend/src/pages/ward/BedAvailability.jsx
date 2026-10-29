@@ -60,7 +60,7 @@ export default function BedAvailability() {
   const stats = {
     total: 250,
     available: 62,
-    availablePct: "24.8%",
+    availablePct: "",
     occupied: 176,
     occupiedPct: "70.4%",
     reserved: 7,
@@ -84,14 +84,7 @@ export default function BedAvailability() {
       maintenance: 1,
       pct: "67%",
       barColor: "#10b981",
-      rooms: [
-        { roomNo: "GW-101", roomType: "General Ward", total: 4, occ: 3, avail: 1, res: 0, maint: 0, status: "Available" },
-        { roomNo: "GW-102", roomType: "General Ward", total: 4, occ: 2, avail: 2, res: 0, maint: 0, status: "Available" },
-        { roomNo: "GW-103", roomType: "General Ward", total: 4, occ: 3, avail: 1, res: 0, maint: 0, status: "Almost Full" },
-        { roomNo: "GW-104", roomType: "General Ward", total: 4, occ: 3, avail: 1, res: 0, maint: 0, status: "Available" },
-        { roomNo: "GW-105", roomType: "General Ward", total: 4, occ: 2, avail: 2, res: 0, maint: 0, status: "Available" },
-        { roomNo: "GW-106", roomType: "General Ward", total: 4, occ: 3, avail: 1, res: 1, maint: 0, status: "Almost Full" },
-      ],
+      rooms: rooms.filter(r => r.floor === "ground floor - general ward" || r.floor === "Ground Floor"),
     },
     {
       id: "first",
@@ -106,10 +99,7 @@ export default function BedAvailability() {
       maintenance: 0,
       pct: "58%",
       barColor: "#10b981",
-      rooms: [
-        { roomNo: "PR-201", roomType: "Private Room", total: 2, occ: 1, avail: 1, res: 0, maint: 0, status: "Available" },
-        { roomNo: "PR-202", roomType: "Private Room", total: 2, occ: 1, avail: 1, res: 0, maint: 0, status: "Available" },
-      ],
+      rooms: rooms.filter(r => r.floor === "first floor - private rooms" || r.floor === "First Floor"),
     },
     {
       id: "second",
@@ -124,10 +114,7 @@ export default function BedAvailability() {
       maintenance: 0,
       pct: "70%",
       barColor: "#ef4444",
-      rooms: [
-        { roomNo: "ICU-301", roomType: "ICU", total: 4, occ: 3, avail: 1, res: 0, maint: 0, status: "Almost Full" },
-        { roomNo: "ICU-302", roomType: "ICU", total: 4, occ: 2, avail: 2, res: 1, maint: 0, status: "Available" },
-      ],
+      rooms: rooms.filter(r => r.floor === "second floor - icu" || r.floor === "Second Floor"),
     },
     {
       id: "third",
@@ -142,9 +129,7 @@ export default function BedAvailability() {
       maintenance: 0,
       pct: "57%",
       barColor: "#10b981",
-      rooms: [
-        { roomNo: "SP-401", roomType: "Semi Private", total: 2, occ: 1, avail: 1, res: 0, maint: 0, status: "Available" },
-      ],
+      rooms: rooms.filter(r => r.floor === "third floor - semi private" || r.floor === "Third Floor"),
     },
     {
       id: "fourth",
@@ -159,9 +144,7 @@ export default function BedAvailability() {
       maintenance: 0,
       pct: "60%",
       barColor: "#f97316",
-      rooms: [
-        { roomNo: "ISO-501", roomType: "Isolation", total: 2, occ: 1, avail: 1, res: 0, maint: 0, status: "Available" },
-      ],
+      rooms: rooms.filter(r => r.floor === "fourth floor - isolation" || r.floor === "Fourth Floor"),
     },
     {
       id: "fifth",
@@ -176,9 +159,7 @@ export default function BedAvailability() {
       maintenance: 0,
       pct: "50%",
       barColor: "#10b981",
-      rooms: [
-        { roomNo: "DC-601", roomType: "Day Care", total: 2, occ: 1, avail: 1, res: 0, maint: 0, status: "Available" },
-      ],
+      rooms: rooms.filter(r => r.floor === "fifth floor - day care" || r.floor === "Fifth Floor"),
     },
   ];
 
@@ -516,11 +497,11 @@ export default function BedAvailability() {
                           <td>{room.maint}</td>
                           <td>
                             <span
-                              className={`room-status-badge room-status-badge--${room.status
+                              className={`room-status-badge room-status-badge--${(room.status || "Available")
                                 .toLowerCase()
-                                .replace(" ", "-")}`}
+                                .replace(/\s+/g, "-")}`}
                             >
-                              {room.status}
+                              {room.status || "Available"}
                             </span>
                           </td>
                           <td>

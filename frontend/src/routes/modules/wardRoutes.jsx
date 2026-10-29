@@ -8,6 +8,7 @@ import {
   FloorBedMap,
   BedAllotment,
   BedTransfer,
+  BedAvailability,
   DischargeManagement,
   NursingStationLog,
 } from "../../pages/ward";
@@ -57,6 +58,15 @@ export const wardRoutes = [
     element={
       <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, RECEPTION]}>
         <BedTransfer />
+      </ProtectedRoute>
+    }
+  />,
+  <Route
+    key="ward-bed-availability"
+    path="/ward/bed-availability"
+    element={
+      <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, DOCTOR, RECEPTION]}>
+        <BedAvailability />
       </ProtectedRoute>
     }
   />,

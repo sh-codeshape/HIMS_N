@@ -93,8 +93,8 @@ export default function IPDAdmissionView() {
   const [selectedDoctor, setSelectedDoctor] = useState(null);
 
   // ── Reason for Admission ──
-  const [selectedComplaints, setSelectedComplaints] = useState(["Fever", "Breathing Difficulty"]);
-  const [duration, setDuration] = useState("5");
+  const [selectedComplaints, setSelectedComplaints] = useState([]);
+  const [duration, setDuration] = useState("");
   const [durationUnit, setDurationUnit] = useState("Days");
   const [severity, setSeverity] = useState("Moderate");
   const [provisionalDiagnosis, setProvisionalDiagnosis] = useState("Acute Respiratory Infection");
@@ -487,8 +487,8 @@ export default function IPDAdmissionView() {
     setAdmissionDate(getCurrentDateStr());
     setAdmissionTime(getCurrentTimeStr());
     setAdmissionSource("OPD");
-    setSelectedComplaints(["Fever", "Breathing Difficulty"]);
-    setDuration("5");
+    setSelectedComplaints([]);
+    setDuration("");
     setDurationUnit("Days");
     setSeverity("Moderate");
     setProvisionalDiagnosis("Acute Respiratory Infection");
@@ -919,26 +919,27 @@ export default function IPDAdmissionView() {
         </div>
 
         {/* ── 4. SECTION: CLINICAL & ADMISSION REASON ── */}
-        <div className="opd-card">
+        <div className="opd-card ipd-clinical-card">
           <div className="opd-card-title">
             <Icon name="LuStethoscope" size={16} className="title-icon" />
             <span>Clinical &amp; Admission Reason <span className="opd-hint">· परामर्श एवं नैदानिक विवरण</span></span>
           </div>
 
-          <div className="opd-form-grid opd-grid-3">
-            {/* Chief Complaints */}
-            <div>
-              <div className="flex justify-between items-center mb-1">
+          <div className="ipd-clinical-reason-grid">
+            {/* Chief Complaints Column */}
+            <div className="ipd-clinical-col">
+              <div className="ipd-col-header">
                 <label className="opd-label mb-0">
-                  Chief Complaint / Symptoms <span className="req">*</span> <span className="opd-hint">· मरीज की समस्या (Multiple Select)</span>
+                  Chief Complaint / Symptoms <span className="opd-hint">· मरीज की समस्या (Multiple Select)</span>
                 </label>
                 {selectedComplaints.length > 0 && (
-                  <span className="opd-badge-count">{selectedComplaints.length} selected</span>
+                  <span className="ipd-badge-count-pill">{selectedComplaints.length} selected</span>
                 )}
               </div>
-              <div className="flex gap-2">
+
+              <div className="ipd-complaint-select-row">
                 <select
-                  className="opd-select flex-1"
+                  className="opd-select ipd-complaint-select"
                   onChange={(e) => {
                     const val = e.target.value;
                     if (!val) return;
@@ -948,7 +949,7 @@ export default function IPDAdmissionView() {
                 >
                   <option value="">
                     {selectedComplaints.length === 0
-                      ? "Select Chief Complaint / मुख्य लक्षण चुनें..."
+                      ? "— Select Chief Complaint / मुख्य लक्षण चुनें... —"
                       : "+ Add more problem / और समस्या जोड़ें..."}
                   </option>
                   {POPULAR_IPD_COMPLAINTS.map((c) => (
@@ -958,13 +959,14 @@ export default function IPDAdmissionView() {
                   ))}
                   <option value="Other">+ Custom / अन्य समस्या...</option>
                 </select>
+
                 <button
                   type="button"
-                  className="opd-btn-tag-action"
+                  className="ipd-btn-custom-tag"
                   onClick={() => setShowOtherComplaintInput(true)}
                   title="Add Custom Symptom"
                 >
-                  + Custom
+                  <Icon name="LuPlus" size={14} /> Custom
                 </button>
               </div>
 
@@ -989,48 +991,51 @@ export default function IPDAdmissionView() {
                 </div>
               )}
 
-              {selectedComplaints.length > 0 && (
-                <div className="opd-tags-wrapper mt-2">
+              {selectedComplaints.length > 0 ? (
+                <div className="ipd-tags-container mt-2">
                   {selectedComplaints.map((c) => (
-                    <span key={c} className="opd-tag">
-                      {c}
-                      <button type="button" onClick={() => removeComplaint(c)}>✕</button>
+                    <span key={c} className="ipd-tag-pill">
+                      <span>{c}</span>
+                      <button type="button" onClick={() => removeComplaint(c)} title="Remove symptom">✕</button>
                     </span>
                   ))}
                   {selectedComplaints.length > 1 && (
-                    <button type="button" className="opd-clear-all-link" onClick={() => setSelectedComplaints([])}>Clear All</button>
+                    <button type="button" className="ipd-clear-link" onClick={() => setSelectedComplaints([])}>Clear All</button>
                   )}
+                </div>
+              ) : (
+                <div className="ipd-empty-tags-hint">
+                  No symptom selected yet. Select from dropdown or click "+ Custom".
                 </div>
               )}
             </div>
 
-            {/* Duration & Diagnosis */}
-            <div>
-              <label className="opd-label">
-                Duration <span className="opd-hint">· लक्षण की अवधि</span>
-              </label>
-              <div className="flex gap-2">
+            {/* Duration Column (Single Unified Field with Day) */}
+            <div className="ipd-clinical-col">
+              <div className="ipd-col-header">
+                <label className="opd-label mb-0">
+                  Duration <span className="opd-hint">· लक्षण की अवधि</span>
+                </label>
+                <span className="ipd-col-subbadge">In Days (दिनों में)</span>
+              </div>
+
+              <div className="ipd-unified-duration-box">
                 <input
                   type="number"
                   min="1"
-                  className="opd-input w-24"
+                  className="ipd-duration-input"
+                  placeholder="Enter duration in days..."
                   value={duration}
                   onChange={(e) => setDuration(e.target.value)}
                 />
-                <select
-                  className="opd-select flex-1"
-                  value={durationUnit}
-                  onChange={(e) => setDurationUnit(e.target.value)}
-                >
-                  <option value="Days">Days (दिन)</option>
-                  <option value="Hours">Hours (घंटे)</option>
-                  <option value="Weeks">Weeks (सप्ताह)</option>
-                </select>
+                <div className="ipd-duration-addon">
+                  <span className="ipd-duration-addon-text">Days (दिन)</span>
+                </div>
               </div>
-             
+              <p className="ipd-duration-help">
+                Specify duration of symptoms in days (e.g. 1, 3, 5, 7 Days)
+              </p>
             </div>
-
-           
           </div>
         </div>
 

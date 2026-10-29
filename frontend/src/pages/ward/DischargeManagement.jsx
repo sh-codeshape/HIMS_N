@@ -1,33 +1,65 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import Icon from "../../components/common/Icon.jsx";
+import doctorService from "../../api/services/doctorService";
+import ipdService from "../../api/services/ipdService";
 import "./DischargeManagement.css";
 
 export default function DischargeManagement() {
   const [activeTab, setActiveTab] = useState("Discharge Process");
+  const [doctorList, setDoctorList] = useState([]);
+  const [admittedPatient, setAdmittedPatient] = useState(null);
+
   const [dischargeForm, setDischargeForm] = useState({
-    date: "02-10-2026",
-    time: "04:20 PM",
+    date: new Date().toLocaleDateString("en-GB"),
+    time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     dischargeType: "Normal",
     condition: "Improved",
     dischargeTo: "Home",
-    attendedBy: "Ramesh Kumar (Brother)",
-    relationship: "Brother",
-    contactNo: "9876543211",
-    remarks: "Patient is clinically stable and advised to follow prescribed medications and follow-up.",
+    attendedBy: "",
+    relationship: "",
+    contactNo: "",
+    remarks: "",
     followUpAfter: "1 Week",
-    followUpWith: "Dr. Amit Sharma",
-    followUpDate: "09-10-2026",
-    followUpRemarks: "Review with reports",
+    followUpWith: "",
+    followUpDate: "",
+    followUpRemarks: "",
   });
 
+  useEffect(() => {
+    const fetchDocs = (doctorService.getAll || doctorService.getDoctors || (() => Promise.resolve([])))();
+    fetchDocs.then((res) => {
+      const docs = res?.data || res || [];
+      if (Array.isArray(docs)) setDoctorList(docs);
+    }).catch(() => {});
+
+    ipdService.getBedMatrix().then((res) => {
+      const beds = Array.isArray(res) ? res : [];
+      const occupied = beds.find((b) => b.patient_uhid || b.patient_first_name);
+      if (occupied) {
+        setAdmittedPatient({
+          name: occupied.patient_first_name ? `${occupied.patient_first_name} ${occupied.patient_last_name || ""}`.trim() : "Patient",
+          uhid: occupied.patient_uhid || "—",
+          genderAge: occupied.gender ? `${occupied.gender}` : "—",
+          phone: occupied.patient_phone || "—",
+          city: occupied.patient_address || "Varanasi",
+          ipdNo: occupied.ipd_no || "IPD-" + String(occupied.id || "001").slice(-6),
+          department: occupied.ward_name || "General Medicine",
+          admissionDate: occupied.admitted_at ? new Date(occupied.admitted_at).toLocaleDateString("en-GB") : "—",
+          consultant: occupied.consultant_name || "—",
+          bed: `${occupied.ward_name || "Ward"} (${occupied.bed_no || "Bed"})`,
+          lengthOfStay: "—",
+        });
+      }
+    }).catch(() => {});
+  }, []);
+
   const adviceChecklist = [
-    "Continue oral antibiotics for 5 days",
-    "Steam inhalation twice daily",
-    "Maintain adequate hydration",
-    "Regular BP monitoring",
-    "Follow up after 1 week or earlier if symptoms persist",
-    "Diet and lifestyle modification",
+    "Continue prescribed oral medications as directed",
+    "Maintain adequate hydration and rest",
+    "Regular vital monitoring (BP / Pulse)",
+    "Follow up on scheduled date or earlier if symptoms aggravate",
+    "Diet and lifestyle precautions advised",
     "Emergency contact if required",
   ];
 
@@ -36,7 +68,7 @@ export default function DischargeManagement() {
   };
 
   const handleCompleteDischarge = () => {
-    toast.success("Discharge completed and Bed GW102 (B-12) released!", { icon: "🔓" });
+    toast.success(`Discharge completed and bed released successfully!`, { icon: "🔓" });
   };
 
   return (
@@ -110,22 +142,30 @@ export default function DischargeManagement() {
       {/* 3. Top Patient Summary Banner */}
       <div className="discharge-patient-banner">
         <div className="discharge-patient-left">
-          <div className="discharge-avatar-box">RK</div>
+          <div className="discharge-avatar-box">
+            {(admittedPatient?.name || "P")[0].toUpperCase()}
+          </div>
           <div className="patient-main-info">
             <div className="patient-name-title">
-          
-              <span className="patient-badge-exist">Admitted</span>
+              <span style={{ fontWeight: 800, fontSize: "1.05rem" }}>
+                {admittedPatient?.name || "No Patient Selected"}
+              </span>
+              <span className="patient-badge-exist">
+                {admittedPatient ? "Admitted" : "Pending"}
+              </span>
             </div>
             <div className="patient-meta-row">
-              <span className="patient-uhid-tag">UHID12345</span>
-              <span className="patient-meta-text">
-                <Icon name="LuUser" size={13} /> 28 Y / Male
+              <span className="patient-uhid-tag">
+                {admittedPatient?.uhid || "—"}
               </span>
               <span className="patient-meta-text">
-                <Icon name="LuPhone" size={13} /> 9876543210
+                <Icon name="LuUser" size={13} /> {admittedPatient?.genderAge || "—"}
               </span>
               <span className="patient-meta-text">
-                <Icon name="LuMapPin" size={13} /> Varanasi, UP
+                <Icon name="LuPhone" size={13} /> {admittedPatient?.phone || "—"}
+              </span>
+              <span className="patient-meta-text">
+                <Icon name="LuMapPin" size={13} /> {admittedPatient?.city || "—"}
               </span>
             </div>
           </div>
@@ -134,39 +174,39 @@ export default function DischargeManagement() {
         <div className="discharge-patient-meta-grid">
           <div className="meta-item">
             <span className="meta-label">IPD No.:</span>
-            <span className="meta-value">IPD20260929001</span>
+            <span className="meta-value">{admittedPatient?.ipdNo || "—"}</span>
           </div>
           <div className="meta-item">
             <span className="meta-label">Department:</span>
-            <span className="meta-value">General Medicine</span>
+            <span className="meta-value">{admittedPatient?.department || "—"}</span>
           </div>
           <div className="meta-item">
             <span className="meta-label">Admission Date:</span>
-            <span className="meta-value">29-09-2026 10:30 AM</span>
+            <span className="meta-value">{admittedPatient?.admissionDate || "—"}</span>
           </div>
           <div className="meta-item">
             <span className="meta-label">Consultant:</span>
-            <span className="meta-value">Dr. Amit Sharma</span>
+            <span className="meta-value">{admittedPatient?.consultant || dischargeForm.followUpWith || "—"}</span>
           </div>
           <div className="meta-item">
             <span className="meta-label">Admission Type:</span>
-            <span className="meta-value">Routine</span>
+            <span className="meta-value">{dischargeForm.dischargeType}</span>
           </div>
           <div className="meta-item">
             <span className="meta-label">Ward / Bed:</span>
-            <span className="meta-value highlight-bed">GW102 (B-12)</span>
+            <span className="meta-value highlight-bed">{admittedPatient?.bed || "—"}</span>
           </div>
           <div className="meta-item">
             <span className="meta-label">Discharge Date:</span>
-            <span className="meta-value">02-10-2026 04:20 PM</span>
+            <span className="meta-value">{dischargeForm.date} {dischargeForm.time}</span>
           </div>
           <div className="meta-item">
             <span className="meta-label">Length of Stay:</span>
-            <span className="meta-value">3 Days</span>
+            <span className="meta-value">{admittedPatient?.lengthOfStay || "—"}</span>
           </div>
           <div className="meta-item">
             <span className="meta-label">Discharge Type:</span>
-            <span className="meta-value">Normal</span>
+            <span className="meta-value">{dischargeForm.dischargeType}</span>
           </div>
         </div>
       </div>
@@ -218,8 +258,7 @@ export default function DischargeManagement() {
                   <span>Doctor Clearance</span>
                 </div>
                 <span className="clearance-status-tag">Cleared</span>
-                <span className="clearance-meta-sub">Dr. Amit Sharma</span>
-                <span className="clearance-meta-sub">02-10-2026 10:00 AM</span>
+                <span className="clearance-meta-sub">{dischargeForm.followUpWith || "Attending Consultant"}</span>
               </div>
 
               <div className="clearance-badge-card">
@@ -228,8 +267,7 @@ export default function DischargeManagement() {
                   <span>Nursing Clearance</span>
                 </div>
                 <span className="clearance-status-tag">Cleared</span>
-                <span className="clearance-meta-sub">Nursing Staff</span>
-                <span className="clearance-meta-sub">02-10-2026 10:30 AM</span>
+                <span className="clearance-meta-sub">Ward Station</span>
               </div>
 
               <div className="clearance-badge-card">
@@ -238,8 +276,7 @@ export default function DischargeManagement() {
                   <span>Pharmacy Clearance</span>
                 </div>
                 <span className="clearance-status-tag">Cleared</span>
-                <span className="clearance-meta-sub">Pharmacy Dept</span>
-                <span className="clearance-meta-sub">02-10-2026 11:00 AM</span>
+                <span className="clearance-meta-sub">Hospital Pharmacy</span>
               </div>
 
               <div className="clearance-badge-card">
@@ -248,8 +285,7 @@ export default function DischargeManagement() {
                   <span>Lab/Investigation</span>
                 </div>
                 <span className="clearance-status-tag">Cleared</span>
-                <span className="clearance-meta-sub">Lab Department</span>
-                <span className="clearance-meta-sub">02-10-2026 11:15 AM</span>
+                <span className="clearance-meta-sub">Diagnostic Lab</span>
               </div>
 
               <div className="clearance-badge-card">
@@ -258,8 +294,7 @@ export default function DischargeManagement() {
                   <span>Billing Clearance</span>
                 </div>
                 <span className="clearance-status-tag">Cleared</span>
-                <span className="clearance-meta-sub">Accounts Dept</span>
-                <span className="clearance-meta-sub">02-10-2026 11:30 AM</span>
+                <span className="clearance-meta-sub">IPD Billing Dept</span>
               </div>
             </div>
           </div>
@@ -435,8 +470,15 @@ export default function DischargeManagement() {
                       value={dischargeForm.followUpWith}
                       onChange={(e) => setDischargeForm({ ...dischargeForm, followUpWith: e.target.value })}
                     >
-                      <option value="Dr. Amit Sharma">Dr. Amit Sharma</option>
-                      <option value="Dr. Rajesh Sharma">Dr. Rajesh Sharma</option>
+                      <option value="">Select Doctor / चिकित्सक चुनें</option>
+                      {doctorList.map((doc) => {
+                        const dName = doc.name || doc.full_name || `Dr. ${doc.first_name || ""} ${doc.last_name || ""}`.trim();
+                        return (
+                          <option key={doc.id || dName} value={dName}>
+                            {dName}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                 </div>
@@ -553,47 +595,35 @@ export default function DischargeManagement() {
             {/* Section 1: Diagnosis */}
             <div className="doc-section-head">Diagnosis</div>
             <div className="doc-section-body">
-              <div><strong>Primary Diagnosis:</strong> Pneumonia</div>
-              <div><strong>Secondary Diagnosis:</strong> Hypertension</div>
-              <div><strong>Other Comorbidities:</strong> Type 2 Diabetes Mellitus</div>
+              <div><strong>Condition at Discharge:</strong> {dischargeForm.condition || "Stable / Improved"}</div>
+              <div><strong>Discharge Type:</strong> {dischargeForm.dischargeType}</div>
             </div>
 
             {/* Section 2: Clinical Summary */}
             <div className="doc-section-head">Clinical Summary</div>
             <div className="doc-section-body">
-              <div><strong>Chief Complaints:</strong> Fever, cough, breathlessness</div>
-              <div><strong>Clinical Findings:</strong> Bilateral basal crepitations, mild tachycardia.</div>
-              <div><strong>Investigations (Key):</strong> CBC, Chest X-Ray, CRP</div>
-              <div><strong>Treatment Given:</strong> IV Antibiotics, Nebulization, Supportive care</div>
+              <div><strong>Clinical Remarks:</strong> {dischargeForm.remarks || "Patient clinically stable at time of discharge."}</div>
             </div>
 
-            {/* Section 3: Hospital Course */}
-            <div className="doc-section-head">Hospital Course</div>
-            <div className="doc-section-body doc-section-body--italic">
-              Patient admitted with complaints of fever, cough and breathlessness. Managed with IV antibiotics, supportive care and nebulization. Patient responded well to treatment and is clinically stable at discharge.
-            </div>
-
-            {/* Section 4: Advice on Discharge */}
+            {/* Section 3: Advice on Discharge */}
             <div className="doc-section-head">Advice on Discharge</div>
             <ul className="doc-bullet-list">
-              <li>Continue oral antibiotics for 5 days</li>
-              <li>Steam inhalation twice daily</li>
-              <li>Maintain adequate hydration</li>
-              <li>Regular BP monitoring</li>
-              <li>Follow up after 1 week or earlier if symptoms persist</li>
+              {adviceChecklist.map((adv, i) => (
+                <li key={i}>{adv}</li>
+              ))}
             </ul>
 
-            {/* Section 5: Follow Up */}
+            {/* Section 4: Follow Up */}
             <div className="doc-section-head">Follow Up</div>
             <table className="doc-info-table">
               <tbody>
                 <tr>
-                  <td><strong>Follow Up After:</strong> 1 Week</td>
-                  <td><strong>Follow Up Date:</strong> 09-10-2026</td>
+                  <td><strong>Follow Up After:</strong> {dischargeForm.followUpAfter || "1 Week"}</td>
+                  <td><strong>Follow Up Date:</strong> {dischargeForm.followUpDate || "—"}</td>
                 </tr>
                 <tr>
-                  <td><strong>Consultant:</strong> Dr. Amit Sharma</td>
-                  <td><strong>Remarks:</strong> Review with reports</td>
+                  <td><strong>Consultant:</strong> {dischargeForm.followUpWith || "—"}</td>
+                  <td><strong>Remarks:</strong> {dischargeForm.followUpRemarks || "Review with reports"}</td>
                 </tr>
               </tbody>
             </table>
@@ -601,14 +631,13 @@ export default function DischargeManagement() {
             {/* Sign Off Footer */}
             <div className="doc-signature-wrap">
               <div className="signature-date">
-                <strong>Date: 02-10-2026</strong>
+                <strong>Date: {dischargeForm.date}</strong>
               </div>
 
               <div className="signature-doctor">
-                <div className="doctor-cursive-sign">Dr. Amit Sharma</div>
-                <div className="doctor-name-bold">Dr. Amit Sharma</div>
+                <div className="doctor-cursive-sign">{dischargeForm.followUpWith || "Consultant"}</div>
+                <div className="doctor-name-bold">{dischargeForm.followUpWith || "Authorized Medical Officer"}</div>
                 <div className="doctor-title-sub">
-                  Consultant - General Medicine <br />
                   Narayan Hospital, Varanasi
                 </div>
               </div>

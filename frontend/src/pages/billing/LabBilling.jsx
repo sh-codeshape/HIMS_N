@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import Icon from "../../components/common/Icon.jsx";
+import patientService from "../../api/services/patientService";
 import "./LabBilling.css";
-
-
 
 // Test Catalog List
 const ALL_LAB_TESTS = [
@@ -19,38 +18,25 @@ const ALL_LAB_TESTS = [
   { id: "t10", name: "Vitamin D 25-OH", category: "Hormones", price: 1200 },
 ];
 
-// Recent Lab Visits
-const RECENT_VISITS = [
-  { date: "29-09-2026", testName: "CBC, LFT", amount: 800, status: "Reported" },
-  { date: "15-08-2026", testName: "Thyroid Profile", amount: 600, status: "Reported" },
-  { date: "10-06-2026", testName: "Lipid Profile", amount: 700, status: "Reported" },
-  { date: "20-04-2026", testName: "Blood Sugar", amount: 200, status: "Reported" },
-  { date: "12-02-2026", testName: "KFT", amount: 500, status: "Reported" },
-];
-
-// Previous Lab Bills
 const PREVIOUS_BILLS = [
-  { date: "29-09-2026", billNo: "LB20260929001", testName: "CBC, LFT", amount: 800, status: "Reported" },
-  { date: "15-08-2026", billNo: "LB20260815012", testName: "Thyroid Profile", amount: 600, status: "Reported" },
-  { date: "10-06-2026", billNo: "LB20260610008", testName: "Lipid Profile", amount: 700, status: "Reported" },
+  { date: "26 Oct 2026", billNo: "LAB-26-0041", testName: "Complete Blood Count (CBC)", amount: 350, status: "Reported" },
+  { date: "24 Oct 2026", billNo: "LAB-26-0028", testName: "Lipid Profile & Serum Creatinine", amount: 950, status: "Reported" },
+  { date: "20 Oct 2026", billNo: "LAB-26-0012", testName: "Liver Function Test (LFT)", amount: 800, status: "Reported" },
 ];
 
 export default function LabBilling() {
   // Search state
   const [searchBy, setSearchBy] = useState("UHID");
-  const [searchInput, setSearchInput] = useState("UHID12345");
-  const [patient, setPatient] = useState([]);
+  const [searchInput, setSearchInput] = useState("");
+  const [patient, setPatient] = useState(null);
+  const [recentVisits, setRecentVisits] = useState([]);
 
   // Category filter state
   const [activeCategory, setActiveCategory] = useState("Common Tests");
   const [testSearch, setTestSearch] = useState("");
 
-  // Selected tests state (Default matches screenshot: CBC, LFT, KFT)
-  const [selectedTests, setSelectedTests] = useState([
-    { id: "t1", name: "CBC (Complete Blood Count)", rate: 300, qty: 1, amount: 300 },
-    { id: "t7", name: "LFT (Liver Function Test)", rate: 800, qty: 1, amount: 800 },
-    { id: "t8", name: "KFT (Kidney Function Test)", rate: 700, qty: 1, amount: 700 },
-  ]);
+  // Selected tests state (Starts clean and empty)
+  const [selectedTests, setSelectedTests] = useState([]);
 
   const [clinicalNotes, setClinicalNotes] = useState("");
 
@@ -67,12 +53,73 @@ export default function LabBilling() {
   // Printable modal state
   const [showPrintModal, setShowPrintModal] = useState(false);
 
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("hims_pathology_orders");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setRecentVisits(
+            parsed.slice(0, 5).map((o) => ({
+              date: o.requestDate || "Today",
+              testName: o.testName || "Lab Test",
+              amount: o.totalAmount || 0,
+              status: o.status || "Completed",
+            }))
+          );
+        }
+      }
+    } catch (e) {}
+  }, []);
+
   // Handlers
-  const handleSearchPatient = (e) => {
+  const handleSearchPatient = async (e) => {
     if (e) e.preventDefault();
-    if (searchInput.trim()) {
-      setPatient([]);
-      toast.success("Patient details loaded successfully.");
+    if (!searchInput.trim()) {
+      toast.error("Please enter UHID, Mobile, or Name to search");
+      return;
+    }
+    try {
+      const res = await patientService.getAll({ search: searchInput.trim() });
+      const list = res?.data || res || [];
+      const q = searchInput.trim().toLowerCase();
+      const match = Array.isArray(list)
+        ? list.find(
+            (p) =>
+              (p.uhid && p.uhid.toLowerCase().includes(q)) ||
+              (p.phone && p.phone.includes(q)) ||
+              (p.mobile && p.mobile.includes(q)) ||
+              (p.full_name && p.full_name.toLowerCase().includes(q)) ||
+              (p.first_name && p.first_name.toLowerCase().includes(q))
+          ) || list[0]
+        : null;
+
+      if (match) {
+        const fullName = match.full_name || `${match.first_name || ""} ${match.last_name || ""}`.trim() || "Patient";
+        setPatient({
+          id: match.id,
+          name: fullName,
+          uhid: match.uhid || "—",
+          age: match.age || "—",
+          gender: match.gender || "—",
+          phone: match.phone || match.mobile || "—",
+          address: match.address || match.city || "Varanasi",
+          bloodGroup: match.blood_group || "—",
+          lastVisit: match.created_at ? new Date(match.created_at).toLocaleDateString("en-GB") : "—",
+          allergies: "NKA",
+          referredBy: "Self / Walk-in",
+          knownHistory: match.medical_history || "None reported",
+          patientType: match.category || "OPD",
+          department: match.department || "General Medicine",
+          doctor: match.doctor_name || "Consultant",
+        });
+        toast.success(`Patient ${fullName} loaded!`);
+      } else {
+        setPatient(null);
+        toast.error("No patient found with this search");
+      }
+    } catch (err) {
+      toast.error("Search failed");
     }
   };
 
@@ -327,16 +374,24 @@ export default function LabBilling() {
                 </tr>
               </thead>
               <tbody>
-                {RECENT_VISITS.map((visit, idx) => (
-                  <tr key={idx}>
-                    <td>{visit.date}</td>
-                    <td style={{ fontWeight: 600 }}>{visit.testName}</td>
-                    <td style={{ textAlign: "right" }}>{visit.amount}</td>
-                    <td style={{ textAlign: "center" }}>
-                      <span className="lab-status-reported">{visit.status}</span>
+                {recentVisits.length > 0 ? (
+                  recentVisits.map((visit, idx) => (
+                    <tr key={idx}>
+                      <td>{visit.date}</td>
+                      <td style={{ fontWeight: 600 }}>{visit.testName}</td>
+                      <td style={{ textAlign: "right" }}>{visit.amount}</td>
+                      <td style={{ textAlign: "center" }}>
+                        <span className="lab-status-reported">{visit.status}</span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: "center", color: "#64748b", padding: 16 }}>
+                      No recent lab orders found
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>

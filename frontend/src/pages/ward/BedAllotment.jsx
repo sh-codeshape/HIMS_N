@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import Icon from "../../components/common/Icon.jsx";
 import ipdService from "../../api/services/ipdService";
+import patientService from "../../api/services/patientService";
+import doctorService from "../../api/services/doctorService";
 import "./BedAllotment.css";
 
 const normalizeBedStatus = (status) => {
@@ -13,13 +15,16 @@ const normalizeBedStatus = (status) => {
 };
 
 export default function BedAllotment() {
-  const [searchQuery, setSearchQuery] = useState("UHID12345");
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchType, setSearchType] = useState("UHID");
+  const [searchedPatient, setSearchedPatient] = useState(null);
+  const [searchingPatient, setSearchingPatient] = useState(false);
+  const [doctorList, setDoctorList] = useState([]);
 
   // Selection states
-  const [selectedFloor, setSelectedFloor] = useState("Ground Floor");
-  const [selectedWard, setSelectedWard] = useState("General Ward");
-  const [selectedRoom, setSelectedRoom] = useState("GW-101 (4 Beds)");
+  const [selectedFloor, setSelectedFloor] = useState("");
+  const [selectedWard, setSelectedWard] = useState("");
+  const [selectedRoom, setSelectedRoom] = useState("");
   const [viewMode, setViewMode] = useState("Floor Map");
 
   const [realBeds, setRealBeds] = useState([]);
@@ -31,10 +36,11 @@ export default function BedAllotment() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [bedsRes, wardsRes, roomsRes] = await Promise.all([
+        const [bedsRes, wardsRes, roomsRes, docsRes] = await Promise.all([
           ipdService.getBedMatrix(),
           ipdService.getBedWards(),
           ipdService.getBedRooms(),
+          doctorService.getAll().catch(() => []),
         ]);
         setRealBeds(Array.isArray(bedsRes) ? bedsRes : []);
         const fetchedWards = Array.isArray(wardsRes) ? wardsRes : [];
@@ -43,15 +49,13 @@ export default function BedAllotment() {
         const floorSet = new Set(fetchedWards.map((w) => w.floor).filter(Boolean));
         setFloors(Array.from(floorSet).sort());
         setRooms(Array.isArray(roomsRes) ? roomsRes : []);
+        setDoctorList(Array.isArray(docsRes?.data || docsRes) ? (docsRes.data || docsRes) : []);
       } catch (err) {
         console.error("Failed to load real bed data:", err);
       } finally {
         setWardsLoading(false);
       }
     };
-
-    fetchData();
-  }, []);
 
   // Derived options for cascading Floor → Ward → Room dropdowns
   const wardOptions = selectedFloor
@@ -84,26 +88,20 @@ export default function BedAllotment() {
     }
   }, [wardsLoading, roomOptions, selectedRoom]);
 
-  // Selected Bed for Allotment
-  const [selectedBed, setSelectedBed] = useState({
-    bedNo: "GW-101-B1",
-    room: "GW-101",
-    ward: "General Ward",
-    floor: "Ground Floor",
-    status: "available",
-  });
+  // Selected Bed for Allotment (Clean state, no fake defaults)
+  const [selectedBed, setSelectedBed] = useState(null);
 
   // Admission Form state
   const [admissionForm, setAdmissionForm] = useState({
     type: "IPD",
-    department: "General Medicine",
-    consultant: "Dr. Amit Sharma",
-    expectedStay: "5",
-    admissionTime: "29-09-2026 10:30 AM",
+    department: "",
+    consultant: "",
+    expectedStay: "",
+    admissionTime: "",
     specialInstructions: "",
   });
 
-  // Bed matrix in selected room (GW-101)
+  // Bed matrix in selected room
   const roomBeds = realBeds.length
     ? realBeds
         .filter((bed) => !selectedRoom || bed.room_name === selectedRoom)
@@ -120,19 +118,68 @@ export default function BedAllotment() {
             admissionDate: bed.admitted_at ? new Date(bed.admitted_at).toLocaleDateString("en-GB") : "-",
             status: normalizeBedStatus(bed.current_status || bed.status || "available"),
           }))
-    : [
-        { id: 1, bedNo: "GW-101-B1", patientName: "-", uhid: "-", genderAge: "-", admissionDate: "-", status: "available" },
-        { id: 2, bedNo: "GW-101-B2", patientName: "-", uhid: "-", genderAge: "-", admissionDate: "-", status: "available" },
-        { id: 3, bedNo: "GW-101-B3", patientName: "Suman Yadav", uhid: "UHID12348", genderAge: "36 Y / Female", admissionDate: "27-09-2026", status: "occupied" },
-        { id: 4, bedNo: "GW-101-B4", patientName: "-", uhid: "-", genderAge: "-", admissionDate: "-", status: "maintenance" },
-      ];
+    : [];
+
+  const handlePatientSearch = async () => {
+    if (!searchQuery.trim()) {
+      toast.error("Please enter UHID, Mobile Number or Name to search");
+      return;
+    }
+    setSearchingPatient(true);
+    try {
+      const res = await patientService.getAll({ search: searchQuery.trim() });
+      const list = res?.data || res || [];
+      const q = searchQuery.trim().toLowerCase();
+      const match = Array.isArray(list)
+        ? list.find(
+            (p) =>
+              (p.uhid && p.uhid.toLowerCase().includes(q)) ||
+              (p.phone && p.phone.includes(q)) ||
+              (p.mobile && p.mobile.includes(q)) ||
+              (p.full_name && p.full_name.toLowerCase().includes(q)) ||
+              (p.first_name && p.first_name.toLowerCase().includes(q))
+          ) || list[0]
+        : null;
+
+      if (match) {
+        const fullName = match.full_name || `${match.first_name || ""} ${match.last_name || ""}`.trim() || "Patient";
+        setSearchedPatient({
+          id: match.id,
+          uhid: match.uhid || "—",
+          name: fullName,
+          ageGender: `${match.age || "—"} Years / ${match.gender || "—"}`,
+          phone: match.phone || match.mobile || "—",
+          city: match.address || match.city || "—",
+          bloodGroup: match.blood_group || "—",
+          allergies: "NKA",
+          knownHistory: match.medical_history || "None reported",
+          lastVisit: match.created_at ? new Date(match.created_at).toLocaleDateString("en-GB") : "—",
+          patientType: match.category || "OPD",
+          department: match.department || "General Medicine",
+          consultant: "—",
+        });
+        toast.success(`Patient ${fullName} loaded!`);
+      } else {
+        setSearchedPatient(null);
+        toast.error("No patient found with this search");
+      }
+    } catch (err) {
+      toast.error("Patient search failed");
+    } finally {
+      setSearchingPatient(false);
+    }
+  };
 
   const handleAllocateBed = () => {
+    if (!searchedPatient) {
+      toast.error("Please search and select a patient first!");
+      return;
+    }
     if (!selectedBed || normalizeBedStatus(selectedBed.status) !== "available") {
       toast.error("Please select an available bed first!");
       return;
     }
-    toast.success(`Bed ${selectedBed.bedNo} successfully allotted to ()!`, {
+    toast.success(`Bed ${selectedBed.bedNo} successfully allotted to ${searchedPatient.name}!`, {
       icon: "🛏️",
     });
   };
@@ -244,9 +291,10 @@ export default function BedAllotment() {
               <button
                 type="button"
                 className="search-btn-primary"
-                onClick={() => toast.success("Patient profile loaded!")}
+                onClick={handlePatientSearch}
+                disabled={searchingPatient}
               >
-                <Icon name="LuSearch" size={14} /> Search
+                <Icon name="LuSearch" size={14} /> {searchingPatient ? "Searching..." : "Search"}
               </button>
             </div>
 
@@ -260,76 +308,81 @@ export default function BedAllotment() {
           </div>
 
           {/* Patient Profile Card Result */}
-          <div className="patient-profile-box">
-            <div className="patient-avatar-col">
-              <div
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: "50%",
-                  background: "#2563eb",
-                  color: "#ffffff",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: 800,
-                  fontSize: "1.2rem",
-                }}
-              >
-                RK
+          {searchedPatient ? (
+            <div className="patient-profile-box">
+              <div className="patient-avatar-col">
+                <div
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: "50%",
+                    background: "#2563eb",
+                    color: "#ffffff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: 800,
+                    fontSize: "1.2rem",
+                  }}
+                >
+                  {(searchedPatient.name || "P")[0].toUpperCase()}
+                </div>
+                <button type="button" className="btn-view-profile">
+                  View Full Profile
+                </button>
               </div>
-              <button type="button" className="btn-view-profile">
-                View Full Profile
-              </button>
-            </div>
 
-            <div className="patient-info-col">
-              <div className="patient-name-title">
-               
-                <span className="patient-badge-exist">Existing Patient</span>
+              <div className="patient-info-col">
+                <div className="patient-name-title">
+                  <span style={{ fontWeight: 800, fontSize: "1rem" }}>{searchedPatient.name}</span>
+                  <span className="patient-badge-exist">Verified Patient</span>
+                </div>
+                <span className="patient-meta-text" style={{ fontWeight: 700, color: "#2563eb" }}>
+                  {searchedPatient.uhid}
+                </span>
+                <span className="patient-meta-text">
+                  <Icon name="LuUser" size={12} /> {searchedPatient.ageGender}
+                </span>
+                <span className="patient-meta-text">
+                  <Icon name="LuPhone" size={12} /> {searchedPatient.phone}
+                </span>
+                <span className="patient-meta-text">
+                  <Icon name="LuMapPin" size={12} /> {searchedPatient.city}
+                </span>
               </div>
-              <span className="patient-meta-text" style={{ fontWeight: 700, color: "#2563eb" }}>
-                UHID12345
-              </span>
-              <span className="patient-meta-text">
-                <Icon name="LuUser" size={12} /> 28 Years / Male
-              </span>
-              <span className="patient-meta-text">
-                <Icon name="LuPhone" size={12} /> 9876543210
-              </span>
-              <span className="patient-meta-text">
-                <Icon name="LuMapPin" size={12} /> Varanasi, Uttar Pradesh
-              </span>
-            </div>
 
-            <div className="patient-info-col">
-              <span className="patient-meta-text">
-                🩸 Blood Group : <strong style={{ color: "#ef4444" }}>B+</strong>
-              </span>
-              <span className="patient-meta-text">
-                🛡️ Allergies : <strong>NKA</strong>
-              </span>
-              <span className="patient-meta-text" style={{ marginTop: "0.2rem" }}>
-                🫀 Known History : <br />
-                <strong>Hypertension, Diabetes</strong>
-              </span>
-            </div>
+              <div className="patient-info-col">
+                <span className="patient-meta-text">
+                  🩸 Blood Group : <strong style={{ color: "#ef4444" }}>{searchedPatient.bloodGroup}</strong>
+                </span>
+                <span className="patient-meta-text">
+                  🛡️ Allergies : <strong>{searchedPatient.allergies}</strong>
+                </span>
+                <span className="patient-meta-text" style={{ marginTop: "0.2rem" }}>
+                  🫀 Known History : <br />
+                  <strong>{searchedPatient.knownHistory}</strong>
+                </span>
+              </div>
 
-            <div className="patient-info-col">
-              <span className="patient-meta-text">
-                Last Visit : <strong>29-09-2026</strong>
-              </span>
-              <span className="patient-meta-text">
-                Patient Type : <strong>OPD</strong>
-              </span>
-              <span className="patient-meta-text">
-                Department : <strong>General Medicine</strong>
-              </span>
-              <span className="patient-meta-text">
-                Consultant : <strong>Dr. Amit Sharma</strong>
-              </span>
+              <div className="patient-info-col">
+                <span className="patient-meta-text">
+                  Last Visit : <strong>{searchedPatient.lastVisit}</strong>
+                </span>
+                <span className="patient-meta-text">
+                  Patient Type : <strong>{searchedPatient.patientType}</strong>
+                </span>
+                <span className="patient-meta-text">
+                  Department : <strong>{searchedPatient.department}</strong>
+                </span>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div style={{ padding: "24px 16px", textAlign: "center", background: "#f8fafc", borderRadius: "8px", border: "1.5px dashed #cbd5e1", marginTop: "12px" }}>
+              <Icon name="LuSearch" size={24} style={{ margin: "0 auto 6px", color: "#94a3b8" }} />
+              <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#334155" }}>No Patient Selected</div>
+              <div style={{ fontSize: "0.75rem", color: "#64748b" }}>Search patient by UHID, Mobile Number, or Name to load details</div>
+            </div>
+          )}
         </div>
 
         {/* Recent Admissions */}
@@ -349,35 +402,32 @@ export default function BedAllotment() {
               <tr>
                 <th>Date</th>
                 <th>Ward / Room / Bed</th>
-                <th>Type</th>
+                <th>Patient</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>29-09-2026</td>
-                <td style={{ fontWeight: 600 }}>GW-101 / B-3</td>
-                <td>IPD</td>
-                <td>
-                  <span className="status-badge status-badge--available">Discharged</span>
-                </td>
-              </tr>
-              <tr>
-                <td>15-08-2026</td>
-                <td style={{ fontWeight: 600 }}>CW-203 / B-1</td>
-                <td>IPD</td>
-                <td>
-                  <span className="status-badge status-badge--available">Discharged</span>
-                </td>
-              </tr>
-              <tr>
-                <td>12-06-2026</td>
-                <td style={{ fontWeight: 600 }}>GW-104 / B-2</td>
-                <td>Emergency</td>
-                <td>
-                  <span className="status-badge status-badge--reserved">Discharged</span>
-                </td>
-              </tr>
+              {realBeds.filter((b) => b.patient_uhid || b.patient_first_name).length > 0 ? (
+                realBeds
+                  .filter((b) => b.patient_uhid || b.patient_first_name)
+                  .slice(0, 5)
+                  .map((b) => (
+                    <tr key={b.id}>
+                      <td>{b.admitted_at ? new Date(b.admitted_at).toLocaleDateString("en-GB") : "Today"}</td>
+                      <td style={{ fontWeight: 600 }}>{b.ward_name || "GW"} / {b.bed_no || b.bedNo}</td>
+                      <td>{b.patient_first_name ? `${b.patient_first_name} ${b.patient_last_name || ""}`.trim() : b.patient_uhid}</td>
+                      <td>
+                        <span className="status-badge status-badge--available">{b.current_status || "Occupied"}</span>
+                      </td>
+                    </tr>
+                  ))
+              ) : (
+                <tr>
+                  <td colSpan="4" style={{ textAlign: "center", color: "#64748b", padding: "16px" }}>
+                    No recent admissions recorded
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -863,10 +913,12 @@ export default function BedAllotment() {
                   value={admissionForm.department}
                   onChange={(e) => setAdmissionForm({ ...admissionForm, department: e.target.value })}
                 >
-                  <option value="General Medicine">General Medicine</option>
-                  <option value="Cardiology">Cardiology</option>
-                  <option value="Orthopedics">Orthopedics</option>
-                  <option value="Gynecology">Gynecology</option>
+                  <option value="">Select Department</option>
+                  {wards.map((w) => (
+                    <option key={w.id || w.name} value={w.name}>
+                      {w.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -877,9 +929,15 @@ export default function BedAllotment() {
                   value={admissionForm.consultant}
                   onChange={(e) => setAdmissionForm({ ...admissionForm, consultant: e.target.value })}
                 >
-                  <option value="Dr. Amit Sharma">Dr. Amit Sharma</option>
-                  <option value="Dr. Rajesh Sharma">Dr. Rajesh Sharma</option>
-                  <option value="Dr. Priya Deshmukh">Dr. Priya Deshmukh</option>
+                  <option value="">Select Doctor / Consultant</option>
+                  {doctorList.map((doc) => {
+                    const dName = doc.name || doc.full_name || `Dr. ${doc.first_name || ""} ${doc.last_name || ""}`.trim();
+                    return (
+                      <option key={doc.id || dName} value={dName}>
+                        {dName}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             </div>
@@ -927,44 +985,45 @@ export default function BedAllotment() {
               </div>
             </div>
 
-            <div className="selected-bed-banner">
-              <div className="bed-banner-head">
-                <div>
-                  <span style={{ fontSize: "0.725rem", color: "#64748b" }}>Bed No.</span>
-                  <div className="bed-banner-num">{selectedBed.bedNo}</div>
+            {selectedBed ? (
+              <div className="selected-bed-banner">
+                <div className="bed-banner-head">
+                  <div>
+                    <span style={{ fontSize: "0.725rem", color: "#64748b" }}>Bed No.</span>
+                    <div className="bed-banner-num">{selectedBed.bedNo}</div>
+                  </div>
+                  <span className="status-badge status-badge--available">{selectedBed.status}</span>
                 </div>
-                <span className="status-badge status-badge--available">{selectedBed.status}</span>
-              </div>
 
-              <div className="bed-banner-details">
-                <div>
-                  Ward <br />
-                  <span>{selectedBed.ward}</span>
-                </div>
-                <div>
-                  Room <br />
-                  <span>{selectedBed.room}</span>
-                </div>
-                <div>
-                  Floor <br />
-                  <span>{selectedBed.floor}</span>
+                <div className="bed-banner-details">
+                  <div>
+                    Ward <br />
+                    <span>{selectedBed.ward}</span>
+                  </div>
+                  <div>
+                    Room <br />
+                    <span>{selectedBed.room}</span>
+                  </div>
+                  <div>
+                    Floor <br />
+                    <span>{selectedBed.floor || "—"}</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div style={{ padding: "20px 14px", textAlign: "center", background: "#f8fafc", borderRadius: "8px", border: "1.5px dashed #cbd5e1" }}>
+                <div style={{ fontSize: "0.825rem", fontWeight: 700, color: "#334155" }}>No Bed Selected</div>
+                <div style={{ fontSize: "0.725rem", color: "#64748b" }}>Click on an available bed in Step 2 to select</div>
+              </div>
+            )}
 
             <div className="allotment-action-btns">
               <button
                 type="button"
                 className="btn-reset"
                 onClick={() => {
-                  setSelectedBed({
-                    bedNo: "GW-101-B1",
-                    room: "GW-101",
-                    ward: "General Ward",
-                    floor: "Ground Floor",
-                    status: "Available",
-                  });
-                  toast.info("Reset selection");
+                  setSelectedBed(null);
+                  toast.info("Bed selection reset");
                 }}
               >
                 <Icon name="LuRotateCcw" size={14} /> Reset

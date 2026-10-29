@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import Icon from "../../../components/common/Icon.jsx";
 import Button from "../../../components/common/Button.jsx";
-import { mockStore } from "../../../mock/mockStore";
+import { inventoryService } from "../../../api/services/inventoryService";
 import "./PharmacyPOSView.css";
 
 export default function PharmacyPOSView() {
@@ -10,10 +10,39 @@ export default function PharmacyPOSView() {
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState([]);
   const [customerName, setCustomerName] = useState("");
-  const [doctorName, setDoctorName] = useState("Dr. Rajesh Sharma");
+  const [doctorName, setDoctorName] = useState("");
 
   useEffect(() => {
-    setMedicines(mockStore.getMedicines());
+    let isMounted = true;
+    const fetchMedicines = async () => {
+      try {
+        const res = await inventoryService.getItems({ limit: 100 });
+        const items = res?.data || res || [];
+        if (isMounted) {
+          if (Array.isArray(items) && items.length > 0) {
+            const normalized = items.map((it) => ({
+              id: it.id,
+              name: it.item_name || it.name || "Medicine",
+              generic: it.generic_name || it.description || it.category || "General",
+              batch: it.batch_no || it.batch || "—",
+              expiry: it.expiry_date || "—",
+              stock: it.quantity_in_stock ?? it.current_stock ?? it.stock ?? 0,
+              unitPrice: Number(it.unit_price || it.sale_price || it.price || 0),
+            }));
+            setMedicines(normalized);
+          } else {
+            setMedicines([]);
+          }
+        }
+      } catch (err) {
+        if (isMounted) setMedicines([]);
+      }
+    };
+
+    fetchMedicines();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const filteredMedicines = medicines.filter(
@@ -62,11 +91,17 @@ export default function PharmacyPOSView() {
       return;
     }
 
-    cart.forEach((item) => {
-      mockStore.dispenseMedicine(item.id, item.qty);
-    });
+    // Deduct dispensed quantity from medicines in state
+    setMedicines((prev) =>
+      prev.map((med) => {
+        const dispensed = cart.find((c) => c.id === med.id);
+        if (dispensed) {
+          return { ...med, stock: Math.max(0, med.stock - dispensed.qty) };
+        }
+        return med;
+      })
+    );
 
-    setMedicines(mockStore.getMedicines());
     toast.success(`Medicine Dispensed! Invoice Amount: ₹${cartTotal.toFixed(2)}`, {
       icon: "💊",
     });

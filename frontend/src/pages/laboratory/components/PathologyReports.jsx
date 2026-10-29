@@ -34,19 +34,19 @@ export default function PathologyReports() {
           if (Array.isArray(apiTests) && apiTests.length > 0) {
             const normalized = apiTests.map((t, idx) => ({
               id: t.order_item_id || t.order_id || `REQ-${idx + 1}`,
-              uhid: t.uhid || `P202600${idx + 1}`,
+              uhid: t.uhid || "—",
               patientName: `${t.first_name || ""} ${t.last_name || ""}`.trim() || t.patient_name || "Patient",
-              ageGender: t.age ? `${t.age} Y / ${t.gender?.[0] || "M"}` : "—",
+              ageGender: t.age ? `${t.age} Y / ${t.gender?.[0] || ""}` : "—",
               testName: t.test_name || "Diagnostic Test",
               sampleType: t.lab_section || "Blood",
               source: t.source || "In-house",
               status: t.status === "ordered" ? "Collected" : t.status || "Reported",
-              requestedBy: t.ordered_by || "Dr. Anil Singh",
-              requestTime: t.created_at ? new Date(t.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "10:30 AM",
-              requestDate: t.created_at ? new Date(t.created_at).toLocaleDateString("en-GB") : "Today",
-              reportDate: "Today",
-              barcode: `LAB${Date.now().toString().slice(-6)}${idx + 1}`,
-              approvedBy: t.status === "Completed" || t.status === "Reported" ? "Dr. S. Mehta" : "—",
+              requestedBy: t.ordered_by || t.doctor_name || "—",
+              requestTime: t.created_at ? new Date(t.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—",
+              requestDate: t.created_at ? new Date(t.created_at).toLocaleDateString("en-GB") : "—",
+              reportDate: t.completed_at ? new Date(t.completed_at).toLocaleDateString("en-GB") : "—",
+              barcode: t.barcode || (t.id ? `LAB${String(t.id).slice(-6)}` : "—"),
+              approvedBy: t.approved_by || (t.status === "Completed" || t.status === "Reported" ? "Pathologist" : "—"),
             }));
             setRequests(normalized);
           } else {

@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import Icon from "../../../components/common/Icon.jsx";
 import patientService from "../../../api/services/patientService";
 import laboratoryService from "../../../api/services/laboratoryService";
+import doctorService from "../../../api/services/doctorService";
 import "./PathologyView.css";
 
 const STANDARD_TEST_CATALOG = [
@@ -32,6 +33,7 @@ export default function PathologyTestRequest() {
   const [patientList, setPatientList] = useState([]);
   const [filteredPatients, setFilteredPatients] = useState([]);
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+  const [doctorList, setDoctorList] = useState([]);
   const [patient, setPatient] = useState({
     id: "",
     uhid: "",
@@ -41,7 +43,7 @@ export default function PathologyTestRequest() {
     mobile: "",
     alternateMobile: "",
     address: "",
-    doctor: "Dr. Anil Singh (Cardiology)",
+    doctor: "",
     visitType: "OPD",
     referredBy: "",
     clinicalNotes: "",
@@ -58,7 +60,7 @@ export default function PathologyTestRequest() {
   const [testSource, setTestSource] = useState("In-house");
   const [sampleType, setSampleType] = useState("Blood");
   const [collectionTime, setCollectionTime] = useState(() => new Date().toISOString().slice(0, 16));
-  const [collectedBy, setCollectedBy] = useState("Manoj Kumar (Lab Tech)");
+  const [collectedBy, setCollectedBy] = useState("");
   const [barcodeNo, setBarcodeNo] = useState(() => `LAB${Date.now().toString().slice(-8)}`);
 
   // 4. Billing & Payment State
@@ -86,6 +88,17 @@ export default function PathologyTestRequest() {
         }
       } catch (err) {
         console.warn("Patient API load warning:", err?.message);
+      }
+
+      // Fetch real doctors from database
+      try {
+        const docsRes = await doctorService.getAll();
+        const dData = docsRes?.data || docsRes || [];
+        if (isMounted && Array.isArray(dData) && dData.length > 0) {
+          setDoctorList(dData);
+        }
+      } catch (err) {
+        console.warn("Doctors load warning:", err?.message);
       }
 
       // 2. Fetch real test definitions from database
@@ -237,7 +250,7 @@ export default function PathologyTestRequest() {
         sampleType,
         source: testSource,
         status: "Collected",
-        requestedBy: patient.doctor || "Dr. Anil Singh",
+        requestedBy: patient.doctor || "Self / Walk-in",
         requestTime: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         requestDate: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
         barcode: barcodeNo,
@@ -279,7 +292,7 @@ export default function PathologyTestRequest() {
         mobile: "",
         alternateMobile: "",
         address: "",
-        doctor: "Dr. Anil Singh (Cardiology)",
+        doctor: "",
         visitType: "OPD",
         referredBy: "",
         clinicalNotes: "",
@@ -306,7 +319,7 @@ export default function PathologyTestRequest() {
       mobile: "",
       alternateMobile: "",
       address: "",
-      doctor: "Dr. Anil Singh (Cardiology)",
+      doctor: "",
       visitType: "OPD",
       referredBy: "",
       clinicalNotes: "",
@@ -474,10 +487,16 @@ export default function PathologyTestRequest() {
                   value={patient.doctor}
                   onChange={(e) => setPatient({ ...patient, doctor: e.target.value })}
                 >
-                  <option value="Dr. Anil Singh (Cardiology)">Dr. Anil Singh (Cardiology)</option>
-                  <option value="Dr. Priya Gupta (Gynecology)">Dr. Priya Gupta (Gynecology)</option>
-                  <option value="Dr. Ramesh Yadav (General Medicine)">Dr. Ramesh Yadav (General Medicine)</option>
-                  <option value="Dr. Pooja Mishra (Pediatrics)">Dr. Pooja Mishra (Pediatrics)</option>
+                  <option value="">Select Doctor / चिकित्सक चुनें</option>
+                  {doctorList.map((doc) => {
+                    const dName = doc.name || doc.full_name || `Dr. ${doc.first_name || ""} ${doc.last_name || ""}`.trim();
+                    const dSpec = doc.specialization ? ` (${doc.specialization})` : "";
+                    return (
+                      <option key={doc.id || dName} value={`${dName}${dSpec}`}>
+                        {dName}{dSpec}
+                      </option>
+                    );
+                  })}
                   <option value="Self / Walk-in">Self / Walk-in</option>
                 </select>
               </div>
@@ -695,15 +714,12 @@ export default function PathologyTestRequest() {
 
               <div className="form-group">
                 <label>Collected By (Phlebotomist / Tech)</label>
-                <select
+                <input
+                  type="text"
+                  placeholder="Enter Phlebotomist / Staff Name"
                   value={collectedBy}
                   onChange={(e) => setCollectedBy(e.target.value)}
-                >
-                  <option value="Manoj Kumar (Lab Tech)">Manoj Kumar (Lab Tech)</option>
-                  <option value="Rajesh Maurya (Phlebotomist)">Rajesh Maurya (Phlebotomist)</option>
-                  <option value="Suman Devi (Lab Tech)">Suman Devi (Lab Tech)</option>
-                  <option value="Ankit Srivastava (Staff)">Ankit Srivastava (Staff)</option>
-                </select>
+                />
               </div>
 
               <div className="form-group">
