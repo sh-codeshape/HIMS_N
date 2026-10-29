@@ -79,4 +79,50 @@ export class BillingController {
     const charges = await this.service.postBedCharges(encounterId, facilityId, userId);
     sendSuccess(res, charges, 'Bed charges calculated and posted successfully', 201);
   };
+
+  getReportsSummary = async (req: Request, res: Response) => {
+    const facilityId = (req.user?.facilityId as string) || (req.query.facilityId as string) || '00000000-0000-0000-0000-000000000000';
+    const dateFrom = req.query.dateFrom as string;
+    const dateTo = req.query.dateTo as string;
+
+    const summary = await this.service.getReportsSummary(facilityId, dateFrom, dateTo);
+    sendSuccess(res, summary, 'Billing reports summary retrieved successfully');
+  };
+
+  getPendingDuesReport = async (req: Request, res: Response) => {
+    const facilityId = (req.user?.facilityId as string) || (req.query.facilityId as string) || '00000000-0000-0000-0000-000000000000';
+    const page = parseInt((req.query.page as string) || '1', 10);
+    const limit = parseInt((req.query.limit as string) || '20', 10);
+    const filters = {
+      search: req.query.search as string,
+      invoiceType: req.query.invoiceType as string,
+      status: req.query.status as string,
+      dateFrom: req.query.dateFrom as string,
+      dateTo: req.query.dateTo as string,
+      encounterStatus: req.query.encounterStatus as string,
+    };
+
+    const report = await this.service.getPendingDuesReport(facilityId, filters, page, limit);
+    sendSuccess(res, report, 'Pending dues report retrieved successfully');
+  };
+
+  getCollectionsReport = async (req: Request, res: Response) => {
+    const facilityId = (req.user?.facilityId as string) || (req.query.facilityId as string) || '00000000-0000-0000-0000-000000000000';
+    const filters = {
+      dateFrom: req.query.dateFrom as string,
+      dateTo: req.query.dateTo as string,
+      paymentMethod: req.query.paymentMethod as string,
+    };
+
+    const report = await this.service.getCollectionsReport(facilityId, filters);
+    sendSuccess(res, report, 'Collections report retrieved successfully');
+  };
+
+  getPatientDues = async (req: Request, res: Response) => {
+    const facilityId = (req.user?.facilityId as string) || (req.query.facilityId as string) || '00000000-0000-0000-0000-000000000000';
+    const patientId = req.params.patientId as string;
+
+    const dues = await this.service.getPatientDues(patientId, facilityId);
+    sendSuccess(res, dues, 'Patient dues retrieved successfully');
+  };
 }

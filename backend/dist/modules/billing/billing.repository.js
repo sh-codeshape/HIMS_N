@@ -397,5 +397,237 @@ class BillingRepository {
         const res = await database_1.db.query(query, [encounterId, facilityId]);
         return res.rows;
     }
+    async getReportsSummary(facilityId, dateFrom, dateTo) {
+        const params = [facilityId];
+        let dateFilter = '';
+        if (dateFrom && dateTo) {
+            params.push(dateFrom, dateTo);
+            dateFilter = ` AND i.issued_at >= $2 AND i.issued_at <= $3`;
+        }
+        const invSummaryQuery = `
+      SELECT 
+        COALESCE(SUM(i.total_amount), 0)::numeric as total_invoiced,
+        COALESCE(SUM(i.paid_amount), 0)::numeric as total_revenue,
+        COALESCE(SUM(i.due_amount), 0)::numeric as outstanding_dues,
+        COUNT(i.id) as total_invoices,
+        COUNT(i.id) FILTER (WHERE i.due_amount > 0) as pending_invoices_count
+      FROM invoices i
+      WHERE (i.facility_id = $1 OR $1 = '00000000-0000-0000-0000-000000000000') ${dateFilter}
+    `;
+        const invRes = await database_1.db.query(invSummaryQuery, params);
+        const invRow = invRes.rows[0] || {};
+        // Today's collections
+        const collectionsQuery = `
+      SELECT COALESCE(SUM(amount), 0)::numeric as today_collections
+      FROM payments
+      WHERE (facility_id = $1 OR $1 = '00000000-0000-0000-0000-000000000000')
+        AND paid_at >= CURRENT_DATE AND status = 'completed'
+    `;
+        const collRes = await database_1.db.query(collectionsQuery, [facilityId]);
+        const todayCollections = Number(collRes.rows[0]?.today_collections || 0);
+        // Department / Lab breakdown
+        const labQuery = `
+      SELECT 
+        COALESCE(SUM(c.net_amount), 0)::numeric as lab_total_charges,
+        COALESCE(SUM(c.net_amount) FILTER (WHERE c.status = 'billable'), 0)::numeric as lab_unbilled_dues,
+        COALESCE(SUM(c.net_amount) FILTER (WHERE c.status = 'billed'), 0)::numeric as lab_billed_amount
+      FROM charges c
+      JOIN departments d ON d.id = c.department_id
+      WHERE (c.facility_id = $1 OR $1 = '00000000-0000-0000-0000-000000000000')
+        AND (d.code = 'LAB' OR d.department_type = 'diagnostic')
+    `;
+        const labRes = await database_1.db.query(labQuery, [facilityId]);
+        const labRow = labRes.rows[0] || {};
+        return {
+            totalInvoiced: Number(invRow.total_invoiced || 0),
+            totalRevenue: Number(invRow.total_revenue || 0),
+            outstandingDues: Number(invRow.outstanding_dues || 0),
+            todayCollections,
+            totalInvoices: parseInt(invRow.total_invoices || '0', 10),
+            pendingInvoicesCount: parseInt(invRow.pending_invoices_count || '0', 10),
+            labTotalCharges: Number(labRow.lab_total_charges || 0),
+            labUnbilledDues: Number(labRow.lab_unbilled_dues || 0),
+            labBilledAmount: Number(labRow.lab_billed_amount || 0)
+        };
+    }
+    async getPendingDuesReport(facilityId, filters, page = 1, limit = 20) {
+        const offset = Math.max(0, (page - 1) * limit);
+        const params = [facilityId];
+        let whereClause = `
+      WHERE (i.facility_id = $1 OR $1 = '00000000-0000-0000-0000-000000000000')
+        AND i.due_amount > 0
+        AND i.status != 'cancelled'
+    `;
+        if (filters?.search) {
+            params.push(`%${filters.search.toLowerCase()}%`);
+            whereClause += ` AND (
+        LOWER(p.first_name || ' ' || COALESCE(p.last_name, '')) LIKE $${params.length} OR
+        LOWER(p.uhid) LIKE $${params.length} OR
+        LOWER(i.invoice_no) LIKE $${params.length} OR
+        LOWER(COALESCE(p.phone, '')) LIKE $${params.length}
+      )`;
+        }
+        if (filters?.invoiceType && filters.invoiceType !== 'All') {
+            params.push(filters.invoiceType.toLowerCase());
+            whereClause += ` AND LOWER(i.invoice_type) = $${params.length}`;
+        }
+        if (filters?.status && filters.status !== 'All') {
+            params.push(filters.status.toLowerCase());
+            whereClause += ` AND LOWER(i.status) = $${params.length}`;
+        }
+        if (filters?.dateFrom) {
+            params.push(filters.dateFrom);
+            whereClause += ` AND i.issued_at >= $${params.length}::timestamptz`;
+        }
+        if (filters?.dateTo) {
+            params.push(filters.dateTo);
+            whereClause += ` AND i.issued_at <= $${params.length}::timestamptz`;
+        }
+        const countQuery = `
+      SELECT COUNT(i.id) as total
+      FROM invoices i
+      JOIN patients p ON p.id = i.patient_id
+      LEFT JOIN encounters e ON e.id = i.encounter_id
+      LEFT JOIN admissions a ON a.encounter_id = e.id
+      ${whereClause}
+    `;
+        const countRes = await database_1.db.query(countQuery, params);
+        const total = parseInt(countRes.rows[0]?.total || '0', 10);
+        const query = `
+      SELECT 
+        i.id,
+        i.invoice_no,
+        i.invoice_type,
+        i.status as invoice_status,
+        i.subtotal,
+        i.tax_total,
+        i.discount_total,
+        i.total_amount,
+        i.paid_amount,
+        i.due_amount,
+        i.issued_at,
+        p.id as patient_id,
+        p.first_name,
+        p.last_name,
+        p.uhid,
+        p.phone,
+        e.id as encounter_id,
+        e.encounter_type,
+        e.encounter_type as encounter_class,
+        e.status as encounter_status,
+        a.id as admission_id,
+        a.status as admission_status,
+        a.discharged_at,
+        CASE 
+          WHEN a.discharged_at IS NOT NULL OR a.status = 'discharged' THEN 'Discharged'
+          WHEN e.status = 'completed' THEN 'Completed'
+          WHEN a.id IS NOT NULL THEN 'Admitted'
+          ELSE 'Active'
+        END as patient_encounter_state
+      FROM invoices i
+      JOIN patients p ON p.id = i.patient_id
+      LEFT JOIN encounters e ON e.id = i.encounter_id
+      LEFT JOIN admissions a ON a.encounter_id = e.id
+      ${whereClause}
+      ORDER BY i.issued_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+        const res = await database_1.db.query(query, params);
+        return {
+            invoices: res.rows,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        };
+    }
+    async getCollectionsReport(facilityId, filters) {
+        const params = [facilityId];
+        let whereClause = `WHERE (p.facility_id = $1 OR $1 = '00000000-0000-0000-0000-000000000000') AND p.status = 'completed'`;
+        if (filters?.dateFrom) {
+            params.push(filters.dateFrom);
+            whereClause += ` AND p.paid_at >= $${params.length}::timestamptz`;
+        }
+        if (filters?.dateTo) {
+            params.push(filters.dateTo);
+            whereClause += ` AND p.paid_at <= $${params.length}::timestamptz`;
+        }
+        if (filters?.paymentMethod && filters.paymentMethod !== 'All') {
+            params.push(`%${filters.paymentMethod.toLowerCase()}%`);
+            whereClause += ` AND LOWER(pm.name) LIKE $${params.length}`;
+        }
+        const summaryQuery = `
+      SELECT 
+        COALESCE(pm.name, 'Other') as payment_mode,
+        COUNT(p.id) as transaction_count,
+        COALESCE(SUM(p.amount), 0)::numeric as total_collected
+      FROM payments p
+      LEFT JOIN payment_methods pm ON pm.id = p.payment_method_id
+      ${whereClause}
+      GROUP BY pm.name
+      ORDER BY total_collected DESC
+    `;
+        const summaryRes = await database_1.db.query(summaryQuery, params);
+        const ledgerQuery = `
+      SELECT 
+        p.id,
+        p.receipt_no,
+        p.amount,
+        p.payment_type,
+        p.direction,
+        p.paid_at,
+        pm.name as payment_method_name,
+        pat.first_name,
+        pat.last_name,
+        pat.uhid,
+        i.invoice_no
+      FROM payments p
+      LEFT JOIN payment_methods pm ON pm.id = p.payment_method_id
+      LEFT JOIN patients pat ON pat.id = p.patient_id
+      LEFT JOIN payment_allocations pa ON pa.payment_id = p.id
+      LEFT JOIN invoices i ON i.id = pa.invoice_id
+      ${whereClause}
+      ORDER BY p.paid_at DESC
+      LIMIT 100
+    `;
+        const ledgerRes = await database_1.db.query(ledgerQuery, params);
+        return {
+            byPaymentMode: summaryRes.rows,
+            ledger: ledgerRes.rows
+        };
+    }
+    async getPatientDues(patientId, facilityId) {
+        const invQuery = `
+      SELECT i.*, e.encounter_type, e.encounter_type as encounter_class, e.status as encounter_status
+      FROM invoices i
+      LEFT JOIN encounters e ON e.id = i.encounter_id
+      WHERE i.patient_id = $1 AND i.due_amount > 0 AND i.status != 'cancelled'
+        AND ($2::uuid IS NULL OR i.facility_id = $2::uuid OR $2 = '00000000-0000-0000-0000-000000000000')
+      ORDER BY i.issued_at DESC
+    `;
+        const invRes = await database_1.db.query(invQuery, [patientId, facilityId || null]);
+        const chgQuery = `
+      SELECT c.*, d.name as department_name, s.name as service_name
+      FROM charges c
+      LEFT JOIN departments d ON d.id = c.department_id
+      LEFT JOIN services s ON s.id = c.service_id
+      WHERE c.patient_id = $1 AND c.status = 'billable'
+        AND ($2::uuid IS NULL OR c.facility_id = $2::uuid OR $2 = '00000000-0000-0000-0000-000000000000')
+      ORDER BY c.charged_at DESC
+    `;
+        const chgRes = await database_1.db.query(chgQuery, [patientId, facilityId || null]);
+        const totalInvoiceDue = invRes.rows.reduce((sum, r) => sum + Number(r.due_amount || 0), 0);
+        const totalUnbilledCharges = chgRes.rows.reduce((sum, r) => sum + Number(r.net_amount || 0), 0);
+        return {
+            patientId,
+            totalDue: totalInvoiceDue + totalUnbilledCharges,
+            totalInvoiceDue,
+            totalUnbilledCharges,
+            invoices: invRes.rows,
+            unbilledCharges: chgRes.rows
+        };
+    }
 }
 exports.BillingRepository = BillingRepository;

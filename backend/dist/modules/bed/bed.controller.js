@@ -167,6 +167,26 @@ class BedController {
             next(error);
         }
     };
+    deleteWard = async (req, res, next) => {
+        try {
+            const facilityId = this.resolveBedFacilityId(req);
+            const ward = await this.service.deleteWard(req.params.id, facilityId);
+            (0, response_1.sendSuccess)(res, ward, 'Ward deleted successfully', 200);
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    deleteRoom = async (req, res, next) => {
+        try {
+            const facilityId = this.resolveBedFacilityId(req);
+            const room = await this.service.deleteRoom(req.params.id, facilityId);
+            (0, response_1.sendSuccess)(res, room, 'Room deleted successfully', 200);
+        }
+        catch (error) {
+            next(error);
+        }
+    };
     updateBedStatus = async (req, res, next) => {
         try {
             const facilityId = this.resolveBedFacilityId(req);

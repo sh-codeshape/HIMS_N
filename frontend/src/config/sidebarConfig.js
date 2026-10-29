@@ -179,6 +179,16 @@ const sidebarConfig = [
     ],
   },
   {
+    key: "settings",
+    label: "Settings",
+    icon: "LuSliders",
+    allowedRoles: [SUPER_ADMIN, ADMIN],
+    children: [
+      { label: "Outsource Lab Master", path: "/settings/outsource-labs", allowedRoles: [SUPER_ADMIN, ADMIN] },
+      { label: "General Settings", path: "/settings/general", allowedRoles: [SUPER_ADMIN, ADMIN] },
+    ],
+  },
+  {
     key: "developerConsole",
     label: "Developer Console",
     icon: "LuTerminal",

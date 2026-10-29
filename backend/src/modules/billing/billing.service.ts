@@ -73,4 +73,35 @@ export class BillingService {
   async postBedCharges(encounterId: string, facilityId: string, userId?: string) {
     return this.repository.postBedCharges(encounterId, facilityId, userId);
   }
+
+  async getReportsSummary(facilityId: string, dateFrom?: string, dateTo?: string) {
+    return this.repository.getReportsSummary(facilityId, dateFrom, dateTo);
+  }
+
+  async getPendingDuesReport(
+    facilityId: string,
+    filters?: {
+      search?: string;
+      invoiceType?: string;
+      status?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      encounterStatus?: string;
+    },
+    page = 1,
+    limit = 20
+  ) {
+    return this.repository.getPendingDuesReport(facilityId, filters, page, limit);
+  }
+
+  async getCollectionsReport(
+    facilityId: string,
+    filters?: { dateFrom?: string; dateTo?: string; paymentMethod?: string }
+  ) {
+    return this.repository.getCollectionsReport(facilityId, filters);
+  }
+
+  async getPatientDues(patientId: string, facilityId?: string) {
+    return this.repository.getPatientDues(patientId, facilityId);
+  }
 }

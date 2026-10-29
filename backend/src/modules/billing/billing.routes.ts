@@ -11,9 +11,11 @@ const controller = new BillingController();
 router.use(authenticate); // Require authentication for all billing routes
 router.use(moduleGuard('billing'));
 
-router.post('/', validate(createInvoiceSchema), controller.createInvoice);
-router.get('/', controller.listInvoices);
-router.get('/:id', controller.getInvoice);
+// Report routes (MUST be declared before /:id)
+router.get('/reports/summary', controller.getReportsSummary);
+router.get('/reports/pending-dues', controller.getPendingDuesReport);
+router.get('/reports/collections', controller.getCollectionsReport);
+router.get('/patient/:patientId/dues', controller.getPatientDues);
 
 // IPD Running Bill routes
 router.post('/charges', controller.addCharge);
@@ -23,5 +25,10 @@ router.delete('/charges/:id', controller.removeCharge);
 router.get('/running-bill/:encounterId', controller.getRunningBill);
 router.post('/payments/advance', controller.recordAdvancePayment);
 router.get('/payments/encounter/:encounterId', controller.getEncounterPayments);
+
+// Invoices CRUD
+router.post('/', validate(createInvoiceSchema), controller.createInvoice);
+router.get('/', controller.listInvoices);
+router.get('/:id', controller.getInvoice);
 
 export const billingRoutes = router;

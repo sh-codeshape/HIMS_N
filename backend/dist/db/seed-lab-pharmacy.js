@@ -68,7 +68,7 @@ async function seedLabAndPharmacy() {
             { code: 'LAB-URINE', name: 'Urine Routine', section: 'Microbiology' }
         ];
         for (const test of tests) {
-            const serviceRes = await client.query(`INSERT INTO services (organization_id, department_id, code, name, service_type, base_price, is_active)
+            const serviceRes = await client.query(`INSERT INTO services (organization_id, department_id, code, name, service_type, default_rate, is_active)
          VALUES ($1, NULL, $2, $3, 'lab_test', 500, true)
          ON CONFLICT (organization_id, code) DO UPDATE SET name = EXCLUDED.name
          RETURNING id`, [orgId, test.code, test.name]);
