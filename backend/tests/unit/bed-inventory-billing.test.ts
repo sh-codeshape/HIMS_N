@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BED_STATUSES, createBedSchema, createWardSchema, createRoomSchema } from '../../src/modules/bed/bed.schema';
+import { BED_STATUSES, createBedSchema, createWardSchema, createRoomSchema, deleteWardSchema, deleteRoomSchema } from '../../src/modules/bed/bed.schema';
 
 describe('Bed Master, Inventory Asset & Billing Contracts', () => {
   it('validates supported bed statuses', () => {
@@ -110,5 +110,31 @@ describe('Bed Master, Inventory Asset & Billing Contracts', () => {
     expect(parsed.body.room_no).toBe('GW-201-01');
     expect(parsed.body.room_type).toBe('general');
     expect(parsed.body.is_active).toBe(true);
+  });
+
+  it('validates delete ward and delete room parameter schemas', () => {
+    const validUuid = '11111111-1111-4111-8111-111111111111';
+    const wardParsed = deleteWardSchema.parse({ params: { id: validUuid } });
+    expect(wardParsed.params.id).toBe(validUuid);
+
+    const roomParsed = deleteRoomSchema.parse({ params: { id: validUuid } });
+    expect(roomParsed.params.id).toBe(validUuid);
+
+    expect(() => deleteWardSchema.parse({ params: { id: 'invalid-uuid' } })).toThrow();
+    expect(() => deleteRoomSchema.parse({ params: { id: 'invalid-uuid' } })).toThrow();
+  });
+
+  it('accepts custom bed categories in createBedSchema', () => {
+    const parsed = createBedSchema.parse({
+      body: {
+        bed_no: 'VIP-01',
+        custom_bed_category: 'VIP Luxury Suite',
+        ward_code: 'W-PVT',
+        room_no: '301',
+      },
+    });
+
+    expect(parsed.body.bed_no).toBe('VIP-01');
+    expect(parsed.body.custom_bed_category).toBe('VIP Luxury Suite');
   });
 });

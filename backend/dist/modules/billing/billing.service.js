@@ -63,5 +63,17 @@ class BillingService {
     async postBedCharges(encounterId, facilityId, userId) {
         return this.repository.postBedCharges(encounterId, facilityId, userId);
     }
+    async getReportsSummary(facilityId, dateFrom, dateTo) {
+        return this.repository.getReportsSummary(facilityId, dateFrom, dateTo);
+    }
+    async getPendingDuesReport(facilityId, filters, page = 1, limit = 20) {
+        return this.repository.getPendingDuesReport(facilityId, filters, page, limit);
+    }
+    async getCollectionsReport(facilityId, filters) {
+        return this.repository.getCollectionsReport(facilityId, filters);
+    }
+    async getPatientDues(patientId, facilityId) {
+        return this.repository.getPatientDues(patientId, facilityId);
+    }
 }
 exports.BillingService = BillingService;

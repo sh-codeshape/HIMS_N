@@ -86,6 +86,7 @@ export default function Sidebar() {
     medicalreports: ["report", "reports", "clinical"],
     masterreports: ["report", "reports"],
     followup: ["appointment", "opd", "clinical"],
+    settings: ["settings", "lab", "laboratory", "admin", "config"],
   };
 
   /**

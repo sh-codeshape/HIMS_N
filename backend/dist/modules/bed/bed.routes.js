@@ -22,6 +22,8 @@ router.post('/wards', (0, authorize_1.authorize)(['bed.manage']), (0, validate_1
 router.post('/rooms', (0, authorize_1.authorize)(['bed.manage']), (0, validate_1.validate)(bed_schema_1.createRoomSchema), controller.createRoom);
 router.post('/', (0, authorize_1.authorize)(['bed.manage']), (0, validate_1.validate)(bed_schema_1.createBedSchema), controller.createBed);
 router.put('/:id', (0, authorize_1.authorize)(['bed.manage']), (0, validate_1.validate)(bed_schema_1.updateBedSchema), controller.updateBed);
+router.delete('/wards/:id', (0, authorize_1.authorize)(['bed.manage']), (0, validate_1.validate)(bed_schema_1.deleteWardSchema), controller.deleteWard);
+router.delete('/rooms/:id', (0, authorize_1.authorize)(['bed.manage']), (0, validate_1.validate)(bed_schema_1.deleteRoomSchema), controller.deleteRoom);
 router.delete('/:id', (0, authorize_1.authorize)(['bed.manage']), (0, validate_1.validate)(bed_schema_1.deleteBedSchema), controller.deleteBed);
 router.patch('/:id/status', (0, validate_1.validate)(bed_schema_1.updateBedStatusSchema), controller.updateBedStatus);
 router.post('/transfer', (0, authorize_1.authorize)(['bed.manage']), (0, validate_1.validate)(bed_schema_1.transferBedSchema), controller.transferBed);

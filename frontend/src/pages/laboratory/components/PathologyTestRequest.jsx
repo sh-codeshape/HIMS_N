@@ -5,25 +5,11 @@ import Icon from "../../../components/common/Icon.jsx";
 import patientService from "../../../api/services/patientService";
 import laboratoryService from "../../../api/services/laboratoryService";
 import doctorService from "../../../api/services/doctorService";
+<<<<<<< HEAD
+=======
+import staffService from "../../../api/services/staffService";
+>>>>>>> upstream/main
 import "./PathologyView.css";
-
-const STANDARD_TEST_CATALOG = [
-  { id: "LAB-CBC", code: "LAB-CBC", name: "Complete Blood Count (CBC)", category: "Hematology", price: 350, sampleType: "Blood (EDTA)", tat: "4 Hours" },
-  { id: "LAB-FBS", code: "LAB-FBS", name: "Fasting Blood Sugar (FBS)", category: "Biochemistry", price: 120, sampleType: "Blood (Fluoride)", tat: "3 Hours" },
-  { id: "LAB-HBA1C", code: "LAB-HBA1C", name: "HbA1c (Glycated Hemoglobin)", category: "Biochemistry", price: 550, sampleType: "Blood (EDTA)", tat: "6 Hours" },
-  { id: "LAB-LFT", code: "LAB-LFT", name: "Liver Function Test (LFT)", category: "Biochemistry", price: 750, sampleType: "Serum", tat: "6 Hours" },
-  { id: "LAB-KFT", code: "LAB-KFT", name: "Kidney Function Test (KFT / RFT)", category: "Biochemistry", price: 650, sampleType: "Serum", tat: "6 Hours" },
-  { id: "LAB-LIPID", code: "LAB-LIPID", name: "Lipid Profile - Comprehensive", category: "Biochemistry", price: 800, sampleType: "Serum", tat: "8 Hours" },
-  { id: "LAB-THYROID", code: "LAB-THYROID", name: "Thyroid Profile (T3, T4, TSH)", category: "Hormones", price: 600, sampleType: "Serum", tat: "8 Hours" },
-  { id: "LAB-URINE", code: "LAB-URINE", name: "Urine Routine & Microscopy", category: "Clinical Pathology", price: 200, sampleType: "Urine", tat: "2 Hours" },
-  { id: "LAB-DENGUE", code: "LAB-DENGUE", name: "Dengue NS1 & IgM / IgG Combo", category: "Serology", price: 1100, sampleType: "Serum", tat: "4 Hours" },
-  { id: "LAB-ELECTRO", code: "LAB-ELECTRO", name: "Serum Electrolytes (Na+, K+, Cl-)", category: "Biochemistry", price: 450, sampleType: "Serum", tat: "4 Hours" },
-  { id: "LAB-URIC", code: "LAB-URIC", name: "Serum Uric Acid", category: "Biochemistry", price: 250, sampleType: "Serum", tat: "3 Hours" },
-  { id: "LAB-WIDAL", code: "LAB-WIDAL", name: "Widal Test (Typhoid Slide)", category: "Serology", price: 280, sampleType: "Serum", tat: "3 Hours" },
-  { id: "LAB-ESR", code: "LAB-ESR", name: "ESR (Westergren Method)", category: "Hematology", price: 150, sampleType: "Blood (Citrate)", tat: "2 Hours" },
-  { id: "LAB-VITD", code: "LAB-VITD", name: "Vitamin D (25-OH) Total", category: "Biochemistry", price: 1200, sampleType: "Serum", tat: "24 Hours" },
-  { id: "LAB-VITB12", code: "LAB-VITB12", name: "Vitamin B12 (Cyanocobalamin)", category: "Biochemistry", price: 900, sampleType: "Serum", tat: "24 Hours" },
-];
 
 export default function PathologyTestRequest() {
   const navigate = useNavigate();
@@ -33,7 +19,12 @@ export default function PathologyTestRequest() {
   const [patientList, setPatientList] = useState([]);
   const [filteredPatients, setFilteredPatients] = useState([]);
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+<<<<<<< HEAD
   const [doctorList, setDoctorList] = useState([]);
+=======
+  const [doctorsList, setDoctorsList] = useState([]);
+  const [techniciansList, setTechniciansList] = useState([]);
+>>>>>>> upstream/main
   const [patient, setPatient] = useState({
     id: "",
     uhid: "",
@@ -50,14 +41,16 @@ export default function PathologyTestRequest() {
   });
 
   // 2. Test Selection State (Catalog from backend API)
-  const [catalog, setCatalog] = useState(STANDARD_TEST_CATALOG);
-  const [loadingCatalog, setLoadingCatalog] = useState(false);
+  const [catalog, setCatalog] = useState([]);
+  const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
   const [testSearch, setTestSearch] = useState("");
   const [selectedTests, setSelectedTests] = useState([]);
 
   // 3. Sample & Source Details State
   const [testSource, setTestSource] = useState("In-house");
+  const [outsourceLabs, setOutsourceLabs] = useState([]);
+  const [selectedOutsourceLabId, setSelectedOutsourceLabId] = useState("");
   const [sampleType, setSampleType] = useState("Blood");
   const [collectionTime, setCollectionTime] = useState(() => new Date().toISOString().slice(0, 16));
   const [collectedBy, setCollectedBy] = useState("");
@@ -108,6 +101,7 @@ export default function PathologyTestRequest() {
           if (Array.isArray(defsRes) && defsRes.length > 0) {
             const normalized = defsRes.map((d) => ({
               id: d.service_id || d.id,
+              service_id: d.service_id || d.id,
               code: d.code || `L-${(d.id || "").slice(0, 4)}`,
               name: d.name || "Investigation Test",
               category: d.lab_section || "General",
@@ -117,14 +111,76 @@ export default function PathologyTestRequest() {
             }));
             setCatalog(normalized);
           } else {
-            setCatalog(STANDARD_TEST_CATALOG);
+            setCatalog([]);
           }
         }
       } catch (err) {
         console.warn("Test catalog API load warning:", err?.message);
-        if (isMounted) setCatalog(STANDARD_TEST_CATALOG);
+        if (isMounted) setCatalog([]);
       } finally {
         if (isMounted) setLoadingCatalog(false);
+      }
+
+      // 3. Fetch active third-party outsource labs
+      try {
+        const labsRes = await laboratoryService.getOutsourceLabs();
+        if (isMounted && Array.isArray(labsRes)) {
+          const activeOnly = labsRes.filter((l) => l.is_active);
+          setOutsourceLabs(activeOnly);
+          if (activeOnly.length > 0) {
+            setSelectedOutsourceLabId(activeOnly[0].id);
+          }
+        }
+      } catch (err) {
+        console.warn("Outsource labs API warning:", err?.message);
+      }
+
+      // 4. Fetch real doctors from database
+      try {
+        const docs = await doctorService.getDoctors();
+        if (isMounted && Array.isArray(docs) && docs.length > 0) {
+          const docItems = docs.map((d) => ({
+            id: d.id || d.practitioner_id,
+            name: d.name ? (d.name.startsWith("Dr.") ? d.name : `Dr. ${d.name}`) : "Doctor",
+            specialty: d.specialization || d.specialty || "Consultant",
+            label: `${d.name ? (d.name.startsWith("Dr.") ? d.name : `Dr. ${d.name}`) : "Doctor"} (${d.specialization || d.specialty || "Consultant"})`
+          }));
+          setDoctorsList(docItems);
+          setPatient((prev) => ({
+            ...prev,
+            doctor: prev.doctor || docItems[0]?.label || ""
+          }));
+        }
+      } catch (err) {
+        console.warn("Doctors API warning:", err?.message);
+      }
+
+      // 5. Fetch real staff / technicians from database
+      try {
+        const staffRes = await staffService.getAll({ limit: 100 });
+        const staffData = staffRes?.data || staffRes || [];
+        if (isMounted && Array.isArray(staffData) && staffData.length > 0) {
+          const techItems = staffData
+            .filter((s) => s.staff_type === 'technician' || s.staff_type === 'nurse' || s.staff_type === 'doctor' || s.staff_type === 'paramedic' || s.staff_type === 'support')
+            .map((s) => ({
+              id: s.id,
+              name: `${s.first_name} ${s.last_name || ''}`.trim(),
+              type: s.designation || s.staff_type || 'Staff',
+              label: `${s.first_name} ${s.last_name || ''}`.trim() + ` (${s.designation || s.staff_type || 'Staff'})`
+            }));
+          const list = techItems.length > 0 ? techItems : staffData.map((s) => ({
+            id: s.id,
+            name: `${s.first_name} ${s.last_name || ''}`.trim(),
+            type: s.staff_type || 'Staff',
+            label: `${s.first_name} ${s.last_name || ''}`.trim() + ` (${s.staff_type || 'Staff'})`
+          }));
+          setTechniciansList(list);
+          if (list.length > 0) {
+            setCollectedBy(list[0].label);
+          }
+        }
+      } catch (err) {
+        console.warn("Staff API warning:", err?.message);
       }
     }
 
@@ -193,6 +249,24 @@ export default function PathologyTestRequest() {
   // Categories list
   const availableCategories = ["All", ...Array.from(new Set(catalog.map((c) => c.category).filter(Boolean)))];
 
+  // Specimen types list dynamically derived from catalog + standard types
+  const availableSpecimenTypes = Array.from(
+    new Set([
+      "Blood",
+      "Blood (EDTA)",
+      "Serum",
+      "Plasma",
+      "Blood (Fluoride)",
+      "Blood (Citrate)",
+      "Urine",
+      "Stool",
+      "Sputum",
+      "CSF",
+      "Swab",
+      ...catalog.map((c) => c.sampleType).filter(Boolean),
+    ])
+  );
+
   // Filtered test catalog
   const filteredCatalog = catalog.filter((t) => {
     if (activeCategory !== "All" && t.category !== activeCategory) return false;
@@ -221,39 +295,73 @@ export default function PathologyTestRequest() {
       return;
     }
 
+    if (testSource.includes("Third Party") && !selectedOutsourceLabId) {
+      toast.error("Please select a third-party laboratory partner for outsourced test");
+      return;
+    }
+
     setSubmitting(true);
     try {
+      let processingSource = "in_house";
+      if (testSource.includes("Send")) processingSource = "outsource_send";
+      else if (testSource.includes("Return")) processingSource = "outsource_return";
+      else if (testSource.includes("Upload")) processingSource = "external_upload";
+
+      const chosenLab = outsourceLabs.find((l) => l.id === selectedOutsourceLabId);
+
+      // Resolve test definition identifiers (prefer real DB UUIDs)
+      const testDefinitionIds = selectedTests
+        .map((t) => {
+          if (t.service_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t.service_id)) {
+            return t.service_id;
+          }
+          if (t.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t.id)) {
+            return t.id;
+          }
+          const found = catalog.find((c) => c.code === t.code || c.id === t.id || c.name === t.name);
+          if (found?.service_id) return found.service_id;
+          if (found?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(found.id)) return found.id;
+          return t.code || t.id;
+        })
+        .filter(Boolean);
+
+      if (testDefinitionIds.length === 0) {
+        toast.error("Please select at least one valid lab test");
+        return;
+      }
+
       // 1. Prepare backend payload
       const orderPayload = {
         patientId: patient.id || patientList[0]?.id || "00000000-0000-0000-0000-000000000000",
-        testDefinitionIds: selectedTests.map((t) => t.id).filter(Boolean),
+        testDefinitionIds,
         orderedBy: patient.doctor || null,
+        priority: "routine",
+        clinicalInfo: patient.clinicalNotes || remarks || null,
+        processingSource,
+        outsourceLabId: processingSource.startsWith("outsource") ? selectedOutsourceLabId : null,
+        specimenType: sampleType,
+        collectedBy,
+        barcode: barcodeNo,
       };
 
-      let backendSuccess = false;
-      try {
-        if (orderPayload.testDefinitionIds.length > 0) {
-          await laboratoryService.createLabOrder(orderPayload);
-          backendSuccess = true;
-        }
-      } catch (apiErr) {
-        console.warn("Backend lab order API response:", apiErr?.message);
-      }
+      const serverRes = await laboratoryService.createLabOrder(orderPayload);
 
-      // 2. Create standardized real order record for instant display
+      // 2. Standardized order record for instant print preview
       const newOrder = {
-        id: `REQ-${Date.now().toString().slice(-6)}`,
+        id: serverRes?.orderNo || `REQ-${Date.now().toString().slice(-6)}`,
+        orderId: serverRes?.orderId,
         uhid: patient.uhid || `P2026${Date.now().toString().slice(-4)}`,
         patientName: patient.name,
         ageGender: `${patient.age || "30"} Y / ${patient.gender?.[0] || "M"}`,
         testName: selectedTests.map((t) => t.name).join(", "),
         sampleType,
-        source: testSource,
+        source: processingSource.startsWith("outsource") ? (chosenLab?.name || "Outsourced Lab") : "In-house",
+        outsourceLabName: chosenLab?.name || null,
         status: "Collected",
         requestedBy: patient.doctor || "Self / Walk-in",
         requestTime: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         requestDate: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
-        barcode: barcodeNo,
+        barcode: serverRes?.specimenNo || barcodeNo,
         totalAmount: netPayable,
         paymentStatus,
         paymentMode,
@@ -261,23 +369,7 @@ export default function PathologyTestRequest() {
         approvedBy: "—",
       };
 
-      // 3. Save to active order store
-      const existing = localStorage.getItem("hims_pathology_orders");
-      let list = [];
-      try {
-        list = existing ? JSON.parse(existing) : [];
-      } catch (e) {
-        list = [];
-      }
-      const updatedList = [newOrder, ...list];
-      localStorage.setItem("hims_pathology_orders", JSON.stringify(updatedList));
-
-      toast.success(
-        backendSuccess
-          ? "Lab test request registered and saved to database!"
-          : "Lab test request registered successfully!",
-        { icon: "🧪" }
-      );
+      toast.success("Lab test request registered and saved to database!", { icon: "🧪" });
 
       // Open print slip preview modal
       setPrintSlipModal(newOrder);
@@ -487,6 +579,7 @@ export default function PathologyTestRequest() {
                   value={patient.doctor}
                   onChange={(e) => setPatient({ ...patient, doctor: e.target.value })}
                 >
+<<<<<<< HEAD
                   <option value="">Select Doctor / चिकित्सक चुनें</option>
                   {doctorList.map((doc) => {
                     const dName = doc.name || doc.full_name || `Dr. ${doc.first_name || ""} ${doc.last_name || ""}`.trim();
@@ -497,6 +590,17 @@ export default function PathologyTestRequest() {
                       </option>
                     );
                   })}
+=======
+                  {doctorsList.length > 0 ? (
+                    doctorsList.map((doc) => (
+                      <option key={doc.id} value={doc.label}>
+                        {doc.label}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="Self / Walk-in">Self / Walk-in</option>
+                  )}
+>>>>>>> upstream/main
                   <option value="Self / Walk-in">Self / Walk-in</option>
                 </select>
               </div>
@@ -686,20 +790,41 @@ export default function PathologyTestRequest() {
                 </select>
               </div>
 
+              {testSource.includes("Third Party") && (
+                <div className="form-group">
+                  <label className="text-indigo-600 font-semibold flex items-center justify-between">
+                    <span>Outsource Partner Lab *</span>
+                    <a href="/settings/outsource-labs" className="text-xs text-indigo-500 hover:underline">
+                      + Manage Labs
+                    </a>
+                  </label>
+                  <select
+                    value={selectedOutsourceLabId}
+                    onChange={(e) => setSelectedOutsourceLabId(e.target.value)}
+                    required
+                    style={{ borderColor: "#4f46e5" }}
+                  >
+                    <option value="">-- Select Third-Party Lab --</option>
+                    {outsourceLabs.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name} {l.code ? `(${l.code})` : ""} - {l.turnaround_days || 2}d TAT ({Number(l.contract_rate) || 0}% margin)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="form-group">
                 <label>Primary Specimen Type</label>
                 <select
                   value={sampleType}
                   onChange={(e) => setSampleType(e.target.value)}
                 >
-                  <option value="Blood">Blood (EDTA / Plain / Fluoride)</option>
-                  <option value="Serum">Serum</option>
-                  <option value="Plasma">Plasma (Citrate / Heparin)</option>
-                  <option value="Urine">Urine (Routine / Culture)</option>
-                  <option value="Sputum">Sputum</option>
-                  <option value="Stool">Stool</option>
-                  <option value="Body Fluid">Body Fluid (CSF / Pleural / Ascitic)</option>
-                  <option value="Swab">Swab (Throat / Nasal)</option>
+                  {availableSpecimenTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -719,7 +844,21 @@ export default function PathologyTestRequest() {
                   placeholder="Enter Phlebotomist / Staff Name"
                   value={collectedBy}
                   onChange={(e) => setCollectedBy(e.target.value)}
+<<<<<<< HEAD
                 />
+=======
+                >
+                  {techniciansList.length > 0 ? (
+                    techniciansList.map((tech) => (
+                      <option key={tech.id} value={tech.label}>
+                        {tech.label}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="Hospital Phlebotomist">Hospital Phlebotomist</option>
+                  )}
+                </select>
+>>>>>>> upstream/main
               </div>
 
               <div className="form-group">

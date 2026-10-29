@@ -51,6 +51,12 @@ class BedService {
         }
         return room;
     }
+    async deleteWard(wardId, facilityId) {
+        return await this.repository.deleteWard(wardId, facilityId);
+    }
+    async deleteRoom(roomId, facilityId) {
+        return await this.repository.deleteRoom(roomId, facilityId);
+    }
     async updateBed(bedId, data, facilityId, updatedBy) {
         const bed = await this.repository.getBedById(bedId, facilityId);
         if (!bed) {

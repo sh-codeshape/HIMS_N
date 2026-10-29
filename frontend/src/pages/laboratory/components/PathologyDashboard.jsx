@@ -31,6 +31,7 @@ export default function PathologyDashboard() {
     async function loadDashboardData() {
       setLoading(true);
       try {
+<<<<<<< HEAD
         try {
           const docRes = await doctorService.getAll();
           const docList = Array.isArray(docRes?.data) ? docRes.data : Array.isArray(docRes) ? docRes : [];
@@ -39,15 +40,28 @@ export default function PathologyDashboard() {
         } catch (e) {}
 
         const apiTests = await laboratoryService.getLabTests();
+=======
+        const [apiTests, stats] = await Promise.all([
+          laboratoryService.getLabTests(),
+          laboratoryService.getDashboardStats()
+        ]);
+>>>>>>> upstream/main
         if (isMounted) {
           if (Array.isArray(apiTests) && apiTests.length > 0) {
             const normalized = apiTests.map((t, idx) => ({
               id: t.order_item_id || t.order_id || `REQ-${idx + 1}`,
+<<<<<<< HEAD
               uhid: t.uhid || "—",
+=======
+              orderId: t.order_id,
+              orderItemId: t.order_item_id,
+              uhid: t.uhid || `P202600${idx + 1}`,
+>>>>>>> upstream/main
               patientName: `${t.first_name || ""} ${t.last_name || ""}`.trim() || t.patient_name || "Patient",
               ageGender: t.age ? `${t.age} Y / ${t.gender?.[0] || ""}` : "—",
               testName: t.test_name || "Diagnostic Test",
               sampleType: t.lab_section || t.specimen_type || "Blood",
+<<<<<<< HEAD
               source: t.source || "In-house",
               status: t.status === "ordered" ? "Collected" : t.status || "In Process",
               requestedBy: t.ordered_by || t.doctor_name || "—",
@@ -55,20 +69,23 @@ export default function PathologyDashboard() {
               requestDate: t.created_at ? new Date(t.created_at).toLocaleDateString("en-GB") : "—",
               barcode: t.barcode || (t.id ? `LAB${String(t.id).slice(-6)}` : "—"),
               approvedBy: t.approved_by || (t.status === "Completed" || t.status === "Reported" ? "Pathologist" : "—"),
+=======
+              source: t.outsource_lab_name ? `Outsourced (${t.outsource_lab_name})` : (t.processing_source?.startsWith("outsource") ? "Outsourced" : "In-house"),
+              outsourceLabName: t.outsource_lab_name || null,
+              status: t.status === "ordered" ? "Collected" : (t.status === "completed" ? "Reported" : (t.status === "in_progress" ? "In Process" : t.status)),
+              requestedBy: t.ordered_by || "Dr. Anil Singh",
+              requestTime: t.created_at ? new Date(t.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "10:30 AM",
+              requestDate: t.created_at ? new Date(t.created_at).toLocaleDateString("en-GB") : "Today",
+              barcode: t.specimen_no || `LAB${Date.now().toString().slice(-6)}${idx + 1}`,
+              price: t.price || 350,
+              chargeStatus: t.charge_status || "billable",
+              billingStatus: t.charge_status === "billed" ? "Billed" : (t.charge_status === "billable" ? "Pending" : "Paid"),
+              approvedBy: t.verified_at ? "Dr. S. Mehta" : "—",
+>>>>>>> upstream/main
             }));
             setRequests(normalized);
           } else {
-            const saved = localStorage.getItem("hims_pathology_orders");
-            if (saved) {
-              try {
-                const parsed = JSON.parse(saved);
-                setRequests(Array.isArray(parsed) ? parsed : []);
-              } catch (e) {
-                setRequests([]);
-              }
-            } else {
-              setRequests([]);
-            }
+            setRequests([]);
           }
         }
       } catch (err) {
@@ -147,9 +164,13 @@ export default function PathologyDashboard() {
     }
   };
 
-  const getSourceBadge = (source = "") => {
-    if (source.includes("Send")) {
-      return <span className="path-badge-source path-source-send">{source}</span>;
+  const getSourceBadge = (source = "", item = {}) => {
+    if (item.outsourceLabName || source.toLowerCase().includes("outsource") || source.includes("Send")) {
+      return (
+        <span className="path-badge-source path-source-send" title={item.outsourceLabName || source}>
+          🔬 {item.outsourceLabName || source}
+        </span>
+      );
     }
     if (source.includes("Return")) {
       return <span className="path-badge-source path-source-return">{source}</span>;
@@ -461,7 +482,7 @@ export default function PathologyDashboard() {
                     <td className="text-muted text-xs">{req.ageGender}</td>
                     <td className="font-semibold text-slate-800">{req.testName}</td>
                     <td className="text-xs text-sky-700 font-medium">{req.sampleType}</td>
-                    <td>{getSourceBadge(req.source)}</td>
+                    <td>{getSourceBadge(req.source, req)}</td>
                     <td>{getStatusBadge(req.status)}</td>
                     <td className="text-xs text-slate-700">{req.requestedBy}</td>
                     <td className="text-xs text-muted">{req.requestTime}</td>

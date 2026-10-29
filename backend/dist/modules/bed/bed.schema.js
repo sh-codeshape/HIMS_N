@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.transferBedSchema = exports.updateBedStatusSchema = exports.deleteBedSchema = exports.updateBedSchema = exports.createRoomSchema = exports.createWardSchema = exports.createBedSchema = exports.listBedsSchema = exports.getBedByIdSchema = exports.getBedSchema = exports.bedStatusSchema = exports.optionalUuid = exports.BED_STATUSES = void 0;
+exports.transferBedSchema = exports.updateBedStatusSchema = exports.deleteRoomSchema = exports.deleteWardSchema = exports.deleteBedSchema = exports.updateBedSchema = exports.createRoomSchema = exports.createWardSchema = exports.createBedSchema = exports.listBedsSchema = exports.getBedByIdSchema = exports.getBedSchema = exports.bedStatusSchema = exports.optionalUuid = exports.BED_STATUSES = void 0;
 const zod_1 = require("zod");
 exports.BED_STATUSES = [
     'available',
@@ -54,6 +54,7 @@ exports.createBedSchema = zod_1.z.object({
         floor: zod_1.z.union([zod_1.z.string().max(60), emptyStringToUndefined]).optional(),
         gender_policy: zod_1.z.preprocess((v) => (typeof v === 'string' && v.trim() === '' ? 'any' : v), zod_1.z.string().optional()),
         bed_category_id: exports.optionalUuid,
+        custom_bed_category: zod_1.z.string().max(100).optional(),
         bed_charge_service_id: exports.optionalUuid,
         room_id: exports.optionalUuid,
         room_no: zod_1.z.union([zod_1.z.string().min(1).max(40), emptyStringToUndefined]).optional(),
@@ -74,12 +75,17 @@ exports.createWardSchema = zod_1.z.object({
         gender_policy: zod_1.z.preprocess((v) => (typeof v === 'string' && v.trim() === '' ? 'any' : v), zod_1.z.string().optional()),
         floor: zod_1.z.union([zod_1.z.string().max(60), emptyStringToUndefined]).optional(),
         bed_category_id: exports.optionalUuid,
+        custom_bed_category: zod_1.z.string().max(100).optional(),
         is_active: zod_1.z.boolean().optional(),
     }),
 });
 exports.createRoomSchema = zod_1.z.object({
     body: zod_1.z.object({
-        ward_id: zod_1.z.string().uuid(),
+        ward_id: exports.optionalUuid,
+        ward_code: zod_1.z.union([zod_1.z.string().min(1).max(40), emptyStringToUndefined]).optional(),
+        ward_name: zod_1.z.union([zod_1.z.string().min(1).max(120), emptyStringToUndefined]).optional(),
+        ward_type: zod_1.z.preprocess((v) => (typeof v === 'string' && v.trim() === '' ? 'general' : v), zod_1.z.string().optional()),
+        floor: zod_1.z.union([zod_1.z.string().max(60), emptyStringToUndefined]).optional(),
         room_no: zod_1.z.string().min(1).max(40),
         room_type: zod_1.z.preprocess((v) => (typeof v === 'string' && v.trim() === '' ? 'general' : v), zod_1.z.string().optional()),
         is_active: zod_1.z.boolean().optional(),
@@ -104,6 +110,16 @@ exports.updateBedSchema = zod_1.z.object({
     }).passthrough(),
 });
 exports.deleteBedSchema = zod_1.z.object({
+    params: zod_1.z.object({
+        id: zod_1.z.string().uuid()
+    })
+});
+exports.deleteWardSchema = zod_1.z.object({
+    params: zod_1.z.object({
+        id: zod_1.z.string().uuid()
+    })
+});
+exports.deleteRoomSchema = zod_1.z.object({
     params: zod_1.z.object({
         id: zod_1.z.string().uuid()
     })

@@ -34,11 +34,18 @@ export default function PathologyReports() {
           if (Array.isArray(apiTests) && apiTests.length > 0) {
             const normalized = apiTests.map((t, idx) => ({
               id: t.order_item_id || t.order_id || `REQ-${idx + 1}`,
+<<<<<<< HEAD
               uhid: t.uhid || "—",
+=======
+              orderId: t.order_id,
+              orderItemId: t.order_item_id,
+              uhid: t.uhid || `P202600${idx + 1}`,
+>>>>>>> upstream/main
               patientName: `${t.first_name || ""} ${t.last_name || ""}`.trim() || t.patient_name || "Patient",
               ageGender: t.age ? `${t.age} Y / ${t.gender?.[0] || ""}` : "—",
               testName: t.test_name || "Diagnostic Test",
               sampleType: t.lab_section || "Blood",
+<<<<<<< HEAD
               source: t.source || "In-house",
               status: t.status === "ordered" ? "Collected" : t.status || "Reported",
               requestedBy: t.ordered_by || t.doctor_name || "—",
@@ -47,21 +54,21 @@ export default function PathologyReports() {
               reportDate: t.completed_at ? new Date(t.completed_at).toLocaleDateString("en-GB") : "—",
               barcode: t.barcode || (t.id ? `LAB${String(t.id).slice(-6)}` : "—"),
               approvedBy: t.approved_by || (t.status === "Completed" || t.status === "Reported" ? "Pathologist" : "—"),
+=======
+              source: t.outsource_lab_name ? `Outsourced (${t.outsource_lab_name})` : (t.processing_source?.startsWith("outsource") ? "Outsourced" : "In-house"),
+              outsourceLabName: t.outsource_lab_name || null,
+              status: t.status === "ordered" ? "Collected" : (t.status === "completed" ? "Reported" : (t.status === "in_progress" ? "In Process" : t.status)),
+              requestedBy: t.ordered_by || "Dr. Anil Singh",
+              requestTime: t.created_at ? new Date(t.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "10:30 AM",
+              requestDate: t.created_at ? new Date(t.created_at).toLocaleDateString("en-GB") : "Today",
+              reportDate: "Today",
+              barcode: t.specimen_no || `LAB${Date.now().toString().slice(-6)}${idx + 1}`,
+              approvedBy: t.verified_at ? "Dr. S. Mehta" : "—",
+>>>>>>> upstream/main
             }));
             setRequests(normalized);
           } else {
-            // Load orders created in this system session
-            const saved = localStorage.getItem("hims_pathology_orders");
-            if (saved) {
-              try {
-                const parsed = JSON.parse(saved);
-                setRequests(Array.isArray(parsed) ? parsed : []);
-              } catch (e) {
-                setRequests([]);
-              }
-            } else {
-              setRequests([]);
-            }
+            setRequests([]);
           }
         }
       } catch (err) {
@@ -127,14 +134,22 @@ export default function PathologyReports() {
     if (!activeResultEntryModal) return;
 
     try {
-      if (activeResultEntryModal.id) {
+      const orderItemId = activeResultEntryModal.orderItemId || activeResultEntryModal.id;
+      if (orderItemId) {
+        // Format parameters array for backend
+        const formattedResults = Object.entries(enteredResults).map(([paramName, val]) => ({
+          parameterName: paramName,
+          valueText: typeof val === "object" ? String(val?.result || "") : String(val || ""),
+          valueNumeric: typeof val === "object" ? parseFloat(val?.result) || null : parseFloat(val) || null,
+          unit: typeof val === "object" ? val?.unit || null : null,
+          flag: typeof val === "object" ? (val?.status?.toLowerCase() || "normal") : "normal",
+        }));
+
         try {
-          await laboratoryService.updateLabResult(activeResultEntryModal.id, {
-            status: "Completed",
-            result: JSON.stringify(enteredResults),
-          });
+          await laboratoryService.submitBulkResults(orderItemId, formattedResults, "final");
+          await laboratoryService.verifyResult(orderItemId, { comments: "Verified by MD Pathologist" });
         } catch (apiErr) {
-          console.warn("Backend update result response:", apiErr?.message);
+          console.warn("Backend bulk result submit response:", apiErr?.message);
         }
       }
 
@@ -155,28 +170,7 @@ export default function PathologyReports() {
         )
       );
 
-      // Also persist to localStorage
-      const saved = localStorage.getItem("hims_pathology_orders");
-      if (saved) {
-        try {
-          const list = JSON.parse(saved);
-          const updated = list.map((r) =>
-            r.id === activeResultEntryModal.id
-              ? {
-                  ...r,
-                  status: "Reported",
-                  approvedBy: "Dr. S. Mehta",
-                  reportDate: "Today",
-                }
-              : r
-          );
-          localStorage.setItem("hims_pathology_orders", JSON.stringify(updated));
-        } catch (e) {
-          // ignore
-        }
-      }
-
-      toast.success("Lab investigation verified & report published!", { icon: "✅" });
+      toast.success("Lab investigation verified & report published to EMR!", { icon: "✅" });
       setActiveResultEntryModal(null);
     } catch (err) {
       toast.error(`Save result error: ${err.message}`);

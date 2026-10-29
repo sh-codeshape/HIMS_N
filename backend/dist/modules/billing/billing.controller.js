@@ -68,5 +68,43 @@ class BillingController {
         const charges = await this.service.postBedCharges(encounterId, facilityId, userId);
         (0, response_1.sendSuccess)(res, charges, 'Bed charges calculated and posted successfully', 201);
     };
+    getReportsSummary = async (req, res) => {
+        const facilityId = req.user?.facilityId || req.query.facilityId || '00000000-0000-0000-0000-000000000000';
+        const dateFrom = req.query.dateFrom;
+        const dateTo = req.query.dateTo;
+        const summary = await this.service.getReportsSummary(facilityId, dateFrom, dateTo);
+        (0, response_1.sendSuccess)(res, summary, 'Billing reports summary retrieved successfully');
+    };
+    getPendingDuesReport = async (req, res) => {
+        const facilityId = req.user?.facilityId || req.query.facilityId || '00000000-0000-0000-0000-000000000000';
+        const page = parseInt(req.query.page || '1', 10);
+        const limit = parseInt(req.query.limit || '20', 10);
+        const filters = {
+            search: req.query.search,
+            invoiceType: req.query.invoiceType,
+            status: req.query.status,
+            dateFrom: req.query.dateFrom,
+            dateTo: req.query.dateTo,
+            encounterStatus: req.query.encounterStatus,
+        };
+        const report = await this.service.getPendingDuesReport(facilityId, filters, page, limit);
+        (0, response_1.sendSuccess)(res, report, 'Pending dues report retrieved successfully');
+    };
+    getCollectionsReport = async (req, res) => {
+        const facilityId = req.user?.facilityId || req.query.facilityId || '00000000-0000-0000-0000-000000000000';
+        const filters = {
+            dateFrom: req.query.dateFrom,
+            dateTo: req.query.dateTo,
+            paymentMethod: req.query.paymentMethod,
+        };
+        const report = await this.service.getCollectionsReport(facilityId, filters);
+        (0, response_1.sendSuccess)(res, report, 'Collections report retrieved successfully');
+    };
+    getPatientDues = async (req, res) => {
+        const facilityId = req.user?.facilityId || req.query.facilityId || '00000000-0000-0000-0000-000000000000';
+        const patientId = req.params.patientId;
+        const dues = await this.service.getPatientDues(patientId, facilityId);
+        (0, response_1.sendSuccess)(res, dues, 'Patient dues retrieved successfully');
+    };
 }
 exports.BillingController = BillingController;

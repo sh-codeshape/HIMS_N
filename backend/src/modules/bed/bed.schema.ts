@@ -61,6 +61,7 @@ export const createBedSchema = z.object({
     floor: z.union([z.string().max(60), emptyStringToUndefined]).optional(),
     gender_policy: z.preprocess((v) => (typeof v === 'string' && v.trim() === '' ? 'any' : v), z.string().optional()),
     bed_category_id: optionalUuid,
+    custom_bed_category: z.string().max(100).optional(),
     bed_charge_service_id: optionalUuid,
     room_id: optionalUuid,
     room_no: z.union([z.string().min(1).max(40), emptyStringToUndefined]).optional(),
@@ -85,13 +86,18 @@ export const createWardSchema = z.object({
     gender_policy: z.preprocess((v) => (typeof v === 'string' && v.trim() === '' ? 'any' : v), z.string().optional()),
     floor: z.union([z.string().max(60), emptyStringToUndefined]).optional(),
     bed_category_id: optionalUuid,
+    custom_bed_category: z.string().max(100).optional(),
     is_active: z.boolean().optional(),
   }),
 });
 
 export const createRoomSchema = z.object({
   body: z.object({
-    ward_id: z.string().uuid(),
+    ward_id: optionalUuid,
+    ward_code: z.union([z.string().min(1).max(40), emptyStringToUndefined]).optional(),
+    ward_name: z.union([z.string().min(1).max(120), emptyStringToUndefined]).optional(),
+    ward_type: z.preprocess((v) => (typeof v === 'string' && v.trim() === '' ? 'general' : v), z.string().optional()),
+    floor: z.union([z.string().max(60), emptyStringToUndefined]).optional(),
     room_no: z.string().min(1).max(40),
     room_type: z.preprocess((v) => (typeof v === 'string' && v.trim() === '' ? 'general' : v), z.string().optional()),
     is_active: z.boolean().optional(),
@@ -121,6 +127,18 @@ export const updateBedSchema = z.object({
 });
 
 export const deleteBedSchema = z.object({
+  params: z.object({
+    id: z.string().uuid()
+  })
+});
+
+export const deleteWardSchema = z.object({
+  params: z.object({
+    id: z.string().uuid()
+  })
+});
+
+export const deleteRoomSchema = z.object({
   params: z.object({
     id: z.string().uuid()
   })

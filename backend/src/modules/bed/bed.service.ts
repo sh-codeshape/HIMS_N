@@ -60,6 +60,14 @@ export class BedService {
     return room;
   }
 
+  async deleteWard(wardId: string, facilityId: string) {
+    return await this.repository.deleteWard(wardId, facilityId);
+  }
+
+  async deleteRoom(roomId: string, facilityId: string) {
+    return await this.repository.deleteRoom(roomId, facilityId);
+  }
+
   async updateBed(bedId: string, data: any, facilityId: string, updatedBy?: string) {
     const bed = await this.repository.getBedById(bedId, facilityId);
     if (!bed) {
