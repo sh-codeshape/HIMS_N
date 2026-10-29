@@ -34,27 +34,13 @@ export default function PathologyReports() {
           if (Array.isArray(apiTests) && apiTests.length > 0) {
             const normalized = apiTests.map((t, idx) => ({
               id: t.order_item_id || t.order_id || `REQ-${idx + 1}`,
-<<<<<<< HEAD
-              uhid: t.uhid || "—",
-=======
               orderId: t.order_id,
               orderItemId: t.order_item_id,
               uhid: t.uhid || `P202600${idx + 1}`,
->>>>>>> upstream/main
               patientName: `${t.first_name || ""} ${t.last_name || ""}`.trim() || t.patient_name || "Patient",
               ageGender: t.age ? `${t.age} Y / ${t.gender?.[0] || ""}` : "—",
               testName: t.test_name || "Diagnostic Test",
               sampleType: t.lab_section || "Blood",
-<<<<<<< HEAD
-              source: t.source || "In-house",
-              status: t.status === "ordered" ? "Collected" : t.status || "Reported",
-              requestedBy: t.ordered_by || t.doctor_name || "—",
-              requestTime: t.created_at ? new Date(t.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—",
-              requestDate: t.created_at ? new Date(t.created_at).toLocaleDateString("en-GB") : "—",
-              reportDate: t.completed_at ? new Date(t.completed_at).toLocaleDateString("en-GB") : "—",
-              barcode: t.barcode || (t.id ? `LAB${String(t.id).slice(-6)}` : "—"),
-              approvedBy: t.approved_by || (t.status === "Completed" || t.status === "Reported" ? "Pathologist" : "—"),
-=======
               source: t.outsource_lab_name ? `Outsourced (${t.outsource_lab_name})` : (t.processing_source?.startsWith("outsource") ? "Outsourced" : "In-house"),
               outsourceLabName: t.outsource_lab_name || null,
               status: t.status === "ordered" ? "Collected" : (t.status === "completed" ? "Reported" : (t.status === "in_progress" ? "In Process" : t.status)),
@@ -64,7 +50,6 @@ export default function PathologyReports() {
               reportDate: "Today",
               barcode: t.specimen_no || `LAB${Date.now().toString().slice(-6)}${idx + 1}`,
               approvedBy: t.verified_at ? "Dr. S. Mehta" : "—",
->>>>>>> upstream/main
             }));
             setRequests(normalized);
           } else {

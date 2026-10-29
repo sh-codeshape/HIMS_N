@@ -29,6 +29,51 @@ describe('Laboratory, Outsource Lab & Billing Contracts', () => {
     expect(parsed.body.specimenType).toBe('Blood (EDTA)');
   });
 
+  it('validates multi-specimen and mixed in-house/outsource lab order items payload', () => {
+    const multiItemPayload = {
+      body: {
+        patientId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+        orderedBy: 'Dr. Anil Singh',
+        items: [
+          {
+            testDefinitionId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
+            specimenType: 'Blood (EDTA)',
+            processingSource: 'in_house',
+            barcode: 'LAB-BLD-01',
+            price: 350
+          },
+          {
+            testDefinitionId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33',
+            specimenType: 'Urine',
+            processingSource: 'in_house',
+            barcode: 'LAB-URN-02',
+            price: 200
+          },
+          {
+            testDefinitionId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44',
+            specimenType: 'Serum',
+            processingSource: 'outsource_send',
+            outsourceLabId: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55',
+            barcode: 'LAB-SRM-03',
+            price: 1200,
+            collectAtHospital: false,
+            outsourceCost: 960,
+            outsourceRefNo: 'DRLAL-REF-1002'
+          }
+        ]
+      }
+    };
+
+    const parsed = createLabOrderSchema.parse(multiItemPayload);
+    expect(parsed.body.items).toHaveLength(3);
+    expect(parsed.body.items![0].processingSource).toBe('in_house');
+    expect(parsed.body.items![0].specimenType).toBe('Blood (EDTA)');
+    expect(parsed.body.items![2].processingSource).toBe('outsource_send');
+    expect(parsed.body.items![2].outsourceLabId).toBe('c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55');
+    expect(parsed.body.items![2].collectAtHospital).toBe(false);
+    expect(parsed.body.items![2].outsourceCost).toBe(960);
+  });
+
   it('rejects lab order with empty testDefinitionIds', () => {
     const invalidPayload = {
       body: {

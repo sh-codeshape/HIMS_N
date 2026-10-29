@@ -4949,3 +4949,434 @@
   background: #e0f2fe;
 }
 
+/* ==========================================================================
+   MULTI-SPECIMEN & OUTSOURCE FULFILLMENT (STEP 3 & 4)
+   ========================================================================== */
+
+.path-empty-selection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 38px 20px;
+  background: #f8fafc;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 10px;
+  text-align: center;
+  color: #64748b;
+  gap: 12px;
+}
+
+.path-empty-selection p {
+  margin: 0;
+  max-width: 480px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #475569;
+}
+
+.specimen-fulfillment-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Quick Batch Bar */
+.specimen-batch-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #f0f9ff 100%);
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.batch-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0369a1;
+}
+
+.batch-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.batch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  transition: all 0.15s ease;
+}
+
+.batch-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.batch-btn-primary {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+}
+
+.batch-btn-primary:hover {
+  background: #0369a1;
+  color: #ffffff;
+}
+
+/* Individual Test Fulfillment Card */
+.itemized-test-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition: all 0.2s ease;
+}
+
+.itemized-test-card:hover {
+  border-color: #93c5fd;
+  box-shadow: 0 4px 12px -2px rgba(2, 132, 199, 0.08);
+}
+
+.itemized-test-card.is-outsourced {
+  border-color: #c7d2fe;
+  background: linear-gradient(180deg, #ffffff 0%, #faf5ff 100%);
+}
+
+.itemized-test-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.test-title-col {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.test-seq-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: #e2e8f0;
+  color: #334155;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.test-header-name {
+  font-size: 14px;
+  font-weight: 750;
+  color: #0f172a;
+}
+
+.test-tag-section {
+  font-size: 11px;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.test-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.test-price-tag {
+  font-size: 13.5px;
+  font-weight: 750;
+  color: #0369a1;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.source-status-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.source-status-inhouse {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.source-status-outsource {
+  background: #faf5ff;
+  color: #6b21a8;
+  border: 1px solid #e9d5ff;
+}
+
+/* Itemized Test Form Grid */
+.itemized-test-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px 14px;
+}
+
+.form-group-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-group-compact label {
+  font-size: 11.5px;
+  font-weight: 650;
+  color: #475569;
+}
+
+.form-group-compact select,
+.form-group-compact input {
+  height: 35px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.form-group-compact select:focus,
+.form-group-compact input:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+}
+
+.outsource-lab-field select {
+  border-color: #a855f7;
+  background: #faf5ff;
+}
+
+.outsource-margin-note {
+  font-size: 11px;
+  color: #7e22ce;
+  font-weight: 600;
+  margin-top: 3px;
+}
+
+.barcode-link-wrap {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.barcode-link-wrap select {
+  height: 24px;
+  padding: 0 6px;
+  font-size: 11px;
+  background: #f8fafc;
+  border: 1px dashed #94a3b8;
+  border-radius: 4px;
+  color: #475569;
+}
+
+/* Outsource Money & Charge Control Box */
+.outsource-billing-box {
+  margin-top: 12px;
+  padding: 11px 14px;
+  background: #faf5ff;
+  border: 1.5px solid #d8b4fe;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.outsource-billing-box.is-unbilled {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+/* Card 4 Financial Breakdown Additions */
+.billing-split-pills {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.split-pill {
+  flex: 1;
+  min-width: 130px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.split-pill-inhouse {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.split-pill-inhouse .split-lbl {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #166534;
+  text-transform: uppercase;
+}
+
+.split-pill-inhouse .split-val {
+  font-size: 15px;
+  font-weight: 800;
+  color: #15803d;
+}
+
+.split-pill-outsource {
+  background: #faf5ff;
+  border: 1px solid #e9d5ff;
+}
+
+.split-pill-outsource .split-lbl {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #6b21a8;
+  text-transform: uppercase;
+}
+
+.split-pill-outsource .split-val {
+  font-size: 15px;
+  font-weight: 800;
+  color: #7e22ce;
+}
+
+.outsource-partners-breakdown {
+  margin: 10px 0;
+  padding: 10px 12px;
+  background: #fdf4ff;
+  border: 1px solid #f0abfc;
+  border-radius: 8px;
+  font-size: 11.5px;
+}
+
+.partner-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  color: #581c87;
+}
+
+.partner-breakdown-row:last-child {
+  margin-bottom: 0;
+}
+
+/* Multi-specimen Print Barcode Modal */
+.multi-barcode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.barcode-single-tube-label {
+  border: 1.5px dashed #0284c7;
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  page-break-inside: avoid;
+}
+
+.tube-label-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 4px;
+}
+
+.tube-hosp-name {
+  font-size: 11px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.tube-specimen-badge {
+  font-size: 10px;
+  font-weight: 700;
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.tube-barcode-center {
+  text-align: center;
+  padding: 6px 0;
+}
+
+.tube-barcode-bars {
+  font-family: monospace;
+  font-size: 20px;
+  letter-spacing: 2px;
+  font-weight: 900;
+  color: #0f172a;
+  user-select: none;
+  line-height: 1;
+}
+
+.tube-barcode-code {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 750;
+  color: #0369a1;
+  margin-top: 3px;
+}
+
+.tube-label-body {
+  font-size: 11px;
+  color: #334155;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tube-label-body div strong {
+  color: #0f172a;
+}
+
+

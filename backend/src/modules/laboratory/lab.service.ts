@@ -41,7 +41,7 @@ export class LabService {
     payload: {
       patientId: string;
       encounterId?: string | null;
-      testDefinitionIds: string[];
+      testDefinitionIds?: string[];
       orderedBy?: string | null;
       priority?: string;
       clinicalInfo?: string | null;
@@ -51,6 +51,21 @@ export class LabService {
       collectedBy?: string | null;
       fasting?: string | null;
       barcode?: string | null;
+      items?: Array<{
+        testDefinitionId: string;
+        specimenType?: string | null;
+        container?: string | null;
+        processingSource?: string;
+        outsourceLabId?: string | null;
+        barcode?: string | null;
+        collectedBy?: string | null;
+        collectionTime?: string | null;
+        fasting?: string | null;
+        price?: number | null;
+        collectAtHospital?: boolean;
+        outsourceCost?: number | null;
+        outsourceRefNo?: string | null;
+      }>;
     },
     userId?: string
   ) {
@@ -59,7 +74,7 @@ export class LabService {
       organizationId,
       patientId: payload.patientId,
       encounterId: payload.encounterId,
-      testDefinitionIds: payload.testDefinitionIds,
+      testDefinitionIds: payload.testDefinitionIds || [],
       orderedBy: payload.orderedBy,
       priority: payload.priority,
       clinicalInfo: payload.clinicalInfo,
@@ -69,6 +84,7 @@ export class LabService {
       collectedBy: payload.collectedBy,
       fasting: payload.fasting,
       barcode: payload.barcode,
+      items: payload.items,
       userId
     });
   }
