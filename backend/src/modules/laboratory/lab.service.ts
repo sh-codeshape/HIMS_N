@@ -66,6 +66,8 @@ export class LabService {
         outsourceCost?: number | null;
         outsourceRefNo?: string | null;
       }>;
+      paymentStatus?: string | null;
+      paymentMode?: string | null;
     },
     userId?: string
   ) {
@@ -85,6 +87,8 @@ export class LabService {
       fasting: payload.fasting,
       barcode: payload.barcode,
       items: payload.items,
+      paymentStatus: payload.paymentStatus,
+      paymentMode: payload.paymentMode,
       userId
     });
   }

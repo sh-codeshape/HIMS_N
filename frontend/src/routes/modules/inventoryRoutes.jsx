@@ -1,8 +1,11 @@
 import React from "react";
-import { Route } from "react-router-dom";
+import { Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "../../auth/ProtectedRoute.jsx";
 import { ROLES } from "../../auth/roles";
 import {
+  InventoryOverview,
+  AddInventory,
+  InventorySettings,
   Dashboard,
   Items,
   Categories,
@@ -15,19 +18,51 @@ import {
   GoodsReceipts,
   StockTransfers,
   ExpiryTracker,
+  AssetManagement,
 } from "../../pages/inventory";
 
 const { SUPER_ADMIN, ADMIN, PHARMACY } = ROLES;
 
 export const inventoryRoutes = [
+  // Primary Consolidated Routes
   <Route
-    key="inv-dash"
-    path="/inventory/dashboard"
+    key="inv-root"
+    path="/inventory"
+    element={<Navigate to="/inventory/overview" replace />}
+  />,
+  <Route
+    key="inv-overview"
+    path="/inventory/overview"
     element={
       <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, PHARMACY]}>
-        <Dashboard />
+        <InventoryOverview />
       </ProtectedRoute>
     }
+  />,
+  <Route
+    key="inv-add"
+    path="/inventory/add"
+    element={
+      <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, PHARMACY]}>
+        <AddInventory />
+      </ProtectedRoute>
+    }
+  />,
+  <Route
+    key="inv-settings"
+    path="/inventory/settings"
+    element={
+      <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, PHARMACY]}>
+        <InventorySettings />
+      </ProtectedRoute>
+    }
+  />,
+
+  // Backward-Compatible Redirects & Standalone Direct Routes
+  <Route
+    key="inv-dash-redirect"
+    path="/inventory/dashboard"
+    element={<Navigate to="/inventory/overview" replace />}
   />,
   <Route
     key="inv-items"
@@ -125,6 +160,15 @@ export const inventoryRoutes = [
     element={
       <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, PHARMACY]}>
         <ExpiryTracker />
+      </ProtectedRoute>
+    }
+  />,
+  <Route
+    key="inv-asset-management"
+    path="/inventory/asset-management"
+    element={
+      <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN, PHARMACY]}>
+        <AssetManagement />
       </ProtectedRoute>
     }
   />,

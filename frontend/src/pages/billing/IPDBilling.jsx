@@ -315,16 +315,20 @@ export default function IPDBilling() {
       const safeItems = Array.isArray(itemsData) ? itemsData : itemsData?.data || [];
       const safePayments = Array.isArray(paymentsData) ? paymentsData : paymentsData?.data || [];
 
-      const mappedItems = safeItems.map((i) => ({
-        id: i.id,
-        date: new Date(i.created_at || i.charged_at || new Date()).toLocaleDateString("en-GB").replace(/\//g, "-"),
-        category: i.item_category || "General",
-        name: i.item_name || i.description || "Medical Service",
-        qty: Number(i.quantity || 1),
-        rate: Number(i.rate || i.unit_price || 0),
-        amount: Number(i.total_amount || i.net_amount || (Number(i.quantity || 1) * Number(i.rate || 0))),
-        selected: false,
-      }));
+      const mappedItems = safeItems.map((i) => {
+        const itemStatus = String(i.payment_status || i.custom_fields?.payment_status || (i.status === "billed" ? "paid" : i.status) || "billable").toLowerCase();
+        return {
+          id: i.id,
+          date: new Date(i.created_at || i.charged_at || new Date()).toLocaleDateString("en-GB").replace(/\//g, "-"),
+          category: i.item_category || (i.source_type === "order_item" ? "Lab Test" : "General"),
+          name: i.item_name || i.description || "Medical Service",
+          qty: Number(i.quantity || 1),
+          rate: Number(i.rate || i.unit_price || 0),
+          amount: Number(i.total_amount || i.net_amount || (Number(i.quantity || 1) * Number(i.rate || 0))),
+          status: itemStatus,
+          selected: false,
+        };
+      });
 
       const mappedPayments = safePayments.map((pay) => ({
         id: pay.id,
@@ -840,7 +844,19 @@ export default function IPDBilling() {
   };
 
   // Bill Calculations
-  const totalBills = patient ? patient.items.reduce((acc, curr) => acc + curr.amount, 0) : 0;
+  const isItemSettled = (i) => {
+    const s = String(i?.status || "").toLowerCase();
+    return s === "paid" || s === "completed" || s === "billed";
+  };
+
+  const billItems = patient && patient.items ? patient.items : [];
+  const activeBillItems = billItems.filter((i) => !isItemSettled(i));
+  const totalBills = activeBillItems.reduce((acc, curr) => acc + curr.amount, 0);
+
+  const isDirectItemPayment = (p) => {
+    const text = String(p.remarks || p.notes || "").toLowerCase();
+    return text.includes("lab counter payment") || text.includes("counter payment") || text.includes("direct payment");
+  };
 
   const totalAdvance = patient
     ? patient.historyPayments
@@ -850,55 +866,41 @@ export default function IPDBilling() {
 
   const totalReceived = patient
     ? patient.historyPayments
-      .filter((p) => p.type !== "Advance")
+      .filter((p) => p.type !== "Advance" && !isDirectItemPayment(p))
       .reduce((acc, curr) => acc + curr.amount, 0)
     : 0;
 
   const totalPaymentsReceivedAll = totalAdvance + totalReceived;
   const pendingAmount = Math.max(0, totalBills - totalPaymentsReceivedAll);
 
-  // Category Summaries for Matrix
-  const roomChargesTotal = patient
-    ? patient.items
-      .filter((i) => i.category === "Room")
-      .reduce((acc, curr) => acc + curr.amount, 0)
-    : 0;
+  // Category Summaries for Matrix (showing active unpaid dues)
+  const roomChargesTotal = activeBillItems
+    .filter((i) => i.category === "Room")
+    .reduce((acc, curr) => acc + curr.amount, 0);
 
-  const consultationTotal = patient
-    ? patient.items
-      .filter((i) => i.category === "Consultation")
-      .reduce((acc, curr) => acc + curr.amount, 0)
-    : 0;
+  const consultationTotal = activeBillItems
+    .filter((i) => i.category === "Consultation")
+    .reduce((acc, curr) => acc + curr.amount, 0);
 
-  const medicinesTotal = patient
-    ? patient.items
-      .filter((i) => i.category === "Medicines")
-      .reduce((acc, curr) => acc + curr.amount, 0)
-    : 0;
+  const medicinesTotal = activeBillItems
+    .filter((i) => i.category === "Medicines")
+    .reduce((acc, curr) => acc + curr.amount, 0);
 
-  const labTotal = patient
-    ? patient.items
-      .filter((i) => i.category === "Lab Test")
-      .reduce((acc, curr) => acc + curr.amount, 0)
-    : 0;
+  const labTotal = activeBillItems
+    .filter((i) => i.category === "Lab Test")
+    .reduce((acc, curr) => acc + curr.amount, 0);
 
-  const radiologyTotal = patient
-    ? patient.items
-      .filter((i) => i.category === "Radiology")
-      .reduce((acc, curr) => acc + curr.amount, 0)
-    : 0;
+  const radiologyTotal = activeBillItems
+    .filter((i) => i.category === "Radiology")
+    .reduce((acc, curr) => acc + curr.amount, 0);
 
-  const proceduresTotal = patient
-    ? patient.items
-      .filter((i) => i.category === "Procedures")
-      .reduce((acc, curr) => acc + curr.amount, 0)
-    : 0;
+  const proceduresTotal = activeBillItems
+    .filter((i) => i.category === "Procedures")
+    .reduce((acc, curr) => acc + curr.amount, 0);
 
-  const othersTotal = patient
-    ? patient.items
-      .filter((i) => !["Room", "Consultation", "Medicines", "Lab Test", "Radiology", "Procedures"].includes(i.category))
-      .reduce((acc, curr) => acc + curr.amount, 0)
-    : 0;
+  const othersTotal = activeBillItems
+    .filter((i) => !["Room", "Consultation", "Medicines", "Lab Test", "Radiology", "Procedures"].includes(i.category))
+    .reduce((acc, curr) => acc + curr.amount, 0);
 
   // Filtered Bill Items Table
   const filteredBillItems = useMemo(() => {
@@ -1570,13 +1572,14 @@ export default function IPDBilling() {
                       <th style={{ width: 110, textAlign: "right" }}>RATE (₹)</th>
                       <th style={{ width: 85, textAlign: "center" }}>DAYS / QTY</th>
                       <th style={{ width: 125, textAlign: "right" }}>AMOUNT (₹)</th>
+                      <th style={{ width: 100, textAlign: "center" }}>STATUS</th>
                       <th style={{ width: 60, textAlign: "center" }}>ACTION</th>
                     </tr>
                   </thead>
                   <tbody>
                     {!patient || filteredBillItems.length === 0 ? (
                       <tr>
-                        <td colSpan="9" style={{ textAlign: "center", padding: "36px 16px", color: "#64748b" }}>
+                        <td colSpan="10" style={{ textAlign: "center", padding: "36px 16px", color: "#64748b" }}>
                           <Icon name="LuFileX" size={32} style={{ color: "#94a3b8", marginBottom: 8 }} />
                           <div style={{ fontWeight: 700, color: "#1e293b", fontSize: 14 }}>No Inpatient Charges Posted Yet</div>
                           <div style={{ fontSize: 12, marginTop: 4, color: "#64748b" }}>Use the form above to add room rent, doctor visits, medicines, or procedures.</div>
@@ -1610,6 +1613,11 @@ export default function IPDBilling() {
                           <td style={{ textAlign: "center", fontWeight: 800, color: "#1e293b" }}>{item.qty}</td>
                           <td style={{ textAlign: "right", fontFamily: "monospace", fontWeight: 800, color: "#0f172a" }}>
                             ₹{item.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ textAlign: "center" }}>
+                            <span className={`ipd-charge-status-pill ipd-charge-status-pill--${String(item.status || "billable").toLowerCase()}`}>
+                              {String(item.status || "billable").toUpperCase()}
+                            </span>
                           </td>
                           <td style={{ textAlign: "center" }}>
                             <button

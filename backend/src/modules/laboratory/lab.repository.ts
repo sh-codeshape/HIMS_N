@@ -248,42 +248,64 @@ export class LabRepository {
       outsourceCost?: number | null;
       outsourceRefNo?: string | null;
     }>;
+    paymentStatus?: string | null;
+    paymentMode?: string | null;
+    payment_status?: string | null;
     userId?: string;
   }) {
     const client = await db.getClient();
     try {
       await client.query('BEGIN');
 
+      const normalizedPaymentStatus = String(data.paymentStatus || data.payment_status || 'pending')
+        .trim()
+        .toLowerCase()
+        .replace(/[\s_]+/g, '');
+      const isPaid = normalizedPaymentStatus === 'paid';
+      const isPartiallyPaid = normalizedPaymentStatus === 'partiallypaid';
+      let totalHospitalBilled = 0;
+
       // 1. Resolve Encounter
       let encounterId = data.encounterId;
       if (!encounterId) {
-        const encounterRes = await client.query(
-          `SELECT id FROM encounters WHERE patient_id = $1 AND status = 'in_progress' ORDER BY started_at DESC LIMIT 1`,
+        // If inpatient, link to their active admission encounter
+        const admissionRes = await client.query(
+          `SELECT encounter_id FROM admissions 
+           WHERE patient_id = $1 AND status IN ('admitted', 'discharge_initiated') 
+           ORDER BY admitted_at DESC LIMIT 1`,
           [data.patientId]
         );
-        encounterId = encounterRes.rows[0]?.id;
-        if (!encounterId) {
-          let encNo: string;
-          try {
-            await client.query('SAVEPOINT enc_seq_sp');
-            const seqRes = await client.query(
-              `SELECT next_number($1, $2, 'ENCOUNTER') AS enc_no`,
-              [data.organizationId, data.facilityId]
-            );
-            encNo = seqRes.rows[0]?.enc_no || `ENC-${Date.now().toString().slice(-6)}`;
-            await client.query('RELEASE SAVEPOINT enc_seq_sp');
-          } catch {
-            await client.query('ROLLBACK TO SAVEPOINT enc_seq_sp');
-            encNo = `ENC-${Date.now().toString().slice(-6)}`;
-          }
+        encounterId = admissionRes.rows[0]?.encounter_id;
 
-          const encRes = await client.query(
-            `INSERT INTO encounters (
-              organization_id, facility_id, patient_id, encounter_no, encounter_type, status, started_at
-            ) VALUES ($1, $2, $3, $4, 'diagnostic_only', 'in_progress', now()) RETURNING id`,
-            [data.organizationId, data.facilityId, data.patientId, encNo]
+        if (!encounterId) {
+          const encounterRes = await client.query(
+            `SELECT id FROM encounters WHERE patient_id = $1 AND status = 'in_progress' ORDER BY started_at DESC LIMIT 1`,
+            [data.patientId]
           );
-          encounterId = encRes.rows[0].id;
+          encounterId = encounterRes.rows[0]?.id;
+          if (!encounterId) {
+            let encNo: string;
+            try {
+              await client.query('SAVEPOINT enc_seq_sp');
+              const seqRes = await client.query(
+                `SELECT next_number($1, $2, 'ENCOUNTER') AS enc_no`,
+                [data.organizationId, data.facilityId]
+              );
+              encNo = seqRes.rows[0]?.enc_no || `ENC-${Date.now().toString().slice(-6)}`;
+              await client.query('RELEASE SAVEPOINT enc_seq_sp');
+            } catch {
+              await client.query('ROLLBACK TO SAVEPOINT enc_seq_sp');
+              encNo = `ENC-${Date.now().toString().slice(-6)}`;
+            }
+
+            const encRes = await client.query(
+              `INSERT INTO encounters (
+                organization_id, facility_id, patient_id, encounter_no, encounter_type, status, started_at
+              ) VALUES ($1, $2, $3, $4, 'diagnostic_only', 'in_progress', now()) RETURNING id`,
+              [data.organizationId, data.facilityId, data.patientId, encNo]
+            );
+            encounterId = encRes.rows[0].id;
+          }
         }
       }
 
@@ -475,7 +497,14 @@ export class LabRepository {
           const chargeDesc = isHospitalBilled
             ? svc.name
             : `${svc.name} (Direct Pay to Outsource Lab)`;
-          const chargeStatus = isHospitalBilled ? 'billable' : 'billed';
+          const chargeStatus = isHospitalBilled ? (isPaid ? 'billed' : 'billable') : 'billed';
+          const chargeCustomFields = JSON.stringify({
+            item_category: 'Lab Test',
+            payment_status: isPaid ? 'paid' : (isPartiallyPaid ? 'partially_paid' : 'billable'),
+            settled: isPaid,
+            order_no: orderNo,
+            payment_mode: data.paymentMode || 'Cash',
+          });
 
           // Insert Order Item with its specific source and outsource lab
           const itemRes = await client.query(
@@ -494,13 +523,13 @@ export class LabRepository {
               service_id, description, department_id,
               quantity, unit_price, discount_percent, discount_amount,
               taxable_amount, tax_amount, net_amount,
-              responsibility, status, source_type, source_id, created_by
+              responsibility, status, source_type, source_id, custom_fields, created_by
             ) VALUES (
               $1, $2, $3, $4,
               $5, $6, $7,
               1, $8, 0, 0,
               $8, 0, $8,
-              'patient', $9, 'order_item', $10, $11
+              'patient', $9, 'order_item', $10, $11, $12
             ) RETURNING id`,
             [
               data.organizationId,
@@ -513,10 +542,14 @@ export class LabRepository {
               chargedPrice,
               chargeStatus,
               orderItemId,
+              chargeCustomFields,
               data.userId || null
             ]
           );
           const chargeId = chargeRes.rows[0].id;
+          if (isHospitalBilled) {
+            totalHospitalBilled += chargedPrice;
+          }
 
           await client.query(
             `UPDATE order_items SET charge_id = $1 WHERE id = $2`,
@@ -601,19 +634,28 @@ export class LabRepository {
           const orderItemId = itemRes.rows[0].id;
           createdItemIds.push(orderItemId);
 
+          const chargeStatus = isPaid ? 'billed' : 'billable';
+          const chargeCustomFields = JSON.stringify({
+            item_category: 'Lab Test',
+            payment_status: isPaid ? 'paid' : (isPartiallyPaid ? 'partially_paid' : 'billable'),
+            settled: isPaid,
+            order_no: orderNo,
+            payment_mode: data.paymentMode || 'Cash',
+          });
+
           const chargeRes = await client.query(
             `INSERT INTO charges (
               organization_id, facility_id, patient_id, encounter_id,
               service_id, description, department_id,
               quantity, unit_price, discount_percent, discount_amount,
               taxable_amount, tax_amount, net_amount,
-              responsibility, status, source_type, source_id, created_by
+              responsibility, status, source_type, source_id, custom_fields, created_by
             ) VALUES (
               $1, $2, $3, $4,
               $5, $6, $7,
               1, $8, 0, 0,
               $8, 0, $8,
-              'patient', 'billable', 'order_item', $9, $10
+              'patient', $9, 'order_item', $10, $11, $12
             ) RETURNING id`,
             [
               data.organizationId,
@@ -624,11 +666,14 @@ export class LabRepository {
               svc.name,
               labDeptId,
               price,
+              chargeStatus,
               orderItemId,
+              chargeCustomFields,
               data.userId || null
             ]
           );
           const chargeId = chargeRes.rows[0].id;
+          totalHospitalBilled += price;
 
           await client.query(
             `UPDATE order_items SET charge_id = $1 WHERE id = $2`,
@@ -650,6 +695,61 @@ export class LabRepository {
               [orderItemId, param.id, primarySpecimenId, param.unit, data.userId || null]
             );
           }
+        }
+      }
+
+      // If payment was settled immediately at the lab counter, record it into the payments ledger
+      if (isPaid && totalHospitalBilled > 0) {
+        const paymentModeStr = String(data.paymentMode || 'Cash').trim();
+        let methodRes = await client.query(
+          `SELECT id FROM payment_methods 
+           WHERE is_active = TRUE AND (name ILIKE $1 OR method_type ILIKE $1 OR code ILIKE $1) 
+           ORDER BY (CASE WHEN UPPER(code) = UPPER($2) THEN 0 ELSE 1 END) LIMIT 1`,
+          [`%${paymentModeStr}%`, paymentModeStr]
+        );
+        let paymentMethodId = methodRes.rows[0]?.id;
+        if (!paymentMethodId) {
+          const cashRes = await client.query(
+            `SELECT id FROM payment_methods WHERE is_active = TRUE AND (code = 'CASH' OR method_type = 'cash') LIMIT 1`
+          );
+          paymentMethodId = cashRes.rows[0]?.id;
+        }
+
+        if (paymentMethodId) {
+          let receiptNo: string;
+          try {
+            await client.query('SAVEPOINT rcpt_sp');
+            const seqRes = await client.query(
+              `SELECT next_number($1, $2, 'RECEIPT') AS receipt_no`,
+              [data.organizationId, data.facilityId]
+            );
+            receiptNo = seqRes.rows[0]?.receipt_no || `REC-LAB-${Date.now().toString().slice(-6)}`;
+            await client.query('RELEASE SAVEPOINT rcpt_sp');
+          } catch {
+            await client.query('ROLLBACK TO SAVEPOINT rcpt_sp');
+            receiptNo = `REC-LAB-${Date.now().toString().slice(-6)}`;
+          }
+
+          await client.query(
+            `INSERT INTO payments (
+              organization_id, facility_id, receipt_no, patient_id, encounter_id,
+              direction, payment_type, payment_method_id, amount, status, received_by, notes
+            ) VALUES (
+              $1, $2, $3, $4, $5,
+              'in', 'invoice_payment', $6, $7, 'completed', $8, $9
+            )`,
+            [
+              data.organizationId,
+              data.facilityId,
+              receiptNo,
+              data.patientId,
+              encounterId,
+              paymentMethodId,
+              totalHospitalBilled,
+              data.userId || null,
+              `Lab counter payment for order ${orderNo}`
+            ]
+          );
         }
       }
 

@@ -15,6 +15,93 @@ const controller = inventory_controller_1.inventoryController;
 /* ------------------------------------------------------------------ */
 router.use(authenticate_1.authenticate);
 router.use((0, moduleGuard_1.moduleGuard)('inventory'));
+/* Auto-fill organization context and clean incoming payload fields */
+router.use((req, res, next) => {
+    if (req.user?.organizationId) {
+        if (req.body && typeof req.body === 'object') {
+            // Enforce active session organization ID
+            req.body.organization_id = req.user.organizationId;
+            if (!req.body.facility_id && req.user.facilityId) {
+                req.body.facility_id = req.user.facilityId;
+            }
+            // Coerce common numeric fields if passed as strings
+            [
+                'reorder_level',
+                'reorder_quantity',
+                'pack_size',
+                'mrp',
+                'unit_cost',
+                'quantity',
+                'payment_terms_days',
+                'ordered_qty',
+                'received_qty',
+                'free_qty',
+                'discount_percent',
+                'discount_amount',
+                'tax_amount',
+                'line_total',
+                'requested_qty',
+            ].forEach((f) => {
+                if (f in req.body && typeof req.body[f] === 'string' && req.body[f].trim() !== '') {
+                    const num = Number(req.body[f]);
+                    if (!isNaN(num))
+                        req.body[f] = num;
+                }
+            });
+            // Handle nested items array numbers and UUID nullification
+            if (Array.isArray(req.body.items)) {
+                req.body.items.forEach((it) => {
+                    if (it && typeof it === 'object') {
+                        [
+                            'ordered_qty',
+                            'received_qty',
+                            'free_qty',
+                            'unit_cost',
+                            'mrp',
+                            'discount_percent',
+                            'discount_amount',
+                            'tax_amount',
+                            'line_total',
+                            'requested_qty',
+                        ].forEach((f) => {
+                            if (f in it && typeof it[f] === 'string' && it[f].trim() !== '') {
+                                const num = Number(it[f]);
+                                if (!isNaN(num))
+                                    it[f] = num;
+                            }
+                        });
+                        ['tax_group_id', 'po_item_id'].forEach((f) => {
+                            if (f in it && it[f] === '')
+                                it[f] = null;
+                        });
+                    }
+                });
+            }
+            // Convert empty string optional UUIDs to null
+            [
+                'category_id',
+                'parent_id',
+                'parent_store_id',
+                'department_id',
+                'manufacturer_id',
+                'tax_group_id',
+                'medical_code_id',
+                'service_id',
+                'purchase_order_id',
+                'supplier_id',
+                'store_id',
+                'from_store_id',
+                'to_store_id',
+                'reference_id',
+            ].forEach((f) => {
+                if (f in req.body && req.body[f] === '') {
+                    req.body[f] = null;
+                }
+            });
+        }
+    }
+    next();
+});
 /* ------------------------------------------------------------------ */
 /*  Suppliers                                                         */
 /* ------------------------------------------------------------------ */

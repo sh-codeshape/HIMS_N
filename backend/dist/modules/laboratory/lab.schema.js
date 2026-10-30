@@ -31,7 +31,9 @@ exports.createLabOrderSchema = zod_1.z.object({
             collectAtHospital: zod_1.z.boolean().optional().default(true),
             outsourceCost: zod_1.z.number().optional().nullable(),
             outsourceRefNo: zod_1.z.string().optional().nullable(),
-        })).optional()
+        })).optional(),
+        paymentStatus: zod_1.z.string().optional().nullable(),
+        paymentMode: zod_1.z.string().optional().nullable()
     }).refine((data) => (Array.isArray(data.items) && data.items.length > 0) || (Array.isArray(data.testDefinitionIds) && data.testDefinitionIds.length > 0), { message: 'At least one test definition must be selected' })
 });
 exports.updateLabResultSchema = zod_1.z.object({

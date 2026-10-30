@@ -754,6 +754,44 @@
   border: 1px solid #fde68a;
 }
 
+/* Charge / Lab bill item settlement status (billable | billed | paid | partially_paid) */
+.ipd-charge-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 12px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.ipd-charge-status-pill--paid {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #6ee7b7;
+}
+
+.ipd-charge-status-pill--billable,
+.ipd-charge-status-pill--planned {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.ipd-charge-status-pill--billed {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.ipd-charge-status-pill--partially_paid {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
 .opd-pb-meta-grid {
   display: flex;
   flex-wrap: wrap;

@@ -422,11 +422,12 @@ export class BillingRepository {
              COALESCE(i.name, c.description) as item_name,
              c.unit_price as rate,
              c.net_amount as total_amount,
-             c.custom_fields->>'item_category' as item_category
+             COALESCE(c.custom_fields->>'item_category', CASE WHEN c.source_type = 'order_item' THEN 'Lab Test' ELSE 'General' END) as item_category,
+             COALESCE(c.custom_fields->>'payment_status', CASE WHEN c.status = 'billed' THEN 'paid' ELSE c.status END) as payment_status
       FROM charges c
       LEFT JOIN services s ON c.service_id = s.id
       LEFT JOIN items i ON c.item_id = i.id
-      WHERE c.encounter_id = $1 AND c.facility_id = $2 AND c.status = 'billable'
+      WHERE c.encounter_id = $1 AND c.facility_id = $2 AND c.status IN ('billable', 'billed')
       ORDER BY c.charged_at DESC
     `;
     const res = await db.query(query, [encounterId, facilityId]);

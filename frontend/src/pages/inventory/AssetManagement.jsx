@@ -18,7 +18,7 @@ const STATUS_CONFIG = {
   reserved: { label: "Reserved", bg: "bg-purple-50 text-purple-700 border-purple-200", dot: "bg-purple-500" },
 };
 
-export default function AssetManagement() {
+export default function AssetManagement({ embedded = false }) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -214,7 +214,7 @@ export default function AssetManagement() {
     return { total, bedsCount, occupied, available, maintenance, dailyBillingPotential };
   }, [unifiedAssets]);
 
-  if (loading) {
+  if (loading && !embedded) {
     return (
       <PageContainer title="Asset Management" subtitle="Inventory & Hospital Equipment Master">
         <div className="flex justify-center items-center h-64">
@@ -226,8 +226,9 @@ export default function AssetManagement() {
 
   return (
     <PageContainer
-      title="Asset & Equipment Management"
-      subtitle="Modular tracking of IPD hospital beds, biomedical equipment, and linked daily charge tariffs."
+      title={embedded ? undefined : "Asset & Equipment Management"}
+      subtitle={embedded ? undefined : "Modular tracking of IPD hospital beds, biomedical equipment, and linked daily charge tariffs."}
+      embedded={embedded}
     >
       {/* Top Action Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">

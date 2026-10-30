@@ -7,7 +7,7 @@ import Select from "../../components/common/Select.jsx";
 import Button from "../../components/common/Button.jsx";
 import Icon from "../../components/common/Icon.jsx";
 
-export default function CategoriesPage() {
+export default function CategoriesPage({ embedded = false }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ organization_id: "", is_active: "", search: "" });
@@ -61,11 +61,15 @@ export default function CategoriesPage() {
   const handleSave = async (e) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...form,
+        parent_id: form.parent_id || null,
+      };
       if (editing) {
-        await inventoryService.updateCategory(form.id, form);
+        await inventoryService.updateCategory(form.id, payload);
         toast.success("Category updated successfully");
       } else {
-        await inventoryService.createCategory(form);
+        await inventoryService.createCategory(payload);
         toast.success("Category created successfully");
       }
       setOpenModal(false);
@@ -86,7 +90,7 @@ export default function CategoriesPage() {
     }
   };
 
-  if (loading) {
+  if (loading && !embedded) {
     return (
       <PageContainer title="Item Categories" subtitle="Manage item categories (drug, consumable, implant, etc.)">
         <div className="flex justify-center items-center h-64">
@@ -97,7 +101,11 @@ export default function CategoriesPage() {
   }
 
   return (
-    <PageContainer title="Item Categories" subtitle="Organize inventory items into categories">
+    <PageContainer
+      title={embedded ? undefined : "Item Categories"}
+      subtitle={embedded ? undefined : "Organize inventory items into categories"}
+      embedded={embedded}
+    >
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <div className="flex-1">
           <Input

@@ -16,7 +16,7 @@ const STORE_TYPE_LABELS = {
   other: "Other",
 };
 
-export default function StoresPage() {
+export default function StoresPage({ embedded = false }) {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ organization_id: "", facility_id: "", is_active: "", search: "" });
@@ -71,11 +71,16 @@ export default function StoresPage() {
   const handleSave = async (e) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...form,
+        parent_store_id: form.parent_store_id || null,
+        department_id: form.department_id || null,
+      };
       if (editing) {
-        await inventoryService.updateStore(form.id, form);
+        await inventoryService.updateStore(form.id, payload);
         toast.success("Store updated successfully");
       } else {
-        await inventoryService.createStore(form);
+        await inventoryService.createStore(payload);
         toast.success("Store created successfully");
       }
       setOpenModal(false);
@@ -96,7 +101,7 @@ export default function StoresPage() {
     }
   };
 
-  if (loading) {
+  if (loading && !embedded) {
     return (
       <PageContainer title="Stores" subtitle="Manage warehouses, pharmacy stores, and dispensing points">
         <div className="flex justify-center items-center h-64">
@@ -107,7 +112,11 @@ export default function StoresPage() {
   }
 
   return (
-    <PageContainer title="Stores" subtitle="Manage hospital stores, pharmacies, and ward stock locations">
+    <PageContainer
+      title={embedded ? undefined : "Stores"}
+      subtitle={embedded ? undefined : "Manage hospital stores, pharmacies, and ward stock locations"}
+      embedded={embedded}
+    >
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <div className="flex-1">
           <Input

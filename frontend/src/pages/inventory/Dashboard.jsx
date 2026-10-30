@@ -12,7 +12,7 @@ const STATUS_COLORS = {
   depleted: "bg-slate-200 text-slate-600",
 };
 
-export default function InventoryDashboard() {
+export default function InventoryDashboard({ embedded = false }) {
   const [stats, setStats] = useState({
     total_stock_value: 0,
     low_stock_count: 0,
@@ -46,7 +46,7 @@ export default function InventoryDashboard() {
     </span>
   );
 
-  if (loading) {
+  if (loading && !embedded) {
     return (
       <PageContainer title="Inventory Dashboard" subtitle="Overview of stock across all stores">
         <div className="flex justify-center items-center h-64">
@@ -58,8 +58,9 @@ export default function InventoryDashboard() {
 
   return (
     <PageContainer
-      title="Inventory Dashboard"
-      subtitle="Real-time overview of stock across all stores and warehouses"
+      title={embedded ? undefined : "Inventory Dashboard"}
+      subtitle={embedded ? undefined : "Real-time overview of stock across all stores and warehouses"}
+      embedded={embedded}
     >
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

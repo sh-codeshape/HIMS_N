@@ -6,6 +6,7 @@ import patientService from "../../../api/services/patientService";
 import laboratoryService from "../../../api/services/laboratoryService";
 import doctorService from "../../../api/services/doctorService";
 import staffService from "../../../api/services/staffService";
+import ipdService from "../../../api/services/ipdService";
 import "./PathologyView.css";
 
 export default function PathologyTestRequest() {
@@ -18,6 +19,7 @@ export default function PathologyTestRequest() {
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
   const [doctorsList, setDoctorsList] = useState([]);
   const [techniciansList, setTechniciansList] = useState([]);
+  const [activeAdmission, setActiveAdmission] = useState(null);
   const [patient, setPatient] = useState({
     id: "",
     uhid: "",
@@ -29,6 +31,7 @@ export default function PathologyTestRequest() {
     address: "",
     doctor: "",
     visitType: "OPD",
+    encounterId: null,
     referredBy: "",
     clinicalNotes: "",
   });
@@ -209,7 +212,7 @@ export default function PathologyTestRequest() {
   };
 
   // Select patient from live search results
-  const handleSelectPatient = (p) => {
+  const handleSelectPatient = async (p) => {
     const fullName = p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Patient";
     setPatient((prev) => ({
       ...prev,
@@ -220,10 +223,35 @@ export default function PathologyTestRequest() {
       gender: p.gender || "Male",
       mobile: p.phone || p.mobile || "",
       address: p.address || p.city || "Varanasi",
+      encounterId: null,
     }));
     setPatientSearch(`${fullName} (${p.uhid || "UHID"})`);
     setShowPatientDropdown(false);
     toast.success(`Patient ${fullName} selected!`, { icon: "👤" });
+
+    // Check for active IPD admission
+    try {
+      const admissions = await ipdService.getAdmissions({ patientId: p.id, status: 'admitted' });
+      const list = Array.isArray(admissions) ? admissions : (admissions?.data || []);
+      const active = list.find((a) => a.patient_id === p.id && a.status !== 'discharged') || list[0];
+      if (active) {
+        setActiveAdmission(active);
+        setPatient((prev) => ({
+          ...prev,
+          visitType: "IPD",
+          encounterId: active.encounter_id || active.encounterId
+        }));
+        setPaymentStatus("Pending");
+        toast(`Active Inpatient: Ward ${active.ward_name || active.ward || 'General'}, Bed ${active.bed_name || active.bed_number || 'Allotted'}`, {
+          icon: "🏥",
+          duration: 4000
+        });
+      } else {
+        setActiveAdmission(null);
+      }
+    } catch {
+      setActiveAdmission(null);
+    }
   };
 
   // Helper to generate clinical specimen barcode
@@ -454,6 +482,7 @@ export default function PathologyTestRequest() {
 
       const orderPayload = {
         patientId: patient.id || patientList[0]?.id || "00000000-0000-0000-0000-000000000000",
+        encounterId: patient.encounterId || activeAdmission?.encounter_id || activeAdmission?.encounterId || null,
         orderedBy: patient.doctor || null,
         priority: "routine",
         clinicalInfo: patient.clinicalNotes || remarks || null,
@@ -463,6 +492,8 @@ export default function PathologyTestRequest() {
         specimenType: items[0]?.specimenType || "Blood",
         barcode: items[0]?.barcode || barcodeNo,
         collectedBy: items[0]?.collectedBy || collectedBy,
+        paymentStatus: paymentStatus || "Paid",
+        paymentMode: paymentMode || "Cash",
       };
 
       const serverRes = await laboratoryService.createLabOrder(orderPayload);
@@ -508,6 +539,7 @@ export default function PathologyTestRequest() {
       setPrintSlipModal(newOrder);
 
       // Reset form
+      setActiveAdmission(null);
       setPatient({
         id: "",
         uhid: "",
@@ -519,6 +551,7 @@ export default function PathologyTestRequest() {
         address: "",
         doctor: "",
         visitType: "OPD",
+        encounterId: null,
         referredBy: "",
         clinicalNotes: "",
       });
@@ -535,6 +568,7 @@ export default function PathologyTestRequest() {
   };
 
   const handleResetForm = () => {
+    setActiveAdmission(null);
     setPatient({
       id: "",
       uhid: "",
@@ -546,6 +580,7 @@ export default function PathologyTestRequest() {
       address: "",
       doctor: "",
       visitType: "OPD",
+      encounterId: null,
       referredBy: "",
       clinicalNotes: "",
     });
@@ -733,6 +768,20 @@ export default function PathologyTestRequest() {
                   <option value="Health Checkup">Health Checkup</option>
                 </select>
               </div>
+
+              {activeAdmission && (
+                <div className="form-group col-span-3 bg-blue-50 border border-blue-200 rounded-lg p-2.5 flex items-center justify-between text-xs text-blue-900">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold px-2 py-0.5 rounded bg-blue-600 text-white text-[10px] tracking-wide uppercase">Admitted Inpatient</span>
+                    <span>Adm No: <strong>{activeAdmission.admission_no || activeAdmission.admissionNo || "Active"}</strong></span>
+                    <span>•</span>
+                    <span>Ward: <strong>{activeAdmission.ward_name || activeAdmission.ward || "Inpatient"}</strong></span>
+                    <span>•</span>
+                    <span>Bed: <strong>{activeAdmission.bed_name || activeAdmission.bed_number || activeAdmission.bedNo || "Allotted"}</strong></span>
+                  </div>
+                  <span className="text-blue-700 font-medium">Linked to IPD Running Bill</span>
+                </div>
+              )}
 
               <div className="form-group col-span-3">
                 <label>Address / City</label>

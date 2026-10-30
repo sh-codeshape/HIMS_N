@@ -29,7 +29,9 @@ export const createLabOrderSchema = z.object({
       collectAtHospital: z.boolean().optional().default(true),
       outsourceCost: z.number().optional().nullable(),
       outsourceRefNo: z.string().optional().nullable(),
-    })).optional()
+    })).optional(),
+    paymentStatus: z.string().optional().nullable(),
+    paymentMode: z.string().optional().nullable()
   }).refine(
     (data) => (Array.isArray(data.items) && data.items.length > 0) || (Array.isArray(data.testDefinitionIds) && data.testDefinitionIds.length > 0),
     { message: 'At least one test definition must be selected' }

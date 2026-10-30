@@ -7,7 +7,7 @@ import Select from "../../components/common/Select.jsx";
 import Button from "../../components/common/Button.jsx";
 import Icon from "../../components/common/Icon.jsx";
 
-export default function SuppliersPage() {
+export default function SuppliersPage({ embedded = false }) {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ organization_id: "", is_active: "", search: "" });
@@ -70,11 +70,21 @@ export default function SuppliersPage() {
   const handleSave = async (e) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...form,
+        payment_terms_days: Number(form.payment_terms_days) || 30,
+        contact_person: form.contact_person || null,
+        phone: form.phone || null,
+        email: form.email || null,
+        address: form.address || null,
+        gstin: form.gstin || null,
+        drug_license_no: form.drug_license_no || null,
+      };
       if (editing) {
-        await inventoryService.updateSupplier(form.id, form);
+        await inventoryService.updateSupplier(form.id, payload);
         toast.success("Supplier updated successfully");
       } else {
-        await inventoryService.createSupplier(form);
+        await inventoryService.createSupplier(payload);
         toast.success("Supplier created successfully");
       }
       setOpenModal(false);
@@ -95,7 +105,7 @@ export default function SuppliersPage() {
     }
   };
 
-  if (loading) {
+  if (loading && !embedded) {
     return (
       <PageContainer title="Suppliers" subtitle="Manage medicine and consumable suppliers">
         <div className="flex justify-center items-center h-64">
@@ -106,7 +116,11 @@ export default function SuppliersPage() {
   }
 
   return (
-    <PageContainer title="Suppliers" subtitle="Manage vendors and suppliers for inventory procurement">
+    <PageContainer
+      title={embedded ? undefined : "Suppliers"}
+      subtitle={embedded ? undefined : "Manage vendors and suppliers for inventory procurement"}
+      embedded={embedded}
+    >
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <div className="flex-1">
           <Input

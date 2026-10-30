@@ -45,6 +45,8 @@ class LabService {
             fasting: payload.fasting,
             barcode: payload.barcode,
             items: payload.items,
+            paymentStatus: payload.paymentStatus,
+            paymentMode: payload.paymentMode,
             userId
         });
     }

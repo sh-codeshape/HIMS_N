@@ -10,6 +10,10 @@ const optionalUuid = z.preprocess(
   (val) => (val === '' || val === null || val === undefined ? undefined : val),
   z.string().uuid('Invalid UUID').optional().nullable()
 );
+const orgUuid = z.preprocess(
+  (val) => (val === '' || val === null || val === undefined ? undefined : val),
+  z.string().uuid('Invalid UUID').optional().nullable()
+);
 // Treat empty strings (from optional query params) as undefined so enum
 // validation doesn't reject them when the caller omits the field.
 const optional = (schema: any) =>
@@ -17,11 +21,11 @@ const optional = (schema: any) =>
     (val) => (val === '' || val === null || val === undefined ? undefined : val),
     schema
   );
-const positiveQty = z
+const positiveQty = z.coerce
   .number()
   .positive('Quantity must be greater than 0')
   .optional();
-const nonNegativeQty = z
+const nonNegativeQty = z.coerce
   .number()
   .nonnegative('Quantity must not be negative')
   .optional();
@@ -35,7 +39,7 @@ const isActive = z.boolean().optional();
 /* ------------------------------------------------------------------ */
 export const createItemCategorySchema = z.object({
   body: z.object({
-    organization_id: uuid,
+    organization_id: orgUuid,
     parent_id: optionalUuid.nullable(),
     code,
     name,
@@ -98,7 +102,7 @@ export const deleteItemCategorySchema = z.object({
 /* ------------------------------------------------------------------ */
 export const createItemSchema = z.object({
   body: z.object({
-    organization_id: uuid,
+    organization_id: orgUuid,
     category_id: optionalUuid.nullable(),
     manufacturer_id: optionalUuid.nullable(),
     tax_group_id: optionalUuid.nullable(),
@@ -128,12 +132,12 @@ export const createItemSchema = z.object({
     is_controlled: z.boolean().default(false),
     is_high_alert: z.boolean().default(false),
     base_uom: z.string().default('unit'),
-    pack_size: z.number().positive().default(1),
+    pack_size: z.coerce.number().positive().default(1),
     hsn_code: z.string().optional().nullable(),
-    mrp: z.number().nonnegative().optional().nullable(),
-    reorder_level: z.number().nonnegative().default(0),
-    reorder_quantity: z.number().nonnegative().default(0),
-    max_stock_level: z.number().nonnegative().optional().nullable(),
+    mrp: z.coerce.number().nonnegative().optional().nullable(),
+    reorder_level: z.coerce.number().nonnegative().default(0),
+    reorder_quantity: z.coerce.number().nonnegative().default(0),
+    max_stock_level: z.coerce.number().nonnegative().optional().nullable(),
     track_batches: z.boolean().default(true),
     track_expiry: z.boolean().default(true),
     storage_conditions: z.string().optional().nullable(),
@@ -161,9 +165,11 @@ export const updateItemSchema = z.object({
       ])
       .optional(),
     base_uom: z.string().optional(),
-    reorder_level: z.number().nonnegative().optional(),
-    reorder_quantity: z.number().nonnegative().optional(),
-    max_stock_level: z.number().nonnegative().optional().nullable(),
+    pack_size: z.coerce.number().positive().optional(),
+    mrp: z.coerce.number().nonnegative().optional().nullable(),
+    reorder_level: z.coerce.number().nonnegative().optional(),
+    reorder_quantity: z.coerce.number().nonnegative().optional(),
+    max_stock_level: z.coerce.number().nonnegative().optional().nullable(),
     track_batches: z.boolean().optional(),
     track_expiry: z.boolean().optional(),
     is_active: isActive.optional(),
@@ -207,8 +213,8 @@ export const deleteItemSchema = z.object({
 /* ------------------------------------------------------------------ */
 export const createStoreSchema = z.object({
   body: z.object({
-    organization_id: uuid,
-    facility_id: uuid,
+    organization_id: orgUuid,
+    facility_id: orgUuid,
     department_id: optionalUuid.nullable(),
     parent_store_id: optionalUuid.nullable(),
     code,
@@ -328,8 +334,8 @@ export const stockAdjustmentSchema = z.object({
       'adjustment_in',
       'adjustment_out',
     ]),
-    quantity: z.number().positive('Quantity must be greater than 0'),
-    unit_cost: z.number().nonnegative().optional().nullable(),
+    quantity: z.coerce.number().positive('Quantity must be greater than 0'),
+    unit_cost: z.coerce.number().nonnegative().optional().nullable(),
     reference_type: z.string().optional().nullable(),
     reference_id: optionalUuid.nullable(),
     notes: z.string().optional().nullable(),
@@ -344,7 +350,7 @@ export const stockWriteOffSchema = z.object({
     store_id: uuid,
     item_id: uuid,
     batch_id: uuid,
-    quantity: z.number().positive('Quantity must be greater than 0'),
+    quantity: z.coerce.number().positive('Quantity must be greater than 0'),
     reason: z
       .enum(['expired', 'damaged'])
       .default('damaged'),
@@ -357,7 +363,7 @@ export const stockWriteOffSchema = z.object({
 /* ------------------------------------------------------------------ */
 export const createSupplierSchema = z.object({
   body: z.object({
-    organization_id: uuid,
+    organization_id: orgUuid,
     code,
     name,
     contact_person: z.string().optional().nullable(),
@@ -366,7 +372,7 @@ export const createSupplierSchema = z.object({
     address: z.string().optional().nullable(),
     gstin: z.string().optional().nullable(),
     drug_license_no: z.string().optional().nullable(),
-    payment_terms_days: z.number().nonnegative().default(30),
+    payment_terms_days: z.coerce.number().nonnegative().default(30),
     bank_details: z.record(z.string(), z.any()).default({}),
     is_active: isActive.default(true),
   }),
@@ -383,7 +389,7 @@ export const updateSupplierSchema = z.object({
     address: z.string().optional().nullable(),
     gstin: z.string().optional().nullable(),
     drug_license_no: z.string().optional().nullable(),
-    payment_terms_days: z.number().nonnegative().optional(),
+    payment_terms_days: z.coerce.number().nonnegative().optional(),
     bank_details: z.record(z.string(), z.any()).optional(),
     is_active: isActive.optional(),
   }),
@@ -412,8 +418,8 @@ export const deleteSupplierSchema = z.object({
 /* ------------------------------------------------------------------ */
 export const createPurchaseOrderSchema = z.object({
   body: z.object({
-    organization_id: uuid,
-    facility_id: uuid,
+    organization_id: orgUuid,
+    facility_id: orgUuid,
     supplier_id: uuid,
     store_id: uuid,
     order_date: z.string().optional(),
@@ -423,12 +429,12 @@ export const createPurchaseOrderSchema = z.object({
     items: z.array(
       z.object({
         item_id: uuid,
-        ordered_qty: z.number().positive('Ordered qty must be greater than 0'),
-        unit_cost: z.number().nonnegative('Unit cost must not be negative'),
-        discount_percent: z.number().nonnegative().default(0),
+        ordered_qty: z.coerce.number().positive('Ordered qty must be greater than 0'),
+        unit_cost: z.coerce.number().nonnegative('Unit cost must not be negative'),
+        discount_percent: z.coerce.number().nonnegative().default(0),
         tax_group_id: optionalUuid.nullable(),
-        tax_amount: z.number().nonnegative().default(0),
-        line_total: z.number().nonnegative().default(0),
+        tax_amount: z.coerce.number().nonnegative().default(0),
+        line_total: z.coerce.number().nonnegative().default(0),
       })
     ).min(1, 'At least one item is required'),
   }),
@@ -493,8 +499,8 @@ export const cancelPurchaseOrderSchema = z.object({
 /* ------------------------------------------------------------------ */
 export const createGoodsReceiptSchema = z.object({
   body: z.object({
-    organization_id: uuid,
-    facility_id: uuid,
+    organization_id: orgUuid,
+    facility_id: orgUuid,
     supplier_id: uuid,
     store_id: uuid,
     purchase_order_id: optionalUuid.nullable(),
@@ -508,14 +514,14 @@ export const createGoodsReceiptSchema = z.object({
         batch_no: z.string().min(1, 'Batch number is required'),
         manufactured_on: z.string().optional().nullable(),
         expiry_date: z.string().optional().nullable(),
-        received_qty: z.number().positive('Received qty must be greater than 0'),
-        free_qty: z.number().nonnegative().default(0),
-        unit_cost: z.number().nonnegative('Unit cost must not be negative'),
-        mrp: z.number().nonnegative().optional().nullable(),
-        discount_amount: z.number().nonnegative().default(0),
+        received_qty: z.coerce.number().positive('Received qty must be greater than 0'),
+        free_qty: z.coerce.number().nonnegative().default(0),
+        unit_cost: z.coerce.number().nonnegative('Unit cost must not be negative'),
+        mrp: z.coerce.number().nonnegative().optional().nullable(),
+        discount_amount: z.coerce.number().nonnegative().default(0),
         tax_group_id: optionalUuid.nullable(),
-        tax_amount: z.number().nonnegative().default(0),
-        line_total: z.number().nonnegative().default(0),
+        tax_amount: z.coerce.number().nonnegative().default(0),
+        line_total: z.coerce.number().nonnegative().default(0),
       })
     ).min(1, 'At least one item is required'),
   }),
@@ -552,14 +558,14 @@ export const cancelGoodsReceiptSchema = z.object({
 /* ------------------------------------------------------------------ */
 export const createStockTransferSchema = z.object({
   body: z.object({
-    organization_id: uuid,
+    organization_id: orgUuid,
     from_store_id: uuid,
     to_store_id: uuid,
     notes: z.string().optional().nullable(),
     items: z.array(
       z.object({
         item_id: uuid,
-        requested_qty: z.number().positive('Requested qty must be greater than 0'),
+        requested_qty: z.coerce.number().positive('Requested qty must be greater than 0'),
       })
     ).min(1, 'At least one item is required'),
   }),

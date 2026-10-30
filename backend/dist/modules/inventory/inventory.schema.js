@@ -9,14 +9,15 @@ const uuid = zod_1.z.string().uuid('Invalid UUID');
 // Treat empty strings (from optional query params) as undefined so UUID
 // validation doesn't reject them when the caller omits the field.
 const optionalUuid = zod_1.z.preprocess((val) => (val === '' || val === null || val === undefined ? undefined : val), zod_1.z.string().uuid('Invalid UUID').optional().nullable());
+const orgUuid = zod_1.z.preprocess((val) => (val === '' || val === null || val === undefined ? undefined : val), zod_1.z.string().uuid('Invalid UUID').optional().nullable());
 // Treat empty strings (from optional query params) as undefined so enum
 // validation doesn't reject them when the caller omits the field.
 const optional = (schema) => zod_1.z.preprocess((val) => (val === '' || val === null || val === undefined ? undefined : val), schema);
-const positiveQty = zod_1.z
+const positiveQty = zod_1.z.coerce
     .number()
     .positive('Quantity must be greater than 0')
     .optional();
-const nonNegativeQty = zod_1.z
+const nonNegativeQty = zod_1.z.coerce
     .number()
     .nonnegative('Quantity must not be negative')
     .optional();
@@ -29,7 +30,7 @@ const isActive = zod_1.z.boolean().optional();
 /* ------------------------------------------------------------------ */
 exports.createItemCategorySchema = zod_1.z.object({
     body: zod_1.z.object({
-        organization_id: uuid,
+        organization_id: orgUuid,
         parent_id: optionalUuid.nullable(),
         code,
         name,
@@ -87,7 +88,7 @@ exports.deleteItemCategorySchema = zod_1.z.object({
 /* ------------------------------------------------------------------ */
 exports.createItemSchema = zod_1.z.object({
     body: zod_1.z.object({
-        organization_id: uuid,
+        organization_id: orgUuid,
         category_id: optionalUuid.nullable(),
         manufacturer_id: optionalUuid.nullable(),
         tax_group_id: optionalUuid.nullable(),
@@ -117,12 +118,12 @@ exports.createItemSchema = zod_1.z.object({
         is_controlled: zod_1.z.boolean().default(false),
         is_high_alert: zod_1.z.boolean().default(false),
         base_uom: zod_1.z.string().default('unit'),
-        pack_size: zod_1.z.number().positive().default(1),
+        pack_size: zod_1.z.coerce.number().positive().default(1),
         hsn_code: zod_1.z.string().optional().nullable(),
-        mrp: zod_1.z.number().nonnegative().optional().nullable(),
-        reorder_level: zod_1.z.number().nonnegative().default(0),
-        reorder_quantity: zod_1.z.number().nonnegative().default(0),
-        max_stock_level: zod_1.z.number().nonnegative().optional().nullable(),
+        mrp: zod_1.z.coerce.number().nonnegative().optional().nullable(),
+        reorder_level: zod_1.z.coerce.number().nonnegative().default(0),
+        reorder_quantity: zod_1.z.coerce.number().nonnegative().default(0),
+        max_stock_level: zod_1.z.coerce.number().nonnegative().optional().nullable(),
         track_batches: zod_1.z.boolean().default(true),
         track_expiry: zod_1.z.boolean().default(true),
         storage_conditions: zod_1.z.string().optional().nullable(),
@@ -149,9 +150,11 @@ exports.updateItemSchema = zod_1.z.object({
         ])
             .optional(),
         base_uom: zod_1.z.string().optional(),
-        reorder_level: zod_1.z.number().nonnegative().optional(),
-        reorder_quantity: zod_1.z.number().nonnegative().optional(),
-        max_stock_level: zod_1.z.number().nonnegative().optional().nullable(),
+        pack_size: zod_1.z.coerce.number().positive().optional(),
+        mrp: zod_1.z.coerce.number().nonnegative().optional().nullable(),
+        reorder_level: zod_1.z.coerce.number().nonnegative().optional(),
+        reorder_quantity: zod_1.z.coerce.number().nonnegative().optional(),
+        max_stock_level: zod_1.z.coerce.number().nonnegative().optional().nullable(),
         track_batches: zod_1.z.boolean().optional(),
         track_expiry: zod_1.z.boolean().optional(),
         is_active: isActive.optional(),
@@ -191,8 +194,8 @@ exports.deleteItemSchema = zod_1.z.object({
 /* ------------------------------------------------------------------ */
 exports.createStoreSchema = zod_1.z.object({
     body: zod_1.z.object({
-        organization_id: uuid,
-        facility_id: uuid,
+        organization_id: orgUuid,
+        facility_id: orgUuid,
         department_id: optionalUuid.nullable(),
         parent_store_id: optionalUuid.nullable(),
         code,
@@ -305,8 +308,8 @@ exports.stockAdjustmentSchema = zod_1.z.object({
             'adjustment_in',
             'adjustment_out',
         ]),
-        quantity: zod_1.z.number().positive('Quantity must be greater than 0'),
-        unit_cost: zod_1.z.number().nonnegative().optional().nullable(),
+        quantity: zod_1.z.coerce.number().positive('Quantity must be greater than 0'),
+        unit_cost: zod_1.z.coerce.number().nonnegative().optional().nullable(),
         reference_type: zod_1.z.string().optional().nullable(),
         reference_id: optionalUuid.nullable(),
         notes: zod_1.z.string().optional().nullable(),
@@ -320,7 +323,7 @@ exports.stockWriteOffSchema = zod_1.z.object({
         store_id: uuid,
         item_id: uuid,
         batch_id: uuid,
-        quantity: zod_1.z.number().positive('Quantity must be greater than 0'),
+        quantity: zod_1.z.coerce.number().positive('Quantity must be greater than 0'),
         reason: zod_1.z
             .enum(['expired', 'damaged'])
             .default('damaged'),
@@ -332,7 +335,7 @@ exports.stockWriteOffSchema = zod_1.z.object({
 /* ------------------------------------------------------------------ */
 exports.createSupplierSchema = zod_1.z.object({
     body: zod_1.z.object({
-        organization_id: uuid,
+        organization_id: orgUuid,
         code,
         name,
         contact_person: zod_1.z.string().optional().nullable(),
@@ -341,7 +344,7 @@ exports.createSupplierSchema = zod_1.z.object({
         address: zod_1.z.string().optional().nullable(),
         gstin: zod_1.z.string().optional().nullable(),
         drug_license_no: zod_1.z.string().optional().nullable(),
-        payment_terms_days: zod_1.z.number().nonnegative().default(30),
+        payment_terms_days: zod_1.z.coerce.number().nonnegative().default(30),
         bank_details: zod_1.z.record(zod_1.z.string(), zod_1.z.any()).default({}),
         is_active: isActive.default(true),
     }),
@@ -357,7 +360,7 @@ exports.updateSupplierSchema = zod_1.z.object({
         address: zod_1.z.string().optional().nullable(),
         gstin: zod_1.z.string().optional().nullable(),
         drug_license_no: zod_1.z.string().optional().nullable(),
-        payment_terms_days: zod_1.z.number().nonnegative().optional(),
+        payment_terms_days: zod_1.z.coerce.number().nonnegative().optional(),
         bank_details: zod_1.z.record(zod_1.z.string(), zod_1.z.any()).optional(),
         is_active: isActive.optional(),
     }),
@@ -382,8 +385,8 @@ exports.deleteSupplierSchema = zod_1.z.object({
 /* ------------------------------------------------------------------ */
 exports.createPurchaseOrderSchema = zod_1.z.object({
     body: zod_1.z.object({
-        organization_id: uuid,
-        facility_id: uuid,
+        organization_id: orgUuid,
+        facility_id: orgUuid,
         supplier_id: uuid,
         store_id: uuid,
         order_date: zod_1.z.string().optional(),
@@ -392,12 +395,12 @@ exports.createPurchaseOrderSchema = zod_1.z.object({
         notes: zod_1.z.string().optional().nullable(),
         items: zod_1.z.array(zod_1.z.object({
             item_id: uuid,
-            ordered_qty: zod_1.z.number().positive('Ordered qty must be greater than 0'),
-            unit_cost: zod_1.z.number().nonnegative('Unit cost must not be negative'),
-            discount_percent: zod_1.z.number().nonnegative().default(0),
+            ordered_qty: zod_1.z.coerce.number().positive('Ordered qty must be greater than 0'),
+            unit_cost: zod_1.z.coerce.number().nonnegative('Unit cost must not be negative'),
+            discount_percent: zod_1.z.coerce.number().nonnegative().default(0),
             tax_group_id: optionalUuid.nullable(),
-            tax_amount: zod_1.z.number().nonnegative().default(0),
-            line_total: zod_1.z.number().nonnegative().default(0),
+            tax_amount: zod_1.z.coerce.number().nonnegative().default(0),
+            line_total: zod_1.z.coerce.number().nonnegative().default(0),
         })).min(1, 'At least one item is required'),
     }),
 });
@@ -453,8 +456,8 @@ exports.cancelPurchaseOrderSchema = zod_1.z.object({
 /* ------------------------------------------------------------------ */
 exports.createGoodsReceiptSchema = zod_1.z.object({
     body: zod_1.z.object({
-        organization_id: uuid,
-        facility_id: uuid,
+        organization_id: orgUuid,
+        facility_id: orgUuid,
         supplier_id: uuid,
         store_id: uuid,
         purchase_order_id: optionalUuid.nullable(),
@@ -467,14 +470,14 @@ exports.createGoodsReceiptSchema = zod_1.z.object({
             batch_no: zod_1.z.string().min(1, 'Batch number is required'),
             manufactured_on: zod_1.z.string().optional().nullable(),
             expiry_date: zod_1.z.string().optional().nullable(),
-            received_qty: zod_1.z.number().positive('Received qty must be greater than 0'),
-            free_qty: zod_1.z.number().nonnegative().default(0),
-            unit_cost: zod_1.z.number().nonnegative('Unit cost must not be negative'),
-            mrp: zod_1.z.number().nonnegative().optional().nullable(),
-            discount_amount: zod_1.z.number().nonnegative().default(0),
+            received_qty: zod_1.z.coerce.number().positive('Received qty must be greater than 0'),
+            free_qty: zod_1.z.coerce.number().nonnegative().default(0),
+            unit_cost: zod_1.z.coerce.number().nonnegative('Unit cost must not be negative'),
+            mrp: zod_1.z.coerce.number().nonnegative().optional().nullable(),
+            discount_amount: zod_1.z.coerce.number().nonnegative().default(0),
             tax_group_id: optionalUuid.nullable(),
-            tax_amount: zod_1.z.number().nonnegative().default(0),
-            line_total: zod_1.z.number().nonnegative().default(0),
+            tax_amount: zod_1.z.coerce.number().nonnegative().default(0),
+            line_total: zod_1.z.coerce.number().nonnegative().default(0),
         })).min(1, 'At least one item is required'),
     }),
 });
@@ -505,13 +508,13 @@ exports.cancelGoodsReceiptSchema = zod_1.z.object({
 /* ------------------------------------------------------------------ */
 exports.createStockTransferSchema = zod_1.z.object({
     body: zod_1.z.object({
-        organization_id: uuid,
+        organization_id: orgUuid,
         from_store_id: uuid,
         to_store_id: uuid,
         notes: zod_1.z.string().optional().nullable(),
         items: zod_1.z.array(zod_1.z.object({
             item_id: uuid,
-            requested_qty: zod_1.z.number().positive('Requested qty must be greater than 0'),
+            requested_qty: zod_1.z.coerce.number().positive('Requested qty must be greater than 0'),
         })).min(1, 'At least one item is required'),
     }),
 });
