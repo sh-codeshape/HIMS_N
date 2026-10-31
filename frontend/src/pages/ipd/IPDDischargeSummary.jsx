@@ -4,6 +4,12 @@ import toast from "react-hot-toast";
 import Icon from "../../components/common/Icon.jsx";
 import ipdService from "../../api/services/ipdService";
 import IPDDischargeWorkflow from "./components/IPDDischargeWorkflow.jsx";
+import IPDDischargePrintHandler from "../settings/IPDDischargePrintHandler.js";
+import { IPDDischargePreview } from "../settings/IPDDischargePrintSettings.jsx";
+import {
+  mapAdmissionToDischargePayload,
+  DEFAULT_IPD_DISCHARGE_SETTINGS,
+} from "../settings/ipdDischargePrintConfig.js";
 import "./IPDDischargeSummary.css";
 
 const DISCHARGE_TYPES = [
@@ -35,11 +41,12 @@ export default function IPDDischargeSummary() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
 
-  // Printable summary modal state
+  // Printable summary modal state & configuration
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
   const [selectedAdmission, setSelectedAdmission] = useState(null);
   const [currentSummary, setCurrentSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [dischargePrintSettings, setDischargePrintSettings] = useState(null);
 
   // Load real backend admissions
   const loadAdmissions = async () => {
@@ -144,7 +151,15 @@ export default function IPDDischargeSummary() {
     setSummaryLoading(true);
 
     try {
-      const summary = await ipdService.getDischargeSummary(admission.id);
+      const [summary, settings] = await Promise.all([
+        ipdService.getDischargeSummary(admission.id).catch(() => null),
+        IPDDischargePrintHandler.getSettings().catch(() => null),
+      ]);
+
+      if (settings) {
+        setDischargePrintSettings(settings);
+      }
+
       setCurrentSummary(
         summary || {
           final_diagnosis: admission.admission_diagnosis || "Inpatient Clinical Treatment Completed",
@@ -171,6 +186,23 @@ export default function IPDDischargeSummary() {
       toast.error("Could not load summary details.");
     } finally {
       setSummaryLoading(false);
+    }
+  };
+
+  // High-fidelity print handler using database settings
+  const handlePrintSummary = async (targetAdmission = selectedAdmission, targetSummary = currentSummary) => {
+    if (!targetAdmission) return;
+    try {
+      let sum = targetSummary;
+      if (!sum) {
+        sum = await ipdService.getDischargeSummary(targetAdmission.id).catch(() => null);
+      }
+      const payload = mapAdmissionToDischargePayload(targetAdmission, sum);
+      // In the real discharge workflow, omit settings override to use saved DB settings
+      await IPDDischargePrintHandler.printDischargeSummary(payload);
+    } catch (err) {
+      console.error("Print summary error:", err);
+      toast.error("Failed to print discharge summary.");
     }
   };
 
@@ -468,11 +500,7 @@ export default function IPDDischargeSummary() {
                           <button
                             type="button"
                             className="ipds-act-btn ipds-act-btn--print"
-                            onClick={() => {
-                              handleOpenSummaryModal(item).then(() => {
-                                setTimeout(() => window.print(), 300);
-                              });
-                            }}
+                            onClick={() => handlePrintSummary(item)}
                             title="Print Discharge Summary"
                           >
                             <Icon name="LuPrinter" size={15} />
@@ -503,7 +531,7 @@ export default function IPDDischargeSummary() {
                   type="button"
                   className="ipds-btn ipds-btn--green"
                   style={{ height: 32, fontSize: 12, padding: "0 12px" }}
-                  onClick={() => window.print()}
+                  onClick={() => handlePrintSummary(selectedAdmission, currentSummary)}
                   title="Print Official Slip"
                 >
                   <Icon name="LuPrinter" size={14} /> Print Slip
@@ -518,163 +546,22 @@ export default function IPDDischargeSummary() {
               </div>
             </div>
 
-            {/* Modal Body: Complete Printable Hospital Discharge Summary */}
-            <div className="ipds-modal-body">
+            {/* Modal Body: Complete Configurable Hospital Discharge Summary Preview */}
+            <div className="ipds-modal-body" style={{ background: "#f1f5f9", padding: "24px 16px", maxHeight: "75vh", overflowY: "auto" }}>
               {summaryLoading ? (
                 <div style={{ textAlign: "center", padding: "40px 0", color: "#64748b" }}>
                   <Icon name="LuLoader" size={24} className="spinning" />
                   <p style={{ marginTop: 8, fontWeight: 600 }}>Loading Discharge Summary Details…</p>
                 </div>
               ) : (
-                <div className="ipds-slip-sheet" id="ipd-print-summary-area">
-                  {/* Hospital Top Header */}
-                  <div className="ipds-slip-head">
-                    <h2 className="ipds-slip-hosp-name">
-                      NARAYAN HOSPITAL &amp; MEDICAL RESEARCH CENTRE
-                    </h2>
-                    <p className="ipds-slip-hosp-sub">
-                      NABH Accredited Multi-Specialty Hospital • 24×7 Emergency, ICU &amp; Inpatient Care
-                      <br />
-                      Station Road, Civil Lines, Kota, Rajasthan - 324001 • Tel: +91 744 2450000
-                    </p>
-                    <span className="ipds-slip-doc-badge">PATIENT DISCHARGE SUMMARY CERTIFICATE</span>
-                  </div>
-
-                  {/* Demographic & Admission Details Grid */}
-                  <div className="ipds-slip-grid">
-                    <div className="ipds-slip-field">
-                      <label>Patient Name:</label>
-                      <span>
-                        {selectedAdmission.first_name} {selectedAdmission.last_name}
-                      </span>
-                    </div>
-                    <div className="ipds-slip-field">
-                      <label>IPD Adm No:</label>
-                      <span>{selectedAdmission.admission_no || `ADM-${selectedAdmission.id}`}</span>
-                    </div>
-                    <div className="ipds-slip-field">
-                      <label>UHID Number:</label>
-                      <span>{selectedAdmission.uhid || "—"}</span>
-                    </div>
-                    <div className="ipds-slip-field">
-                      <label>Age / Gender:</label>
-                      <span>
-                        {selectedAdmission.age ? `${selectedAdmission.age} Yrs` : "—"} /{" "}
-                        {selectedAdmission.gender || "—"} (🩸 {selectedAdmission.blood_group || "N/A"})
-                      </span>
-                    </div>
-                    <div className="ipds-slip-field">
-                      <label>Admit Date:</label>
-                      <span>
-                        {selectedAdmission.admitted_at
-                          ? new Date(selectedAdmission.admitted_at).toLocaleString("en-IN")
-                          : "—"}
-                      </span>
-                    </div>
-                    <div className="ipds-slip-field">
-                      <label>Discharge Date:</label>
-                      <span>
-                        {selectedAdmission.discharged_at
-                          ? new Date(selectedAdmission.discharged_at).toLocaleString("en-IN")
-                          : "In Progress / Active"}
-                      </span>
-                    </div>
-                    <div className="ipds-slip-field">
-                      <label>Ward &amp; Bed:</label>
-                      <span>
-                        {selectedAdmission.ward_name || "General"} • {selectedAdmission.bed_name || "Bed"}
-                      </span>
-                    </div>
-                    <div className="ipds-slip-field">
-                      <label>Consultant:</label>
-                      <span>
-                        Dr. {selectedAdmission.doctor_first_name} {selectedAdmission.doctor_last_name || ""}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 1. Final Diagnosis */}
-                  <div className="ipds-slip-section-title">1. Final Clinical Diagnosis (अंतिम निदान)</div>
-                  <div className="ipds-slip-box">
-                    <strong>{currentSummary?.final_diagnosis || selectedAdmission.admission_diagnosis || "Inpatient Clinical Treatment Completed"}</strong>
-                  </div>
-
-                  {/* 2. Hospital Stay & Treatment Course */}
-                  <div className="ipds-slip-section-title">2. Hospital Stay &amp; Clinical Course (अस्पताल उपचार का विवरण)</div>
-                  <div className="ipds-slip-box">
-                    {currentSummary?.hospital_course || "Patient was admitted under specialized care, stabilized with supportive therapy and scheduled medications. Response to therapy was satisfactory with steady clinical recovery."}
-                  </div>
-
-                  {/* 3. Condition at Discharge */}
-                  <div className="ipds-slip-section-title">3. Condition at Discharge (डिस्चार्ज के समय स्थिति)</div>
-                  <div className="ipds-slip-box">
-                    <strong>{currentSummary?.condition_at_discharge || selectedAdmission.discharge_condition || "Clinically Stable & Symptom Free"}</strong>
-                  </div>
-
-                  {/* 4. Discharge Medications */}
-                  <div className="ipds-slip-section-title">4. Discharge Medication Regimen (डिस्चार्ज दवाइयां)</div>
-                  <table className="ipds-meds-tbl">
-                    <thead>
-                      <tr>
-                        <th style={{ width: "40%" }}>Medicine Name</th>
-                        <th style={{ width: "20%" }}>Dosage</th>
-                        <th style={{ width: "25%" }}>Frequency / Timing</th>
-                        <th style={{ width: "15%" }}>Duration</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(currentSummary?.data?.medications || [
-                        { name: "Tab Paracetamol 650mg", dosage: "1 Tab", frequency: "SOS / Max TDS", days: "3 Days" },
-                        { name: "Cap Pantoprazole 40mg", dosage: "1 Cap", frequency: "OD (Empty Stomach)", days: "5 Days" },
-                      ]).map((med, idx) => (
-                        <tr key={idx}>
-                          <td style={{ fontWeight: 700, color: "#0f172a" }}>{med.name}</td>
-                          <td>{med.dosage || "1 Dose"}</td>
-                          <td>{med.frequency || "As Directed"}</td>
-                          <td>{med.days || "5 Days"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  {/* 5. Post-Discharge Advice & Follow-Up */}
-                  <div className="ipds-slip-section-title">5. Post-Discharge Advice &amp; Follow-up (परामर्श व अनुवर्ती जांच)</div>
-                  <div className="ipds-slip-box" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <div>
-                      <strong>Diet Advice:</strong> {currentSummary?.diet_advice || "Light, balanced, high-protein soft diet. Maintain adequate hydration."}
-                    </div>
-                    <div>
-                      <strong>Activity Advice:</strong> {currentSummary?.activity_advice || "Gradual resumption of normal activities. Avoid heavy physical lifting for 1 week."}
-                    </div>
-                    <div>
-                      <strong>Follow-up Schedule:</strong> Review in OPD on{" "}
-                      <strong style={{ color: "#1d4ed8" }}>
-                        {currentSummary?.follow_up_date
-                          ? new Date(currentSummary.follow_up_date).toLocaleDateString("en-IN", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            })
-                          : "After 5 Days"}
-                      </strong>{" "}
-                      or immediately in case of emergency.
-                    </div>
-                  </div>
-
-                  {/* Authorized Signatures */}
-                  <div className="ipds-signatures">
-                    <div className="ipds-sig-box">Patient / Attendant Signature</div>
-                    <div className="ipds-sig-box">Duty Nursing Officer</div>
-                    <div className="ipds-sig-box">
-                      Dr. {selectedAdmission.doctor_first_name} {selectedAdmission.doctor_last_name || ""}
-                      <br />
-                      <span style={{ fontSize: 10, color: "#64748b" }}>Consultant In-Charge</span>
-                    </div>
-                  </div>
+                <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+                  <IPDDischargePreview
+                    settings={dischargePrintSettings || DEFAULT_IPD_DISCHARGE_SETTINGS}
+                    data={mapAdmissionToDischargePayload(selectedAdmission, currentSummary)}
+                  />
                 </div>
               )}
             </div>
-
             {/* Modal Footer */}
             <div className="ipds-modal-foot">
               <button
@@ -699,7 +586,7 @@ export default function IPDDischargeSummary() {
                 <button
                   type="button"
                   className="ipds-btn ipds-btn--green"
-                  onClick={() => window.print()}
+                  onClick={() => handlePrintSummary(selectedAdmission, currentSummary)}
                 >
                   <Icon name="LuPrinter" size={15} /> Print Summary
                 </button>

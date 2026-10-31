@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SettingsService = exports.DEFAULT_IPD_SLIP_SETTINGS = exports.DEFAULT_OPD_SLIP_SETTINGS = exports.DEFAULT_ORG_ID = void 0;
+exports.SettingsService = exports.DEFAULT_IPD_DISCHARGE_SETTINGS = exports.DEFAULT_IPD_SLIP_SETTINGS = exports.DEFAULT_OPD_SLIP_SETTINGS = exports.DEFAULT_ORG_ID = void 0;
 const database_1 = require("../../config/database");
 const config_1 = require("../../config");
 const logger_1 = require("../../config/logger");
@@ -171,9 +171,189 @@ exports.DEFAULT_IPD_SLIP_SETTINGS = {
         },
     },
 };
+const field = (label, show = true) => ({ label, show });
+exports.DEFAULT_IPD_DISCHARGE_SETTINGS = {
+    hospital: {
+        name: 'Narayan Hospital',
+        subtitle: 'Super Speciality Healthcare & Research Institute',
+        registrationNo: 'REG/UP/2024/098',
+        address: 'Jansa, Varanasi, Uttar Pradesh, 221405',
+        phone: '+91 7388660408',
+        email: 'info@narayanhospital.com',
+        logoUrl: '/images/Narayan_Logo.png',
+    },
+    page: {
+        size: 'A4',
+        orientation: 'portrait',
+        margin: 9,
+        showPageNumber: true,
+        showGeneratedAt: true,
+    },
+    style: {
+        primary: '#173b63',
+        accent: '#087fbd',
+        text: '#17263b',
+        muted: '#64748b',
+        border: '#d7e1ec',
+        sectionBackground: '#f3f7fb',
+        fontFamily: 'Arial, sans-serif',
+        fontSize: 10,
+        compact: false,
+    },
+    header: {
+        title: 'DISCHARGE SUMMARY',
+        showLogo: true,
+        showSubtitle: true,
+        showRegistrationNo: true,
+        showAddress: true,
+        showContact: true,
+        showDocumentLabel: true,
+    },
+    patient: {
+        enabled: true,
+        title: 'PATIENT DETAILS',
+        fields: {
+            uhid: field('UHID No.'),
+            name: field('Patient Name'),
+            ageGender: field('Age / Gender'),
+            mobile: field('Mobile No.'),
+            address: field('Address'),
+            bloodGroup: field('Blood Group'),
+            allergies: field('Known Allergies / Allergy Status'),
+            guardian: field('Guardian / Attendant'),
+            relation: field('Relation'),
+        },
+    },
+    admission: {
+        enabled: true,
+        title: 'ADMISSION & DISCHARGE DETAILS',
+        fields: {
+            ipdNumber: field('IPD Admission No.'),
+            admissionDate: field('Date & Time of Admission'),
+            dischargeDate: field('Date & Time of Discharge'),
+            stay: field('Length of Stay'),
+            wardBed: field('Ward / Bed'),
+            department: field('Department'),
+            consultant: field('Treating Consultant'),
+            referredBy: field('Referred By', false),
+            dischargeType: field('Discharge Type'),
+            dischargeCondition: field('Condition at Discharge'),
+            destination: field('Discharged To', false),
+        },
+    },
+    diagnosis: {
+        enabled: true,
+        title: 'CLINICAL SUMMARY',
+        fields: {
+            chiefComplaints: field('Chief Complaints'),
+            history: field('Relevant History'),
+            examination: field('Examination on Admission', false),
+            primaryDiagnosis: field('Final / Primary Diagnosis'),
+            secondaryDiagnosis: field('Other Diagnoses / Comorbidities', false),
+            investigations: field('Important Investigations'),
+            procedures: field('Procedures / Operations', false),
+            treatmentGiven: field('Treatment During Admission'),
+            hospitalCourse: field('Brief Hospital Course'),
+        },
+    },
+    vitals: {
+        enabled: true,
+        title: 'VITALS AT DISCHARGE',
+        fields: {
+            bp: field('Blood Pressure'),
+            pulse: field('Pulse'),
+            temperature: field('Temperature'),
+            spo2: field('SpO₂'),
+            respiratoryRate: field('Respiratory Rate', false),
+            weight: field('Weight', false),
+            bloodSugar: field('Blood Sugar', false),
+            consciousness: field('Consciousness / Orientation', false),
+            mobility: field('Mobility', false),
+        },
+    },
+    billing: {
+        enabled: true,
+        title: 'BILLING SUMMARY & PAYMENT CLEARANCE',
+        showNoDuesCertificate: true,
+        showDepartmentBreakdown: false,
+        fields: {
+            totalCharges: field('Total IPD Charges'),
+            discount: field('Discount / Waiver', false),
+            amountPaid: field('Amount Paid'),
+            balance: field('Balance Outstanding'),
+            paymentMode: field('Payment Mode', false),
+            receiptNo: field('Receipt / Transaction No.', false),
+            clearanceStatus: field('Financial Clearance Status'),
+            verifiedBy: field('Clearance Verified By', false),
+        },
+    },
+    medicines: {
+        enabled: true,
+        title: 'DISCHARGE MEDICATIONS & DOSAGE REGIMEN',
+        note: 'Take medicines exactly as directed by the treating physician.',
+        showEmptyState: false,
+        columns: [
+            { key: 'sr', label: '#', show: true, width: 4 },
+            { key: 'medicine', label: 'Medicine Name & Formulation', show: true, width: 27 },
+            { key: 'dose', label: 'Dose', show: true, width: 14 },
+            { key: 'route', label: 'Route', show: false, width: 10 },
+            { key: 'frequency', label: 'Frequency & Timing', show: true, width: 22 },
+            { key: 'duration', label: 'Duration', show: true, width: 12 },
+            { key: 'instructions', label: 'Instructions', show: true, width: 19 },
+        ],
+    },
+    advice: {
+        enabled: true,
+        title: 'DISCHARGE ADVICE & FOLLOW-UP',
+        fields: {
+            followUpDate: field('Follow-up Date & Time'),
+            followUpDepartment: field('Follow-up Department / Clinic', false),
+            diet: field('Diet Advice'),
+            activity: field('Activity / Rest Advice'),
+            woundCare: field('Wound / Dressing Care', false),
+            pendingReports: field('Pending Reports / Results', false),
+            referral: field('Referral / Further Care', false),
+            warningSigns: field('When to Seek Emergency Care'),
+            emergencyContact: field('Emergency Contact'),
+        },
+    },
+    handover: {
+        enabled: false,
+        title: 'PATIENT HANDOVER & DOCUMENTS',
+        fields: {
+            documents: field('Documents / Reports Handed Over'),
+            belongings: field('Patient Belongings Returned', false),
+            devices: field('Devices / Implants / Lines', false),
+            attendant: field('Instructions Explained to Attendant', false),
+        },
+    },
+    signatures: {
+        enabled: true,
+        showPatient: true,
+        showNurse: true,
+        showResident: false,
+        showConsultant: true,
+        showStamp: true,
+        patientLabel: 'Patient / Attendant Signature',
+        nurseLabel: 'Discharging Nurse',
+        residentLabel: 'Resident Medical Officer',
+        consultantLabel: 'Treating Consultant',
+    },
+    footer: {
+        enabled: true,
+        showHospitalName: true,
+        showAddress: true,
+        showPhone: true,
+        showDisclaimer: true,
+        disclaimer: "This discharge summary is part of the patient's medical record. Please retain it and bring it to every follow-up visit.",
+        closingText: 'We wish you a smooth and speedy recovery.',
+    },
+    customSections: [],
+};
 const DEFAULT_SETTINGS_MAP = {
     print_slip_opd: exports.DEFAULT_OPD_SLIP_SETTINGS,
     print_slip_ipd: exports.DEFAULT_IPD_SLIP_SETTINGS,
+    print_slip_ipd_discharge: exports.DEFAULT_IPD_DISCHARGE_SETTINGS,
 };
 function deepMerge(target, source) {
     if (!source || typeof source !== 'object')

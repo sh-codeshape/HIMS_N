@@ -4,6 +4,7 @@ import OPDConsultationSlip from "../../components/slips/OPDConsultationSlip.jsx"
 import settingsService from "../../api/services/settingsService.js";
 import PrintSlipHandler from "../../services/PrintSlipHandler.js";
 import { DEFAULT_HOSPITAL_CONFIG } from "../../data/printlslip.data.jsx";
+import IPDDischargePrintSettings from "./IPDDischargePrintSettings.jsx";
 
 const SAMPLE_SLIP_DATA = {
   patientName: "Adeesh",
@@ -277,7 +278,7 @@ export default function PrintSlipSettings() {
     <div className="space-y-6">
       {/* Tab Switcher */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-3">
           <button
             type="button"
             onClick={() => setActiveTab("opd")}
@@ -289,6 +290,18 @@ export default function PrintSlipSettings() {
           >
             <Icon name="LuReceipt" size={16} />
             <span>OPD Consultation Slip</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("ipd-discharge")}
+            className={`px-4 py-2 font-bold text-sm rounded-lg flex items-center gap-2 transition-all ${
+              activeTab === "ipd-discharge"
+                ? "bg-sky-900 text-white shadow-sm"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
+          >
+            <Icon name="LuFileCheck" size={16} />
+            <span>IPD Discharge Summary</span>
           </button>
           <button
             type="button"
@@ -304,36 +317,41 @@ export default function PrintSlipSettings() {
           </button>
         </div>
 
-        {/* Global Action Buttons */}
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleReset}
-            className="px-3 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 flex items-center gap-1.5"
-          >
-            <Icon name="LuRotateCcw" size={14} /> Reset Defaults
-          </button>
-          <button
-            type="button"
-            onClick={handleTestPrint}
-            className="px-4 py-2 text-xs font-bold text-sky-800 bg-sky-50 border border-sky-300 rounded-lg hover:bg-sky-100 flex items-center gap-1.5"
-          >
-            <Icon name="LuPrinter" size={15} /> Test Print
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="px-5 py-2 text-xs font-bold text-white bg-sky-900 rounded-lg hover:bg-sky-950 shadow-md flex items-center gap-1.5 disabled:opacity-50"
-          >
-            <Icon name={saving ? "LuLoader" : "LuSave"} size={15} />
-            <span>{saving ? "Saving to Database..." : "Save Settings to Database"}</span>
-          </button>
-        </div>
+        {/* Global Action Buttons for OPD */}
+        {activeTab !== "ipd-discharge" && (
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleReset}
+              className="px-3 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 flex items-center gap-1.5"
+            >
+              <Icon name="LuRotateCcw" size={14} /> Reset Defaults
+            </button>
+            <button
+              type="button"
+              onClick={handleTestPrint}
+              className="px-4 py-2 text-xs font-bold text-sky-800 bg-sky-50 border border-sky-300 rounded-lg hover:bg-sky-100 flex items-center gap-1.5"
+            >
+              <Icon name="LuPrinter" size={15} /> Test Print
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="px-5 py-2 text-xs font-bold text-white bg-sky-900 rounded-lg hover:bg-sky-950 shadow-md flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Icon name={saving ? "LuLoader" : "LuSave"} size={15} />
+              <span>{saving ? "Saving to Database..." : "Save Settings to Database"}</span>
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Save Notification */}
-      {saveStatus && (
+      {/* Render IPD Discharge Designer Tab */}
+      {activeTab === "ipd-discharge" && <IPDDischargePrintSettings />}
+
+      {/* Save Notification for OPD */}
+      {activeTab !== "ipd-discharge" && saveStatus && (
         <div
           className={`p-3.5 rounded-xl border text-sm font-medium flex items-center justify-between ${
             saveStatus.type === "success"
@@ -356,9 +374,10 @@ export default function PrintSlipSettings() {
       )}
 
       {/* Main Split Grid: Left Form Controls, Right Live Preview */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-        {/* LEFT COLUMN: Controls Form (5 cols) */}
-        <div className="xl:col-span-5 space-y-6">
+      {activeTab !== "ipd-discharge" && (
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+          {/* LEFT COLUMN: Controls Form (5 cols) */}
+          <div className="xl:col-span-5 space-y-6">
           {/* Card 1: Hospital Identity & Logo */}
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
             <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
@@ -748,6 +767,7 @@ export default function PrintSlipSettings() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

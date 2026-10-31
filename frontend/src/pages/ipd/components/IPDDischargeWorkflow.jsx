@@ -4,6 +4,12 @@ import toast from "react-hot-toast";
 import Icon from "../../../components/common/Icon.jsx";
 import ipdService from "../../../api/services/ipdService";
 import billingService from "../../../api/services/billingService";
+import IPDDischargePrintHandler from "../../settings/IPDDischargePrintHandler.js";
+import { IPDDischargePreview } from "../../settings/IPDDischargePrintSettings.jsx";
+import {
+  mapAdmissionToDischargePayload,
+  DEFAULT_IPD_DISCHARGE_SETTINGS,
+} from "../../settings/ipdDischargePrintConfig.js";
 import "../IPDDischarge.css";
 
 const DISCHARGE_TYPES = [
@@ -298,9 +304,11 @@ export default function IPDDischargeWorkflow({ admission, onBack }) {
     setDischargeForm((prev) => ({ ...prev, diet_advice: newText }));
   };
 
-  // Printable Summary Modal State
+  // Printable Summary Modal State & Configurable Settings
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [currentSummary, setCurrentSummary] = useState(null);
+  const [dischargePrintSettings, setDischargePrintSettings] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
   // Fetch real-time pending dues for clearance from backend
   const fetchPendingDues = useCallback(async (encounterId) => {
@@ -575,12 +583,22 @@ export default function IPDDischargeWorkflow({ admission, onBack }) {
     }
   };
 
-  // Open Printable Summary with real live discharge state
+  // Open Printable Summary with real live discharge state and loaded settings
   const handleOpenSummary = async () => {
     try {
-      const summary = await ipdService.getDischargeSummary(admission.id);
+      setSummaryLoading(true);
+      const [summary, settings] = await Promise.all([
+        ipdService.getDischargeSummary(admission.id).catch(() => null),
+        IPDDischargePrintHandler.getSettings().catch(() => null),
+      ]);
+
+      if (settings) {
+        setDischargePrintSettings(settings);
+      }
+
       setCurrentSummary(summary || {
         final_diagnosis: dischargeForm.final_diagnosis || admission.admission_diagnosis || "Inpatient Clinical Care",
+        history_of_present_illness: dischargeForm.history_of_present_illness || "",
         hospital_course: dischargeForm.hospital_course || "Patient received active inpatient medical management and supportive treatment.",
         procedures_performed: dischargeForm.procedures_performed || "Vital monitoring, IV therapy, routine diagnostics, and scheduled medication.",
         condition_at_discharge: dischargeForm.discharge_condition,
@@ -590,13 +608,32 @@ export default function IPDDischargeWorkflow({ admission, onBack }) {
         activity_advice: dischargeForm.activity_advice,
         data: {
           medications: dischargeForm.medications,
-          clearances: clearanceChecklist
-        }
+          clearances: clearanceChecklist,
+        },
       });
       setPrintModalOpen(true);
     } catch (err) {
       console.error(err);
       toast.error("Could not fetch discharge summary details.");
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  // Trigger high-fidelity print window using saved settings & data contract mapping
+  const handlePrintDischargeSummary = async () => {
+    try {
+      const payload = mapAdmissionToDischargePayload(
+        admission,
+        currentSummary,
+        dischargeForm,
+        pendingDues
+      );
+      // In the real discharge workflow, omit settingsOverride so saved settings from DB are applied
+      await IPDDischargePrintHandler.printDischargeSummary(payload);
+    } catch (err) {
+      console.error("Discharge summary print error:", err);
+      toast.error("Failed to generate printable discharge summary.");
     }
   };
 
@@ -1290,38 +1327,73 @@ export default function IPDDischargeWorkflow({ admission, onBack }) {
       </div>
 
       {/* Printable Official Discharge Slip Modal */}
-      {printModalOpen && admission && currentSummary && (() => {
-        const totalCharges = Number(admission.total_charges ?? pendingDues?.totalCharges ?? 0);
-        const totalPayments = Number(
-          admission.total_payments ??
-          pendingDues?.totalPayments ??
-          (admission.discharged_at ? totalCharges : (pendingDues?.cleared ? totalCharges : 0))
+      {/* Printable Official Discharge Slip Modal */}
+      {printModalOpen && admission && (() => {
+        const payload = mapAdmissionToDischargePayload(
+          admission,
+          currentSummary,
+          dischargeForm,
+          pendingDues
         );
-        const balanceDue = Math.max(0, totalCharges - totalPayments);
-        const isBillingCleared = balanceDue === 0 || !!admission.discharged_at || Boolean(pendingDues?.cleared);
-        const rxList = currentSummary.data?.medications || dischargeForm.medications;
+        const activeSettings = dischargePrintSettings || DEFAULT_IPD_DISCHARGE_SETTINGS;
 
         return (
           <div className="ipd-modal-overlay" onClick={() => setPrintModalOpen(false)}>
-            <div className="ipd-modal-card ipd-print-modal-card" onClick={(e) => e.stopPropagation()}>
-              <div className="ipd-modal-header ipd-print-modal-head">
+            <div
+              className="ipd-modal-card ipd-print-modal-card"
+              style={{
+                maxWidth: "960px",
+                width: "95vw",
+                maxHeight: "92vh",
+                display: "flex",
+                flexDirection: "column",
+                borderRadius: "16px",
+                overflow: "hidden",
+                boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="ipd-modal-header ipd-print-modal-head" style={{ padding: "14px 20px" }}>
                 <div className="ipd-print-modal-title-group">
-                  <div className="ipd-print-modal-badge-icon">
+                  <div className="ipd-print-modal-badge-icon" style={{ background: "#0284c7", color: "white" }}>
                     <Icon name="LuFileCheck" size={18} />
                   </div>
                   <div>
-                    <h3 className="ipd-modal-title">Clinical Discharge Summary &amp; Clearance Certificate</h3>
-                    <p className="ipd-modal-sub">
-                      Patient: <strong>{patientFullName}</strong> (UHID: {admission.uhid || "—"}) • IPD Adm: {admission.admission_no}
+                    <h3 className="ipd-modal-title" style={{ fontSize: "16px", fontWeight: 800 }}>
+                      Clinical Discharge Summary &amp; Clearance Certificate
+                    </h3>
+                    <p className="ipd-modal-sub" style={{ fontSize: "12px", color: "#64748b" }}>
+                      Patient: <strong style={{ color: "#0f172a" }}>{payload.patient.name}</strong> (UHID: {payload.patient.uhid}) • IPD Adm: <strong>{payload.admission.ipdNumber}</strong>
                     </p>
                   </div>
                 </div>
-                <div className="ipd-print-modal-actions">
+
+                <div className="ipd-print-modal-actions" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/settings")}
+                    className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 flex items-center gap-1.5 shadow-sm transition-all"
+                    title="Customize discharge layout, fields, and hospital branding in Settings"
+                  >
+                    <Icon name="LuSliders" size={14} /> Customize Slip
+                  </button>
                   <button
                     type="button"
                     className="ipd-btn-print-primary"
-                    onClick={() => window.print()}
+                    onClick={handlePrintDischargeSummary}
                     title="Print Official Slip (Ctrl + P)"
+                    style={{
+                      background: "#0369a1",
+                      color: "#fff",
+                      fontWeight: 700,
+                      padding: "8px 16px",
+                      borderRadius: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      boxShadow: "0 2px 4px rgba(2, 132, 199, 0.2)",
+                    }}
                   >
                     <Icon name="LuPrinter" size={15} /> Print Summary Slip
                   </button>
@@ -1336,299 +1408,93 @@ export default function IPDDischargeWorkflow({ admission, onBack }) {
                 </div>
               </div>
 
-              <div className="ipd-modal-body ipd-print-modal-body-scroll">
-                <div className="ipd-print-sheet" id="ipd-printable-discharge-document">
-                  {/* Top Hospital Branding Header */}
-                  <div className="ipd-doc-header">
-                    <div className="ipd-doc-header-main">
-                      <div className="ipd-doc-logo-box">
-                        <Icon name="LuPlus" size={26} />
-                      </div>
-                      <div className="ipd-doc-hospital-info">
-                        <h1 className="ipd-doc-hospital-title">NARAYAN HOSPITAL &amp; MEDICAL RESEARCH CENTRE</h1>
-                        <p className="ipd-doc-hospital-tagline">
-                          NABH &amp; NABL Accredited Multi-Specialty Tertiary Hospital • 24x7 Emergency &amp; Trauma Care
-                        </p>
-                        <p className="ipd-doc-hospital-meta">
-                          Station Road, Civil Lines, Kota, Rajasthan - 324001 • Helpline: +91 744 2450000 / +91 11-45678900
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="ipd-doc-header-badge-side">
-                      <div className="ipd-doc-type-pill">
-                        <span className="ipd-doc-type-primary">DISCHARGE SUMMARY</span>
-                        <span className="ipd-doc-type-sub">&amp; FINANCIAL CLEARANCE</span>
-                      </div>
-                      <div className="ipd-barcode-container">
-                        <div className="ipd-barcode-lines"></div>
-                        <span className="ipd-barcode-code">*{admission.uhid || "UHID"}-{admission.admission_no}*</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="ipd-doc-divider-stripe"></div>
-
-                  {/* Demographics Card */}
-                  <div className="ipd-demographics-card">
-                    <div className="ipd-demo-col">
-                      <div className="ipd-demo-col-head">
-                        <Icon name="LuUser" size={13} />
-                        <span>PATIENT IDENTIFICATION (रोगी विवरण)</span>
-                      </div>
-                      <div className="ipd-demo-row">
-                        <span className="ipd-demo-lbl">Full Name:</span>
-                        <span className="ipd-demo-val ipd-demo-val--highlight">{patientFullName}</span>
-                      </div>
-                      <div className="ipd-demo-row">
-                        <span className="ipd-demo-lbl">UHID No:</span>
-                        <span className="ipd-demo-val ipd-demo-val--mono">{admission.uhid || "—"}</span>
-                      </div>
-                      <div className="ipd-demo-row">
-                        <span className="ipd-demo-lbl">Age / Gender:</span>
-                        <span className="ipd-demo-val">
-                          {admission.age ? `${admission.age} Yrs` : "Adult"} / {admission.gender ? admission.gender.toUpperCase() : "—"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="ipd-demo-col">
-                      <div className="ipd-demo-col-head">
-                        <Icon name="LuBed" size={13} />
-                        <span>INPATIENT STAY (भर्ती एवं प्रवास)</span>
-                      </div>
-                      <div className="ipd-demo-row">
-                        <span className="ipd-demo-lbl">IPD Adm. No:</span>
-                        <span className="ipd-demo-val ipd-demo-val--mono ipd-demo-val--bold">{admission.admission_no}</span>
-                      </div>
-                      <div className="ipd-demo-row">
-                        <span className="ipd-demo-lbl">Ward &amp; Bed:</span>
-                        <span className="ipd-demo-val ipd-bed-badge">
-                          {admission.ward_name || "General Ward"} • Bed {admission.bed_name || "—"}
-                        </span>
-                      </div>
-                      <div className="ipd-demo-row">
-                        <span className="ipd-demo-lbl">Total Stay:</span>
-                        <span className="ipd-demo-val ipd-stay-highlight">
-                          <strong>{daysStay}</strong> Day{daysStay > 1 ? "s" : ""} Stay
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="ipd-demo-col">
-                      <div className="ipd-demo-col-head">
-                        <Icon name="LuStethoscope" size={13} />
-                        <span>MEDICAL TEAM</span>
-                      </div>
-                      <div className="ipd-demo-row">
-                        <span className="ipd-demo-lbl">Consultant:</span>
-                        <span className="ipd-demo-val ipd-demo-val--bold ipd-demo-val--blue">{attendingDoc}</span>
-                      </div>
-                      <div className="ipd-demo-row">
-                        <span className="ipd-demo-lbl">Discharge Type:</span>
-                        <span className={`ipd-doc-status-tag ipd-doc-status-tag--${admission.discharge_type || "normal"}`}>
-                          {admission.discharge_type ? admission.discharge_type.toUpperCase() : "NORMAL / PLANNED"}
-                        </span>
-                      </div>
-                      <div className="ipd-demo-row">
-                        <span className="ipd-demo-lbl">Condition:</span>
-                        <span className="ipd-demo-val" style={{ color: "#047857", fontWeight: 700 }}>
-                          {currentSummary.condition_at_discharge || dischargeForm.discharge_condition}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Vitals Strip */}
-                  <div className="ipd-vitals-strip">
-                    <div className="ipd-vitals-strip-title">
-                      <Icon name="LuActivity" size={13} />
-                      <span>DISCHARGE VITALS (डिस्चार्ज के समय शारीरिक स्थिति):</span>
-                    </div>
-                    <div className="ipd-vitals-pills-row">
-                      <div className="ipd-vitals-pill">
-                        <span className="ipd-vitals-lbl">Pulse:</span>
-                        <span className="ipd-vitals-num">76 bpm</span>
-                        <small>Regular</small>
-                      </div>
-                      <div className="ipd-vitals-pill">
-                        <span className="ipd-vitals-lbl">BP:</span>
-                        <span className="ipd-vitals-num">120/80</span>
-                        <small>mmHg</small>
-                      </div>
-                      <div className="ipd-vitals-pill">
-                        <span className="ipd-vitals-lbl">Temp:</span>
-                        <span className="ipd-vitals-num">98.4 °F</span>
-                        <small>Afebrile</small>
-                      </div>
-                      <div className="ipd-vitals-pill">
-                        <span className="ipd-vitals-lbl">SpO2:</span>
-                        <span className="ipd-vitals-num">99%</span>
-                        <small>Room Air</small>
-                      </div>
-                      <div className="ipd-vitals-pill">
-                        <span className="ipd-vitals-lbl">Status:</span>
-                        <span className="ipd-vitals-num" style={{ color: "#059669" }}>Ambulatory</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Diagnosis & Course */}
-                  <div className="ipd-clinical-section">
-                    <div className="ipd-clinical-block">
-                      <div className="ipd-clinical-header">
-                        <Icon name="LuFileText" size={14} />
-                        <h4>FINAL CLINICAL DIAGNOSIS</h4>
-                      </div>
-                      <div className="ipd-diagnosis-box">
-                        <span className="ipd-diag-main">{currentSummary.final_diagnosis || dischargeForm.final_diagnosis || "Inpatient Clinical Management"}</span>
-                      </div>
-                    </div>
-
-                    <div className="ipd-clinical-block">
-                      <div className="ipd-clinical-header">
-                        <Icon name="LuClock" size={14} />
-                        <h4>BRIEF CLINICAL HISTORY &amp; INPATIENT COURSE</h4>
-                      </div>
-                      <p className="ipd-clinical-body">{currentSummary.hospital_course || dischargeForm.hospital_course}</p>
-                    </div>
-                  </div>
-
-                  {/* Billing Clearance Card */}
-                  <div className="ipd-billing-summary-card">
-                    <div className="ipd-billing-card-top">
-                      <div className="ipd-billing-card-heading">
-                        <div className="ipd-billing-card-icon">
-                          <Icon name="LuReceipt" size={16} />
-                        </div>
-                        <div>
-                          <h4 className="ipd-billing-card-title">INPATIENT BILLING SUMMARY &amp; PAYMENT CLEARANCE</h4>
-                          <p className="ipd-billing-card-sub">अस्पताल बिलिंग एवं सम्पूर्ण भुगतान प्रमाण-पत्र</p>
-                        </div>
-                      </div>
-                      <div className="ipd-billing-clearance-badge">
-                        {isBillingCleared ? (
-                          <span className="ipd-badge-cleared">
-                            <Icon name="LuShieldCheck" size={14} /> ALL DUES CLEARED (पूर्ण भुगतान प्राप्त)
-                          </span>
-                        ) : (
-                          <span className="ipd-badge-pending">
-                            <Icon name="LuAlertCircle" size={14} /> PENDING BALANCE: ₹{balanceDue.toLocaleString("en-IN")}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="ipd-billing-kpi-grid">
-                      <div className="ipd-billing-kpi">
-                        <span className="ipd-bk-label">Total IPD Charges</span>
-                        <span className="ipd-bk-amount">₹{totalCharges.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
-                      </div>
-                      <div className="ipd-billing-kpi">
-                        <span className="ipd-bk-label">Payments Received</span>
-                        <span className="ipd-bk-amount ipd-bk-amount--green">₹{totalPayments.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
-                      </div>
-                      <div className="ipd-billing-kpi">
-                        <span className="ipd-bk-label">Net Balance Outstanding</span>
-                        <span className={`ipd-bk-amount ${balanceDue === 0 ? "ipd-bk-amount--zero" : "ipd-bk-amount--red"}`}>₹{balanceDue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
-                      </div>
-                      <div className="ipd-billing-kpi ipd-billing-kpi--status">
-                        <span className="ipd-bk-label">Status</span>
-                        <div className="ipd-bk-status-pill">
-                          <Icon name="LuCheckCircle" size={13} />
-                          <span>{isBillingCleared ? "NO DUES • CERTIFIED" : "SETTLEMENT PENDING"}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Discharge Medications (Rx) Table */}
-                  <div className="ipd-rx-section">
-                    <div className="ipd-rx-section-header">
-                      <div className="ipd-rx-title-left">
-                        <span className="ipd-rx-symbol">℞</span>
-                        <h4 className="ipd-rx-title">DISCHARGE MEDICATIONS (डिस्चार्ज दवाइयाँ)</h4>
-                      </div>
-                    </div>
-
-                    <table className="ipd-rx-table-pro">
-                      <thead>
-                        <tr>
-                          <th style={{ width: "5%" }}>#</th>
-                          <th style={{ width: "35%" }}>Medicine Name</th>
-                          <th style={{ width: "15%" }}>Dosage</th>
-                          <th style={{ width: "30%" }}>Frequency / Timing</th>
-                          <th style={{ width: "15%" }}>Duration</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rxList.map((m, i) => (
-                          <tr key={i}>
-                            <td className="ipd-rx-idx">{i + 1}</td>
-                            <td className="ipd-rx-med-name"><strong>{m.name}</strong></td>
-                            <td><span className="ipd-dose-pill">{m.dosage}</span></td>
-                            <td><span className="ipd-timing-text">{m.frequency}</span></td>
-                            <td><span className="ipd-days-pill">{m.days}</span></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Follow-up & Guidance */}
-                  <div className="ipd-guidelines-grid">
-                    <div className="ipd-guide-card">
-                      <div className="ipd-guide-head">
-                        <Icon name="LuCalendar" size={14} />
-                        <h5>FOLLOW-UP REVIEW</h5>
-                      </div>
-                      <p><strong>Date:</strong> {currentSummary.follow_up_date || dischargeForm.follow_up_date || "After 5 Days"}</p>
-                      <p><strong>Consultant:</strong> {attendingDoc}</p>
-                    </div>
-
-                    <div className="ipd-guide-card">
-                      <div className="ipd-guide-head">
-                        <Icon name="LuActivity" size={14} />
-                        <h5>DIET &amp; ACTIVITY</h5>
-                      </div>
-                      <p>{currentSummary.diet_advice || dischargeForm.diet_advice}</p>
-                    </div>
-
-                    <div className="ipd-guide-card ipd-guide-card--emergency">
-                      <div className="ipd-guide-head ipd-guide-head--red">
-                        <Icon name="LuAlertTriangle" size={14} />
-                        <h5>EMERGENCY WARNING SIGNS</h5>
-                      </div>
-                      <p className="ipd-redflag-text">{currentSummary.follow_up_instructions || dischargeForm.follow_up_instructions}</p>
-                    </div>
-                  </div>
-
-                  {/* 3 Signatures */}
-                  <div className="ipd-signatures-wrapper">
-                    <div className="ipd-sig-column">
-                      <div className="ipd-sig-line"></div>
-                      <div className="ipd-sig-title">Patient / Attendant Signature</div>
-                    </div>
-                    <div className="ipd-sig-column">
-                      <div className="ipd-sig-line"></div>
-                      <div className="ipd-sig-title">Resident Medical Officer</div>
-                    </div>
-                    <div className="ipd-sig-column">
-                      <div className="ipd-sig-stamp-seal">HOSPITAL SEAL</div>
-                      <div className="ipd-sig-line"></div>
-                      <div className="ipd-sig-title">{attendingDoc}</div>
-                    </div>
-                  </div>
+              {/* Modal Body with WYSIWYG Preview */}
+              <div
+                className="ipd-modal-body ipd-print-modal-body-scroll"
+                style={{
+                  background: "#f1f5f9",
+                  padding: "24px 16px",
+                  overflowY: "auto",
+                  flex: 1,
+                }}
+              >
+                <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+                  <IPDDischargePreview settings={activeSettings} data={payload} />
                 </div>
               </div>
 
-              <div className="ipd-modal-footer ipd-print-modal-foot">
-                <button type="button" className="ipd-btn-summary" onClick={() => setPrintModalOpen(false)}>
-                  Close
-                </button>
-                <button type="button" onClick={() => window.print()} className="ipd-btn-print-primary">
-                  <Icon name="LuPrinter" size={15} /> Print Summary Slip
-                </button>
+              {/* Modal Footer */}
+              <div
+                className="ipd-modal-footer ipd-print-modal-foot"
+                style={{
+                  padding: "12px 20px",
+                  background: "#ffffff",
+                  borderTop: "1px solid #e2e8f0",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <div className="flex items-center gap-3 text-xs">
+                  <span
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: "14px",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      background: payload.billing.isCleared ? "#ecfdf5" : "#fffbeb",
+                      color: payload.billing.isCleared ? "#065f46" : "#92400e",
+                      border: `1px solid ${payload.billing.isCleared ? "#a7f3d0" : "#fde68a"}`,
+                    }}
+                  >
+                    <Icon name={payload.billing.isCleared ? "LuCheckCircle" : "LuAlertTriangle"} size={13} />
+                    {payload.billing.clearanceStatus}
+                  </span>
+                  <span style={{ color: "#64748b" }}>
+                    Stay: <strong style={{ color: "#334155" }}>{payload.admission.stay}</strong> • Rx: <strong style={{ color: "#334155" }}>{payload.medicines.length} Medications</strong>
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <button
+                    type="button"
+                    className="ipd-btn-summary"
+                    onClick={() => setPrintModalOpen(false)}
+                    style={{
+                      padding: "8px 16px",
+                      borderRadius: "8px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      background: "#f8fafc",
+                      border: "1px solid #cbd5e1",
+                      color: "#475569",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Close Preview
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePrintDischargeSummary}
+                    className="ipd-btn-print-primary"
+                    style={{
+                      background: "#0369a1",
+                      color: "#fff",
+                      fontWeight: 700,
+                      padding: "8px 18px",
+                      borderRadius: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Icon name="LuPrinter" size={15} /> Print Summary Slip
+                  </button>
+                </div>
               </div>
             </div>
           </div>
