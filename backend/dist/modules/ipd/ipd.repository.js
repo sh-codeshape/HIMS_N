@@ -141,53 +141,35 @@ class IpdRepository {
             const admission = admissionResult.rows[0];
             // ── 3. Assign Bed (if provided) ──
             if (bedId) {
+                // 3a. Ensure any previous unclosed assignment on this bed is safely closed
+                await client.query(`UPDATE bed_assignments
+           SET assigned_to = GREATEST(assigned_from + interval '1 millisecond', NOW())
+           WHERE bed_id = $1 AND assigned_to IS NULL`, [bedId]);
+                // 3b. Insert new bed assignment ensuring assigned_from is strictly after any previous assigned_to
                 const bedAssignQuery = `
+          WITH prev AS (
+            SELECT COALESCE(MAX(assigned_to), NOW() - interval '1 second') AS max_to
+            FROM bed_assignments
+            WHERE bed_id = $2
+          )
           INSERT INTO bed_assignments (
             admission_id,
             bed_id,
             assigned_from
-          ) VALUES ($1, $2, NOW())
+          )
+          SELECT $1, $2, GREATEST(NOW(), prev.max_to + interval '1 millisecond')
+          FROM prev
           RETURNING *;
         `;
                 await client.query(bedAssignQuery, [admission.id, bedId]);
                 // 4. Update Bed Status
                 await client.query(`UPDATE beds SET status = 'occupied', updated_at = NOW() WHERE id = $1`, [bedId]);
             }
-            // ── 5. Billing initialization: advance deposit charge + payment ──
+            // ── 5. Billing initialization: advance deposit payment ──
             let chargeResult = null;
             let paymentResult = null;
             if (advanceDeposit && Number(advanceDeposit.amount) > 0) {
-                // 5a. Charge row for the advance deposit (billable, patient responsibility)
-                const chargeQuery = `
-          INSERT INTO charges (
-            organization_id, facility_id, patient_id, encounter_id,
-            service_id, item_id, description, department_id,
-            quantity, unit_price, discount_percent, discount_amount,
-            taxable_amount, tax_amount, net_amount,
-            responsibility, patient_coverage_id, status, source_type,
-            custom_fields, created_by, updated_by
-          ) VALUES (
-            $1, $2, $3, $4,
-            NULL, NULL, $5, $6,
-            1, $7, 0, 0,
-            $7, 0, $7,
-            'patient', $8, 'billable', 'manual',
-            $9, NULL, NULL
-          ) RETURNING *;
-        `;
-                chargeResult = await client.query(chargeQuery, [
-                    organizationId,
-                    facilityId,
-                    patientId,
-                    encounter.id,
-                    `Advance deposit (admission ${admissionNo})`,
-                    departmentId || null,
-                    Number(advanceDeposit.amount),
-                    patientCoverageId || null,
-                    JSON.stringify({ advance_deposit: true, receipt_no: advanceDeposit.receipt_no || null })
-                ]);
-                chargeResult = chargeResult.rows[0];
-                // 5b. Resolve payment method for the advance payment mode
+                // 5a. Resolve payment method for the advance payment mode
                 let paymentMethodId = null;
                 const paymentMode = String(advanceDeposit.payment_mode || '').trim();
                 if (paymentMode) {
@@ -363,15 +345,65 @@ class IpdRepository {
         const result = await database_1.db.query(query, params);
         return { rows: result.rows, totalCount };
     }
+    async getAdmissionById(admissionId) {
+        const query = `
+      SELECT a.*, e.encounter_no, p.first_name, p.last_name, p.uhid, p.phone,
+             p.gender, p.date_of_birth, p.custom_fields as patient_custom_fields,
+             COALESCE(curr_b.bed_no, last_b.bed_no) as bed_name,
+             COALESCE(curr_w.name, last_w.name) as ward_name,
+             s.first_name as doctor_first_name, s.last_name as doctor_last_name,
+             COALESCE((
+               SELECT SUM(c.net_amount) FROM charges c
+               WHERE c.encounter_id = e.id AND c.status = 'billable' AND COALESCE(c.custom_fields->>'advance_deposit', 'false') != 'true'
+             ), 0) as total_charges,
+             COALESCE((
+               SELECT SUM(p.amount) FROM payments p
+               WHERE p.encounter_id = e.id AND p.status = 'completed' AND p.direction = 'in'
+             ), 0) as total_payments
+      FROM admissions a
+      JOIN encounters e ON a.encounter_id = e.id
+      JOIN patients p ON e.patient_id = p.id
+      LEFT JOIN bed_assignments curr_ba ON curr_ba.admission_id = a.id AND curr_ba.assigned_to IS NULL
+      LEFT JOIN beds curr_b ON curr_ba.bed_id = curr_b.id
+      LEFT JOIN wards curr_w ON curr_b.ward_id = curr_w.id
+      LEFT JOIN LATERAL (
+        SELECT ba.bed_id, b.bed_no, w.name
+        FROM bed_assignments ba
+        JOIN beds b ON ba.bed_id = b.id
+        LEFT JOIN wards w ON b.ward_id = w.id
+        WHERE ba.admission_id = a.id
+        ORDER BY ba.assigned_from DESC
+        LIMIT 1
+      ) last_b ON true
+      LEFT JOIN wards last_w ON last_w.name = last_b.name
+      LEFT JOIN practitioners prac ON a.attending_practitioner_id = prac.id OR a.admitting_practitioner_id = prac.id
+      LEFT JOIN staff s ON prac.staff_id = s.id
+      WHERE a.id::text = $1 OR a.admission_no = $1
+      LIMIT 1
+    `;
+        const res = await database_1.db.query(query, [admissionId]);
+        return res.rows[0] || null;
+    }
     /**
-     * Bill phase: full pending dues for an encounter/encounter admission.
-     * Aggregates billable charges grouped by department × source_type, nets against
-     * completed payments, allocates payments deterministically, rolls up to a
-     * department-level breakdown, and flags per-group clearance for the IPD
-     * discharge workflow (clearance can be drilled into by fee type / source).
+     * Bill phase: full pending dues for an encounter or admission.
+     * Resolves admission_id to encounter_id if necessary.
+     * Aggregates billable charges (excluding advance deposit charges),
+     * nets against completed payments, calculates excess amounts and wallet balance.
      */
-    async getPendingDues(encounterId) {
+    async getPendingDues(id) {
+        // 1. Resolve encounter_id and patient information
+        const encRes = await database_1.db.query(`SELECT e.id as encounter_id, a.id as admission_id, e.patient_id, p.custom_fields as patient_custom_fields
+       FROM encounters e
+       JOIN patients p ON e.patient_id = p.id
+       LEFT JOIN admissions a ON a.encounter_id = e.id
+       WHERE e.id::text = $1 OR a.id::text = $1
+       LIMIT 1`, [id]);
+        const encounterId = encRes.rows[0]?.encounter_id || id;
+        const admissionId = encRes.rows[0]?.admission_id || null;
+        const patientId = encRes.rows[0]?.patient_id || null;
+        const walletBalance = Number(encRes.rows[0]?.patient_custom_fields?.wallet_balance || 0);
         // Full breakdown: billable charges grouped by department × source_type
+        // Exclude any manual charge created mistakenly for advance deposit or cancelled
         const rows = await database_1.db.query(`SELECT
          d.id AS department_id,
          COALESCE(d.name, 'Uncategorized') AS department,
@@ -382,22 +414,28 @@ class IpdRepository {
        FROM charges c
        LEFT JOIN departments d ON d.id = c.department_id
        WHERE c.encounter_id = $1 AND c.status = 'billable'
+         AND COALESCE(c.custom_fields->>'advance_deposit', 'false') != 'true'
        GROUP BY d.id, d.name, d.department_type, c.source_type
        ORDER BY d.name, c.source_type`, [encounterId]);
-        // Total completed payments for this encounter
+        // Total completed payments received for this encounter
         const paymentRows = await database_1.db.query(`SELECT COALESCE(SUM(amount), 0)::numeric AS total_payments
        FROM payments
-       WHERE encounter_id = $1 AND status = 'completed'`, [encounterId]);
-        const totalPayments = Number(paymentRows.rows[0]?.total_payments || 0);
+       WHERE encounter_id = $1 AND status = 'completed' AND direction = 'in'`, [encounterId]);
+        // Total refunds given
+        const refundRows = await database_1.db.query(`SELECT COALESCE(SUM(amount), 0)::numeric AS total_refunds
+       FROM payments
+       WHERE encounter_id = $1 AND status = 'completed' AND direction = 'out'`, [encounterId]);
+        const netPayments = Math.max(0, Number(paymentRows.rows[0]?.total_payments || 0) - Number(refundRows.rows[0]?.total_refunds || 0));
         const totalCharges = Number(rows.rows.reduce((acc, r) => acc + Number(r.charges || 0), 0));
-        const pendingAmount = Math.max(0, totalCharges - totalPayments);
+        const pendingAmount = Math.max(0, totalCharges - netPayments);
+        const excessAmount = Math.max(0, netPayments - totalCharges);
         // Allocate payments across full groups deterministically:
         // highest outstanding balance first (tie-break: department, then source type).
         // A group is "cleared" only when its charges are fully covered.
         const sortedRows = [...rows.rows].sort((a, b) => Number(b.charges || 0) - Number(a.charges || 0) ||
             String(a.department || '').localeCompare(String(b.department || '')) ||
             String(a.source_type || '').localeCompare(String(b.source_type || '')));
-        let paymentsRemaining = totalPayments;
+        let paymentsRemaining = netPayments;
         const sourceGroups = sortedRows.map((row) => {
             const charges = Number(row.charges || 0);
             const covered = Math.min(paymentsRemaining, charges);
@@ -439,18 +477,34 @@ class IpdRepository {
         const allCleared = pendingAmount === 0;
         return {
             encounterId,
+            admissionId,
+            patientId,
             totalCharges,
-            totalPayments,
+            totalPayments: netPayments,
             pendingAmount,
+            excessAmount,
+            walletBalance,
             cleared: allCleared,
             breakdown,
             sourceBreakdown: sourceGroups,
         };
     }
-    async dischargePatient(facilityId, admissionId, dischargeType, dischargeCondition) {
+    async dischargePatient(facilityId, admissionId, dischargeType, dischargeCondition, autoWalletCredit) {
         const client = await database_1.db.getClient();
         try {
             await client.query('BEGIN');
+            // 1. Fetch admission and patient record
+            const admLookup = await client.query(`SELECT a.*, e.patient_id, p.custom_fields as patient_custom_fields
+         FROM admissions a
+         JOIN encounters e ON a.encounter_id = e.id
+         JOIN patients p ON e.patient_id = p.id
+         WHERE a.id = $1
+         LIMIT 1`, [admissionId]);
+            if (admLookup.rows.length === 0) {
+                throw new Error('Admission not found');
+            }
+            const admData = admLookup.rows[0];
+            // 2. Mark admission as discharged
             const admissionQuery = `
         UPDATE admissions
         SET status = 'discharged',
@@ -458,11 +512,11 @@ class IpdRepository {
             discharge_type = $1,
             discharge_condition = $2,
             updated_at = NOW()
-        WHERE id = $3 AND facility_id = $4
+        WHERE id = $3
         RETURNING *;
       `;
             const admissionRes = await client.query(admissionQuery, [
-                dischargeType, dischargeCondition || null, admissionId, facilityId
+                dischargeType, dischargeCondition || null, admissionId
             ]);
             const admission = admissionRes.rows[0];
             if (admission) {
@@ -474,7 +528,7 @@ class IpdRepository {
               updated_at = NOW()
           WHERE id = $1
         `, [admission.encounter_id]);
-                // Unassign bed
+                // Vacate bed: Unassign bed and set bed status to available immediately
                 const bedAssignRes = await client.query(`
           UPDATE bed_assignments
           SET assigned_to = NOW()
@@ -485,28 +539,43 @@ class IpdRepository {
                     const bedId = bedAssignRes.rows[0].bed_id;
                     await client.query(`
             UPDATE beds
-            SET status = 'cleaning', updated_at = NOW()
+            SET status = 'available', updated_at = NOW()
             WHERE id = $1
           `, [bedId]);
                 }
-                // ── Billing finalization at discharge ──
+                // Check if patient has excess advance -> Credit to Patient Wallet if requested
+                const dues = await this.getPendingDues(admission.encounter_id);
+                if (dues.excessAmount > 0 && autoWalletCredit !== false) {
+                    const currentWallet = Number(admData.patient_custom_fields?.wallet_balance || 0);
+                    const newWallet = currentWallet + dues.excessAmount;
+                    const updatedCustomFields = {
+                        ...(admData.patient_custom_fields || {}),
+                        wallet_balance: newWallet
+                    };
+                    await client.query(`UPDATE patients SET custom_fields = $1, updated_at = NOW() WHERE id = $2`, [JSON.stringify(updatedCustomFields), admData.patient_id]);
+                }
+                // ── Billing finalization at discharge (wrapped in savepoint so errors do not block discharge) ──
+                await client.query('SAVEPOINT sp_billing_finalization');
                 try {
                     const orgId = admission.organization_id;
                     const patId = admission.patient_id;
                     const encId = admission.encounter_id;
+                    const effectiveFacilityId = admission.facility_id || facilityId;
                     // 1. Mark all unbilled charges as billed
                     await client.query(`UPDATE charges
              SET status = 'billed', updated_at = NOW()
-             WHERE encounter_id = $1 AND status = 'billable'`, [encId]);
+             WHERE encounter_id = $1 AND status = 'billable'
+               AND COALESCE(custom_fields->>'advance_deposit', 'false') != 'true'`, [encId]);
                     // 2. Sum all charges for the encounter
                     const chargeSum = await client.query(`SELECT
                COALESCE(SUM(net_amount), 0) as total_charges,
                COALESCE(SUM(tax_amount), 0) as total_tax
              FROM charges
-             WHERE encounter_id = $1 AND status = 'billed'`, [encId]);
+             WHERE encounter_id = $1 AND status = 'billed'
+               AND COALESCE(custom_fields->>'advance_deposit', 'false') != 'true'`, [encId]);
                     const totalCharges = Number(chargeSum.rows[0]?.total_charges || 0);
                     const totalTax = Number(chargeSum.rows[0]?.total_tax || 0);
-                    // 3. Get the advance payment for this encounter (unallocated)
+                    // 3. Get advance payment
                     const advancePayment = await client.query(`SELECT id, amount, allocated_amount
              FROM payments
              WHERE encounter_id = $1 AND payment_type = 'advance' AND status = 'completed'
@@ -514,9 +583,9 @@ class IpdRepository {
              LIMIT 1`, [encId]);
                     const advance = advancePayment.rows[0] || null;
                     const advanceAllocatable = advance ? Number(advance.amount) - Number(advance.allocated_amount) : 0;
-                    // 4. Create ipd_final invoice if there are charges or an advance to reconcile
+                    // 4. Create ipd_final invoice if needed
                     if (totalCharges > 0 || (advance && advanceAllocatable > 0)) {
-                        const invoiceNo = await this.resolveSequenceNo(client, orgId, facilityId, 'INVOICE', 'INV-', 'INV');
+                        const invoiceNo = await this.resolveSequenceNo(client, orgId, effectiveFacilityId, 'INVOICE', 'INV-', 'INV');
                         const grandTotal = totalCharges + totalTax;
                         const dueAmount = Math.max(0, grandTotal - advanceAllocatable);
                         const invoiceRes = await client.query(`INSERT INTO invoices (
@@ -530,7 +599,7 @@ class IpdRepository {
                  NOW(), true
                ) RETURNING *`, [
                             orgId,
-                            facilityId,
+                            effectiveFacilityId,
                             patId,
                             encId,
                             invoiceNo,
@@ -541,32 +610,27 @@ class IpdRepository {
                             dueAmount
                         ]);
                         const invoice = invoiceRes.rows[0];
-                        // 5. Create invoice line from charges summary
                         if (totalCharges > 0) {
                             await client.query(`INSERT INTO invoice_lines (
                    invoice_id, line_no, description, quantity, unit_price,
                    taxable_amount, tax_amount, line_total
                  ) VALUES ($1, 1, $2, 1, $3, $3, $4, $5)`, [invoice.id, `IPD Final Bill - Encounter ${encId}`, totalCharges, totalTax, grandTotal]);
                         }
-                        // 6. Allocate advance payment to the invoice
                         if (advance && advanceAllocatable > 0) {
                             await client.query(`INSERT INTO payment_allocations (payment_id, invoice_id, amount)
                  VALUES ($1, $2, $3)`, [advance.id, invoice.id, advanceAllocatable]);
-                            // Update payment allocated_amount
                             await client.query(`UPDATE payments SET allocated_amount = allocated_amount + $1 WHERE id = $2`, [advanceAllocatable, advance.id]);
-                            // Update invoice paid/due
                             await client.query(`UPDATE invoices SET paid_amount = paid_amount + $1, due_amount = due_amount - $1 WHERE id = $2`, [advanceAllocatable, invoice.id]);
                         }
-                        // 7. Update encounter billing status
                         await client.query(`UPDATE encounters SET billing_status = $1 WHERE id = $2`, [dueAmount > 0 ? 'finalized' : 'closed', encId]);
                     }
-                    else if (advance) {
-                        // No charges but advance exists: mark encounter as closed
+                    else {
                         await client.query(`UPDATE encounters SET billing_status = 'closed' WHERE id = $1`, [encId]);
                     }
+                    await client.query('RELEASE SAVEPOINT sp_billing_finalization');
                 }
                 catch (billingErr) {
-                    // Billing finalization must not block discharge
+                    await client.query('ROLLBACK TO SAVEPOINT sp_billing_finalization');
                     console.error('Billing finalization failed at discharge:', billingErr);
                 }
             }

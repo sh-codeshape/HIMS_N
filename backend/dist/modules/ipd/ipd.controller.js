@@ -30,11 +30,16 @@ class IpdController {
         const queue = await this.service.getAdmissions(facilityId, search, status);
         (0, response_1.sendSuccess)(res, queue, 'Admissions retrieved successfully');
     };
+    getAdmissionById = async (req, res) => {
+        const { id } = req.params;
+        const admission = await this.service.getAdmissionById(String(id));
+        (0, response_1.sendSuccess)(res, admission, 'Admission retrieved successfully');
+    };
     dischargePatient = async (req, res) => {
         const facilityId = req.user?.facilityId ?? req.body.facility_id ?? '';
         const { id } = req.params;
-        const { discharge_type, discharge_condition } = req.body;
-        const result = await this.service.dischargePatient(facilityId, String(id), String(discharge_type), discharge_condition);
+        const { discharge_type, discharge_condition, auto_wallet_credit } = req.body;
+        const result = await this.service.dischargePatient(facilityId, String(id), String(discharge_type), discharge_condition, auto_wallet_credit);
         (0, response_1.sendSuccess)(res, result, 'Patient discharged successfully');
     };
     getDischargeSummary = async (req, res) => {

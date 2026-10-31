@@ -35,8 +35,16 @@ export class IpdService {
     return this.repository.getAdmissions(facilityId, search, status);
   }
 
-  async dischargePatient(facilityId: string, admissionId: string, dischargeType: string, dischargeCondition?: string) {
-    const admission = await this.repository.dischargePatient(facilityId, admissionId, dischargeType, dischargeCondition);
+  async getAdmissionById(admissionId: string) {
+    const admission = await this.repository.getAdmissionById(admissionId);
+    if (!admission) {
+      throw new NotFoundError('Admission not found');
+    }
+    return admission;
+  }
+
+  async dischargePatient(facilityId: string, admissionId: string, dischargeType: string, dischargeCondition?: string, autoWalletCredit?: boolean) {
+    const admission = await this.repository.dischargePatient(facilityId, admissionId, dischargeType, dischargeCondition, autoWalletCredit);
     if (!admission) {
       throw new NotFoundError('Admission not found');
     }

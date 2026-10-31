@@ -10,6 +10,10 @@ const ipdService = {
     const res = await axiosInstance.get("/ipd/admissions", { params });
     return res.data?.data ?? res.data ?? [];
   },
+  getAdmissionById: async (id) => {
+    const res = await axiosInstance.get(`/ipd/admissions/${id}`);
+    return res.data?.data ?? res.data ?? null;
+  },
   getBedMatrix: async (params = {}) => {
     const res = await axiosInstance.get("/beds", { params });
     return res.data?.data ?? res.data ?? [];

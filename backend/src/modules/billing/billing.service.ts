@@ -70,6 +70,30 @@ export class BillingService {
     return this.repository.getEncounterPayments(encounterId, facilityId);
   }
 
+  async settleBill(data: any, organizationId: string, userId: string) {
+    return this.repository.settleBill({
+      ...data,
+      organization_id: organizationId,
+      user_id: userId
+    });
+  }
+
+  async processRefund(data: any, organizationId: string, userId: string) {
+    return this.repository.processRefund({
+      ...data,
+      organization_id: organizationId,
+      user_id: userId
+    });
+  }
+
+  async creditWallet(data: any) {
+    return this.repository.creditWallet(data);
+  }
+
+  async settleWithWallet(data: any) {
+    return this.repository.settleWithWallet(data);
+  }
+
   async postBedCharges(encounterId: string, facilityId: string, userId?: string) {
     return this.repository.postBedCharges(encounterId, facilityId, userId);
   }

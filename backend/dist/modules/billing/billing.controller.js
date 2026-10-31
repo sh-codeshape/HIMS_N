@@ -61,6 +61,30 @@ class BillingController {
         const payments = await this.service.getEncounterPayments(encounterId, facilityId);
         (0, response_1.sendSuccess)(res, payments, 'Payments retrieved successfully');
     };
+    settleBill = async (req, res) => {
+        const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
+        const userId = req.user?.userId || '00000000-0000-0000-0000-000000000000';
+        if (!req.body.facility_id)
+            req.body.facility_id = req.user?.facilityId;
+        const result = await this.service.settleBill(req.body, organizationId, userId);
+        (0, response_1.sendSuccess)(res, result, 'Bill settled successfully');
+    };
+    processRefund = async (req, res) => {
+        const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
+        const userId = req.user?.userId || '00000000-0000-0000-0000-000000000000';
+        if (!req.body.facility_id)
+            req.body.facility_id = req.user?.facilityId;
+        const result = await this.service.processRefund(req.body, organizationId, userId);
+        (0, response_1.sendSuccess)(res, result, 'Refund processed successfully');
+    };
+    creditWallet = async (req, res) => {
+        const result = await this.service.creditWallet(req.body);
+        (0, response_1.sendSuccess)(res, result, 'Wallet credited successfully');
+    };
+    settleWithWallet = async (req, res) => {
+        const result = await this.service.settleWithWallet(req.body);
+        (0, response_1.sendSuccess)(res, result, 'Charges settled from wallet successfully');
+    };
     postBedCharges = async (req, res) => {
         const facilityId = req.user?.facilityId || req.body.facility_id || '00000000-0000-0000-0000-000000000000';
         const userId = req.user?.userId || '00000000-0000-0000-0000-000000000000';

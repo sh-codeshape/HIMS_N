@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import ipdService from "../../api/services/ipdService";
 import billingService from "../../api/services/billingService";
 import staffService from "../../api/services/staffService";
@@ -152,15 +152,28 @@ export default function IPDBilling() {
   const [remarks, setRemarks] = useState("");
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
 
   // Modals
   const [showReceivePayModal, setShowReceivePayModal] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
   const [showChangeBedModal, setShowChangeBedModal] = useState(false);
   const [showPrintBillModal, setShowPrintBillModal] = useState(false);
   // Any admission slip request directly opens the official comprehensive HIMS print slip
   const [showAdmissionSlipModal, setShowAdmissionSlipModal] = [showPrintBillModal, setShowPrintBillModal];
   const [showDischargeModal, setShowDischargeModal] = useState(false);
   const [showDischargeSuccessModal, setShowDischargeSuccessModal] = useState(false);
+
+  // Auto-settle medicine from patient wallet checkbox
+  const [settleMedFromWallet, setSettleMedFromWallet] = useState(false);
+
+  // Refund Form State
+  const [refundForm, setRefundForm] = useState({
+    amount: "",
+    mode: "Cash",
+    reason: "",
+  });
 
   // Discharge Clearance Form State
   const [dischargeForm, setDischargeForm] = useState({
@@ -307,9 +320,10 @@ export default function IPDBilling() {
   const fetchPatientBilling = async (p) => {
     try {
       const encounterId = p.encounterId || p.id;
-      const [itemsData, paymentsData] = await Promise.all([
+      const [itemsData, paymentsData, duesData] = await Promise.all([
         billingService.getRunningBill(encounterId).catch(() => []),
         billingService.getEncounterPayments(encounterId).catch(() => []),
+        ipdService.getPendingDues(encounterId).catch(() => null),
       ]);
 
       const safeItems = Array.isArray(itemsData) ? itemsData : itemsData?.data || [];
@@ -334,15 +348,21 @@ export default function IPDBilling() {
         id: pay.id,
         date: new Date(pay.payment_date || pay.created_at || new Date()).toLocaleDateString("en-GB").replace(/\//g, "-"),
         amount: Number(pay.amount || 0),
-        mode: pay.payment_method || "Cash",
+        mode: pay.payment_method || pay.payment_method_name || "Cash",
         type: pay.payment_type || "Payment",
+        direction: pay.direction || "in",
         remarks: pay.notes || "Receipt",
       }));
+
+      const walletBal = Number(duesData?.walletBalance ?? p.walletBalance ?? 0);
+      const excessAmt = Number(duesData?.excessAmount ?? 0);
 
       setPatient((prev) => ({
         ...(prev || p),
         items: mappedItems,
         historyPayments: mappedPayments,
+        walletBalance: walletBal,
+        excessAmount: excessAmt,
       }));
     } catch (err) {
       console.error("Failed to load billing data", err);
@@ -355,6 +375,12 @@ export default function IPDBilling() {
     const loadInitial = async () => {
       setLoading(true);
       try {
+        const targetAdmissionId =
+          searchParams.get("admissionId") ||
+          searchParams.get("id") ||
+          location.state?.admissionId ||
+          location.state?.admission?.id;
+
         const [admissionsRes, doctorsRes, categoriesRes, itemsRes] = await Promise.all([
           ipdService.getAdmissions({ status: "all" }).catch(() => []),
           staffService.getDoctors().catch(() => []),
@@ -370,7 +396,32 @@ export default function IPDBilling() {
         if (Array.isArray(categoriesRes)) setBedCategories(categoriesRes);
         if (itemsRes?.data && Array.isArray(itemsRes.data)) setInventoryMeds(itemsRes.data);
 
-        // Patient is null by default on mount so IPD Billing starts in clean search mode
+        // Auto-select patient if targetAdmissionId provided (e.g. from IPD discharge page)
+        if (targetAdmissionId) {
+          const targetStr = String(targetAdmissionId).toLowerCase().trim();
+          const found = mapped.find(
+            (a) =>
+              String(a.id || "").toLowerCase() === targetStr ||
+              String(a.admissionNo || "").toLowerCase() === targetStr ||
+              String(a.encounterId || "").toLowerCase() === targetStr
+          );
+          if (found) {
+            handleSelectPatient(found);
+          } else {
+            try {
+              const singleAdm = await ipdService.getAdmissionById(targetAdmissionId);
+              if (singleAdm) {
+                const mappedSingle = mapBackendPatientToIPD(singleAdm);
+                if (mappedSingle) {
+                  setAllAdmissions((prev) => [mappedSingle, ...prev.filter((x) => x.id !== mappedSingle.id)]);
+                  handleSelectPatient(mappedSingle);
+                }
+              }
+            } catch (err) {
+              console.warn("Could not fetch admission by ID:", err);
+            }
+          }
+        }
       } catch (err) {
         console.error("Initial load failed", err);
       } finally {
@@ -378,7 +429,7 @@ export default function IPDBilling() {
       }
     };
     loadInitial();
-  }, []);
+  }, [searchParams]);
 
   // Filtered Admissions List based on Tab & Realtime Search
   const filteredAdmissions = useMemo(() => {
@@ -581,7 +632,7 @@ export default function IPDBilling() {
     try {
       setActionLoading(true);
       const encounterId = patient.encounterId || patient.id;
-      await billingService.addCharge({
+      const chargeRes = await billingService.addCharge({
         encounter_id: encounterId,
         item_name: fullName,
         item_category: "Medicines",
@@ -589,6 +640,26 @@ export default function IPDBilling() {
         rate: rate,
         total_amount: amount,
       });
+
+      // If requested and patient has sufficient wallet balance, auto-settle the medicine
+      if (settleMedFromWallet && walletBalance >= amount) {
+        try {
+          const newChargeId = chargeRes?.id || chargeRes?.data?.id;
+          await billingService.settleWithWallet({
+            encounter_id: encounterId,
+            patient_id: patient.patientId,
+            amount: amount,
+            charge_id: newChargeId,
+          });
+          toast.success(`Dispensed ${medName} & settled ₹${amount.toLocaleString("en-IN")} from Patient Wallet!`, { icon: "👛" });
+        } catch (wErr) {
+          console.warn("Wallet settlement error:", wErr);
+          toast.success(`Dispensed ${medName} (Qty: ${qty} • ₹${amount}). Wallet auto-deduct notice.`, { icon: "💊" });
+        }
+      } else {
+        toast.success(`Dispensed ${medName} (Qty: ${qty} • ₹${amount}) to inpatient bill!`, { icon: "💊" });
+      }
+
       await fetchPatientBilling(patient);
       if (isCustomMed) {
         setIsCustomMed(false);
@@ -701,7 +772,7 @@ export default function IPDBilling() {
 
   // Submit Receive Payment Modal
   const handleSavePayment = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!patient) return;
     const amt = Number(paymentForm.amount) || 0;
     if (amt <= 0) {
@@ -712,7 +783,17 @@ export default function IPDBilling() {
     try {
       setActionLoading(true);
       const encounterId = patient.encounterId || patient.id;
-      try {
+      const isSettlement = paymentForm.type === "Settlement" || amt >= pendingAmount;
+
+      if (isSettlement) {
+        // Official settle endpoint: closes billable charges and encounter billing
+        await billingService.settleBill({
+          encounter_id: encounterId,
+          amount: amt,
+          payment_mode: paymentForm.mode,
+          remarks: paymentForm.remarks || `Settlement payment for ${patient.name}`,
+        });
+      } else {
         await billingService.recordAdvancePayment({
           encounter_id: encounterId,
           amount: amt,
@@ -720,23 +801,9 @@ export default function IPDBilling() {
           payment_type: paymentForm.type,
           notes: paymentForm.remarks || `${paymentForm.type} received for ${patient.name}`,
         });
-      } catch (apiErr) {
-        console.warn("Backend payment recording failed, using reliable local update:", apiErr);
       }
 
-      const newPayment = {
-        id: `PAY-${Date.now()}`,
-        date: new Date().toLocaleDateString("en-IN"),
-        type: paymentForm.type,
-        mode: paymentForm.mode,
-        amount: amt,
-        remarks: paymentForm.remarks || `${paymentForm.type} receipt`,
-      };
-
-      setPatient((prev) => ({
-        ...prev,
-        historyPayments: [newPayment, ...(prev.historyPayments || [])],
-      }));
+      await fetchPatientBilling(patient);
 
       setShowReceivePayModal(false);
       setPaymentForm({
@@ -745,10 +812,124 @@ export default function IPDBilling() {
         type: "Payment",
         remarks: "",
       });
-      toast.success(`Payment receipt of ₹${amt.toLocaleString("en-IN")} recorded successfully!`, { icon: "💳" });
+      toast.success(
+        isSettlement
+          ? `Settlement of ₹${amt.toLocaleString("en-IN")} received! Bill marked fully cleared.`
+          : `Payment receipt of ₹${amt.toLocaleString("en-IN")} recorded successfully!`,
+        { icon: "💳" }
+      );
     } catch (err) {
       console.error("Failed to record payment", err);
-      toast.error("Failed to record payment.");
+      toast.error(err?.response?.data?.message || "Failed to record payment.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Quick 1-click full bill clearance
+  const handleQuickSettleBill = async () => {
+    if (!patient) return;
+    try {
+      setActionLoading(true);
+      const encounterId = patient.encounterId || patient.id;
+      await billingService.settleBill({
+        encounter_id: encounterId,
+        amount: pendingAmount,
+        payment_mode: "Cash",
+        remarks: `Full bill settlement for ${patient.name} (${patient.admissionNo})`,
+      });
+      toast.success(`🎉 Bill of ₹${pendingAmount.toLocaleString("en-IN")} cleared and marked paid in ledger!`, { icon: "✅" });
+      await fetchPatientBilling(patient);
+    } catch (err) {
+      console.error("Clear bill failed:", err);
+      toast.error("Failed to clear bill: " + (err?.response?.data?.message || err.message));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Settle single charge item with patient wallet
+  const handleSettleChargeFromWallet = async (item) => {
+    if (!patient) return;
+    if (walletBalance < item.amount) {
+      toast.error(`Insufficient wallet balance (₹${walletBalance}). Charge is ₹${item.amount}.`);
+      return;
+    }
+    try {
+      setActionLoading(true);
+      const encounterId = patient.encounterId || patient.id;
+      await billingService.settleWithWallet({
+        encounter_id: encounterId,
+        patient_id: patient.patientId,
+        amount: item.amount,
+        charge_id: item.id,
+      });
+      toast.success(`Settled ₹${item.amount.toLocaleString("en-IN")} from wallet for "${item.name}"!`, { icon: "👛" });
+      await fetchPatientBilling(patient);
+    } catch (err) {
+      console.error("Wallet settlement failed:", err);
+      toast.error("Failed to settle with wallet: " + (err?.response?.data?.message || err.message));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Open refund modal
+  const handleOpenRefundModal = () => {
+    setRefundForm({
+      amount: String(excessAdvance > 0 ? excessAdvance : ""),
+      mode: "Cash",
+      reason: `Excess advance refund for ${patient.admissionNo} (${patient.name})`,
+    });
+    setShowRefundModal(true);
+  };
+
+  // Process refund of excess advance
+  const handleProcessRefund = async (e) => {
+    if (e) e.preventDefault();
+    if (!patient) return;
+    const amt = Number(refundForm.amount) || excessAdvance;
+    if (amt <= 0) {
+      toast.error("Please enter a valid refund amount.");
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      const encounterId = patient.encounterId || patient.id;
+      await billingService.processRefund({
+        encounter_id: encounterId,
+        patient_id: patient.patientId,
+        amount: amt,
+        payment_method: refundForm.mode,
+        notes: refundForm.reason || `Refund of excess payment (${refundForm.mode})`,
+      });
+      toast.success(`Refund of ₹${amt.toLocaleString("en-IN")} recorded successfully!`, { icon: "💵" });
+      setShowRefundModal(false);
+      await fetchPatientBilling(patient);
+    } catch (err) {
+      console.error("Refund failed:", err);
+      toast.error("Refund failed: " + (err?.response?.data?.message || err.message));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Move excess advance to patient wallet
+  const handleCreditExcessToWallet = async () => {
+    if (!patient || excessAdvance <= 0) return;
+    try {
+      setActionLoading(true);
+      await billingService.creditWallet({
+        patient_id: patient.patientId,
+        amount: excessAdvance,
+        notes: `Excess advance moved to patient wallet for admission ${patient.admissionNo}`,
+      });
+      toast.success(`₹${excessAdvance.toLocaleString("en-IN")} credited to patient wallet!`, { icon: "👛" });
+      await fetchPatientBilling(patient);
+    } catch (err) {
+      console.error("Credit wallet failed:", err);
+      toast.error("Failed to credit wallet: " + (err?.response?.data?.message || err.message));
     } finally {
       setActionLoading(false);
     }
@@ -860,18 +1041,26 @@ export default function IPDBilling() {
 
   const totalAdvance = patient
     ? patient.historyPayments
-      .filter((p) => p.type === "Advance")
+      .filter((p) => String(p.type || "").toLowerCase() === "advance" && p.direction !== "out")
       .reduce((acc, curr) => acc + curr.amount, 0)
     : 0;
 
   const totalReceived = patient
     ? patient.historyPayments
-      .filter((p) => p.type !== "Advance" && !isDirectItemPayment(p))
+      .filter((p) => String(p.type || "").toLowerCase() !== "advance" && String(p.type || "").toLowerCase() !== "refund" && p.direction !== "out" && !isDirectItemPayment(p))
       .reduce((acc, curr) => acc + curr.amount, 0)
     : 0;
 
-  const totalPaymentsReceivedAll = totalAdvance + totalReceived;
+  const totalRefunded = patient
+    ? patient.historyPayments
+      .filter((p) => String(p.type || "").toLowerCase() === "refund" || p.direction === "out")
+      .reduce((acc, curr) => acc + curr.amount, 0)
+    : 0;
+
+  const totalPaymentsReceivedAll = Math.max(0, totalAdvance + totalReceived - totalRefunded);
   const pendingAmount = Math.max(0, totalBills - totalPaymentsReceivedAll);
+  const excessAdvance = Math.max(0, totalPaymentsReceivedAll - totalBills);
+  const walletBalance = Number(patient?.walletBalance || 0);
 
   // Category Summaries for Matrix (showing active unpaid dues)
   const roomChargesTotal = activeBillItems
@@ -1131,6 +1320,11 @@ export default function IPDBilling() {
                         {patient.isDischarged ? "Discharged" : "Admitted"}
                       </span>
                       <span className="ipd-ppc-blood">🩸 {patient.bloodGroup || "O+"}</span>
+                      {walletBalance > 0 && (
+                        <span className="ipd-ppc-wallet-badge">
+                          👛 Wallet: ₹{walletBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1206,7 +1400,40 @@ export default function IPDBilling() {
               </div>
             </div>
 
-
+            {/* Excess Advance Available Card */}
+            {excessAdvance > 0 && (
+              <div className="ipd-excess-advance-card">
+                <div className="ipd-eac-left">
+                  <div className="ipd-eac-icon">💰</div>
+                  <div>
+                    <div className="ipd-eac-title">
+                      Excess Advance Available: <strong style={{ color: "#047857" }}>₹{excessAdvance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
+                    </div>
+                    <div className="ipd-eac-sub">
+                      Patient has paid more advance deposit than current incurred charges. Move to their digital wallet (to auto-settle upcoming medicines &amp; services) or process an official cash/digital refund.
+                    </div>
+                  </div>
+                </div>
+                <div className="ipd-eac-actions">
+                  <button
+                    type="button"
+                    className="ipd-eac-btn-wallet"
+                    disabled={actionLoading}
+                    onClick={handleCreditExcessToWallet}
+                  >
+                    👛 Move ₹{excessAdvance.toLocaleString("en-IN")} to Wallet
+                  </button>
+                  <button
+                    type="button"
+                    className="ipd-eac-btn-refund"
+                    disabled={actionLoading}
+                    onClick={handleOpenRefundModal}
+                  >
+                    💵 Process Refund
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Section 2: Inpatient Charges & Running Bill Ledger (Unified Single Console) */}
             <div className="ipd-section-header-bar">
@@ -1548,6 +1775,22 @@ export default function IPDBilling() {
                         <span>Dispense Drug</span>
                       </button>
                     </div>
+
+                    {walletBalance > 0 && (
+                      <div className="ipd-wallet-settle-check-wrap">
+                        <label className="ipd-checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={settleMedFromWallet}
+                            onChange={(e) => setSettleMedFromWallet(e.target.checked)}
+                            disabled={walletBalance < (Number(medForm.qty || 1) * Number(medForm.rate || 0))}
+                          />
+                          <span>
+                            👛 Auto-settle medicine from Patient Wallet (Available: <strong>₹{walletBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>)
+                          </span>
+                        </label>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1618,6 +1861,19 @@ export default function IPDBilling() {
                             <span className={`ipd-charge-status-pill ipd-charge-status-pill--${String(item.status || "billable").toLowerCase()}`}>
                               {String(item.status || "billable").toUpperCase()}
                             </span>
+                            {item.status !== "paid" && walletBalance >= item.amount && (
+                              <div>
+                                <button
+                                  type="button"
+                                  className="ipd-btn-pay-wallet-sm"
+                                  title={`Settle ₹${item.amount} from Patient Wallet (Available: ₹${walletBalance})`}
+                                  onClick={() => handleSettleChargeFromWallet(item)}
+                                  disabled={actionLoading}
+                                >
+                                  👛 Settle Wallet
+                                </button>
+                              </div>
+                            )}
                           </td>
                           <td style={{ textAlign: "center" }}>
                             <button
@@ -1670,10 +1926,37 @@ export default function IPDBilling() {
                     className="ipd-btn-receive-pay"
                     style={{ height: 38, padding: "0 18px", fontSize: 12.5 }}
                     onClick={handleOpenSettleModal}
-                    title="Quick settle remaining outstanding balance"
+                    title="Open settlement modal to pay remaining balance and clear bill"
                   >
                     <Icon name="LuCreditCard" size={14} /> + Clear Due (₹{pendingAmount.toLocaleString("en-IN")})
                   </button>
+                )}
+                {excessAdvance > 0 && (
+                  <>
+                    <button
+                      type="button"
+                      className="ipd-btn-wallet-credit"
+                      style={{ height: 38, padding: "0 14px", fontSize: 12 }}
+                      onClick={handleCreditExcessToWallet}
+                      disabled={actionLoading}
+                    >
+                      👛 Move ₹{excessAdvance.toLocaleString("en-IN")} to Wallet
+                    </button>
+                    <button
+                      type="button"
+                      className="ipd-btn-refund"
+                      style={{ height: 38, padding: "0 14px", fontSize: 12 }}
+                      onClick={handleOpenRefundModal}
+                      disabled={actionLoading}
+                    >
+                      💵 Refund Excess
+                    </button>
+                  </>
+                )}
+                {pendingAmount <= 0 && !patient.isDischarged && (
+                  <span className="ipd-bill-cleared-badge">
+                    <Icon name="LuCheckCircle2" size={14} /> Bill 100% Cleared
+                  </span>
                 )}
                 {patient.isDischarged ? (
                   <div className="ipd-discharged-stamp-badge">
@@ -1809,6 +2092,94 @@ export default function IPDBilling() {
             </button>
             <button type="submit" className="ipd-btn-search" disabled={actionLoading}>
               <Icon name="LuSave" size={16} /> Collect &amp; Record Receipt
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+{/* 1b. Refund Excess Advance Modal */}
+{
+  showRefundModal && (
+    <div className="ipd-modal-backdrop" onClick={() => setShowRefundModal(false)}>
+      <div className="ipd-modal-box" onClick={(e) => e.stopPropagation()}>
+        <div className="ipd-modal-header">
+          <div className="ipd-modal-header-left">
+            <div className="ipd-modal-icon-wrap" style={{ background: "#059669" }}>
+              <Icon name="LuBanknote" size={20} />
+            </div>
+            <div>
+              <h3 className="ipd-modal-title">Process Inpatient Refund</h3>
+              <span className="ipd-modal-subtitle">
+                Refund excess advance to {patient?.name} ({patient?.admissionNo})
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="ipd-modal-close-btn"
+            onClick={() => setShowRefundModal(false)}
+          >
+            <Icon name="LuX" size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleProcessRefund}>
+          <div className="ipd-modal-body">
+            <div className="ipd-form-field">
+              <label className="ipd-field-label">Refund Amount (₹) *</label>
+              <input
+                type="number"
+                className="ipd-input-control ipd-input-control--lg"
+                required
+                min="1"
+                max={excessAdvance}
+                value={refundForm.amount}
+                onChange={(e) => setRefundForm({ ...refundForm, amount: e.target.value })}
+              />
+              <span style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+                Available excess advance: <strong>₹{excessAdvance.toLocaleString("en-IN")}</strong>
+              </span>
+            </div>
+
+            <div className="ipd-form-field">
+              <label className="ipd-field-label">Refund Payment Mode</label>
+              <select
+                className="ipd-select-control"
+                value={refundForm.mode}
+                onChange={(e) => setRefundForm({ ...refundForm, mode: e.target.value })}
+              >
+                <option value="Cash">Cash Handover</option>
+                <option value="UPI">UPI Return (GPay / PhonePe / Paytm)</option>
+                <option value="Bank Transfer">Direct Bank Transfer (NEFT/RTGS)</option>
+                <option value="Original Mode">Original Payment Method Reversal</option>
+              </select>
+            </div>
+
+            <div className="ipd-form-field">
+              <label className="ipd-field-label">Accounting Notes / Remarks</label>
+              <input
+                type="text"
+                className="ipd-input-control"
+                placeholder="e.g. Excess advance refunded at discharge"
+                value={refundForm.reason}
+                onChange={(e) => setRefundForm({ ...refundForm, reason: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="ipd-modal-footer">
+            <button
+              type="button"
+              className="ipd-btn-outline"
+              onClick={() => setShowRefundModal(false)}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="ipd-btn-search" style={{ background: "#059669" }} disabled={actionLoading}>
+              <Icon name="LuBanknote" size={16} /> Disburse &amp; Record Refund
             </button>
           </div>
         </form>

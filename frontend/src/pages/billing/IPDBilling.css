@@ -4187,3 +4187,171 @@
     box-shadow: none;
   }
 }
+
+/* Excess Advance & Patient Wallet ERP Components */
+.ipd-ppc-wallet-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.ipd-excess-advance-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  border: 1.5px solid #a7f3d0;
+  border-radius: 10px;
+  padding: 12px 18px;
+  margin: 12px 16px 0;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.08);
+}
+
+.ipd-eac-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ipd-eac-icon {
+  font-size: 26px;
+  line-height: 1;
+  background: #d1fae5;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ipd-eac-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #065f46;
+  margin-bottom: 2px;
+}
+
+.ipd-eac-sub {
+  font-size: 12px;
+  color: #047857;
+  line-height: 1.4;
+  max-width: 650px;
+}
+
+.ipd-eac-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.ipd-eac-btn-wallet,
+.ipd-btn-wallet-credit {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 4px rgba(4, 120, 87, 0.2);
+}
+
+.ipd-eac-btn-wallet:hover,
+.ipd-btn-wallet-credit:hover {
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+  box-shadow: 0 3px 6px rgba(4, 120, 87, 0.3);
+}
+
+.ipd-eac-btn-refund,
+.ipd-btn-refund {
+  background: #ffffff;
+  color: #065f46;
+  border: 1.5px solid #10b981;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.ipd-eac-btn-refund:hover,
+.ipd-btn-refund:hover {
+  background: #ecfdf5;
+  border-color: #059669;
+}
+
+.ipd-wallet-settle-check-wrap {
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #ecfdf5;
+  border: 1px dashed #6ee7b7;
+  border-radius: 6px;
+}
+
+.ipd-wallet-settle-check-wrap .ipd-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #065f46;
+  cursor: pointer;
+}
+
+.ipd-btn-pay-wallet-sm {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #10b981;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  transition: all 0.15s ease;
+}
+
+.ipd-btn-pay-wallet-sm:hover {
+  background: #059669;
+  color: #ffffff;
+}
+
+.ipd-bill-cleared-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #6ee7b7;
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 800;
+}
+

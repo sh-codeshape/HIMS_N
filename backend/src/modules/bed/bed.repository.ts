@@ -752,14 +752,33 @@ export class BedRepository {
         throw new NotFoundError('No active admission found for source bed');
       }
 
-      // Close current assignment on source bed, open new one on target bed
+      // Close current assignment on source bed
       await client.query(
-        `UPDATE bed_assignments SET assigned_to = NOW() WHERE bed_id = $1 AND assigned_to IS NULL`,
+        `UPDATE bed_assignments
+         SET assigned_to = GREATEST(assigned_from + interval '1 millisecond', NOW())
+         WHERE bed_id = $1 AND assigned_to IS NULL`,
         [data.fromBedId]
       );
 
+      // Close any stale unclosed assignment on target bed
+      await client.query(
+        `UPDATE bed_assignments
+         SET assigned_to = GREATEST(assigned_from + interval '1 millisecond', NOW())
+         WHERE bed_id = $1 AND assigned_to IS NULL`,
+        [data.toBedId]
+      );
+
+      // Insert new assignment with safe non-overlapping assigned_from
       const assignRes = await client.query(
-        `INSERT INTO bed_assignments (admission_id, bed_id, assigned_from) VALUES ($1, $2, NOW()) RETURNING *;`,
+        `WITH prev AS (
+           SELECT COALESCE(MAX(assigned_to), NOW() - interval '1 second') AS max_to
+           FROM bed_assignments
+           WHERE bed_id = $2
+         )
+         INSERT INTO bed_assignments (admission_id, bed_id, assigned_from)
+         SELECT $1, $2, GREATEST(NOW(), prev.max_to + interval '1 millisecond')
+         FROM prev
+         RETURNING *;`,
         [admissionId, data.toBedId]
       );
 

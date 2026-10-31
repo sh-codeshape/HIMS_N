@@ -14,13 +14,30 @@ export default function IPDDischargeDetail() {
     if (!admission && id) {
       setLoading(true);
       ipdService
-        .getAdmissions()
-        .then((data) => {
-          const list = Array.isArray(data) ? data : (data?.data || []);
-          const found = list.find((a) => String(a.id) === String(id) || String(a.admission_no) === String(id));
-          if (found) {
-            setAdmission(found);
+        .getAdmissionById(id)
+        .then((res) => {
+          if (res) {
+            setAdmission(res);
+          } else {
+            // Fallback to searching all admissions
+            return ipdService.getAdmissions({ status: "all" }).then((data) => {
+              const list = Array.isArray(data) ? data : (data?.rows || data?.data || []);
+              const found = list.find((a) => String(a.id) === String(id) || String(a.admission_no) === String(id));
+              if (found) {
+                setAdmission(found);
+              }
+            });
           }
+        })
+        .catch(() => {
+          // Fallback to searching all admissions
+          return ipdService.getAdmissions({ status: "all" }).then((data) => {
+            const list = Array.isArray(data) ? data : (data?.rows || data?.data || []);
+            const found = list.find((a) => String(a.id) === String(id) || String(a.admission_no) === String(id));
+            if (found) {
+              setAdmission(found);
+            }
+          });
         })
         .catch((err) => {
           console.error("Error fetching admission details for discharge workflow:", err);

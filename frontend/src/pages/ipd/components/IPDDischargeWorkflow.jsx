@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import Icon from "../../../components/common/Icon.jsx";
 import ipdService from "../../../api/services/ipdService";
+import billingService from "../../../api/services/billingService";
 import "../IPDDischarge.css";
 
 const DISCHARGE_TYPES = [
@@ -249,6 +251,14 @@ export default function IPDDischargeWorkflow({ admission, onBack }) {
   const [pendingDues, setPendingDues] = useState(null);
   const [duesLoading, setDuesLoading] = useState(false);
 
+  const navigate = useNavigate();
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundForm, setRefundForm] = useState({
+    method: "Cash",
+    notes: ""
+  });
+  const [refundProcessing, setRefundProcessing] = useState(false);
+
   // Dietary Guidance Multi-Select Dropdown State & Handler
   const [dietDropdownOpen, setDietDropdownOpen] = useState(false);
   const dietDropdownRef = useRef(null);
@@ -446,13 +456,76 @@ export default function IPDDischargeWorkflow({ admission, onBack }) {
     handleAddMedicationToList();
   };
 
+  const handleQuickSettleDues = async () => {
+    if (!admission || !pendingDues) return;
+    try {
+      setDuesLoading(true);
+      await billingService.settleBill({
+        encounter_id: admission.encounter_id || admission.id,
+        amount: pendingDues.pendingAmount,
+        payment_mode: "Cash",
+        remarks: `Quick discharge settlement for ${admission.admission_no || admission.id}`
+      });
+      toast.success("Dues settled successfully!", { icon: "✅" });
+      await fetchPendingDues(admission.encounter_id || admission.id);
+    } catch (err) {
+      console.error("Failed to settle dues:", err);
+      toast.error("Failed to quick settle dues. Try in IPD Billing.");
+    } finally {
+      setDuesLoading(false);
+    }
+  };
+
+  const handleCreditExcessToWallet = async () => {
+    if (!admission || !pendingDues || pendingDues.excessAmount <= 0) return;
+    try {
+      setDuesLoading(true);
+      await billingService.creditWallet({
+        patient_id: admission.patient_id,
+        amount: pendingDues.excessAmount,
+        encounter_id: admission.encounter_id,
+        notes: `Excess advance credited to wallet at discharge (${admission.admission_no})`
+      });
+      toast.success(`₹${pendingDues.excessAmount.toLocaleString("en-IN")} credited to patient wallet!`, { icon: "👛" });
+      await fetchPendingDues(admission.encounter_id || admission.id);
+    } catch (err) {
+      console.error("Failed to credit wallet:", err);
+      toast.error("Failed to credit wallet.");
+    } finally {
+      setDuesLoading(false);
+    }
+  };
+
+  const handleConfirmRefund = async (e) => {
+    if (e) e.preventDefault();
+    if (!admission || !pendingDues || pendingDues.excessAmount <= 0) return;
+    try {
+      setRefundProcessing(true);
+      await billingService.processRefund({
+        encounter_id: admission.encounter_id || admission.id,
+        patient_id: admission.patient_id,
+        amount: pendingDues.excessAmount,
+        payment_method: refundForm.method,
+        notes: refundForm.notes || `Discharge excess advance refund for ${admission.admission_no}`
+      });
+      toast.success(`Refund of ₹${pendingDues.excessAmount.toLocaleString("en-IN")} processed successfully!`, { icon: "💵" });
+      setShowRefundModal(false);
+      await fetchPendingDues(admission.encounter_id || admission.id);
+    } catch (err) {
+      console.error("Failed to process refund:", err);
+      toast.error("Failed to process refund.");
+    } finally {
+      setRefundProcessing(false);
+    }
+  };
+
   // Submit Discharge Action
   const handleConfirmDischarge = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!admission) return;
 
     // 1. Block if real backend dues are pending
-    if (pendingDues && !pendingDues.cleared) {
+    if (pendingDues && !pendingDues.cleared && pendingDues.pendingAmount > 0) {
       const pendingDept = pendingDues.breakdown?.filter((b) => !b.cleared).map((b) => b.department).join(", ") || "dues";
       toast.error(`Cannot discharge — pending ${pendingDept} dues of ₹${pendingDues.pendingAmount.toLocaleString("en-IN")} not cleared.`);
       return;
@@ -465,10 +538,11 @@ export default function IPDDischargeWorkflow({ admission, onBack }) {
     }
 
     try {
-      // 1. Mark patient discharged in backend
+      // 1. Mark patient discharged in backend (vacating bed immediately and crediting remaining excess to wallet)
       await ipdService.dischargePatient(admission.id, {
         discharge_type: dischargeForm.discharge_type,
-        discharge_condition: dischargeForm.discharge_condition
+        discharge_condition: dischargeForm.discharge_condition,
+        auto_wallet_credit: true
       });
 
       // 2. Save Clinical Discharge Summary
@@ -490,7 +564,7 @@ export default function IPDDischargeWorkflow({ admission, onBack }) {
       });
 
       toast.success(
-        `Patient ${admission.first_name || ""} ${admission.last_name || ""} discharged successfully! Bed released.`,
+        `Patient ${admission.first_name || ""} ${admission.last_name || ""} discharged successfully! Bed vacated & released.`,
         { icon: "🏥" }
       );
 
@@ -629,22 +703,84 @@ export default function IPDDischargeWorkflow({ admission, onBack }) {
                     <Icon name="LuClock" size={15} /> Auditing real-time billing, pharmacy &amp; investigation dues…
                   </div>
                 ) : pendingDues ? (
-                  <div className="hims-dues-strip">
-                    <div className="hims-dues-kpi">
-                      <span className="hims-kpi-lbl">Incurred Charges</span>
-                      <strong className="hims-kpi-val">₹{pendingDues.totalCharges.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
+                  <>
+                    <div className="hims-dues-strip">
+                      <div className="hims-dues-kpi">
+                        <span className="hims-kpi-lbl">Incurred Charges</span>
+                        <strong className="hims-kpi-val">₹{pendingDues.totalCharges.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
+                      </div>
+                      <div className="hims-dues-kpi">
+                        <span className="hims-kpi-lbl">Payments Received</span>
+                        <strong className="hims-kpi-val hims-text--green">₹{pendingDues.totalPayments.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
+                      </div>
+                      <div className={`hims-dues-kpi ${pendingDues.cleared ? "hims-kpi--cleared" : "hims-kpi--pending"}`}>
+                        <span className="hims-kpi-lbl">{pendingDues.cleared ? "Net Balance Cleared" : "Net Balance Due"}</span>
+                        <strong className={`hims-kpi-val ${pendingDues.cleared ? "hims-text--green" : "hims-text--red"}`}>
+                          ₹{pendingDues.pendingAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </strong>
+                      </div>
                     </div>
-                    <div className="hims-dues-kpi">
-                      <span className="hims-kpi-lbl">Payments Received</span>
-                      <strong className="hims-kpi-val hims-text--green">₹{pendingDues.totalPayments.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
-                    </div>
-                    <div className={`hims-dues-kpi ${pendingDues.cleared ? "hims-kpi--cleared" : "hims-kpi--pending"}`}>
-                      <span className="hims-kpi-lbl">{pendingDues.cleared ? "Net Balance Cleared" : "Net Balance Due"}</span>
-                      <strong className={`hims-kpi-val ${pendingDues.cleared ? "hims-text--green" : "hims-text--red"}`}>
-                        ₹{pendingDues.pendingAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                      </strong>
-                    </div>
-                  </div>
+
+                    {/* Pending Dues Action Bar */}
+                    {pendingDues.pendingAmount > 0 && (
+                      <div style={{ marginTop: 12, padding: "12px 16px", background: "#fef2f2", border: "1.5px solid #f87171", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <Icon name="LuAlertCircle" size={22} style={{ color: "#dc2626" }} />
+                          <div>
+                            <strong style={{ color: "#991b1b", fontSize: "14px" }}>Pending Dues Outstanding: ₹{pendingDues.pendingAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
+                            <div style={{ fontSize: "12px", color: "#b91c1c" }}>Clear balance in IPD billing before discharge approval.</div>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            style={{ padding: "8px 16px", background: "#0284c7", color: "#ffffff", border: "none", borderRadius: 6, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontSize: "13px", boxShadow: "0 2px 4px rgba(2,132,199,0.2)" }}
+                            onClick={() => navigate(`/billing/ipd?admissionId=${admission.id || admission.admission_no}`, { state: { admission } })}
+                          >
+                            <Icon name="LuCreditCard" size={15} /> 💳 Go to IPD Billing &amp; Settle Dues
+                          </button>
+                          <button
+                            type="button"
+                            style={{ padding: "8px 16px", background: "#16a34a", color: "#ffffff", border: "none", borderRadius: 6, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontSize: "13px", boxShadow: "0 2px 4px rgba(22,163,74,0.2)" }}
+                            onClick={handleQuickSettleDues}
+                          >
+                            <Icon name="LuCheckCircle" size={15} /> Quick Settle Dues (₹{pendingDues.pendingAmount.toLocaleString("en-IN")})
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Excess Advance Action Bar */}
+                    {pendingDues.excessAmount > 0 && (
+                      <div style={{ marginTop: 12, padding: "12px 16px", background: "#ecfdf5", border: "1.5px solid #34d399", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <Icon name="LuCheckCircle2" size={24} style={{ color: "#059669" }} />
+                          <div>
+                            <strong style={{ color: "#065f46", fontSize: "14px" }}>All Inpatient Charges Cleared • Excess Advance: ₹{pendingDues.excessAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
+                            <div style={{ fontSize: "12px", color: "#047857" }}>
+                              Patient paid excess advance deposit. Current Wallet Balance: <strong>₹{(pendingDues.walletBalance || 0).toLocaleString("en-IN")}</strong>.
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            style={{ padding: "8px 14px", background: "#6366f1", color: "#ffffff", border: "none", borderRadius: 6, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontSize: "12.5px" }}
+                            onClick={handleCreditExcessToWallet}
+                          >
+                            <Icon name="LuWallet" size={15} /> 👛 Credit to Patient Wallet
+                          </button>
+                          <button
+                            type="button"
+                            style={{ padding: "8px 14px", background: "#d97706", color: "#ffffff", border: "none", borderRadius: 6, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontSize: "12.5px" }}
+                            onClick={() => setShowRefundModal(true)}
+                          >
+                            <Icon name="LuRotateCcw" size={15} /> 💵 Process Cash / Mode Refund
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="hims-dues-strip hims-dues-strip--ok">
                     <div className="hims-dues-kpi">
@@ -1498,6 +1634,91 @@ export default function IPDDischargeWorkflow({ admission, onBack }) {
           </div>
         );
       })()}
+
+      {/* Official Refund Modal */}
+      {showRefundModal && pendingDues && pendingDues.excessAmount > 0 && (
+        <div className="ipd-modal-overlay" onClick={() => setShowRefundModal(false)}>
+          <div className="ipd-modal-card" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+            <div className="ipd-modal-header" style={{ background: "#d97706", color: "#fff" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Icon name="LuRotateCcw" size={18} />
+                <h3 style={{ margin: 0, fontSize: "16px", color: "#fff" }}>Process Excess Advance Refund</h3>
+              </div>
+              <button
+                type="button"
+                className="ipd-modal-close-btn"
+                style={{ color: "#fff" }}
+                onClick={() => setShowRefundModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleConfirmRefund}>
+              <div className="ipd-modal-body" style={{ padding: "20px" }}>
+                <div style={{ background: "#fef3c7", padding: "12px", borderRadius: 6, marginBottom: 16 }}>
+                  <div style={{ fontSize: "12px", color: "#92400e" }}>Refundable Excess Amount:</div>
+                  <strong style={{ fontSize: "20px", color: "#b45309" }}>
+                    ₹{pendingDues.excessAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </strong>
+                  <div style={{ fontSize: "11px", color: "#78350f", marginTop: 4 }}>
+                    Patient: {patientFullName} ({admission.admission_no})
+                  </div>
+                </div>
+
+                <div className="hims-field-group" style={{ marginBottom: 12 }}>
+                  <label>Refund Payment Method *</label>
+                  <select
+                    className="hims-select"
+                    value={refundForm.method}
+                    onChange={(e) => setRefundForm({ ...refundForm, method: e.target.value })}
+                  >
+                    <option value="Cash">Cash Return</option>
+                    <option value="UPI">UPI / Digital Transfer</option>
+                    <option value="Card">Original Card Reversal</option>
+                    <option value="Bank Transfer">NEFT / Bank Transfer</option>
+                  </select>
+                </div>
+
+                <div className="hims-field-group">
+                  <label>Remarks / Refund Voucher Notes</label>
+                  <input
+                    type="text"
+                    className="hims-input"
+                    placeholder="e.g. Excess advance refunded at patient discharge"
+                    value={refundForm.notes}
+                    onChange={(e) => setRefundForm({ ...refundForm, notes: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="ipd-modal-footer" style={{ padding: "12px 20px", display: "flex", justifyContent: "flex-end", gap: 10 }}>
+                <button
+                  type="button"
+                  className="ipd-btn-summary"
+                  onClick={() => setShowRefundModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={refundProcessing}
+                  style={{
+                    padding: "8px 18px",
+                    background: "#d97706",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 6,
+                    fontWeight: 700,
+                    cursor: "pointer"
+                  }}
+                >
+                  {refundProcessing ? "Processing..." : `Confirm Refund ₹${pendingDues.excessAmount.toLocaleString("en-IN")}`}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

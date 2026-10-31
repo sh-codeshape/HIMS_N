@@ -427,10 +427,12 @@ export class BillingRepository {
       FROM charges c
       LEFT JOIN services s ON c.service_id = s.id
       LEFT JOIN items i ON c.item_id = i.id
-      WHERE c.encounter_id = $1 AND c.facility_id = $2 AND c.status IN ('billable', 'billed')
+      WHERE c.encounter_id = $1 
+        AND c.status IN ('billable', 'billed')
+        AND COALESCE(c.custom_fields->>'advance_deposit', 'false') != 'true'
       ORDER BY c.charged_at DESC
     `;
-    const res = await db.query(query, [encounterId, facilityId]);
+    const res = await db.query(query, [encounterId]);
     return res.rows;
   }
 
@@ -462,15 +464,15 @@ export class BillingRepository {
     const query = `
       INSERT INTO payments (
         organization_id, facility_id, receipt_no, patient_id, encounter_id,
-        direction, payment_type, payment_method_id, amount, status, received_by
+        direction, payment_type, payment_method_id, amount, status, notes, received_by
       ) VALUES (
         $1, $2, $3, $4, $5,
-        'in', $6, $7, $8, 'completed', $9
+        'in', $6, $7, $8, 'completed', $9, $10
       ) RETURNING *;
     `;
     const res = await db.query(query, [
       data.organization_id, data.facility_id, receiptNo, patientId, data.encounter_id,
-      paymentType, methodId, data.amount, data.user_id
+      paymentType, methodId, data.amount, data.notes || null, data.user_id
     ]);
     return res.rows[0];
   }
@@ -483,11 +485,218 @@ export class BillingRepository {
              p.notes as notes
       FROM payments p
       LEFT JOIN payment_methods pm ON p.payment_method_id = pm.id
-      WHERE p.encounter_id = $1 AND p.facility_id = $2
+      WHERE p.encounter_id = $1
       ORDER BY p.paid_at DESC
     `;
-    const res = await db.query(query, [encounterId, facilityId]);
+    const res = await db.query(query, [encounterId]);
     return res.rows;
+  }
+
+  async settleBill(data: {
+    encounter_id: string;
+    amount?: number;
+    payment_mode?: string;
+    use_wallet?: boolean;
+    remarks?: string;
+    organization_id: string;
+    facility_id?: string;
+    user_id?: string;
+  }) {
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+      const { encounter_id, amount, payment_mode = 'Cash', use_wallet, remarks } = data;
+
+      // 1. Resolve encounter and patient
+      const encRes = await client.query(
+        `SELECT e.*, p.id as patient_id, p.custom_fields as patient_custom_fields
+         FROM encounters e
+         JOIN patients p ON e.patient_id = p.id
+         WHERE e.id = $1 LIMIT 1`,
+        [encounter_id]
+      );
+      if (encRes.rows.length === 0) throw new Error('Encounter not found');
+      const enc = encRes.rows[0];
+      const patientId = enc.patient_id;
+
+      // 2. Fetch all open billable charges (excluding advance deposit charges)
+      const chargesRes = await client.query(
+        `SELECT * FROM charges
+         WHERE encounter_id = $1 AND status = 'billable'
+           AND COALESCE(custom_fields->>'advance_deposit', 'false') != 'true'`,
+        [encounter_id]
+      );
+      const totalCharges = chargesRes.rows.reduce((sum, c) => sum + Number(c.net_amount || 0), 0);
+
+      // 3. Mark all billable charges as 'billed' with payment_status = 'paid'
+      for (const c of chargesRes.rows) {
+        const updatedFields = {
+          ...(c.custom_fields || {}),
+          payment_status: 'paid',
+          settled: true,
+          settled_at: new Date().toISOString()
+        };
+        await client.query(
+          `UPDATE charges SET status = 'billed', custom_fields = $1, updated_at = NOW() WHERE id = $2`,
+          [JSON.stringify(updatedFields), c.id]
+        );
+      }
+
+      // 4. Record payment if amount > 0
+      const payAmount = Number(amount) || totalCharges;
+      if (payAmount > 0) {
+        let methodId = null;
+        const mode = payment_mode || 'Cash';
+        const methodRes = await client.query(
+          `SELECT id FROM payment_methods WHERE is_active = true AND (name ILIKE $1 OR method_type ILIKE $1) LIMIT 1`,
+          [`%${mode}%`]
+        );
+        methodId = methodRes.rows[0]?.id || null;
+
+        const receiptNoRes = await client.query(
+          `SELECT next_number($1, $2, 'RECEIPT') as receipt_no`,
+          [data.organization_id, data.facility_id || enc.facility_id]
+        );
+        const receiptNo = receiptNoRes.rows[0]?.receipt_no || `REC-SETTLE-${Date.now()}`;
+
+        await client.query(
+          `INSERT INTO payments (
+             organization_id, facility_id, receipt_no, patient_id, encounter_id,
+             direction, payment_type, payment_method_id, amount, status, notes, received_by
+           ) VALUES ($1, $2, $3, $4, $5, 'in', 'settlement', $6, $7, 'completed', $8, $9)`,
+          [
+            data.organization_id,
+            data.facility_id || enc.facility_id,
+            receiptNo,
+            patientId,
+            encounter_id,
+            methodId,
+            payAmount,
+            remarks || `Full bill settlement for encounter ${encounter_id}`,
+            data.user_id || null
+          ]
+        );
+      }
+
+      // 5. Update encounter billing status
+      await client.query(
+        `UPDATE encounters SET billing_status = 'closed', updated_at = NOW() WHERE id = $1`,
+        [encounter_id]
+      );
+
+      await client.query('COMMIT');
+      return { success: true, settledAmount: payAmount, chargesSettled: chargesRes.rows.length };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async processRefund(data: {
+    encounter_id: string;
+    patient_id?: string;
+    amount: number;
+    payment_method?: string;
+    notes?: string;
+    organization_id: string;
+    facility_id?: string;
+    user_id?: string;
+  }) {
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+      const { encounter_id, amount, payment_method = 'Cash', notes } = data;
+
+      let patientId = data.patient_id;
+      if (!patientId) {
+        const encRes = await client.query('SELECT patient_id, facility_id FROM encounters WHERE id = $1', [encounter_id]);
+        patientId = encRes.rows[0]?.patient_id;
+      }
+
+      const methodRes = await client.query(
+        `SELECT id FROM payment_methods WHERE is_active = true AND (name ILIKE $1 OR method_type ILIKE $1) LIMIT 1`,
+        [`%${payment_method}%`]
+      );
+      const methodId = methodRes.rows[0]?.id || null;
+
+      const receiptNoRes = await client.query(
+        `SELECT next_number($1, $2, 'RECEIPT') as receipt_no`,
+        [data.organization_id, data.facility_id]
+      );
+      const receiptNo = receiptNoRes.rows[0]?.receipt_no || `REF-${Date.now()}`;
+
+      const res = await client.query(
+        `INSERT INTO payments (
+           organization_id, facility_id, receipt_no, patient_id, encounter_id,
+           direction, payment_type, payment_method_id, amount, status, notes, received_by
+         ) VALUES ($1, $2, $3, $4, $5, 'out', 'refund', $6, $7, 'completed', $8, $9)
+         RETURNING *;`,
+        [
+          data.organization_id,
+          data.facility_id || null,
+          receiptNo,
+          patientId,
+          encounter_id,
+          methodId,
+          Number(amount),
+          notes || `Refund of excess payment for encounter ${encounter_id}`,
+          data.user_id || null
+        ]
+      );
+
+      await client.query('COMMIT');
+      return res.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async creditWallet(data: { patient_id: string; amount: number; notes?: string; encounter_id?: string }) {
+    const { patient_id, amount } = data;
+    const patRes = await db.query('SELECT id, custom_fields FROM patients WHERE id = $1', [patient_id]);
+    if (patRes.rows.length === 0) throw new Error('Patient not found');
+    const pat = patRes.rows[0];
+    const current = Number(pat.custom_fields?.wallet_balance || 0);
+    const updated = current + Number(amount);
+    const fields = { ...(pat.custom_fields || {}), wallet_balance: updated };
+    await db.query('UPDATE patients SET custom_fields = $1, updated_at = NOW() WHERE id = $2', [
+      JSON.stringify(fields),
+      patient_id
+    ]);
+    return { patient_id, wallet_balance: updated };
+  }
+
+  async settleWithWallet(data: { encounter_id: string; patient_id: string; amount: number; charge_id?: string }) {
+    const { encounter_id, patient_id, amount, charge_id } = data;
+    const patRes = await db.query('SELECT id, custom_fields FROM patients WHERE id = $1', [patient_id]);
+    if (patRes.rows.length === 0) throw new Error('Patient not found');
+    const pat = patRes.rows[0];
+    const current = Number(pat.custom_fields?.wallet_balance || 0);
+    if (current < Number(amount)) {
+      throw new Error(`Insufficient wallet balance. Available: ₹${current}, Required: ₹${amount}`);
+    }
+    const updated = current - Number(amount);
+    const fields = { ...(pat.custom_fields || {}), wallet_balance: updated };
+    await db.query('UPDATE patients SET custom_fields = $1, updated_at = NOW() WHERE id = $2', [
+      JSON.stringify(fields),
+      patient_id
+    ]);
+
+    if (charge_id) {
+      const chargeRes = await db.query('SELECT custom_fields FROM charges WHERE id = $1', [charge_id]);
+      const cf = { ...(chargeRes.rows[0]?.custom_fields || {}), payment_status: 'paid', paid_from_wallet: true };
+      await db.query(`UPDATE charges SET status = 'billed', custom_fields = $1, updated_at = NOW() WHERE id = $2`, [
+        JSON.stringify(cf),
+        charge_id
+      ]);
+    }
+
+    return { patient_id, wallet_balance: updated, settledAmount: amount };
   }
 
   async getReportsSummary(facilityId: string, dateFrom?: string, dateTo?: string) {

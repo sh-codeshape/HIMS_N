@@ -13,6 +13,7 @@ router.use(moduleGuard('ipd'));
 
 router.post('/admissions', validate(createIpdAdmissionSchema), controller.admitPatient);
 router.get('/admissions', controller.getAdmissions);
+router.get('/admissions/:id', controller.getAdmissionById);
 router.post('/admissions/:id/discharge', validate(dischargePatientSchema), controller.dischargePatient);
 router.get('/admissions/:id/discharge-summary', controller.getDischargeSummary);
 router.post('/admissions/:id/discharge-summary', controller.saveDischargeSummary);

@@ -13,6 +13,7 @@ router.use(authenticate_1.authenticate); // Require authentication for all IPD r
 router.use((0, moduleGuard_1.moduleGuard)('ipd'));
 router.post('/admissions', (0, validate_1.validate)(ipd_schema_1.createIpdAdmissionSchema), controller.admitPatient);
 router.get('/admissions', controller.getAdmissions);
+router.get('/admissions/:id', controller.getAdmissionById);
 router.post('/admissions/:id/discharge', (0, validate_1.validate)(ipd_schema_1.dischargePatientSchema), controller.dischargePatient);
 router.get('/admissions/:id/discharge-summary', controller.getDischargeSummary);
 router.post('/admissions/:id/discharge-summary', controller.saveDischargeSummary);

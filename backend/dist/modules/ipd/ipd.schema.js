@@ -36,6 +36,7 @@ exports.dischargePatientSchema = zod_1.z.object({
     }),
     body: zod_1.z.object({
         discharge_type: zod_1.z.enum(['normal', 'lama', 'dama', 'absconded', 'referred', 'transferred', 'death']),
-        discharge_condition: zod_1.z.string().optional()
+        discharge_condition: zod_1.z.string().optional(),
+        auto_wallet_credit: zod_1.z.boolean().optional(),
     })
 });

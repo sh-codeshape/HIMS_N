@@ -14,8 +14,15 @@ class IpdService {
     async getAdmissions(facilityId, search, status) {
         return this.repository.getAdmissions(facilityId, search, status);
     }
-    async dischargePatient(facilityId, admissionId, dischargeType, dischargeCondition) {
-        const admission = await this.repository.dischargePatient(facilityId, admissionId, dischargeType, dischargeCondition);
+    async getAdmissionById(admissionId) {
+        const admission = await this.repository.getAdmissionById(admissionId);
+        if (!admission) {
+            throw new AppError_1.NotFoundError('Admission not found');
+        }
+        return admission;
+    }
+    async dischargePatient(facilityId, admissionId, dischargeType, dischargeCondition, autoWalletCredit) {
+        const admission = await this.repository.dischargePatient(facilityId, admissionId, dischargeType, dischargeCondition, autoWalletCredit);
         if (!admission) {
             throw new AppError_1.NotFoundError('Admission not found');
         }

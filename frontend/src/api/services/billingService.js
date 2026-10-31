@@ -39,6 +39,22 @@ const billingService = {
     const res = await axiosInstance.get(`/billing/payments/encounter/${encounterId}`, { params });
     return res.data?.data ?? res.data ?? [];
   },
+  settleBill: async (payload) => {
+    const res = await axiosInstance.post("/billing/settle", payload);
+    return res.data?.data ?? res.data ?? null;
+  },
+  processRefund: async (payload) => {
+    const res = await axiosInstance.post("/billing/refund", payload);
+    return res.data?.data ?? res.data ?? null;
+  },
+  creditWallet: async (payload) => {
+    const res = await axiosInstance.post("/billing/wallet/credit", payload);
+    return res.data?.data ?? res.data ?? null;
+  },
+  settleWithWallet: async (payload) => {
+    const res = await axiosInstance.post("/billing/wallet/settle", payload);
+    return res.data?.data ?? res.data ?? null;
+  },
 
   // Billing Reports methods
   getReportsSummary: async (params = {}) => {

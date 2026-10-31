@@ -17,7 +17,7 @@ router.get('/reports/pending-dues', controller.getPendingDuesReport);
 router.get('/reports/collections', controller.getCollectionsReport);
 router.get('/patient/:patientId/dues', controller.getPatientDues);
 
-// IPD Running Bill routes
+// IPD Running Bill & Settlement routes
 router.post('/charges', controller.addCharge);
 router.post('/charges/bed', validate(postBedChargesSchema), controller.postBedCharges);
 router.post('/bed-charges', validate(postBedChargesSchema), controller.postBedCharges);
@@ -25,6 +25,10 @@ router.delete('/charges/:id', controller.removeCharge);
 router.get('/running-bill/:encounterId', controller.getRunningBill);
 router.post('/payments/advance', controller.recordAdvancePayment);
 router.get('/payments/encounter/:encounterId', controller.getEncounterPayments);
+router.post('/settle', controller.settleBill);
+router.post('/refund', controller.processRefund);
+router.post('/wallet/credit', controller.creditWallet);
+router.post('/wallet/settle', controller.settleWithWallet);
 
 // Invoices CRUD
 router.post('/', validate(createInvoiceSchema), controller.createInvoice);

@@ -35,7 +35,8 @@ export const dischargePatientSchema = z.object({
   }),
   body: z.object({
     discharge_type: z.enum(['normal', 'lama', 'dama', 'absconded', 'referred', 'transferred', 'death']),
-    discharge_condition: z.string().optional()
+    discharge_condition: z.string().optional(),
+    auto_wallet_credit: z.boolean().optional(),
   })
 });
 
