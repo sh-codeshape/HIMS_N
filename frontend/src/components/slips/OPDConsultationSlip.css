@@ -1,0 +1,434 @@
+/* ==========================================================================
+   OPD Consultation Slip — Styles matching Narayan Hospital Slip Design
+   ========================================================================== */
+
+.opd-slip-container {
+  --slip-primary: #0B3B60;
+  --slip-secondary: #E0F2FE;
+  --slip-accent: #0284C7;
+  --slip-border: #93C5FD;
+  --slip-radius: 12px;
+  --slip-text: #0F172A;
+
+  position: relative;
+  background: #ffffff;
+  border: 1.5px solid var(--slip-border);
+  border-radius: var(--slip-radius);
+  padding: 24px 28px 20px;
+  color: var(--slip-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  box-sizing: border-box;
+  max-width: 820px;
+  margin: 0 auto;
+  overflow: hidden;
+  box-shadow: 0 4px 20px -2px rgba(11, 59, 96, 0.08);
+}
+
+/* Scaling Modifiers */
+.opd-slip-container.scale-compact {
+  font-size: 11px;
+  padding: 16px 20px;
+}
+.opd-slip-container.scale-spacious {
+  font-size: 13.5px;
+  padding: 30px 34px;
+}
+
+/* Decorative Waves */
+.opd-slip-wave-top {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 55%;
+  height: 52px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.9;
+}
+.opd-slip-wave-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 24px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Header Area */
+.opd-slip-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 14px;
+  border-bottom: 1.5px solid #E2E8F0;
+  margin-bottom: 14px;
+}
+
+.opd-slip-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.opd-slip-logo-img {
+  height: 48px;
+  max-width: 160px;
+  object-fit: contain;
+}
+
+.opd-slip-title-group {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.opd-slip-hospital-name {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--slip-primary);
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.opd-slip-header-divider {
+  font-size: 22px;
+  font-weight: 300;
+  color: #94A3B8;
+}
+
+.opd-slip-subtitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  margin: 0;
+}
+
+.opd-slip-slogan {
+  font-size: 12px;
+  font-style: italic;
+  font-weight: 600;
+  color: #0369A1;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Title & Token Row */
+.opd-slip-title-row {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.opd-slip-banner {
+  background: var(--slip-primary);
+  color: #ffffff;
+  border-radius: calc(var(--slip-radius) - 2px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  box-shadow: 0 2px 8px rgba(11, 59, 96, 0.15);
+}
+
+.opd-slip-banner-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+}
+
+.opd-slip-banner-title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+.opd-slip-token-box {
+  background: var(--slip-secondary);
+  border: 1.5px solid var(--slip-border);
+  border-radius: calc(var(--slip-radius) - 2px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  text-align: center;
+}
+
+.opd-slip-token-lbl {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--slip-primary);
+  letter-spacing: 0.8px;
+}
+
+.opd-slip-token-val {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--slip-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: 0.5px;
+}
+
+/* Two Details Cards */
+.opd-slip-details-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.opd-slip-card {
+  border: 1.5px solid var(--slip-border);
+  border-radius: calc(var(--slip-radius) - 2px);
+  background: #FFFFFF;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.opd-slip-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--slip-primary);
+  border-bottom: 1px solid #E2E8F0;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  letter-spacing: 0.2px;
+}
+
+.opd-slip-table-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  flex: 1;
+}
+
+.opd-slip-row {
+  display: flex;
+  align-items: baseline;
+  line-height: 1.4;
+}
+
+.opd-slip-lbl {
+  width: 105px;
+  min-width: 105px;
+  color: #475569;
+  font-weight: 600;
+  position: relative;
+}
+
+.opd-slip-colon {
+  width: 14px;
+  text-align: center;
+  color: #475569;
+  font-weight: bold;
+}
+
+.opd-slip-val {
+  flex: 1;
+  color: #0F172A;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+/* Pill Badges */
+.opd-slip-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.opd-slip-badge--source {
+  background: #E0F2FE;
+  color: #0369A1;
+  border: 1px solid #BAE6FD;
+}
+.opd-slip-badge--status {
+  background: #DCFCE7;
+  color: #15803D;
+  border: 1px solid #86EFAC;
+}
+
+/* Particulars / Billing Table */
+.opd-slip-table-wrap {
+  position: relative;
+  z-index: 1;
+  border: 1.5px solid var(--slip-border);
+  border-radius: calc(var(--slip-radius) - 2px);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.opd-slip-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+
+.opd-slip-table th {
+  background: var(--slip-primary);
+  color: #FFFFFF;
+  padding: 7px 14px;
+  font-weight: 800;
+  font-size: 11.5px;
+  letter-spacing: 0.3px;
+}
+
+.opd-slip-table td {
+  padding: 7px 14px;
+  border-bottom: 1px solid #E2E8F0;
+  color: #1E293B;
+  font-weight: 600;
+}
+
+.opd-slip-table tr:last-child td {
+  border-bottom: none;
+}
+
+.opd-slip-table .th-num,
+.opd-slip-table .td-num {
+  width: 44px;
+  text-align: center;
+}
+
+.opd-slip-table .th-amt,
+.opd-slip-table .td-amt {
+  width: 140px;
+  text-align: right;
+  font-family: inherit;
+  font-weight: 700;
+}
+
+.opd-slip-table .total-row td {
+  background: var(--slip-secondary);
+  color: var(--slip-primary);
+  font-size: 13px;
+  font-weight: 800;
+  border-top: 1.5px solid var(--slip-border);
+  padding: 8px 14px;
+}
+
+/* Footer Section */
+.opd-slip-footer {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr auto 160px;
+  align-items: center;
+  gap: 16px;
+  padding-top: 10px;
+  border-top: 1.5px solid #E2E8F0;
+  margin-bottom: 6px;
+}
+
+.opd-slip-footer-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.opd-slip-info-icon {
+  background: var(--slip-primary);
+  color: #FFFFFF;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 900;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.opd-slip-bullet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.opd-slip-footer-divider {
+  width: 1px;
+  height: 38px;
+  background: #CBD5E1;
+}
+
+.opd-slip-helpline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--slip-primary);
+  white-space: nowrap;
+}
+
+.opd-slip-helpline-icon {
+  color: var(--slip-primary);
+}
+
+.opd-slip-stamp-box {
+  border: 1.5px dashed var(--slip-accent);
+  border-radius: 6px;
+  padding: 10px 8px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--slip-accent);
+  letter-spacing: 0.5px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ==========================================================================
+   Print Rules
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .opd-slip-container {
+    box-shadow: none !important;
+    border-color: #93C5FD !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin: 0 auto !important;
+    max-width: 100% !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

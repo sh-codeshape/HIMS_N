@@ -189,6 +189,7 @@ const sidebarConfig = [
     icon: "LuSliders",
     allowedRoles: [SUPER_ADMIN, ADMIN],
     children: [
+      { label: "Print Slip Templates", path: "/settings/print-templates", allowedRoles: [SUPER_ADMIN, ADMIN] },
       { label: "Outsource Lab Master", path: "/settings/outsource-labs", allowedRoles: [SUPER_ADMIN, ADMIN] },
       { label: "General Settings", path: "/settings/general", allowedRoles: [SUPER_ADMIN, ADMIN] },
     ],

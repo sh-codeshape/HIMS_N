@@ -17,6 +17,15 @@ export const settingsRoutes = [
     }
   />,
   <Route
+    key="settings-print-templates"
+    path="/settings/print-templates"
+    element={
+      <ProtectedRoute allowedRoles={[SUPER_ADMIN, ADMIN]}>
+        <SettingsDashboard />
+      </ProtectedRoute>
+    }
+  />,
+  <Route
     key="settings-outsource"
     path="/settings/outsource-labs"
     element={

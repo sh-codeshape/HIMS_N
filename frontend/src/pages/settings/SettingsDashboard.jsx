@@ -1,21 +1,58 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import PageContainer from "../../components/common/PageContainer.jsx";
 import Icon from "../../components/common/Icon.jsx";
 import OutsourceLabMaster from "./OutsourceLabMaster.jsx";
 import LabTestMaster from "./LabTestMaster.jsx";
+import PrintSlipSettings from "./PrintSlipSettings.jsx";
 
 export default function SettingsDashboard() {
-  const [activeTab, setActiveTab] = useState("inhouse-labs");
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(() => {
+    if (location.pathname.includes("print-templates") || location.pathname.includes("slips")) {
+      return "print-templates";
+    }
+    if (location.pathname.includes("outsource-labs")) {
+      return "outsource-labs";
+    }
+    if (location.pathname.includes("general")) {
+      return "general";
+    }
+    return "print-templates"; // Default to print slip templates for immediate access
+  });
+
+  useEffect(() => {
+    if (location.pathname.includes("print-templates") || location.pathname.includes("slips")) {
+      setActiveTab("print-templates");
+    } else if (location.pathname.includes("outsource-labs")) {
+      setActiveTab("outsource-labs");
+    } else if (location.pathname.includes("general")) {
+      setActiveTab("general");
+    }
+  }, [location.pathname]);
 
   return (
     <PageContainer
       title="System Settings & Masters"
-      subtitle="Manage diagnostic laboratory partners, investigation templates, and hospital configuration"
+      subtitle="Manage diagnostic laboratory partners, investigation templates, and hospital slip configurations"
     >
       <div className="space-y-6">
         {/* Tab Navigation */}
         <div className="border-b border-slate-200">
           <nav className="flex space-x-8">
+            <button
+              type="button"
+              onClick={() => setActiveTab("print-templates")}
+              className={`py-4 px-1 border-b-2 font-bold text-sm flex items-center gap-2 transition-colors ${
+                activeTab === "print-templates"
+                  ? "border-sky-700 text-sky-800"
+                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+              }`}
+            >
+              <Icon name="LuReceipt" size={17} />
+              <span>Print Slip Templates (OPD &amp; IPD)</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setActiveTab("inhouse-labs")}
@@ -58,6 +95,8 @@ export default function SettingsDashboard() {
         </div>
 
         {/* Tab Contents */}
+        {activeTab === "print-templates" && <PrintSlipSettings />}
+
         {activeTab === "inhouse-labs" && <LabTestMaster />}
 
         {activeTab === "outsource-labs" && <OutsourceLabMaster />}

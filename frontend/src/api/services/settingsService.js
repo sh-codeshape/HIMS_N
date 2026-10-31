@@ -52,6 +52,27 @@ const settingsService = {
     const res = await axiosInstance.delete(`/laboratory/definitions/${id}`);
     return res.data?.data || res.data;
   },
+
+  // Generic System Settings (e.g. print_slip_opd, print_slip_ipd)
+  getSetting: async (key) => {
+    try {
+      const res = await axiosInstance.get(`/settings/${key}`);
+      return res.data?.data || null;
+    } catch (err) {
+      console.warn(`API /settings/${key} error:`, err?.message);
+      return null;
+    }
+  },
+
+  updateSetting: async (key, value) => {
+    const res = await axiosInstance.put(`/settings/${key}`, { value });
+    return res.data?.data || res.data;
+  },
+
+  uploadLogo: async (image) => {
+    const res = await axiosInstance.post(`/settings/upload-logo`, { image });
+    return res.data?.data || res.data;
+  },
 };
 
 export default settingsService;

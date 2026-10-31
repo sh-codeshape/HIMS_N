@@ -33,6 +33,7 @@ const pharmacy_routes_1 = require("./modules/pharmacy/pharmacy.routes");
 const inventory_routes_1 = require("./modules/inventory/inventory.routes");
 const roles_routes_1 = require("./modules/roles/roles.routes");
 const modules_routes_1 = require("./modules/modules/modules.routes");
+const settings_routes_1 = require("./modules/settings/settings.routes");
 // Health check
 exports.app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -51,6 +52,7 @@ exports.app.use('/api/v1/pharmacy', pharmacy_routes_1.pharmacyRoutes);
 exports.app.use('/api/v1/inventory', inventory_routes_1.inventoryRoutes);
 exports.app.use('/api/v1/roles', roles_routes_1.rolesRoutes);
 exports.app.use('/api/v1/modules', modules_routes_1.modulesRoutes);
+exports.app.use('/api/v1/settings', settings_routes_1.settingsRoutes);
 // Global Error Handler
 exports.app.use((err, req, res, next) => {
     logger_1.logger.error(err);

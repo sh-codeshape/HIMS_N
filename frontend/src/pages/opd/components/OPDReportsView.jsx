@@ -3,6 +3,8 @@ import Icon from "../../../components/common/Icon.jsx";
 import opdService from "../../../api/services/opdService";
 import patientService from "../../../api/services/patientService";
 import PrintSlipHandler from "../../../services/PrintSlipHandler";
+import OPDConsultationSlip from "../../../components/slips/OPDConsultationSlip.jsx";
+import settingsService from "../../../api/services/settingsService.js";
 import { DEFAULT_HOSPITAL_CONFIG } from "../../../data/printlslip.data.jsx";
 import { useAuth } from "../../../auth";
 import { ROLES } from "../../../auth/roles";
@@ -80,6 +82,16 @@ export default function OPDReportsView() {
   const [viewPatient, setViewPatient] = useState(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [printSlip, setPrintSlip] = useState(null);
+  const [slipSettings, setSlipSettings] = useState(null);
+
+  useEffect(() => {
+    settingsService
+      .getSetting("print_slip_opd")
+      .then((data) => {
+        if (data) setSlipSettings(data);
+      })
+      .catch(() => {});
+  }, []);
 
   const getTodayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -275,7 +287,7 @@ export default function OPDReportsView() {
       consultation_fee: row?.fee || 500,
     };
 
-    PrintSlipHandler.printBooking(booking);
+    PrintSlipHandler.printBooking(booking, slipSettings || {});
   };
 
   const handleDirectPrint = async (row) => {
@@ -1025,159 +1037,8 @@ export default function OPDReportsView() {
               </button>
             </div>
 
-            <div className="opdr-modal-body" style={{ background: "#f8fafc", padding: "16px" }}>
-              {/* Printable Appointment Slip (ID matches @media print) */}
-              <div className="opdr-printable-slip" id="opdr-printable-slip">
-                {/* Top Accent Strip */}
-                <div className="opdr-slip-top-accent"></div>
-
-                {/* Hospital Branding Header */}
-                <div className="opdr-slip-hosp-header">
-                  <div className="opdr-slip-brand">
-                    <div className="opdr-slip-logo">
-                      <Icon name="LuPlus" size={26} />
-                    </div>
-                    <div>
-                      <h2 className="opdr-slip-hosp-name">NARAYAN HOSPITAL &amp; MEDICAL RESEARCH CENTRE</h2>
-                      <p className="opdr-slip-hosp-sub">NABH Accredited Multi-Specialty Hospital • 24x7 Emergency &amp; Trauma Care</p>
-                      <p className="opdr-slip-hosp-addr">Station Road, Civil Lines, Kota, Rajasthan - 324001 • Tel: +91 744 2450000</p>
-                    </div>
-                  </div>
-                  <div className="opdr-slip-token-box">
-                    <span className="opdr-slip-token-lbl">OPD TOKEN NUMBER</span>
-                    <span className="opdr-slip-token-num">{printSlip.token}</span>
-                    <span className="opdr-slip-token-date">{printSlip.date} • {printSlip.time}</span>
-                  </div>
-                </div>
-
-                <div className="opdr-slip-title-bar">
-                  <span>OUTPATIENT DEPARTMENT (OPD) CONSULTATION &amp; PRESCRIPTION SLIP · परामर्श पर्ची</span>
-                </div>
-
-                {/* 2-Column Info Grid */}
-                <div className="opdr-slip-grid">
-                  <div className="opdr-slip-row">
-                    <span className="opdr-slip-lbl">Patient Name:</span>
-                    <span className="opdr-slip-val font-bold">{printSlip.patientName}</span>
-                  </div>
-                  <div className="opdr-slip-row">
-                    <span className="opdr-slip-lbl">UHID Number:</span>
-                    <span className="opdr-slip-val font-mono font-bold text-blue-900">{printSlip.uhid}</span>
-                  </div>
-                  <div className="opdr-slip-row">
-                    <span className="opdr-slip-lbl">Age / Gender:</span>
-                    <span className="opdr-slip-val">{printSlip.age} / {printSlip.gender}</span>
-                  </div>
-                  <div className="opdr-slip-row">
-                    <span className="opdr-slip-lbl">Contact Mobile:</span>
-                    <span className="opdr-slip-val">{printSlip.phone}</span>
-                  </div>
-                  <div className="opdr-slip-row">
-                    <span className="opdr-slip-lbl">Blood Group:</span>
-                    <span className="opdr-slip-val font-bold text-red-600">🩸 {printSlip.bloodGroup || "B+"}</span>
-                  </div>
-                  <div className="opdr-slip-row">
-                    <span className="opdr-slip-lbl">Patient Category:</span>
-                    <span className="opdr-slip-val font-bold text-teal-800">{printSlip.category}</span>
-                  </div>
-                  <div className="opdr-slip-row">
-                    <span className="opdr-slip-lbl">Consultant Doctor:</span>
-                    <span className="opdr-slip-val font-bold text-navy-900">{printSlip.doctor}</span>
-                  </div>
-                  <div className="opdr-slip-row">
-                    <span className="opdr-slip-lbl">Specialty / Dept:</span>
-                    <span className="opdr-slip-val font-semibold">{printSlip.department}</span>
-                  </div>
-                  <div className="opdr-slip-row">
-                    <span className="opdr-slip-lbl">Consultation Room:</span>
-                    <span className="opdr-slip-val font-semibold">{printSlip.chamber}</span>
-                  </div>
-                  <div className="opdr-slip-row">
-                    <span className="opdr-slip-lbl">Visit Status:</span>
-                    <span className="opdr-slip-val font-bold text-emerald-800">{printSlip.status}</span>
-                  </div>
-                  <div className="opdr-slip-row full">
-                    <span className="opdr-slip-lbl">Chief Complaint:</span>
-                    <span className="opdr-slip-val">{printSlip.chiefComplaint}</span>
-                  </div>
-                  <div className="opdr-slip-row full">
-                    <span className="opdr-slip-lbl">Residential Address:</span>
-                    <span className="opdr-slip-val">{printSlip.address}</span>
-                  </div>
-                </div>
-
-                {/* Vitals Recording Section for Doctor / Nurse */}
-                <div className="opdr-slip-vitals-box">
-                  <div className="opdr-slip-vitals-title">NURSING TRIAGE &amp; VITALS RECORDING (प्रारंभिक जांच):</div>
-                  <div className="opdr-slip-vitals-grid">
-                    <div className="opdr-vitals-cell"><span>Pulse:</span> ______ bpm</div>
-                    <div className="opdr-vitals-cell"><span>BP:</span> ______ mmHg</div>
-                    <div className="opdr-vitals-cell"><span>Temp:</span> ______ °F</div>
-                    <div className="opdr-vitals-cell"><span>SpO2:</span> ______ %</div>
-                    <div className="opdr-vitals-cell"><span>Weight:</span> ______ kg</div>
-                    <div className="opdr-vitals-cell"><span>Height:</span> ______ cm</div>
-                  </div>
-                </div>
-
-                {/* Fee & Receipt Summary Box */}
-                <div className="opdr-slip-fee-box">
-                  <div className="opdr-slip-fee-header">
-                    <span>FEE &amp; PAYMENT RECEIPT (भुगतान रसीद)</span>
-                    <span className="opdr-receipt-no">Receipt: {printSlip.receiptNo}</span>
-                  </div>
-                  <div className="opdr-slip-fee-body">
-                    <div className="opdr-slip-fee-col">
-                      <span className="opdr-fee-label">Registration Fee:</span>
-                      <strong className="opdr-fee-amount">₹ {Number(printSlip.regFee || 100).toFixed(2)}</strong>
-                    </div>
-                    <div className="opdr-slip-fee-col">
-                      <span className="opdr-fee-label">Consultation Fee:</span>
-                      <strong className="opdr-fee-amount">₹ {Number(printSlip.consultFee || 400).toFixed(2)}</strong>
-                    </div>
-                    <div className="opdr-slip-fee-col highlight">
-                      <span className="opdr-fee-label">Total Amount Paid ({printSlip.paymentMode}):</span>
-                      <strong className="opdr-fee-amount total">₹ {Number(printSlip.totalFee || 500).toFixed(2)}</strong>
-                    </div>
-                    <div className="opdr-slip-fee-col">
-                      <span className="opdr-fee-label">Payment Status:</span>
-                      <span className="opdr-fee-paid-badge">✓ {printSlip.paymentStatus} (प्राप्त)</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Clinical Notes & Prescription Area for Doctor */}
-                <div className="opdr-slip-rx-box">
-                  <div className="opdr-slip-rx-header">
-                    <span className="opdr-rx-symbol">℞</span>
-                    <span className="opdr-rx-title">DOCTOR'S CLINICAL EVALUATION &amp; PRESCRIPTION (डॉक्टर परामर्श एवं दवा पर्ची):</span>
-                  </div>
-                  <div className="opdr-slip-rx-lines">
-                    <div className="opdr-rx-line"></div>
-                    <div className="opdr-rx-line"></div>
-                    <div className="opdr-rx-line"></div>
-                    <div className="opdr-rx-line"></div>
-                  </div>
-                </div>
-
-                {/* Instructions & Footer */}
-                <div className="opdr-slip-footer-notes">
-                  <div className="opdr-slip-notes-left">
-                    <p>• Please present this original slip at the Doctor's Consultation Chamber &amp; Hospital Pharmacy.</p>
-                    <p>• Valid for 7 days from consultation date for routine follow-up checkup.</p>
-                    <p className="opdr-slip-note-small">* Electronic consultation record generated by Narayan Hospital HIMS.</p>
-                    {/* Barcode Graphic */}
-                    <div className="opdr-slip-barcode">
-                      <div className="opdr-barcode-lines"></div>
-                      <span className="opdr-barcode-text">*{printSlip.uhid}-{printSlip.token}*</span>
-                    </div>
-                  </div>
-                  <div className="opdr-slip-notes-right">
-                    <div className="opdr-slip-sig-line"></div>
-                    <span className="opdr-slip-signature">Authorized Hospital Signatory / Attending Consultant</span>
-                    <span className="opdr-slip-timestamp">Generated: {new Date().toLocaleString("en-IN")}</span>
-                  </div>
-                </div>
-              </div>
+            <div className="opdr-modal-body" style={{ background: "#f8fafc", padding: "16px", maxHeight: "78vh", overflowY: "auto" }}>
+              <OPDConsultationSlip data={printSlip} settings={slipSettings || {}} />
             </div>
 
             <div className="opdr-modal-foot" style={{ justifyContent: "space-between" }}>
@@ -1191,7 +1052,7 @@ export default function OPDReportsView() {
               <button
                 type="button"
                 className="opdr-btn opdr-btn--green"
-                onClick={() => window.print()}
+                onClick={() => PrintSlipHandler.printBooking(printSlip, slipSettings || {})}
               >
                 <Icon name="LuPrinter" size={16} /> Print Slip (पर्ची प्रिंट करें)
               </button>

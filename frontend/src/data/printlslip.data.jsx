@@ -13,20 +13,23 @@
 export const DEFAULT_HOSPITAL_CONFIG = {
   // Hospital identity & branding
   hospital: {
-    name: 'Naryan Hospital',
+    name: 'Narayan Hospital',
+    subtitle: 'Super Speciality Healthcare & Research Institute',
     tagline: 'Super Speciality Healthcare & Research Institute',
+    slogan: 'Better Care. Healthier Tomorrow.',
     registrationNo: 'REG/UP/2024/098',
     logo: {
-      src: '/image/image.png', // Fallback path in public folder (also supports /NarayanLogo.png or full URLs)
-      alt: 'Naryan Hospital',
-      height: '44px',
-      maxWidth: '140px',
+      src: '/images/Narayan_Logo.png',
+      alt: 'Narayan Hospital Logo',
+      height: '48px',
+      maxWidth: '160px',
       show: true,
     },
-    address: 'Civil Lines, Near Medical College',
-    district: 'Lucknow',
+    address: 'Jansa, Varanasi',
+    district: 'Varanasi',
     state: 'Uttar Pradesh',
-    pinCode: '226001',
+    pinCode: '221405',
+    phone: '+91 7388660408',
   },
 
   // Document titles
@@ -38,59 +41,59 @@ export const DEFAULT_HOSPITAL_CONFIG = {
   // Header options
   header: {
     showLogo: true,
-    showGenerationTime: true,
+    showTagline: true,
+    showGenerationTime: false,
     timeFormat: 'en-IN',
   },
 
   // Footer & Contact information (WhatsApp chatbot, Helplines, website, etc.)
   contacts: {
-    // whatsapp: {
-    //   show: true,
-    //   // label: 'WhatsApp Chatbot',
-    //   number: '+91 8853991899',
-    // },
     helplines: [
       {
         show: true,
-        label: 'Helpline',
+        label: 'Helpline:',
         number: '+91 7388660408',
       },
     ],
-    // email: 'info@kgnandahospital.com',
-    // website: 'www.kgnandahospital.com',
   },
 
   // Counter notices and labels
   notices: {
     opd: {
-      en: 'Please present this slip at the department OPD counter.',
-      hi: 'कृपया इस पर्ची को संबंधित विभाग के ओपीडी काउंटर पर प्रस्तुत करें।',
+      en: 'Please carry this slip for consultation.',
+      hi: 'For any assistance, contact reception.',
     },
     ipd: {
       en: 'Please present this slip at the department IPD admission counter.',
       hi: 'कृपया इस पर्ची को संबंधित विभाग के आईपीडी काउंटर पर प्रस्तुत करें।',
     },
     signatureLabel: "Doctor's Signature / हस्ताक्षर",
-    stampLabel: 'HOSPITAL STAMP / मुहर',
+    stampLabel: 'HOSPITAL STAMP',
   },
 
   // Theming & Colors (CSS colors used for borders, badges, backgrounds)
   theme: {
     opd: {
-      slipBorder: '#7ba4c9',
-      titleColor: '#1d6fa5',
-      accentBg: '#e3f2fd',
-      accentBorder: '#bbdefb',
-      accentText: '#0d47a1',
+      primaryColor: '#0B3B60',
+      secondaryColor: '#E0F2FE',
+      accentColor: '#0284C7',
+      slipBorder: '#93C5FD',
+      titleColor: '#0B3B60',
+      accentBg: '#E0F2FE',
+      accentBorder: '#BAE6FD',
+      accentText: '#0B3B60',
       counterType: 'OPD',
       hindiCounter: 'ओपीडी',
     },
     ipd: {
-      slipBorder: '#4caf50',
-      titleColor: '#2e7d32',
-      accentBg: '#e8f5e9',
-      accentBorder: '#c8e6c9',
-      accentText: '#1b5e20',
+      primaryColor: '#1B5E20',
+      secondaryColor: '#E8F5E9',
+      accentColor: '#2E7D32',
+      slipBorder: '#86EFAC',
+      titleColor: '#1B5E20',
+      accentBg: '#E8F5E9',
+      accentBorder: '#C8E6C9',
+      accentText: '#1B5E20',
       counterType: 'IPD admission',
       hindiCounter: 'आईपीडी',
     },
@@ -100,10 +103,10 @@ export const DEFAULT_HOSPITAL_CONFIG = {
   clinical: {
     defaultFee: 500,
     defaultDoctorName: 'General Doctor',
-    defaultSource: 'WhatsApp Bot',
+    defaultSource: 'Offline',
     defaultUhid: 'KGN-PENDING',
     showPhysicalVitals: true,
-    showGynaePanels: 'auto', // 'auto' (detect via keywords) | true | false
+    showGynaePanels: false,
     prescriptionLines: 4,
   },
 }

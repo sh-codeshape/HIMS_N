@@ -7,6 +7,8 @@ import patientService from "../../../api/services/patientService";
 import opdService from "../../../api/services/opdService";
 import doctorService from "../../../services/doctorService";
 import PrintSlipHandler from "../../../services/PrintSlipHandler";
+import OPDConsultationSlip from "../../../components/slips/OPDConsultationSlip.jsx";
+import settingsService from "../../../api/services/settingsService.js";
 import "./OPDTokenQueue.css";
 
 // ── Complaint Categories & Popular Complaints Dataset ──────────────────────────
@@ -196,6 +198,17 @@ export default function OPDTokenQueue() {
   // Print Slip Modal State
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [opdSlipData, setOpdSlipData] = useState(null);
+  const [slipSettings, setSlipSettings] = useState(null);
+
+  // Load custom hospital slip settings from database
+  useEffect(() => {
+    settingsService
+      .getSetting("print_slip_opd")
+      .then((data) => {
+        if (data) setSlipSettings(data);
+      })
+      .catch(() => {});
+  }, []);
 
   // Close search dropdown & complaint dropdown on outside click
   useEffect(() => {
@@ -448,7 +461,7 @@ export default function OPDTokenQueue() {
 
   const handlePrintSlip = () => {
     if (opdSlipData) {
-      PrintSlipHandler.printBooking(opdSlipData);
+      PrintSlipHandler.printBooking(opdSlipData, slipSettings || {});
     } else {
       window.print();
     }
@@ -1127,107 +1140,8 @@ export default function OPDTokenQueue() {
             </div>
 
             {/* PRINTABLE SLIP CONTENT */}
-            <div className="printable-slip" id="opd-printable-receipt">
-              {/* Top Accent Gradient Bar */}
-              <div className="slip-top-accent-bar"></div>
-
-              {/* Clean Header Bar (No Hospital Name/Logo - Ready for Letterhead Paper) */}
-              <div className="slip-hospital-header">
-                <div className="slip-title-badge-wrap">
-                  <span className="slip-badge-title">OPD CONSULTATION SLIP</span>
-                </div>
-
-                <div className="token-inline-box">
-                  <span className="token-inline-lbl">TOKEN NO</span>
-                  <span className="token-num-highlight">{opdSlipData.tokenNo}</span>
-                </div>
-              </div>
-
-              {/* Patient & Consultation Details 2-Column Structured Grid */}
-              <div className="slip-details-grid">
-                <div className="slip-detail-item">
-                  <span className="lbl">Date & Time:</span>
-                  <span className="val semi">{opdSlipData.date}</span>
-                </div>
-               
-                <div className="slip-detail-item">
-                  <span className="lbl">UHID:</span>
-                  <span className="val mono">{opdSlipData.uhid}</span>
-                </div>
-                <div className="slip-detail-item">
-                  <span className="lbl">Patient Name:</span>
-                  <span className="val strong">{opdSlipData.patientName}</span>
-                </div>
-                <div className="slip-detail-item">
-                  <span className="lbl">Age / Gender:</span>
-                  <span className="val">{opdSlipData.age} Yrs / {opdSlipData.gender}</span>
-                </div>
-                <div className="slip-detail-item">
-                  <span className="lbl">Phone:</span>
-                  <span className="val">{opdSlipData.phone}</span>
-                </div>
-                <div className="slip-detail-item">
-                  <span className="lbl">Department:</span>
-                  <span className="val">{opdSlipData.department}</span>
-                </div>
-                <div className="slip-detail-item">
-                  <span className="lbl">Doctor:</span>
-                  <span className="val semi">{opdSlipData.doctor} ({opdSlipData.doctorDegree})</span>
-                </div>
-                <div className="slip-detail-item full-width">
-                  <span className="lbl">Chief Complaint:</span>
-                  <span className="val semi">{opdSlipData.chiefComplaint}</span>
-                </div>
-              </div>
-
-              {/* Fee Breakdown Table */}
-              <div className="slip-fee-table">
-                {particulars && particulars.length > 0 ? (
-                  particulars.map((row) => (
-                    <div className="fee-line" key={row.id}>
-                      <span>{row.service || "OPD Fee"} {Number(row.qty) > 1 ? `(x${row.qty})` : ""}</span>
-                      <span>₹ {Number(row.amount || 0).toFixed(2)}</span>
-                    </div>
-                  ))
-                ) : (
-                  <>
-                    {opdSlipData.registrationFee > 0 && (
-                      <div className="fee-line">
-                        <span>Registration Fee</span>
-                        <span>₹ {opdSlipData.registrationFee.toFixed(2)}</span>
-                      </div>
-                    )}
-                    {opdSlipData.consultationFee > 0 && (
-                      <div className="fee-line">
-                        <span>Consultation Fee</span>
-                        <span>₹ {opdSlipData.consultationFee.toFixed(2)}</span>
-                      </div>
-                    )}
-                  </>
-                )}
-                {opdSlipData.discount > 0 && (
-                  <div className="fee-line discount">
-                    <span>Discount</span>
-                    <span>- ₹ {opdSlipData.discount.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="fee-line total">
-                  <span>Amount Paid ({opdSlipData.paymentMode})</span>
-                  <span>₹ {opdSlipData.totalAmount.toFixed(2)}</span>
-                </div>
-              </div>
-
-              {/* Footer Section */}
-              <div className="slip-footer">
-                <div className="footer-left">
-                  <p className="thank-msg">Thank you! Wish you good health!</p>
-                  <p className="computer-gen">* This is a computer generated OPD token receipt.</p>
-                </div>
-                <div className="footer-right">
-                  <div className="sig-line"></div>
-                  <span className="signature">Authorized Receptionist Signature</span>
-                </div>
-              </div>
+            <div className="opd-slip-modal-wrapper" style={{ maxHeight: "78vh", overflowY: "auto", padding: "14px", background: "#f8fafc" }}>
+              <OPDConsultationSlip data={opdSlipData} settings={slipSettings || {}} />
             </div>
 
             {/* MODAL ACTIONS */}
