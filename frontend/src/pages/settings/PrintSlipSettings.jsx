@@ -43,6 +43,11 @@ const DEFAULT_SETTINGS = {
       show: true,
     },
   },
+  page: {
+    size: "A4",
+    orientation: "portrait",
+    margin: 8,
+  },
   styling: {
     primaryColor: "#0B3B60",
     secondaryColor: "#E0F2FE",
@@ -53,6 +58,7 @@ const DEFAULT_SETTINGS = {
     shape: "rounded", // 'sharp' | 'subtle' | 'rounded' | 'pill'
     fontSizeScale: "normal", // 'compact' | 'normal' | 'spacious'
     showWaveDecorations: true,
+    paperSize: "A4",
   },
   header: {
     showLogo: true,
@@ -271,6 +277,13 @@ export default function PrintSlipSettings() {
     setSettings((prev) => ({
       ...prev,
       footer: { ...prev.footer, [field]: val },
+    }));
+  };
+
+  const updatePage = (field, val) => {
+    setSettings((prev) => ({
+      ...prev,
+      page: { ...(prev.page || {}), [field]: val },
     }));
   };
 
@@ -565,6 +578,41 @@ export default function PrintSlipSettings() {
                     <div>{s.label}</div>
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Paper Size & Page Compatibility */}
+            <div className="pt-2 border-t border-slate-100">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Paper Size &amp; Page Compatibility (A4 / A5 / Letter)
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: "A4", label: "A4 (Standard Sheet)", desc: "210 × 297 mm" },
+                  { value: "A5", label: "A5 (Compact Slip)", desc: "148 × 210 mm" },
+                  { value: "Letter", label: "Letter (US)", desc: "8.5 × 11 in" },
+                ].map((p) => {
+                  const currentSize = settings.page?.size || settings.styling?.paperSize || "A4";
+                  const isSelected = currentSize.toUpperCase() === p.value.toUpperCase();
+                  return (
+                    <button
+                      key={p.value}
+                      type="button"
+                      onClick={() => {
+                        updatePage("size", p.value);
+                        updateStyling("paperSize", p.value);
+                      }}
+                      className={`py-2 px-2 text-xs font-semibold rounded-lg border text-center transition-all ${
+                        isSelected
+                          ? "border-sky-600 bg-sky-50 text-sky-900 shadow-sm"
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="font-bold">{p.label}</div>
+                      <div className="text-[10px] text-slate-400 font-normal mt-0.5">{p.desc}</div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

@@ -190,10 +190,13 @@ export default function IPDDischargeSummary() {
   };
 
   // High-fidelity print handler using database settings
-  const handlePrintSummary = async (targetAdmission = selectedAdmission, targetSummary = currentSummary) => {
+  const handlePrintSummary = async (targetAdmission = selectedAdmission, targetSummary = null) => {
     if (!targetAdmission) return;
     try {
       let sum = targetSummary;
+      if (!sum && targetAdmission.id === selectedAdmission?.id) {
+        sum = currentSummary;
+      }
       if (!sum) {
         sum = await ipdService.getDischargeSummary(targetAdmission.id).catch(() => null);
       }

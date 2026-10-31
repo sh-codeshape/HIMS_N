@@ -52,7 +52,68 @@ export class PrintSlipHandler {
     if (!this._cachedDbSettings) {
       await this.loadDbSettings();
     }
-    this._openPrintWindow(booking, customConfig);
+    const html = this._buildSlipHTML(booking, customConfig);
+    const success = await this._printViaIframe(html);
+    if (!success) {
+      this._openPrintWindow(booking, customConfig);
+    }
+  }
+
+  static _printViaIframe(html) {
+    return new Promise((resolve) => {
+      try {
+        let frame = document.getElementById("opd-silent-print-frame");
+        if (frame) {
+          try { frame.remove(); } catch (_) {}
+        }
+        frame = document.createElement("iframe");
+        frame.id = "opd-silent-print-frame";
+        frame.style.position = "fixed";
+        frame.style.top = "-9999px";
+        frame.style.left = "-9999px";
+        frame.style.width = "1px";
+        frame.style.height = "1px";
+        frame.style.border = "none";
+        frame.style.opacity = "0.01";
+        frame.style.pointerEvents = "none";
+        document.body.appendChild(frame);
+
+        const win = frame.contentWindow;
+        if (!win) {
+          resolve(false);
+          return;
+        }
+
+        const doc = win.document;
+        doc.open();
+        doc.write(html);
+        doc.close();
+
+        let printed = false;
+        const trigger = () => {
+          if (printed) return;
+          printed = true;
+          try {
+            win.focus();
+            win.print();
+            resolve(true);
+          } catch (e) {
+            console.warn("OPD iframe print invocation failed:", e);
+            resolve(false);
+          }
+        };
+
+        if (doc.readyState === "complete") {
+          setTimeout(trigger, 250);
+        } else {
+          win.onload = () => setTimeout(trigger, 200);
+          setTimeout(trigger, 600);
+        }
+      } catch (err) {
+        console.warn("OPD iframe print error:", err);
+        resolve(false);
+      }
+    });
   }
 
   static getSlipHTML(booking, customConfig = {}) {
@@ -75,6 +136,12 @@ export class PrintSlipHandler {
       ...(customConfig.styling || {}),
     };
 
+    const page = {
+      ...(config.page || {}),
+      ...(dbConfig.page || {}),
+      ...(customConfig.page || {}),
+    };
+
     const header = {
       ...(config.header || {}),
       ...(dbConfig.header || {}),
@@ -95,6 +162,16 @@ export class PrintSlipHandler {
       ...(dbConfig.footer || {}),
       ...(customConfig.footer || {}),
     };
+
+    const paperSize = (page.size || styling.paperSize || 'A4').toUpperCase();
+    const orientation = page.orientation || 'portrait';
+    const marginMm = Number(page.margin !== undefined ? page.margin : 8);
+
+    const isA5 = paperSize === 'A5';
+    const isLetter = paperSize === 'LETTER';
+    const maxSlipWidth = isA5 ? '138mm' : isLetter ? '198mm' : '194mm';
+    const slipPadding = isA5 ? '14px 18px 12px' : '20px 24px 16px';
+    const sizeClass = isA5 ? 'size-a5' : isLetter ? 'size-letter' : 'size-a4';
 
     const primaryColor = styling.primaryColor || '#0B3B60';
     const secondaryColor = styling.secondaryColor || '#E0F2FE';
@@ -176,8 +253,8 @@ export class PrintSlipHandler {
 <title>${docTitle} — ${patientName}</title>
 <style>
   @page {
-    size: A4 portrait;
-    margin: 8mm 10mm;
+    size: ${paperSize} ${orientation};
+    margin: ${marginMm}mm;
   }
   * {
     box-sizing: border-box;
@@ -185,7 +262,8 @@ export class PrintSlipHandler {
     padding: 0;
   }
   html, body {
-    height: 100%;
+    margin: 0;
+    padding: 0;
     color: #0f172a;
     background: #ffffff;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -196,10 +274,11 @@ export class PrintSlipHandler {
     position: relative;
     border: 1.5px solid ${slipBorderColor};
     border-radius: ${borderRadius};
-    padding: 24px 28px 20px;
+    padding: ${slipPadding};
     background: #ffffff;
     box-sizing: border-box;
-    max-width: 820px;
+    width: 100%;
+    max-width: ${maxSlipWidth};
     margin: 0 auto;
     overflow: hidden;
     page-break-inside: avoid;
@@ -207,8 +286,24 @@ export class PrintSlipHandler {
   }
   @media print {
     body { margin: 0; padding: 0; }
-    .slip { max-width: 100%; border-color: ${slipBorderColor}; }
+    .slip { width: 100%; max-width: 100%; border-color: ${slipBorderColor}; }
   }
+
+  /* Size Modifiers */
+  .slip.size-a5 {
+    font-size: 11px;
+  }
+  .slip.size-a5 .hosp-name { font-size: 17px; }
+  .slip.size-a5 .hosp-sub { font-size: 11px; }
+  .slip.size-a5 .slogan { font-size: 10px; }
+  .slip.size-a5 .banner-title { font-size: 14px; }
+  .slip.size-a5 .token-val { font-size: 15px; }
+  .slip.size-a5 .card { padding: 8px 10px; }
+  .slip.size-a5 .card-head { font-size: 11px; margin-bottom: 6px; }
+  .slip.size-a5 .rows-wrap { font-size: 10.5px; gap: 3px; }
+  .slip.size-a5 .lbl { width: 85px; }
+  .slip.size-a5 th, .slip.size-a5 td { padding: 5px 8px; font-size: 10.5px; }
+  .slip.size-a5 .stamp-box { width: 110px; height: 42px; min-height: 42px; max-height: 42px; font-size: 9px; }
 
   /* Decorative Wave Elements */
   .wave-top {
@@ -445,66 +540,86 @@ export class PrintSlipHandler {
   .footer {
     position: relative;
     z-index: 1;
-    display: grid;
-    grid-template-columns: 1fr auto 160px;
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 16px;
-    padding-top: 10px;
+    gap: 14px;
+    padding-top: 8px;
     border-top: 1.5px solid #E2E8F0;
+    margin-top: 10px;
   }
   .footer-info {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
   }
   .info-icon {
     background: ${primaryColor};
     color: #ffffff;
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 900;
   }
   .bullet-list {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    font-size: 11px;
+    font-size: 10.5px;
     color: #334155;
     font-weight: 600;
   }
+  .helpline-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
   .footer-divider {
     width: 1px;
-    height: 38px;
+    height: 28px;
     background: #CBD5E1;
   }
   .helpline {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 12px;
+    gap: 6px;
+    font-size: 11px;
     font-weight: 800;
     color: ${primaryColor};
     white-space: nowrap;
   }
   .stamp-box {
+    width: 140px;
+    height: 48px;
+    min-height: 48px;
+    max-height: 48px;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border: 1.5px dashed ${accentColor};
     border-radius: 6px;
-    padding: 10px 8px;
+    padding: 4px 8px;
     text-align: center;
     font-size: 10px;
     font-weight: 800;
     color: ${accentColor};
+    line-height: 1.2;
   }
 </style>
 </head>
 <body>
 
-<div class="slip">
+<div class="slip ${sizeClass}">
   <!-- Top Wave -->
   <svg class="wave-top" viewBox="0 0 400 60" preserveAspectRatio="none">
     <path d="M0,0 C120,45 250,10 400,35 L400,0 L0,0 Z" fill="#0284C7" fill-opacity="0.3"/>
@@ -602,12 +717,14 @@ export class PrintSlipHandler {
         ${(footer.infoBullets || ['Please carry this slip for consultation.', 'For any assistance, contact reception.']).map(b => `<span>• ${b}</span>`).join('')}
       </div>
     </div>
-    <div class="footer-divider"></div>
-    <div class="helpline">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-      <span>${footer.helpline?.label || 'Helpline:'} ${footer.helpline?.number || hospital.phone || '+91 7388660408'}</span>
+    <div class="helpline-wrap">
+      <div class="footer-divider"></div>
+      <div class="helpline">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        <span>${footer.helpline?.label || 'Helpline:'} ${footer.helpline?.number || hospital.phone || '+91 7388660408'}</span>
+      </div>
+      <div class="footer-divider"></div>
     </div>
-    <div class="footer-divider"></div>
     <div class="stamp-box">${footer.stamp?.label || 'HOSPITAL STAMP'}</div>
   </div>
 </div>

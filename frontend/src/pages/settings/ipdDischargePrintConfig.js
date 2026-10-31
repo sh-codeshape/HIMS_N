@@ -42,6 +42,9 @@ export const DEFAULT_IPD_DISCHARGE_SETTINGS = {
     showAddress: true,
     showContact: true,
     showDocumentLabel: true,
+    showBarcode: true,
+    showTopUHID: true,
+    showTopAdmissionNo: true,
   },
   patient: {
     enabled: true,
@@ -93,6 +96,7 @@ export const DEFAULT_IPD_DISCHARGE_SETTINGS = {
   vitals: {
     enabled: true,
     title: "VITALS AT DISCHARGE",
+    leaveBlankForPen: true,
     fields: {
       bp: field("Blood Pressure"),
       pulse: field("Pulse"),
@@ -239,15 +243,15 @@ export const SAMPLE_IPD_DISCHARGE = {
       "Conscious, oriented and ambulatory. Haemodynamically stable at the time of discharge.",
   },
   vitals: {
-    bp: "120/80 mmHg",
-    pulse: "76 bpm",
-    temperature: "98.4 °F",
-    spo2: "99%",
-    respiratoryRate: "18 / min",
-    weight: "68 kg",
-    bloodSugar: "108 mg/dL",
-    consciousness: "Conscious & oriented",
-    mobility: "Ambulatory",
+    bp: "",
+    pulse: "",
+    temperature: "",
+    spo2: "",
+    respiratoryRate: "",
+    weight: "",
+    bloodSugar: "",
+    consciousness: "",
+    mobility: "",
   },
   billing: {
     totalCharges: 1170,
@@ -411,17 +415,17 @@ export function mapAdmissionToDischargePayload(admission = {}, summary = {}, for
     hospitalCourse: summary?.hospital_course || form?.hospital_course || "Course in hospital was smooth and satisfactory. Clinical parameters normalized, oral tolerance established, and patient is discharged hemodynamically stable.",
   };
 
-  // 4. Vitals
+  // 4. Vitals (left blank for handwritten entry with pen after taking discharge vitals)
   const vitals = {
-    bp: summary?.vitals?.bp || form?.vitals?.bp || "120/80 mmHg",
-    pulse: summary?.vitals?.pulse || form?.vitals?.pulse || "76 bpm",
-    temperature: summary?.vitals?.temperature || form?.vitals?.temperature || "98.4 °F",
-    spo2: summary?.vitals?.spo2 || form?.vitals?.spo2 || "99% (Room Air)",
-    respiratoryRate: summary?.vitals?.respiratoryRate || "18 / min",
-    weight: summary?.vitals?.weight || (admission.weight ? `${admission.weight} kg` : "—"),
-    bloodSugar: summary?.vitals?.bloodSugar || "110 mg/dL (Random)",
-    consciousness: "Alert, Oriented to Time, Place & Person",
-    mobility: "Fully Ambulatory without assistance",
+    bp: summary?.vitals?.bp || form?.vitals?.bp || form?.discharge_vitals_bp || "",
+    pulse: summary?.vitals?.pulse || form?.vitals?.pulse || form?.discharge_vitals_pulse || "",
+    temperature: summary?.vitals?.temperature || form?.vitals?.temperature || form?.discharge_vitals_temp || "",
+    spo2: summary?.vitals?.spo2 || form?.vitals?.spo2 || form?.discharge_vitals_spo2 || "",
+    respiratoryRate: summary?.vitals?.respiratoryRate || form?.vitals?.respiratoryRate || "",
+    weight: summary?.vitals?.weight || (admission.weight ? `${admission.weight} kg` : ""),
+    bloodSugar: summary?.vitals?.bloodSugar || "",
+    consciousness: summary?.vitals?.consciousness || "",
+    mobility: summary?.vitals?.mobility || "",
   };
 
   // 5. Billing clearance

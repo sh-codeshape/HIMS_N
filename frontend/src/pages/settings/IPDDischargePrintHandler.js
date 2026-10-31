@@ -185,15 +185,20 @@ export function buildIPDDischargeHTML(
           ${cfg.header.showRegistrationNo && cfg.hospital.registrationNo ? `<span> · Reg No: <b>${esc(cfg.hospital.registrationNo)}</b></span>` : ""}
         </div>
       </div>
+      ${
+        cfg.header.showBarcode !== false && (cfg.header.showTopUHID !== false || cfg.header.showTopAdmissionNo !== false)
+          ? `
       <div class="header-right">
         <div class="barcode-badge">
           <div class="barcode-bars">||||| |||| |||||| ||||| ||||</div>
           <div class="barcode-info">
-            <div>UHID: <b>${esc(patient.uhid || "NH-2026-98412")}</b></div>
-            <div>IPD: <b>${esc(admission.ipdNumber || "IPD-2026-4401")}</b></div>
+            ${cfg.header.showTopUHID !== false ? `<div>UHID: <b>${esc(patient.uhid || "NH-2026-98412")}</b></div>` : ""}
+            ${cfg.header.showTopAdmissionNo !== false ? `<div>IPD: <b>${esc(admission.ipdNumber || "IPD-2026-4401")}</b></div>` : ""}
           </div>
         </div>
-      </div>
+      </div>`
+          : ""
+      }
     </header>
     ${cfg.header.showDocumentLabel ? `<div class="document-ribbon">${esc(cfg.header.title || "INPATIENT DISCHARGE SUMMARY & CLINICAL RECORD")}</div>` : ""}
   `;
@@ -263,35 +268,37 @@ export function buildIPDDischargeHTML(
   // 3. Discharge Vitals Bar
   let vitalsHTML = "";
   if (cfg.vitals.enabled) {
+    const isBlank = cfg.vitals.leaveBlankForPen !== false;
     vitalsHTML = `
       <div class="vitals-strip">
-        <div class="vitals-strip-title">
-          <span class="vitals-icon">♥</span> ${esc(cfg.vitals.title || "DISCHARGE VITALS (शारीरिक स्थिति)")}
+        <div class="vitals-strip-title" style="display:flex; justify-content:space-between; align-items:center;">
+          <span><span class="vitals-icon">♥</span> ${esc(cfg.vitals.title || "DISCHARGE VITALS (शारीरिक स्थिति)")}</span>
+          <span style="font-size:7px; font-weight:normal; color:#64748b; font-style:italic;">✍ Record with pen prior to ward release</span>
         </div>
         <div class="vitals-grid">
           <div class="vital-item">
-            <span class="vital-name">BP</span>
-            <strong class="vital-value">${esc(vitals.bp || "120/80 mmHg")}</strong>
+            <span class="vital-name">BP (रक्तचाप)</span>
+            <div class="vital-pen-slot">${isBlank || !vitals.bp ? `<span class="pen-line">______ / ______ mmHg</span>` : `<strong class="vital-value">${esc(vitals.bp)}</strong>`}</div>
           </div>
           <div class="vital-item">
-            <span class="vital-name">Pulse</span>
-            <strong class="vital-value">${esc(vitals.pulse || "76 bpm")}</strong>
+            <span class="vital-name">Pulse (पल्स)</span>
+            <div class="vital-pen-slot">${isBlank || !vitals.pulse ? `<span class="pen-line">______ bpm</span>` : `<strong class="vital-value">${esc(vitals.pulse)}</strong>`}</div>
           </div>
           <div class="vital-item">
-            <span class="vital-name">Temp</span>
-            <strong class="vital-value">${esc(vitals.temperature || "98.4 °F")}</strong>
+            <span class="vital-name">Temp (तापमान)</span>
+            <div class="vital-pen-slot">${isBlank || !vitals.temperature ? `<span class="pen-line">______ °F</span>` : `<strong class="vital-value">${esc(vitals.temperature)}</strong>`}</div>
           </div>
           <div class="vital-item">
-            <span class="vital-name">SpO₂</span>
-            <strong class="vital-value">${esc(vitals.spo2 || "99%")}</strong>
+            <span class="vital-name">SpO₂ (ऑक्सीजन)</span>
+            <div class="vital-pen-slot">${isBlank || !vitals.spo2 ? `<span class="pen-line">______ %</span>` : `<strong class="vital-value">${esc(vitals.spo2)}</strong>`}</div>
           </div>
           <div class="vital-item">
             <span class="vital-name">Respiration</span>
-            <strong class="vital-value">${esc(vitals.respiratoryRate || "18 / min")}</strong>
+            <div class="vital-pen-slot">${isBlank || !vitals.respiratoryRate ? `<span class="pen-line">______ / min</span>` : `<strong class="vital-value">${esc(vitals.respiratoryRate)}</strong>`}</div>
           </div>
           <div class="vital-item vital-status">
-            <span class="vital-name vital-status-label">Condition</span>
-            <strong class="vital-value vital-status-val">${esc(vitals.mobility || "Ambulatory")}</strong>
+            <span class="vital-name vital-status-label">Condition (स्थिति)</span>
+            <div class="vital-pen-slot">${isBlank || !vitals.mobility ? `<span class="pen-line" style="color:#047857;">Stable / ______</span>` : `<strong class="vital-value vital-status-val">${esc(vitals.mobility)}</strong>`}</div>
           </div>
         </div>
       </div>
@@ -1011,6 +1018,19 @@ export function buildIPDDischargeHTML(
     .vital-status-val {
       color: #065f46;
     }
+    .vital-pen-slot {
+      height: 18px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 1px;
+    }
+    .pen-line {
+      font-size: 8px;
+      font-weight: 600;
+      color: #64748b;
+      letter-spacing: 0.3px;
+    }
 
     /* ── Clinical Summary ── */
     .clinical-body {
@@ -1453,12 +1473,22 @@ export function buildIPDDischargeHTML(
   ${
     autoPrint
       ? `<script>
-    window.addEventListener('load', function() {
-      setTimeout(function() {
+    function triggerDocPrint() {
+      try {
         window.focus();
         window.print();
-      }, 350);
-    });
+      } catch (err) {
+        console.error("Print trigger failed:", err);
+      }
+    }
+    if (document.readyState === 'complete') {
+      setTimeout(triggerDocPrint, 250);
+    } else {
+      window.addEventListener('load', function() {
+        setTimeout(triggerDocPrint, 250);
+      });
+      setTimeout(triggerDocPrint, 700);
+    }
   </script>`
       : ""
   }
@@ -1467,7 +1497,12 @@ export function buildIPDDischargeHTML(
 }
 
 export class IPDDischargePrintHandler {
-  static async getSettings() {
+  static _cachedSettings = null;
+
+  static async getSettings(forceRefresh = false) {
+    if (this._cachedSettings && !forceRefresh) {
+      return this._cachedSettings;
+    }
     try {
       const response = await settingsService.getSetting(
         IPD_DISCHARGE_SETTINGS_KEY,
@@ -1478,35 +1513,117 @@ export class IPDDischargePrintHandler {
         response?.data ??
         response?.value ??
         response;
-      return mergeIPDSettings(
+      const merged = mergeIPDSettings(
         cloneIPDSettings(DEFAULT_IPD_DISCHARGE_SETTINGS),
         saved || {},
       );
+      this._cachedSettings = merged;
+      return merged;
     } catch (error) {
       console.warn("Using default IPD discharge print settings:", error);
-      return cloneIPDSettings(DEFAULT_IPD_DISCHARGE_SETTINGS);
+      const defaults = cloneIPDSettings(DEFAULT_IPD_DISCHARGE_SETTINGS);
+      this._cachedSettings = defaults;
+      return defaults;
     }
   }
 
   static buildDischargeHTML(discharge, settings, autoPrint = false) {
     return buildIPDDischargeHTML(
       discharge,
-      settings || DEFAULT_IPD_DISCHARGE_SETTINGS,
+      settings || this._cachedSettings || DEFAULT_IPD_DISCHARGE_SETTINGS,
       autoPrint,
     );
   }
 
   /**
-   * Print an IPD discharge summary.
+   * Print an IPD discharge summary seamlessly.
    * Expected payload shape: see SAMPLE_IPD_DISCHARGE in ipdDischargePrintConfig.js.
-   * The caller may pass settings explicitly; otherwise the saved settings are fetched.
+   * Prints directly using a hidden iframe (100% immune to popup blockers).
+   * Automatically falls back to a dedicated popup window if iframe printing is restricted.
    */
   static async printDischargeSummary(discharge, settingsOverride) {
-    // Open synchronously, before awaiting settings, to avoid popup blockers.
+    try {
+      const settings = settingsOverride || (await this.getSettings());
+      const html = buildIPDDischargeHTML(discharge, settings, true);
+
+      // 1. Primary print method: Hidden iframe (zero popup block, instant native print dialog)
+      const success = await this._printViaIframe(html);
+      if (success) return;
+
+      // 2. Fallback print method: Dedicated popup window
+      this._printViaWindow(html);
+    } catch (error) {
+      console.error("IPD discharge summary print failed:", error);
+      window.alert(
+        "Could not generate the IPD discharge summary. Please check your browser print settings.",
+      );
+    }
+  }
+
+  static _printViaIframe(html) {
+    return new Promise((resolve) => {
+      try {
+        let frame = document.getElementById("ipd-silent-discharge-print-frame");
+        if (frame) {
+          try {
+            frame.remove();
+          } catch (_) {}
+        }
+        frame = document.createElement("iframe");
+        frame.id = "ipd-silent-discharge-print-frame";
+        frame.style.position = "fixed";
+        frame.style.top = "-9999px";
+        frame.style.left = "-9999px";
+        frame.style.width = "1px";
+        frame.style.height = "1px";
+        frame.style.border = "none";
+        frame.style.opacity = "0.01";
+        frame.style.pointerEvents = "none";
+        document.body.appendChild(frame);
+
+        const win = frame.contentWindow;
+        if (!win) {
+          resolve(false);
+          return;
+        }
+
+        const doc = win.document;
+        doc.open();
+        doc.write(html);
+        doc.close();
+
+        let printed = false;
+        const trigger = () => {
+          if (printed) return;
+          printed = true;
+          try {
+            win.focus();
+            win.print();
+            resolve(true);
+          } catch (e) {
+            console.warn("Iframe print invocation failed:", e);
+            resolve(false);
+          }
+        };
+
+        if (doc.readyState === "complete") {
+          setTimeout(trigger, 250);
+        } else {
+          win.onload = () => setTimeout(trigger, 200);
+          setTimeout(trigger, 600);
+        }
+      } catch (err) {
+        console.warn("Iframe print error:", err);
+        resolve(false);
+      }
+    });
+  }
+
+  static _printViaWindow(html) {
     const printWindow = window.open(
       "",
       "_blank",
-      "width=1000,height=850,scrollbars=yes",
+      "width=1000,height=850,scrollbars=yes,menubar=yes,status=yes",
     );
     if (!printWindow) {
       window.alert(
@@ -1514,29 +1631,15 @@ export class IPDDischargePrintHandler {
       );
       return;
     }
-    try {
-      printWindow.document.open();
-      printWindow.document.write(
-        "<!doctype html><html><body style='font-family:Arial;padding:24px;color:#334155'>Preparing IPD discharge summary…</body></html>",
-      );
-      printWindow.document.close();
-      const settings = settingsOverride || (await this.getSettings());
-      const html = buildIPDDischargeHTML(discharge, settings);
-      if (printWindow.closed) return;
-      printWindow.document.open();
-      printWindow.document.write(html);
-      printWindow.document.close();
-    } catch (error) {
-      console.error("IPD discharge summary print failed:", error);
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    setTimeout(() => {
       try {
-        printWindow.close();
-      } catch (_) {
-        /* no-op */
-      }
-      window.alert(
-        "Could not generate the IPD discharge summary. Please try again.",
-      );
-    }
+        printWindow.focus();
+        printWindow.print();
+      } catch (_) {}
+    }, 350);
   }
 }
 

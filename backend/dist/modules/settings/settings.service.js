@@ -20,6 +20,11 @@ exports.DEFAULT_OPD_SLIP_SETTINGS = {
             show: true,
         },
     },
+    page: {
+        size: 'A4',
+        orientation: 'portrait',
+        margin: 8,
+    },
     styling: {
         primaryColor: '#0B3B60',
         secondaryColor: '#E0F2FE',
@@ -30,6 +35,7 @@ exports.DEFAULT_OPD_SLIP_SETTINGS = {
         shape: 'rounded', // 'sharp' (0px) | 'subtle' (6px) | 'rounded' (12px) | 'pill' (20px)
         fontSizeScale: 'normal', // 'compact' | 'normal' | 'spacious'
         showWaveDecorations: true,
+        paperSize: 'A4',
     },
     header: {
         showLogo: true,
@@ -208,6 +214,9 @@ exports.DEFAULT_IPD_DISCHARGE_SETTINGS = {
         showAddress: true,
         showContact: true,
         showDocumentLabel: true,
+        showBarcode: true,
+        showTopUHID: true,
+        showTopAdmissionNo: true,
     },
     patient: {
         enabled: true,
@@ -259,6 +268,7 @@ exports.DEFAULT_IPD_DISCHARGE_SETTINGS = {
     vitals: {
         enabled: true,
         title: 'VITALS AT DISCHARGE',
+        leaveBlankForPen: true,
         fields: {
             bp: field('Blood Pressure'),
             pulse: field('Pulse'),

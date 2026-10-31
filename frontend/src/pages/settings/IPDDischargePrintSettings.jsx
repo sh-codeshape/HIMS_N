@@ -266,18 +266,28 @@ function IPDDischargePreview({ settings, data = SAMPLE_IPD_DISCHARGE }) {
           </div>
 
           {/* Right Header: IPD & UHID Identification Badge */}
-          <div className="shrink-0 hidden sm:flex flex-col gap-1 items-end">
-            <div className="bg-sky-50 border border-sky-200 rounded-lg p-2 text-right">
-              <div className="text-[7.5px] uppercase font-bold text-sky-700">Patient UHID</div>
-              <div className="text-[11px] font-extrabold font-mono text-sky-950">
-                {patientData.uhid || "—"}
-              </div>
-              <div className="text-[7.5px] uppercase font-bold text-sky-700 mt-1">IPD Adm No</div>
-              <div className="text-[11px] font-extrabold font-mono text-sky-950">
-                {admissionData.ipdNumber || "—"}
+          {cfg.header.showBarcode !== false && (cfg.header.showTopUHID !== false || cfg.header.showTopAdmissionNo !== false) && (
+            <div className="shrink-0 hidden sm:flex flex-col gap-1 items-end">
+              <div className="bg-sky-50 border border-sky-200 rounded-lg p-2 text-right">
+                {cfg.header.showTopUHID !== false && (
+                  <div>
+                    <div className="text-[7.5px] uppercase font-bold text-sky-700">Patient UHID</div>
+                    <div className="text-[11px] font-extrabold font-mono text-sky-950">
+                      {patientData.uhid || "—"}
+                    </div>
+                  </div>
+                )}
+                {cfg.header.showTopAdmissionNo !== false && (
+                  <div className={cfg.header.showTopUHID !== false ? "mt-1 pt-1 border-t border-sky-200" : ""}>
+                    <div className="text-[7.5px] uppercase font-bold text-sky-700">IPD Adm No</div>
+                    <div className="text-[11px] font-extrabold font-mono text-sky-950">
+                      {admissionData.ipdNumber || "—"}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Navy Document Banner Ribbon */}
@@ -339,36 +349,75 @@ function IPDDischargePreview({ settings, data = SAMPLE_IPD_DISCHARGE }) {
       {/* ── 3. Discharge Vitals Horizontal Status Bar ── */}
       {cfg.vitals.enabled && (
         <div className="mb-3.5 rounded-xl border border-slate-200 bg-slate-50/70 p-2.5 shadow-sm">
-          <div className="flex items-center gap-1.5 text-[9px] font-extrabold uppercase tracking-wider text-slate-600 mb-2">
-            <Icon name="LuActivity" size={13} className="text-rose-600" />
-            <span>{cfg.vitals.title || "DISCHARGE VITALS (शारीरिक स्थिति)"}</span>
+          <div className="flex items-center justify-between text-[9px] font-extrabold uppercase tracking-wider text-slate-600 mb-2">
+            <div className="flex items-center gap-1.5">
+              <Icon name="LuActivity" size={13} className="text-rose-600" />
+              <span>{cfg.vitals.title || "DISCHARGE VITALS (शारीरिक स्थिति)"}</span>
+            </div>
+            <span className="text-[7.5px] font-semibold text-slate-400 normal-case italic">
+              ✍ Record with pen prior to ward release
+            </span>
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
-            <div className="bg-white p-1.5 rounded-lg border border-slate-200 shadow-2xs">
-              <div className="text-[7.5px] uppercase font-bold text-slate-500">BP</div>
-              <div className="text-[10.5px] font-extrabold text-slate-800">{vitalsData.bp || "120/80 mmHg"}</div>
+            <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-2xs flex flex-col justify-between min-h-[46px]">
+              <div className="text-[7.5px] uppercase font-bold text-slate-500">BP (रक्तचाप)</div>
+              {cfg.vitals.leaveBlankForPen !== false || !vitalsData.bp ? (
+                <div className="mt-1 border-b border-dashed border-slate-300 pb-0.5 text-[8.5px] font-semibold text-slate-400">
+                  ______ / ______ mmHg
+                </div>
+              ) : (
+                <div className="text-[10.5px] font-extrabold text-slate-800">{vitalsData.bp}</div>
+              )}
             </div>
-            <div className="bg-white p-1.5 rounded-lg border border-slate-200 shadow-2xs">
-              <div className="text-[7.5px] uppercase font-bold text-slate-500">Pulse</div>
-              <div className="text-[10.5px] font-extrabold text-slate-800">{vitalsData.pulse || "76 bpm"}</div>
+            <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-2xs flex flex-col justify-between min-h-[46px]">
+              <div className="text-[7.5px] uppercase font-bold text-slate-500">Pulse (पल्स)</div>
+              {cfg.vitals.leaveBlankForPen !== false || !vitalsData.pulse ? (
+                <div className="mt-1 border-b border-dashed border-slate-300 pb-0.5 text-[8.5px] font-semibold text-slate-400">
+                  ______ bpm
+                </div>
+              ) : (
+                <div className="text-[10.5px] font-extrabold text-slate-800">{vitalsData.pulse}</div>
+              )}
             </div>
-            <div className="bg-white p-1.5 rounded-lg border border-slate-200 shadow-2xs">
-              <div className="text-[7.5px] uppercase font-bold text-slate-500">Temp</div>
-              <div className="text-[10.5px] font-extrabold text-slate-800">{vitalsData.temperature || "98.4 °F"}</div>
+            <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-2xs flex flex-col justify-between min-h-[46px]">
+              <div className="text-[7.5px] uppercase font-bold text-slate-500">Temp (तापमान)</div>
+              {cfg.vitals.leaveBlankForPen !== false || !vitalsData.temperature ? (
+                <div className="mt-1 border-b border-dashed border-slate-300 pb-0.5 text-[8.5px] font-semibold text-slate-400">
+                  ______ °F
+                </div>
+              ) : (
+                <div className="text-[10.5px] font-extrabold text-slate-800">{vitalsData.temperature}</div>
+              )}
             </div>
-            <div className="bg-white p-1.5 rounded-lg border border-slate-200 shadow-2xs">
-              <div className="text-[7.5px] uppercase font-bold text-slate-500">SpO₂</div>
-              <div className="text-[10.5px] font-extrabold text-slate-800">{vitalsData.spo2 || "99%"}</div>
+            <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-2xs flex flex-col justify-between min-h-[46px]">
+              <div className="text-[7.5px] uppercase font-bold text-slate-500">SpO₂ (ऑक्सीजन)</div>
+              {cfg.vitals.leaveBlankForPen !== false || !vitalsData.spo2 ? (
+                <div className="mt-1 border-b border-dashed border-slate-300 pb-0.5 text-[8.5px] font-semibold text-slate-400">
+                  ______ %
+                </div>
+              ) : (
+                <div className="text-[10.5px] font-extrabold text-slate-800">{vitalsData.spo2}</div>
+              )}
             </div>
-            <div className="bg-white p-1.5 rounded-lg border border-slate-200 shadow-2xs">
+            <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-2xs flex flex-col justify-between min-h-[46px]">
               <div className="text-[7.5px] uppercase font-bold text-slate-500">Respiration</div>
-              <div className="text-[10.5px] font-extrabold text-slate-800">{vitalsData.respiratoryRate || "18 / min"}</div>
+              {cfg.vitals.leaveBlankForPen !== false || !vitalsData.respiratoryRate ? (
+                <div className="mt-1 border-b border-dashed border-slate-300 pb-0.5 text-[8.5px] font-semibold text-slate-400">
+                  ______ / min
+                </div>
+              ) : (
+                <div className="text-[10.5px] font-extrabold text-slate-800">{vitalsData.respiratoryRate}</div>
+              )}
             </div>
-            <div className="bg-emerald-50 p-1.5 rounded-lg border border-emerald-200 shadow-2xs">
-              <div className="text-[7.5px] uppercase font-bold text-emerald-700">Status</div>
-              <div className="text-[10px] font-extrabold text-emerald-800">
-                {vitalsData.mobility || "Ambulatory"}
-              </div>
+            <div className="bg-emerald-50/70 p-2 rounded-lg border border-emerald-200 shadow-2xs flex flex-col justify-between min-h-[46px]">
+              <div className="text-[7.5px] uppercase font-bold text-emerald-700">Condition (स्थिति)</div>
+              {cfg.vitals.leaveBlankForPen !== false || !vitalsData.mobility ? (
+                <div className="mt-1 border-b border-dashed border-emerald-300 pb-0.5 text-[8.5px] font-semibold text-emerald-700">
+                  Stable / ______
+                </div>
+              ) : (
+                <div className="text-[10px] font-extrabold text-emerald-800">{vitalsData.mobility}</div>
+              )}
             </div>
           </div>
         </div>
@@ -803,7 +852,27 @@ function SettingsEditor({ group, settings, update, updateAt }) {
   if (key === "hospital") return <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
     {[["name", "Hospital name"], ["subtitle", "Subtitle"], ["registrationNo", "Registration number"], ["address", "Full address"], ["phone", "Phone"], ["email", "Email"], ["logoUrl", "Logo image URL"]].map(([name, label]) => <label key={name} className="space-y-1 text-xs font-medium text-slate-600">{label}<input value={config[name] || ""} onChange={(event) => update(`hospital.${name}`, event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs" /></label>)}
     <div className="sm:col-span-2 space-y-2 rounded-lg bg-slate-50 p-3">
-      {[["header.showLogo", "Show logo"], ["header.showSubtitle", "Show subtitle"], ["header.showRegistrationNo", "Show registration number"], ["header.showAddress", "Show address"], ["header.showContact", "Show phone / email"], ["header.showDocumentLabel", "Show document title"]].map(([path, label]) => <label key={path} className="flex items-center gap-2 text-xs text-slate-700"><input type="checkbox" checked={getPath(settings, path)} onChange={(event) => update(path, event.target.checked)} className="h-4 w-4" />{label}</label>)}
+      {[
+        ["header.showLogo", "Show logo"],
+        ["header.showSubtitle", "Show subtitle"],
+        ["header.showRegistrationNo", "Show registration number"],
+        ["header.showAddress", "Show address"],
+        ["header.showContact", "Show phone / email"],
+        ["header.showDocumentLabel", "Show document title"],
+        ["header.showBarcode", "Show top-right ID & barcode badge"],
+        ["header.showTopUHID", "Include UHID in top-right header badge"],
+        ["header.showTopAdmissionNo", "Include IPD Admission No in top-right header badge"],
+      ].map(([path, label]) => (
+        <label key={path} className="flex items-center gap-2 text-xs text-slate-700">
+          <input
+            type="checkbox"
+            checked={getPath(settings, path) !== false}
+            onChange={(event) => update(path, event.target.checked)}
+            className="h-4 w-4"
+          />
+          {label}
+        </label>
+      ))}
       <label className="block space-y-1 pt-2 text-xs font-medium text-slate-600">Printed document title<input value={settings.header.title} onChange={(event) => update("header.title", event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs" /></label>
     </div>
   </div>;
@@ -854,6 +923,17 @@ function SettingsEditor({ group, settings, update, updateAt }) {
   if (key === "admission" || key === "patient" || key === "diagnosis" || key === "vitals" || key === "advice" || key === "handover") return <div className="space-y-3">
     <SectionToggle enabled={config.enabled} onChange={(value) => update(`${key}.enabled`, value)} />
     <label className="block space-y-1 text-xs text-slate-600">Section heading<input value={config.title} onChange={(event) => update(`${key}.title`, event.target.value)} className="w-full rounded-lg border border-slate-300 p-2" /></label>
+    {key === "vitals" && (
+      <label className="flex items-center gap-2 rounded-lg bg-sky-50 p-2.5 text-xs font-semibold text-sky-900 border border-sky-200">
+        <input
+          type="checkbox"
+          checked={config.leaveBlankForPen !== false}
+          onChange={(event) => update("vitals.leaveBlankForPen", event.target.checked)}
+          className="h-4 w-4 rounded text-sky-900"
+        />
+        <span>Leave vitals blank for handwritten entry with pen (पेन से भरने हेतु खाली रखें)</span>
+      </label>
+    )}
     <FieldList sectionKey={key} settings={settings} update={update} />
   </div>;
 

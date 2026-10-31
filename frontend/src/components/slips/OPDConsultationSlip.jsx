@@ -155,9 +155,11 @@ export default function OPDConsultationSlip({ data = {}, settings = {}, classNam
     "--slip-text": textColor,
   };
 
+  const pageSize = (settings.page?.size || styling.paperSize || "A4").toLowerCase();
+
   return (
     <div
-      className={`opd-slip-container scale-${fontSizeScale} ${className}`}
+      className={`opd-slip-container scale-${fontSizeScale} size-${pageSize} ${className}`}
       style={containerStyle}
       id="narayan-opd-consultation-slip"
     >
@@ -371,25 +373,19 @@ export default function OPDConsultationSlip({ data = {}, settings = {}, classNam
 
         {/* Center: Helpline */}
         {footer.helpline?.show !== false && (
-          <>
-            <div className="opd-slip-footer-divider"></div>
-            <div className="opd-slip-helpline">
-              <span className="opd-slip-helpline-icon">
-                <PhoneIcon />
-              </span>
-              <span>{footer.helpline?.label || "Helpline:"} {footer.helpline?.number || hospital.phone || "+91 7388660408"}</span>
-            </div>
-          </>
+          <div className="opd-slip-helpline-wrap">
+            <span className="opd-slip-helpline-icon">
+              <PhoneIcon />
+            </span>
+            <span>{footer.helpline?.label || "Helpline:"} {footer.helpline?.number || hospital.phone || "+91 7388660408"}</span>
+          </div>
         )}
 
         {/* Right: Stamp Box */}
         {footer.stamp?.show !== false && (
-          <>
-            <div className="opd-slip-footer-divider"></div>
-            <div className="opd-slip-stamp-box">
-              {footer.stamp?.label || "HOSPITAL STAMP"}
-            </div>
-          </>
+          <div className="opd-slip-stamp-box">
+            {footer.stamp?.label || "HOSPITAL STAMP"}
+          </div>
         )}
       </div>
     </div>
