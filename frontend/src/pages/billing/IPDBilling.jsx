@@ -1592,14 +1592,27 @@ export default function IPDBilling() {
 
                 {/* Top Right: Action Buttons Group */}
                 <div className="ipd-ppc-actions">
-                 
                   <button
                     type="button"
                     className="ipd-ppc-btn ipd-ppc-btn--pay"
-                    onClick={() => setShowReceivePayModal(true)}
-                    title="Record Advance Deposit or Interim Payment"
+                    onClick={() => {
+                      const el = document.getElementById("ipd-collect-amount-input");
+                      if (el) {
+                        el.focus();
+                        el.scrollIntoView({ behavior: "smooth", block: "center" });
+                      }
+                    }}
+                    title="Jump to Fast Payment Collection Console"
                   >
-                    <Icon name="LuCreditCard" size={13} /> + Receive Payment
+                    <Icon name="LuCreditCard" size={12} /> + Receive Payment
+                  </button>
+                  <button
+                    type="button"
+                    className="ipd-ppc-btn ipd-ppc-btn--print"
+                    onClick={() => setShowPrintBillModal(true)}
+                    title="Print full Inpatient Tax Invoice / Bill Slip"
+                  >
+                    <Icon name="LuPrinter" size={12} /> Print Bill Slip
                   </button>
                   <button
                     type="button"

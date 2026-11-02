@@ -231,13 +231,13 @@
 
 .opd-search-input {
   width: 100%;
-  height: 38px;
-  padding: 0 36px 0 38px;
+  height: 34px;
+  padding: 0 34px 0 34px;
   background: #ffffff;
   border: 1.5px solid var(--line);
-  border-radius: 8px;
+  border-radius: 6px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--navy-900);
   outline: none;
@@ -282,17 +282,17 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 38px;
-  padding: 0 16px;
-  border-radius: 8px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 6px;
   background: linear-gradient(135deg, var(--blue-600) 0%, var(--navy-800) 100%);
   color: #ffffff;
   border: 1px solid var(--navy-900);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(8, 26, 61, 0.25);
+  box-shadow: 0 1px 4px rgba(8, 26, 61, 0.2);
   transition: all 0.15s ease;
   white-space: nowrap;
 }
@@ -457,19 +457,19 @@
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 12.5px;
+  font-size: 11.5px;
 }
 
 .ipd-dir-table th {
   background: linear-gradient(180deg, #dbe9f6 0%, #cce0f2 100%);
-  padding: 9px 12px;
+  padding: 6px 10px;
   font-weight: 800;
   color: var(--navy-900);
   border-bottom: 1.5px solid var(--line);
   white-space: nowrap;
-  font-size: 11.5px;
+  font-size: 10.5px;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
 }
 
 .ipd-dir-row {
@@ -483,27 +483,27 @@
 }
 
 .ipd-dir-row td {
-  padding: 9px 12px;
+  padding: 6px 10px;
   vertical-align: middle;
 }
 
 .ipd-dir-patient-cell {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .ipd-dir-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
   background: linear-gradient(135deg, var(--navy-800) 0%, var(--blue-600) 100%);
   color: #ffffff;
   font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 11px;
   flex-shrink: 0;
   border: 1px solid var(--navy-900);
 }
@@ -511,11 +511,11 @@
 .ipd-dir-name {
   font-weight: 700;
   color: var(--navy-900);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .ipd-dir-sub {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--muted);
   margin-top: 1px;
 }
@@ -612,12 +612,12 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: linear-gradient(135deg, var(--blue-600) 0%, var(--navy-800) 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #ffffff;
-  border: 1px solid var(--navy-900);
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 12px;
+  border: 1px solid #065f46;
+  border-radius: 5px;
+  padding: 4px 10px;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -625,8 +625,20 @@
 }
 
 .ipd-btn-select-inpatient:hover {
-  background: linear-gradient(135deg, var(--navy-800) 0%, var(--navy-900) 100%);
+  background: linear-gradient(135deg, #047857 0%, #064e3b 100%);
   transform: translateY(-1px);
+}
+
+.ipd-btn-select-inpatient--discharged {
+  background: #ffffff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.ipd-btn-select-inpatient--discharged:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
 }
 
 /* ── 5. PATIENT BANNER (EXECUTIVE HOSPITAL ERP FORMAT) ── */
@@ -3019,14 +3031,14 @@
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 12.5px;
+  font-size: 11.5px;
 }
 
 .ipd-ledger-table-premium th {
   background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
   color: #ffffff;
-  padding: 10px 12px;
-  font-size: 11px;
+  padding: 6px 8px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -3034,7 +3046,7 @@
 }
 
 .ipd-ledger-table-premium td {
-  padding: 10px 12px;
+  padding: 6px 8px;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
 }
@@ -4827,14 +4839,14 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   IPD DIRECTORY TABS & SEPARATION STYLES
+   IPD DIRECTORY TABS & HIGH-DENSITY SEPARATION STYLES
    ═══════════════════════════════════════════════════════════════ */
 .ipd-dir-tabs-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 12px;
   flex-wrap: wrap;
 }
 
@@ -4843,35 +4855,35 @@
   align-items: center;
   background: #f1f5f9;
   border: 1px solid #cbd5e1;
-  padding: 4px;
-  border-radius: 10px;
-  gap: 4px;
+  padding: 3px;
+  border-radius: 8px;
+  gap: 3px;
 }
 
 .ipd-dir-tab-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
+  gap: 6px;
+  padding: 5px 12px;
   border: none;
-  border-radius: 7px;
+  border-radius: 6px;
   background: transparent;
   color: #475569;
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: all 0.15s ease;
 }
 
 .ipd-dir-tab-btn:hover {
   color: #0f172a;
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .ipd-dir-tab-btn.active {
   background: #ffffff;
   color: #0f172a;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .ipd-dir-tab-btn.active.admitted {
@@ -4885,8 +4897,8 @@
 }
 
 .ipd-tab-status-dot {
-  width: 9px;
-  height: 9px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   display: inline-block;
 }
@@ -4901,9 +4913,9 @@
 }
 
 .ipd-tab-pill-badge {
-  padding: 1px 7px;
-  border-radius: 12px;
-  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10px;
   font-weight: 700;
   background: #e2e8f0;
   color: #475569;
@@ -4920,21 +4932,24 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   WORKBENCH EXECUTIVE FINANCIAL METRICS STRIP
+   WORKBENCH EXECUTIVE FINANCIAL METRICS STRIP (COMPACT HIGH-DENSITY)
    ═══════════════════════════════════════════════════════════════ */
 .ipd-workbench-financial-strip {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .ipd-wfs-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 12px 16px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  display: flex;
+  align-items: center;
+  gap: 10px;
   position: relative;
   overflow: hidden;
 }
@@ -4944,62 +4959,63 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 4px;
+  width: 3.5px;
   height: 100%;
   background: #0284c7;
 }
 
-.ipd-wfs-card--green::before {
-  background: #059669;
+.ipd-wfs-card--charges::before { background: #0284c7; }
+.ipd-wfs-card--discounts::before { background: #d97706; }
+.ipd-wfs-card--payments::before { background: #059669; }
+.ipd-wfs-card--due::before { background: #e11d48; }
+.ipd-wfs-card--cleared::before { background: #10b981; }
+
+.ipd-wfs-card .wfs-icon {
+  font-size: 18px;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid #f1f5f9;
 }
 
-.ipd-wfs-card--purple::before {
-  background: #7c3aed;
+.ipd-wfs-card .wfs-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
-.ipd-wfs-card--due::before {
-  background: #e11d48;
-}
-
-.ipd-wfs-card--cleared::before {
-  background: #10b981;
-}
-
-.ipd-wfs-lbl {
-  font-size: 11.5px;
+.ipd-wfs-lbl,
+.wfs-lbl {
+  font-size: 10px;
   color: #64748b;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.3px;
+  line-height: 1.2;
 }
 
-.ipd-wfs-val {
-  font-size: 20px;
+.ipd-wfs-val,
+.wfs-val {
+  font-size: 15.5px;
   font-weight: 800;
   color: #0f172a;
   font-family: monospace;
-  margin: 3px 0;
+  margin: 1px 0;
+  line-height: 1.2;
 }
 
-.ipd-wfs-card--green .ipd-wfs-val {
-  color: #059669;
-}
-
-.ipd-wfs-card--purple .ipd-wfs-val {
-  color: #7c3aed;
-}
-
-.ipd-wfs-card--due .ipd-wfs-val {
-  color: #e11d48;
-}
-
-.ipd-wfs-card--cleared .ipd-wfs-val {
-  color: #059669;
-}
-
-.ipd-wfs-sub {
-  font-size: 11px;
+.ipd-wfs-sub,
+.wfs-sub {
+  font-size: 10px;
   color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -5008,9 +5024,9 @@
 .ipd-split-workbench-grid {
   display: grid;
   grid-template-columns: 1.15fr 0.85fr;
-  gap: 16px;
+  gap: 14px;
   align-items: start;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 @media (max-width: 1100px) {
@@ -5022,77 +5038,247 @@
 .ipd-col-panel {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
 .ipd-col-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 8px 12px;
   background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   border-bottom: 1px solid #e2e8f0;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .ipd-col-panel-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
+  gap: 6px;
+  font-size: 12.5px;
   font-weight: 800;
   color: #0f172a;
 }
 
-.ipd-col-panel-title-badge {
+.ipd-col-subtabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #e2e8f0;
+  padding: 2px;
+  border-radius: 6px;
+}
+
+.ipd-col-subtab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #475569;
   font-size: 11px;
   font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 10px;
-  background: #e2e8f0;
-  color: #334155;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.ipd-col-subtab-btn.active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.ipd-header-stat-chip {
+  font-size: 11px;
+  color: #475569;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.ipd-header-stat-chip strong {
+  color: #047857;
+  font-family: monospace;
 }
 
 .ipd-col-panel-body {
-  padding: 14px;
+  padding: 10px 12px;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   DOTTED LINE DATE SEPARATION BANNER
+   DEPARTMENT SUMMARY MATRIX BAR (COMPACT CHIPS)
    ═══════════════════════════════════════════════════════════════ */
-.ipd-date-sep-row {
-  background: transparent !important;
+.ipd-summary-matrix-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  overflow-x: auto;
 }
 
-.ipd-date-sep-td {
-  padding: 12px 6px 6px 6px !important;
-  border-top: none !important;
-  border-bottom: none !important;
-  background: transparent !important;
+.ipd-matrix-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.ipd-matrix-lbl {
+  font-size: 10px;
+  color: #475569;
+  font-weight: 600;
+}
+
+.ipd-matrix-val {
+  font-size: 11px;
+  font-weight: 800;
+  font-family: monospace;
+  color: #0f172a;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CHARGES FILTER & SEARCH BAR
+   ═══════════════════════════════════════════════════════════════ */
+.ipd-charges-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.ipd-filter-search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  padding: 3px 8px;
+  flex: 1 1 180px;
+  height: 28px;
+}
+
+.ipd-filter-search-box input {
+  border: none;
+  outline: none;
+  font-size: 11.5px;
+  color: #0f172a;
+  width: 100%;
+  background: transparent;
+}
+
+.ipd-filter-cat-pills {
+  display: inline-flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.ipd-cat-filter-btn {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.ipd-cat-filter-btn.active {
+  background: #1e293b;
+  color: #ffffff;
+  border-color: #1e293b;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PREMIUM TABLE & DOTTED LINE DATE SEPARATION
+   ═══════════════════════════════════════════════════════════════ */
+.ipd-ledger-table-wrap-premium {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  overflow-y: auto;
+  overflow-x: auto;
+  max-height: 480px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  background: #ffffff;
+}
+
+.ipd-ledger-table-premium {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 11.5px;
+}
+
+.ipd-ledger-table-premium th {
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 6px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  box-shadow: 0 1px 0 #334155;
+}
+
+.ipd-ledger-table-premium td {
+  padding: 6px 8px;
+  border-bottom: 1.5px dashed #e2e8f0;
+  vertical-align: middle;
+}
+
+.ipd-row-dashed {
+  border-bottom: 1.5px dashed #e2e8f0 !important;
+}
+
+.ipd-row-dashed:hover {
+  background: #f8fafc;
+}
+
+/* Dotted Line Date Separator Banner */
+.ipd-date-sep-row td {
+  padding: 6px 8px 4px 8px !important;
+  background: #f1f5f9 !important;
+  border-top: 1px solid #cbd5e1 !important;
+  border-bottom: 1px solid #cbd5e1 !important;
 }
 
 .ipd-date-sep-wrap {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 4px 6px;
-  background: #f8fafc;
-  border-radius: 6px;
+  gap: 8px;
 }
 
 .ipd-date-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 9px;
+  gap: 4px;
+  padding: 2px 7px;
   background: #e0f2fe;
   color: #0369a1;
-  font-size: 11.5px;
+  font-size: 10.5px;
   font-weight: 800;
-  border-radius: 6px;
+  border-radius: 4px;
   border: 1px solid #bae6fd;
   white-space: nowrap;
 }
@@ -5101,13 +5287,6 @@
   background: #ecfdf5;
   color: #047857;
   border-color: #a7f3d0;
-}
-
-.ipd-date-count {
-  font-size: 11px;
-  color: #64748b;
-  font-weight: 600;
-  white-space: nowrap;
 }
 
 .ipd-date-dots {
@@ -5121,77 +5300,146 @@
 }
 
 .ipd-date-subtotal {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 800;
   font-family: monospace;
   color: #0f172a;
   white-space: nowrap;
 }
 
-.ipd-date-subtotal--green {
-  color: #059669;
-}
-
-.ipd-row-dashed {
-  border-bottom: 1.5px dashed #e2e8f0 !important;
-}
-
-.ipd-row-dashed:hover {
-  background: #f8fafc;
-}
-
 /* ═══════════════════════════════════════════════════════════════
-   EMBEDDED SINGLE PAYMENT COLLECTION CONSOLE
+   EMBEDDED SINGLE FAST PAYMENT CONSOLE
    ═══════════════════════════════════════════════════════════════ */
 .ipd-embedded-pay-box {
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-  border: 1px solid #86efac;
-  border-radius: 10px;
-  padding: 14px;
-  margin-bottom: 14px;
+  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
+  border: 1.5px solid #86efac;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.08);
 }
 
 .ipd-embedded-pay-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .ipd-eph-title {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13.5px;
+  gap: 5px;
+  font-size: 12px;
   font-weight: 800;
   color: #14532d;
 }
 
-.ipd-eph-status-due {
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #be123c;
-  background: #ffe4e6;
-  padding: 2px 8px;
+.ipd-eph-category-toggle {
+  display: inline-flex;
+  gap: 3px;
+  background: #dcfce7;
+  padding: 2px;
   border-radius: 6px;
-  border: 1px solid #fecdd3;
 }
 
-.ipd-eph-status-cleared {
-  font-size: 11.5px;
+.ipd-eph-cat-pill {
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #166534;
+  font-size: 10.5px;
   font-weight: 700;
-  color: #047857;
-  background: #d1fae5;
-  padding: 2px 8px;
-  border-radius: 6px;
-  border: 1px solid #a7f3d0;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.ipd-eph-cat-pill.active {
+  background: #ffffff;
+  color: #14532d;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .ipd-pay-fields-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 10px;
-  margin-bottom: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ipd-pay-fgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ipd-pay-fgroup .ipd-field-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #334155;
+  text-transform: uppercase;
+}
+
+.ipd-pay-fgroup .ipd-input-control,
+.ipd-pay-fgroup .ipd-select-control {
+  height: 29px;
+  font-size: 11.5px;
+  padding: 3px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+}
+
+.ipd-pay-fgroup .ipd-input-control--lg {
+  font-size: 13px;
+  font-weight: 800;
+  font-family: monospace;
+  border-color: #059669;
+}
+
+/* Quick Pay Amount Preset Chips */
+.ipd-quick-pay-presets {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.ipd-quick-pay-chip {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 6px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.ipd-quick-pay-chip:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.ipd-quick-pay-chip.active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.ipd-quick-pay-chip--due {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+  font-weight: 800;
+}
+
+.ipd-quick-pay-chip--due:hover {
+  background: #fecdd3;
 }
 
 .ipd-btn-collect-payment {
@@ -5199,23 +5447,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 11px 16px;
+  gap: 6px;
+  padding: 8px 14px;
   background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #ffffff;
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 800;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
-  box-shadow: 0 2px 5px rgba(5, 150, 105, 0.35);
-  transition: all 0.18s ease;
+  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.3);
+  transition: all 0.15s ease;
 }
 
 .ipd-btn-collect-payment:hover {
   background: linear-gradient(135deg, #047857 0%, #065f46 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(5, 150, 105, 0.45);
+  box-shadow: 0 3px 6px rgba(5, 150, 105, 0.4);
 }
 
 .ipd-btn-collect-payment:disabled {
@@ -5224,35 +5472,115 @@
   transform: none;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   FINANCIAL RECONCILIATION AUDIT CARD
+   ═══════════════════════════════════════════════════════════════ */
 .ipd-reconcile-audit-card {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 10px;
-  margin-top: 14px;
-}
-
-.ipd-rac-item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-top: 10px;
 }
 
-.ipd-rac-lbl {
-  font-size: 10.5px;
-  font-weight: 700;
+.rac-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.rac-lbl {
   color: #64748b;
-  text-transform: uppercase;
+  font-weight: 600;
 }
 
-.ipd-rac-val {
-  font-size: 13.5px;
+.rac-val {
   font-weight: 800;
   font-family: monospace;
   color: #0f172a;
 }
+
+.rac-row--final {
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 4px;
+  margin-top: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HEADER BUTTONS & PATIENT PROFILE TIGHTENING
+   ═══════════════════════════════════════════════════════════════ */
+.ipd-ppc-btn--print {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #ffffff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-ppc-btn--print:hover {
+  background: #f0f9ff;
+  border-color: #0284c7;
+}
+
+.ipd-ppc-btn--pay {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-ppc-btn--change {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #ffffff;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-ppc-name {
+  font-size: 14.5px !important;
+  font-weight: 800 !important;
+}
+
+.ipd-ppc-uhid,
+.ipd-ppc-adm {
+  font-size: 11px !important;
+  padding: 1px 6px !important;
+}
+
+.ipd-ppc-bb-amount {
+  font-size: 17px !important;
+}
+
+.ipd-ppc-bb-audit {
+  font-size: 10px !important;
+}
+
 
 
