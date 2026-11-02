@@ -9,6 +9,19 @@ export class BillingController {
     this.service = new BillingService();
   }
 
+  getDiscountReasons = async (req: Request, res: Response) => {
+    const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
+    const reasons = await this.service.getDiscountReasons(organizationId);
+    sendSuccess(res, reasons, 'Discount reasons retrieved successfully');
+  };
+
+  getReferrals = async (req: Request, res: Response) => {
+    const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
+    const facilityId = (req.user?.facilityId as string) || (req.query.facilityId as string) || '00000000-0000-0000-0000-000000000000';
+    const data = await this.service.getReferrals(organizationId, facilityId);
+    sendSuccess(res, data, 'Referrals retrieved successfully');
+  };
+
   createInvoice = async (req: Request, res: Response) => {
     const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
     if (!req.body.facility_id) {
@@ -32,8 +45,8 @@ export class BillingController {
   };
 
   addCharge = async (req: Request, res: Response) => {
-    const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
-    const userId = req.user?.userId || '00000000-0000-0000-0000-000000000000';
+    const organizationId = req.user?.organizationId;
+    const userId = req.user?.userId;
     
     if (!req.body.facility_id) req.body.facility_id = req.user?.facilityId;
     
@@ -42,22 +55,22 @@ export class BillingController {
   };
 
   removeCharge = async (req: Request, res: Response) => {
-    const facilityId = (req.user?.facilityId as string) || (req.body.facility_id as string) || '00000000-0000-0000-0000-000000000000';
+    const facilityId = (req.user?.facilityId as string) || (req.body.facility_id as string);
     const id = req.params.id as string;
     const result = await this.service.removeCharge(id, facilityId);
     sendSuccess(res, result, 'Charge removed successfully');
   };
 
   getRunningBill = async (req: Request, res: Response) => {
-    const facilityId = (req.user?.facilityId as string) || (req.query.facilityId as string) || '00000000-0000-0000-0000-000000000000';
+    const facilityId = (req.user?.facilityId as string) || (req.query.facilityId as string);
     const encounterId = req.params.encounterId as string;
     const charges = await this.service.getRunningBill(encounterId, facilityId);
     sendSuccess(res, charges, 'Running bill retrieved successfully');
   };
 
   recordAdvancePayment = async (req: Request, res: Response) => {
-    const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
-    const userId = req.user?.userId || '00000000-0000-0000-0000-000000000000';
+    const organizationId = req.user?.organizationId;
+    const userId = req.user?.userId;
     
     if (!req.body.facility_id) req.body.facility_id = req.user?.facilityId;
     
@@ -66,23 +79,23 @@ export class BillingController {
   };
 
   getEncounterPayments = async (req: Request, res: Response) => {
-    const facilityId = (req.user?.facilityId as string) || (req.query.facilityId as string) || '00000000-0000-0000-0000-000000000000';
+    const facilityId = (req.user?.facilityId as string) || (req.query.facilityId as string);
     const encounterId = req.params.encounterId as string;
     const payments = await this.service.getEncounterPayments(encounterId, facilityId);
     sendSuccess(res, payments, 'Payments retrieved successfully');
   };
 
   settleBill = async (req: Request, res: Response) => {
-    const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
-    const userId = req.user?.userId || '00000000-0000-0000-0000-000000000000';
+    const organizationId = req.user?.organizationId;
+    const userId = req.user?.userId;
     if (!req.body.facility_id) req.body.facility_id = req.user?.facilityId;
     const result = await this.service.settleBill(req.body, organizationId, userId);
     sendSuccess(res, result, 'Bill settled successfully');
   };
 
   processRefund = async (req: Request, res: Response) => {
-    const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
-    const userId = req.user?.userId || '00000000-0000-0000-0000-000000000000';
+    const organizationId = req.user?.organizationId;
+    const userId = req.user?.userId;
     if (!req.body.facility_id) req.body.facility_id = req.user?.facilityId;
     const result = await this.service.processRefund(req.body, organizationId, userId);
     sendSuccess(res, result, 'Refund processed successfully');

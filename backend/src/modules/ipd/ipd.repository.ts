@@ -389,10 +389,16 @@ export class IpdRepository {
       LEFT JOIN wards last_w ON last_w.name = last_b.name
       LEFT JOIN practitioners prac ON a.attending_practitioner_id = prac.id OR a.admitting_practitioner_id = prac.id
       LEFT JOIN staff s ON prac.staff_id = s.id
-      WHERE a.facility_id = $1
     `;
-    const params: any[] = [facilityId];
-    let paramIdx = 1;
+    const isValidFacilityUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(facilityId || '');
+    const params: any[] = isValidFacilityUuid ? [facilityId] : [];
+    let paramIdx = params.length;
+
+    if (isValidFacilityUuid) {
+      query += ` WHERE a.facility_id = $1`;
+    } else {
+      query += ` WHERE 1=1`;
+    }
 
     if (status && status !== 'all') {
       paramIdx++;

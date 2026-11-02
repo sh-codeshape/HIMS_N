@@ -1133,6 +1133,111 @@
   padding-top: 4px;
 }
 
+/* ---------- Discount & Referral Reference Box ---------- */
+.opdb-discount-ref-box {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.opdb-dr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.opdb-dr-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #92400e;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.opdb-switch-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #78350f;
+  cursor: pointer;
+}
+
+.opdb-dr-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(217, 119, 6, 0.3);
+}
+
+.opdb-dr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.opdb-dr-lbl {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #78350f;
+  text-transform: uppercase;
+}
+
+.opdb-dr-select,
+.opdb-dr-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #d97706;
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 12px;
+  color: #0f172a;
+  outline: none;
+}
+
+.opdb-dr-select:focus,
+.opdb-dr-input:focus {
+  border-color: #b45309;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
+}
+
+.opdb-dr-input-addon {
+  display: flex;
+  gap: 4px;
+}
+
+.opdb-dr-addon-select {
+  width: 90px;
+  padding: 6px 4px;
+  border: 1px solid #d97706;
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.opdb-dr-link-btn {
+  background: none;
+  border: none;
+  color: #b45309;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
 /* Print Rules */
 @media print {
   body * {

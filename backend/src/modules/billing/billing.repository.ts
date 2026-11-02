@@ -18,28 +18,118 @@ export class BillingRepository {
     }
 
     const paymentMode = String(data.payment_mode || data.paymentMethod || data.payment_method || '').trim();
-    if (!paymentMode) {
-      throw new ValidationError('Payment method is required when recording a payment.');
+    const organizationId = data.organization_id || data.organizationId;
+
+    // Clean mode to first key term if compound e.g. "UPI / PhonePe" -> "UPI", "Card POS" -> "Card", "Cash Counter" -> "Cash"
+    const cleanMode = paymentMode.split(/[\/\(]/)[0].trim();
+
+    if (paymentMode) {
+      if (organizationId) {
+        const methodRes = await client.query(
+          'SELECT id FROM payment_methods WHERE is_active = TRUE AND organization_id = $2 AND (name ILIKE $1 OR method_type ILIKE $1 OR code ILIKE $1) LIMIT 1',
+          [`%${cleanMode || paymentMode}%`, organizationId]
+        );
+        if (methodRes.rows[0]?.id) {
+          return methodRes.rows[0].id;
+        }
+      }
+
+      // Try across active payment methods
+      const methodRes = await client.query(
+        'SELECT id FROM payment_methods WHERE is_active = TRUE AND (name ILIKE $1 OR method_type ILIKE $1 OR code ILIKE $1) LIMIT 1',
+        [`%${cleanMode || paymentMode}%`]
+      );
+
+      if (methodRes.rows[0]?.id) {
+        return methodRes.rows[0].id;
+      }
     }
 
-    const organizationId = data.organization_id || data.organizationId;
-    const zeroUuid = '00000000-0000-0000-0000-000000000000';
-    const hasOrg = organizationId && organizationId !== zeroUuid;
-
-    const methodQuery = hasOrg
-      ? 'SELECT id FROM payment_methods WHERE is_active = TRUE AND organization_id = $2 AND (name ILIKE $1 OR method_type ILIKE $1 OR code ILIKE $1) LIMIT 1'
-      : 'SELECT id FROM payment_methods WHERE is_active = TRUE AND (name ILIKE $1 OR method_type ILIKE $1 OR code ILIKE $1) LIMIT 1';
-
-    const methodRes = await client.query(
-      methodQuery,
-      hasOrg ? [`%${paymentMode}%`, organizationId] : [`%${paymentMode}%`]
+    // Fallback: Cash or first active method
+    const fallbackRes = await client.query(
+      'SELECT id FROM payment_methods WHERE is_active = TRUE ORDER BY CASE WHEN code = \'CASH\' OR name ILIKE \'%cash%\' THEN 0 ELSE 1 END, created_at ASC LIMIT 1'
     );
 
-    if (!methodRes.rows[0]?.id) {
-      throw new ValidationError('No active payment method found for this payment mode. Please create or activate one first.');
+    if (fallbackRes.rows[0]?.id) {
+      return fallbackRes.rows[0].id;
     }
 
-    return methodRes.rows[0].id;
+    throw new ValidationError('No active payment method found. Please activate Cash or UPI first.');
+  }
+
+  async getDiscountReasons(organizationId?: string) {
+    if (organizationId) {
+      const res = await db.query(
+        `SELECT id, organization_id, code, name, default_percent, max_percent, requires_approval, is_active
+         FROM discount_reasons
+         WHERE is_active = true AND organization_id = $1
+         ORDER BY name ASC`,
+        [organizationId]
+      );
+      if (res.rows.length > 0) {
+        return res.rows;
+      }
+    }
+
+    // Dynamic fallback: return unique active discount reasons
+    const fallbackRes = await db.query(
+      `SELECT DISTINCT ON (code) id, organization_id, code, name, default_percent, max_percent, requires_approval, is_active
+       FROM discount_reasons
+       WHERE is_active = true
+       ORDER BY code, id`
+    );
+    return fallbackRes.rows.sort((a: any, b: any) => a.name.localeCompare(b.name));
+  }
+
+  async getReferrals(organizationId?: string, facilityId?: string) {
+    let docsRes = await db.query(
+      `SELECT 
+         p.id as practitioner_id,
+         s.id as staff_id,
+         TRIM(CONCAT(s.first_name, ' ', COALESCE(s.last_name, ''))) as name,
+         d.name as department,
+         p.registration_no
+       FROM practitioners p
+       JOIN staff s ON p.staff_id = s.id
+       LEFT JOIN departments d ON s.department_id = d.id
+       WHERE s.is_active = true 
+         AND ($1::uuid IS NULL OR s.organization_id = $1::uuid)
+       ORDER BY s.first_name ASC`,
+      [organizationId || null]
+    );
+
+    if (docsRes.rows.length === 0) {
+      docsRes = await db.query(
+        `SELECT 
+           p.id as practitioner_id,
+           s.id as staff_id,
+           TRIM(CONCAT(s.first_name, ' ', COALESCE(s.last_name, ''))) as name,
+           d.name as department,
+           p.registration_no
+         FROM practitioners p
+         JOIN staff s ON p.staff_id = s.id
+         LEFT JOIN departments d ON s.department_id = d.id
+         WHERE s.is_active = true
+         ORDER BY s.first_name ASC`
+      );
+    }
+
+    const sources = [
+      'Doctor Referral',
+      'Self / Direct Walk-in',
+      'Hospital Consultant / Internal',
+      'Hospital Transfer / Casualty',
+      'Management / Director Discretion',
+      'Senior Citizen / Community Concession',
+      'Corporate / Institutional Tie-Up',
+      'Insurance / TPA Panel',
+      'Charitable Trust / BPL Scheme'
+    ];
+
+    return {
+      doctors: docsRes.rows,
+      referral_sources: sources
+    };
   }
 
   async createInvoice(data: any) {
@@ -74,14 +164,61 @@ export class BillingRepository {
         invoiceNo = invoiceNoResult.rows[0]?.invoice_no || `INV-${Date.now()}`;
         await client.query('RELEASE SAVEPOINT sp_invoice');
       }
+
+      // Ensure unique invoiceNo in case sequence was behind existing records
+      let attempts = 0;
+      while (attempts < 10) {
+        const dupCheck = await client.query(
+          'SELECT 1 FROM invoices WHERE facility_id = $1 AND invoice_no = $2 LIMIT 1',
+          [data.facility_id, invoiceNo]
+        );
+        if (dupCheck.rows.length === 0) break;
+        attempts++;
+        try {
+          const nextRes = await client.query('SELECT next_number($1, $2, $3) AS invoice_no', [data.organization_id, data.facility_id, 'INVOICE']);
+          invoiceNo = nextRes.rows[0]?.invoice_no || `INV-${Date.now()}`;
+        } catch {
+          invoiceNo = `INV-${Date.now()}-${attempts}`;
+          break;
+        }
+      }
       
+      // Resolve discount reason code / name if discount_reason_id is present
+      let discountReasonCode: string | null = null;
+      let discountReasonName: string | null = null;
+      if (data.discount_reason_id) {
+        try {
+          const drRes = await client.query(
+            'SELECT code, name FROM discount_reasons WHERE id = $1 LIMIT 1',
+            [data.discount_reason_id]
+          );
+          if (drRes.rows[0]) {
+            discountReasonCode = drRes.rows[0].code;
+            discountReasonName = drRes.rows[0].name;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      const externalRefs: any = {
+        discount_reference: data.discount_reference || null,
+        discount_reason_code: discountReasonCode,
+        discount_reason_name: discountReasonName,
+        referred_by: data.referred_by || null,
+        referral_source: data.referral_source || null,
+        ...(data.external_refs || {})
+      };
+
       const invoiceQuery = `
         INSERT INTO invoices (
           organization_id, facility_id, patient_id, encounter_id, invoice_no, invoice_type, status,
-          subtotal, discount_total, total_amount, due_amount, paid_amount, issued_at
+          subtotal, discount_total, total_amount, due_amount, paid_amount, issued_at,
+          discount_reason_id, discount_approved_by, external_refs, notes
         ) VALUES (
           $1, $2, $3, $4, $5, $6, 'draft',
-          $7, $8, $9, $9, 0, NOW()
+          $7, $8, $9, $9, 0, NOW(),
+          $10, $11, $12, $13
         ) RETURNING *;
       `;
 
@@ -93,31 +230,66 @@ export class BillingRepository {
         invoiceNo,
         data.invoice_type,
         data.subtotal,
-        data.discount_total,
-        data.total_amount
+        data.discount_total || 0,
+        data.total_amount,
+        data.discount_reason_id || null,
+        data.discount_approved_by || null,
+        JSON.stringify(externalRefs),
+        data.notes || null
       ]);
       const invoice = invoiceRes.rows[0];
 
       let lineNo = 1;
       for (const item of data.items) {
-        const taxableAmount = item.qty * item.price;
+        const itemQty = Number(item.qty) || 1;
+        const itemPrice = Number(item.price) || 0;
+        const grossAmount = itemQty * itemPrice;
+        let discAmt = Number(item.discount_amount || item.discount || 0);
+        let discPct = Number(item.discount_percent || 0);
+        if (discPct > 0 && discAmt === 0) {
+          discAmt = (grossAmount * discPct) / 100;
+        } else if (discAmt > 0 && discPct === 0 && grossAmount > 0) {
+          discPct = (discAmt / grossAmount) * 100;
+        }
+        discAmt = Math.min(discAmt, grossAmount);
+        const taxableAmount = Math.max(0, grossAmount - discAmt);
         const lineTotal = taxableAmount;
+
         const lineQuery = `
           INSERT INTO invoice_lines (
-            invoice_id, line_no, description, quantity, unit_price, taxable_amount, line_total
+            invoice_id, line_no, description, quantity, unit_price,
+            discount_percent, discount_amount, taxable_amount, line_total
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7
+            $1, $2, $3, $4, $5,
+            $6, $7, $8, $9
           )
         `;
         await client.query(lineQuery, [
           invoice.id,
           lineNo++,
           item.name,
-          item.qty,
-          item.price,
+          itemQty,
+          itemPrice,
+          discPct,
+          discAmt,
           taxableAmount,
           lineTotal
         ]);
+      }
+
+      if (data.encounter_id && (data.referred_by || data.referral_source)) {
+        try {
+          await client.query(
+            `UPDATE encounters 
+             SET referred_by = COALESCE($1, referred_by),
+                 referral_source = COALESCE($2, referral_source),
+                 updated_at = NOW()
+             WHERE id = $3`,
+            [data.referred_by || null, data.referral_source || null, data.encounter_id]
+          );
+        } catch {
+          // ignore
+        }
       }
 
       if (data.payment_mode && data.total_amount > 0) {
@@ -204,9 +376,15 @@ export class BillingRepository {
 
   async listInvoices(facilityId: string) {
     const query = `
-      SELECT i.*, p.first_name, p.last_name, p.uhid 
+      SELECT i.*, p.first_name, p.last_name, p.uhid,
+             dr.name as discount_reason_name, dr.code as discount_reason_code,
+             COALESCE(i.external_refs->>'referred_by', e.referred_by) as referred_by,
+             COALESCE(i.external_refs->>'referral_source', e.referral_source) as referral_source,
+             i.external_refs->>'discount_reference' as discount_reference
       FROM invoices i
       JOIN patients p ON i.patient_id = p.id
+      LEFT JOIN discount_reasons dr ON i.discount_reason_id = dr.id
+      LEFT JOIN encounters e ON i.encounter_id = e.id
       WHERE i.facility_id = $1
       ORDER BY i.created_at DESC
     `;
@@ -216,9 +394,17 @@ export class BillingRepository {
 
   async getInvoice(id: string, facilityId: string) {
     const query = `
-      SELECT i.*, p.first_name, p.last_name, p.uhid
+      SELECT i.*, p.first_name, p.last_name, p.uhid,
+             dr.name as discount_reason_name, dr.code as discount_reason_code,
+             dr.default_percent as discount_reason_percent,
+             e.encounter_no,
+             COALESCE(i.external_refs->>'referred_by', e.referred_by) as referred_by,
+             COALESCE(i.external_refs->>'referral_source', e.referral_source) as referral_source,
+             i.external_refs->>'discount_reference' as discount_reference
       FROM invoices i
       JOIN patients p ON i.patient_id = p.id
+      LEFT JOIN discount_reasons dr ON i.discount_reason_id = dr.id
+      LEFT JOIN encounters e ON i.encounter_id = e.id
       WHERE i.id = $1 AND i.facility_id = $2
     `;
     const res = await db.query(query, [id, facilityId]);
@@ -236,19 +422,36 @@ export class BillingRepository {
   }
 
   async addCharge(data: any) {
-    // Derive patient_id from the encounter when the caller (e.g. IPD billing UI)
-    // does not send it explicitly.
+    // Derive organization_id, facility_id, and patient_id from the encounter
     let patientId = data.patient_id;
-    if (!patientId && data.encounter_id) {
+    if (data.encounter_id) {
       try {
         const encounterRes = await db.query(
-          `SELECT patient_id FROM encounters WHERE id = $1 LIMIT 1`,
+          `SELECT organization_id, facility_id, patient_id FROM encounters WHERE id = $1 LIMIT 1`,
           [data.encounter_id]
         );
-        patientId = encounterRes.rows[0]?.patient_id;
+        if (encounterRes.rows.length > 0) {
+          const row = encounterRes.rows[0];
+          patientId = patientId || row.patient_id;
+          data.organization_id = row.organization_id;
+          data.facility_id = row.facility_id;
+        }
       } catch {
-        patientId = null;
+        // fallback
       }
+    }
+
+    if (!data.organization_id) {
+      const orgRes = await db.query(`SELECT id FROM organizations LIMIT 1`);
+      data.organization_id = orgRes.rows[0]?.id;
+    }
+    if (!data.facility_id) {
+      const facRes = await db.query(`SELECT id FROM facilities WHERE organization_id = $1 LIMIT 1`, [data.organization_id]);
+      data.facility_id = facRes.rows[0]?.id;
+    }
+    if (!data.user_id) {
+      const userRes = await db.query(`SELECT id FROM users LIMIT 1`);
+      data.user_id = userRes.rows[0]?.id;
     }
 
     const description =
@@ -256,11 +459,21 @@ export class BillingRepository {
 
     const qty = Number(data.quantity) || 1;
     const price = Number(data.rate || data.unit_price || data.price || 0);
-    const totalAmount = Number(data.total_amount || data.amount || 0) || qty * price;
     const gross = price * qty;
-    const discPct = Number(data.discount_percent || 0);
-    const discAmt = Number(data.discount_amount || 0);
-    const taxable = totalAmount - discAmt;
+    let discPct = Number(data.discount_percent || 0);
+    let discAmt = Number(data.discount_amount || 0);
+
+    if (discPct > 0 && discAmt === 0) {
+      discAmt = (gross * discPct) / 100;
+    } else if (discAmt > 0 && discPct === 0 && gross > 0) {
+      discPct = (discAmt / gross) * 100;
+    }
+    discAmt = Math.min(discAmt, gross);
+    if (gross > 0 && discPct === 0 && discAmt > 0) {
+      discPct = (discAmt / gross) * 100;
+    }
+
+    const taxable = Math.max(0, gross - discAmt);
     const taxAmt = Number(data.tax_amount || 0);
     const net = taxable + taxAmt;
 
@@ -268,26 +481,47 @@ export class BillingRepository {
     if (data.item_category || data.itemCategory) {
       customFields.item_category = data.item_category || data.itemCategory;
     }
+    if (data.discount_reason || data.discountReason) {
+      customFields.discount_reason = data.discount_reason || data.discountReason;
+    }
+    if (data.discount_reason_id || data.discountReasonId) {
+      customFields.discount_reason_id = data.discount_reason_id || data.discountReasonId;
+    }
+    if (data.discount_reference || data.discountReference) {
+      customFields.discount_reference = data.discount_reference || data.discountReference;
+    }
+    if (data.referred_by || data.referredBy) {
+      customFields.referred_by = data.referred_by || data.referredBy;
+    }
+    if (data.referral_source || data.referralSource) {
+      customFields.referral_source = data.referral_source || data.referralSource;
+    }
+
+    const chargeDate = data.charged_at || data.charge_date || data.date || null;
+    const practitionerId = data.ordered_by_practitioner_id || data.practitioner_id || null;
 
     const query = `
       INSERT INTO charges (
         organization_id, facility_id, patient_id, encounter_id,
         service_id, item_id, description, department_id,
         quantity, unit_price, discount_percent, discount_amount,
-        taxable_amount, tax_amount, net_amount, status, created_by, custom_fields
+        taxable_amount, tax_amount, net_amount, status, created_by, custom_fields, charged_at,
+        ordered_by_practitioner_id
       ) VALUES (
         $1, $2, $3, $4,
         $5, $6, $7, $8,
         $9, $10, $11, $12,
-        $13, $14, $15, 'billable', $16, $17
+        $13, $14, $15, 'billable', $16, $17, COALESCE($18::timestamptz, NOW()),
+        $19
       ) RETURNING *;
     `;
     const res = await db.query(query, [
       data.organization_id, data.facility_id, patientId, data.encounter_id,
       data.service_id || null, data.item_id || null, description, data.department_id || null,
       qty, price, discPct, discAmt,
-      taxable, taxAmt, net || totalAmount, data.user_id,
-      JSON.stringify(customFields)
+      taxable, taxAmt, net, data.user_id,
+      JSON.stringify(customFields), chargeDate,
+      practitionerId
     ]);
     return res.rows[0];
   }
@@ -405,83 +639,139 @@ export class BillingRepository {
     return postedCharges;
   }
 
-  async removeCharge(id: string, facilityId: string) {
-    const query = `
+  async removeCharge(id: string, facilityId?: string) {
+    let query = `
       UPDATE charges 
       SET status = 'cancelled', updated_at = NOW()
-      WHERE id = $1 AND facility_id = $2 AND status = 'billable'
-      RETURNING *;
+      WHERE id = $1 AND status = 'billable'
     `;
-    const res = await db.query(query, [id, facilityId]);
+    const params: any[] = [id];
+    if (facilityId && facilityId !== '00000000-0000-0000-0000-000000000000') {
+      params.push(facilityId);
+      query += ` AND facility_id = $2`;
+    }
+    query += ` RETURNING *;`;
+    const res = await db.query(query, params);
     return res.rows[0];
   }
 
-  async getRunningBill(encounterId: string, facilityId: string) {
+  async getRunningBill(encounterId: string, facilityId?: string) {
     const query = `
       SELECT c.*, s.name as service_name,
              COALESCE(i.name, c.description) as item_name,
              c.unit_price as rate,
+             COALESCE(c.gross_amount, c.unit_price * c.quantity) as gross_amount,
+             c.discount_percent as discount_percent,
+             c.discount_amount as discount_amount,
+             c.taxable_amount as taxable_amount,
              c.net_amount as total_amount,
+             c.charged_at as charged_at,
+             c.created_at as created_at,
              COALESCE(c.custom_fields->>'item_category', CASE WHEN c.source_type = 'order_item' THEN 'Lab Test' ELSE 'General' END) as item_category,
-             COALESCE(c.custom_fields->>'payment_status', CASE WHEN c.status = 'billed' THEN 'paid' ELSE c.status END) as payment_status
+             COALESCE(c.custom_fields->>'payment_status', CASE WHEN c.status = 'billed' THEN 'paid' ELSE c.status END) as payment_status,
+             c.custom_fields->>'discount_reason' as discount_reason,
+             c.custom_fields->>'discount_reference' as discount_reference,
+             COALESCE(c.custom_fields->>'referred_by', TRIM(CONCAT(st.first_name, ' ', COALESCE(st.last_name, '')))) as referred_by,
+             c.custom_fields->>'referral_source' as referral_source,
+             TRIM(CONCAT(st.first_name, ' ', COALESCE(st.last_name, ''))) as practitioner_name
       FROM charges c
       LEFT JOIN services s ON c.service_id = s.id
       LEFT JOIN items i ON c.item_id = i.id
+      LEFT JOIN practitioners pr ON c.ordered_by_practitioner_id = pr.id
+      LEFT JOIN staff st ON pr.staff_id = st.id
       WHERE c.encounter_id = $1 
         AND c.status IN ('billable', 'billed')
         AND COALESCE(c.custom_fields->>'advance_deposit', 'false') != 'true'
-      ORDER BY c.charged_at DESC
+      ORDER BY COALESCE(c.charged_at, c.created_at) DESC
     `;
     const res = await db.query(query, [encounterId]);
     return res.rows;
   }
 
   async recordAdvancePayment(data: any) {
-    const receiptNoResult = await db.query(
-      'SELECT next_number($1, $2, $3) AS receipt_no',
-      [data.organization_id, data.facility_id, 'RECEIPT']
-    );
-    const receiptNo = receiptNoResult.rows[0]?.receipt_no || `ADV-${Date.now()}`;
-    const methodId = await this.resolvePaymentMethodId(data);
+    let patientId = data.patient_id;
+    let facilityId = data.facility_id;
+    let organizationId = data.organization_id;
 
-    const paymentType = String(data.payment_type || 'advance').toLowerCase();
-
-    // Derive patient_id from encounter (the reliable source). Frontend may send
-    // admission id instead of patient uuid, so always resolve from encounter.
-    let patientId = null;
     if (data.encounter_id) {
       try {
         const enc = await db.query(
-          'SELECT patient_id FROM encounters WHERE id = $1 LIMIT 1',
+          'SELECT patient_id, facility_id, organization_id FROM encounters WHERE id = $1 LIMIT 1',
           [data.encounter_id]
         );
-        patientId = enc.rows[0]?.patient_id || null;
+        if (enc.rows.length > 0) {
+          patientId = enc.rows[0].patient_id || patientId;
+          if (!facilityId || facilityId === '00000000-0000-0000-0000-000000000000') {
+            facilityId = enc.rows[0].facility_id;
+          }
+          if (!organizationId || organizationId === '00000000-0000-0000-0000-000000000000') {
+            organizationId = enc.rows[0].organization_id;
+          }
+        }
       } catch {
-        patientId = null;
+        // keep fallback
       }
     }
+
+    if (!organizationId) {
+      const orgRes = await db.query(`SELECT id FROM organizations LIMIT 1`);
+      organizationId = orgRes.rows[0]?.id;
+    }
+    if (!facilityId) {
+      const facRes = await db.query(`SELECT id FROM facilities WHERE organization_id = $1 LIMIT 1`, [organizationId]);
+      facilityId = facRes.rows[0]?.id;
+    }
+
+    let receiptNo: string;
+    try {
+      const receiptNoResult = await db.query(
+        'SELECT next_number($1, $2, $3) AS receipt_no',
+        [organizationId, facilityId, 'RECEIPT']
+      );
+      receiptNo = receiptNoResult.rows[0]?.receipt_no || `REC-${Date.now()}`;
+    } catch {
+      receiptNo = `REC-${Date.now()}`;
+    }
+
+    const methodId = await this.resolvePaymentMethodId({
+      ...data,
+      organization_id: organizationId
+    });
+
+    let paymentType = String(data.payment_type || 'advance').toLowerCase();
+    if (paymentType === 'payment' || paymentType === 'interim') {
+      paymentType = 'invoice_payment';
+    } else if (paymentType === 'settlement') {
+      paymentType = 'invoice_payment';
+    } else if (!['invoice_payment', 'advance', 'refund', 'payer_settlement', 'settlement', 'payment'].includes(paymentType)) {
+      paymentType = 'advance';
+    }
+
+    const payDate = data.payment_date || data.paid_at || data.date || null;
 
     const query = `
       INSERT INTO payments (
         organization_id, facility_id, receipt_no, patient_id, encounter_id,
-        direction, payment_type, payment_method_id, amount, status, notes, received_by
+        direction, payment_type, payment_method_id, amount, status, notes, received_by, paid_at
       ) VALUES (
         $1, $2, $3, $4, $5,
-        'in', $6, $7, $8, 'completed', $9, $10
+        'in', $6, $7, $8, 'completed', $9, $10, COALESCE($11::timestamptz, NOW())
       ) RETURNING *;
     `;
     const res = await db.query(query, [
-      data.organization_id, data.facility_id, receiptNo, patientId, data.encounter_id,
-      paymentType, methodId, data.amount, data.notes || null, data.user_id
+      organizationId, facilityId, receiptNo, patientId, data.encounter_id,
+      paymentType, methodId, data.amount, data.notes || null, data.user_id, payDate
     ]);
     return res.rows[0];
   }
 
-  async getEncounterPayments(encounterId: string, facilityId: string) {
+  async getEncounterPayments(encounterId: string, facilityId?: string) {
     const query = `
-      SELECT p.*, pm.name as payment_method_name,
-             pm.name as payment_method,
+      SELECT p.*,
+             COALESCE(pm.name, 'Cash') as payment_method_name,
+             COALESCE(pm.name, 'Cash') as payment_method,
              p.paid_at as payment_date,
+             p.paid_at as paid_at,
              p.notes as notes
       FROM payments p
       LEFT JOIN payment_methods pm ON p.payment_method_id = pm.id
@@ -553,17 +843,22 @@ export class BillingRepository {
         );
         methodId = methodRes.rows[0]?.id || null;
 
-        const receiptNoRes = await client.query(
-          `SELECT next_number($1, $2, 'RECEIPT') as receipt_no`,
-          [data.organization_id, data.facility_id || enc.facility_id]
-        );
-        const receiptNo = receiptNoRes.rows[0]?.receipt_no || `REC-SETTLE-${Date.now()}`;
+        let receiptNo: string;
+        try {
+          const receiptNoRes = await client.query(
+            `SELECT next_number($1, $2, 'RECEIPT') as receipt_no`,
+            [data.organization_id, data.facility_id || enc.facility_id]
+          );
+          receiptNo = receiptNoRes.rows[0]?.receipt_no || `REC-SETTLE-${Date.now()}`;
+        } catch {
+          receiptNo = `REC-SETTLE-${Date.now()}`;
+        }
 
         await client.query(
           `INSERT INTO payments (
              organization_id, facility_id, receipt_no, patient_id, encounter_id,
-             direction, payment_type, payment_method_id, amount, status, notes, received_by
-           ) VALUES ($1, $2, $3, $4, $5, 'in', 'settlement', $6, $7, 'completed', $8, $9)`,
+             direction, payment_type, payment_method_id, amount, status, notes, received_by, paid_at
+           ) VALUES ($1, $2, $3, $4, $5, 'in', 'invoice_payment', $6, $7, 'completed', $8, $9, COALESCE($10::timestamptz, NOW()))`,
           [
             data.organization_id,
             data.facility_id || enc.facility_id,
@@ -573,7 +868,8 @@ export class BillingRepository {
             methodId,
             payAmount,
             remarks || `Full bill settlement for encounter ${encounter_id}`,
-            data.user_id || null
+            data.user_id || null,
+            (data as any).payment_date || null
           ]
         );
       }

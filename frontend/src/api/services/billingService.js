@@ -56,6 +56,26 @@ const billingService = {
     return res.data?.data ?? res.data ?? null;
   },
 
+  // Billing Master Data: Discount reasons and Referral doctors
+  getDiscountReasons: async () => {
+    try {
+      const res = await axiosInstance.get("/billing/discount-reasons");
+      return res.data?.data ?? res.data ?? [];
+    } catch (err) {
+      console.warn("Failed to load discount reasons:", err?.message);
+      return [];
+    }
+  },
+  getReferrals: async () => {
+    try {
+      const res = await axiosInstance.get("/billing/referrals");
+      return res.data?.data ?? res.data ?? { doctors: [], referral_sources: [] };
+    } catch (err) {
+      console.warn("Failed to load referrals:", err?.message);
+      return { doctors: [], referral_sources: [] };
+    }
+  },
+
   // Billing Reports methods
   getReportsSummary: async (params = {}) => {
     try {

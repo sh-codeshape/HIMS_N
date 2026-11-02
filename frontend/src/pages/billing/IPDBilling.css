@@ -4355,3 +4355,474 @@
   font-weight: 800;
 }
 
+/* =========================================================================
+   LEDGER VIEW SWITCHER & PAYMENTS RECORD VIEW STYLES
+   ========================================================================= */
+
+.ipd-ledger-view-switcher-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #f8fafc;
+  padding: 8px 14px;
+  border-bottom: 1.5px solid #e2e8f0;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.ipd-view-toggle-pills {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #e2e8f0;
+  padding: 3px;
+  border-radius: 8px;
+}
+
+.ipd-view-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-view-pill-btn:hover {
+  color: #0f172a;
+}
+
+.ipd-view-pill-btn.active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.ipd-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.ipd-view-pill-btn.active .ipd-pill-badge {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.ipd-pill-badge--green {
+  background: #dcfce7 !important;
+  color: #15803d !important;
+}
+
+/* Quick Fill Amount Buttons */
+.ipd-quick-amt-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.ipd-quick-amt-pill {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-quick-amt-pill:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.ipd-quick-amt-pill.active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.ipd-quick-amt-pill--highlight {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+  font-weight: 800;
+}
+
+.ipd-quick-amt-pill--highlight:hover {
+  background: #d1fae5;
+  border-color: #6ee7b7;
+}
+
+/* Date Field in Charge forms */
+.ipd-form-field--date {
+  flex: 0 0 135px;
+}
+
+/* Payments Record View Container */
+.ipd-payments-view-container {
+  padding: 16px;
+  background: #ffffff;
+}
+
+.ipd-pay-metrics-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ipd-pay-metric-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ipd-pay-metric-card .pay-m-lbl {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.ipd-pay-metric-card .pay-m-val {
+  font-size: 18px;
+  font-weight: 800;
+  font-family: monospace;
+  color: #0f172a;
+}
+
+.ipd-pay-metric-card .pay-m-sub {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.ipd-pay-metric-card--green {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.ipd-pay-metric-card--rose {
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+
+.ipd-pay-metric-card--cleared {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.ipd-pay-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.ipd-pay-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 12px;
+  flex: 1 1 260px;
+  max-width: 420px;
+}
+
+.ipd-pay-search-box input {
+  border: none;
+  outline: none;
+  font-size: 12.5px;
+  width: 100%;
+  color: #0f172a;
+  background: transparent;
+}
+
+.ipd-pay-filters-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ipd-btn-receive-pay-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #059669;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  height: 34px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-btn-receive-pay-action:hover {
+  background: #047857;
+  transform: translateY(-1px);
+}
+
+.ipd-receipt-code-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.ipd-pay-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ipd-pay-type-badge.interim {
+  background: #faf5ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
+}
+
+.ipd-pay-type-badge.refund {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+}
+
+.ipd-btn-print-receipt-sm {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: #334155;
+  border-radius: 5px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.ipd-btn-print-receipt-sm:hover {
+  background: #f8fafc;
+  border-color: #0f172a;
+  color: #0f172a;
+}
+
+/* Receipt Sheet Modal Styles */
+.hims-receipt-sheet {
+  padding: 20px;
+  color: #0f172a;
+}
+
+.hims-receipt-amount-box {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+  flex-wrap: wrap;
+}
+
+.hims-receipt-amt-left {
+  flex: 1 1 280px;
+}
+
+.hims-receipt-amt-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.hims-receipt-amt-number {
+  font-size: 26px;
+  font-weight: 900;
+  font-family: monospace;
+  color: #059669;
+  margin: 4px 0;
+}
+
+.hims-receipt-amt-words {
+  font-size: 12px;
+  color: #334155;
+  margin-top: 4px;
+}
+
+.hims-receipt-amt-right {
+  flex: 1 1 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+  border-left: 1.5px dashed #cbd5e1;
+  padding-left: 20px;
+}
+
+.hims-receipt-info-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #475569;
+}
+
+.hims-receipt-info-row strong {
+  color: #0f172a;
+}
+
+.hims-receipt-audit-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px 14px;
+  flex-wrap: wrap;
+}
+
+.hims-audit-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.hims-audit-chip .lbl {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.hims-audit-chip .val {
+  font-weight: 800;
+  font-family: monospace;
+  color: #0f172a;
+}
+
+/* IPD Inpatient Discount & Referral Reference Box */
+.ipd-discount-ref-box {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 10px;
+}
+
+.ipd-dr-toggle-btn {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.ipd-dr-toggle-btn:hover {
+  background: #fde68a;
+  color: #78350f;
+}
+
+.ipd-dr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(217, 119, 6, 0.3);
+}
+
+.ipd-dr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ipd-dr-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #78350f;
+  text-transform: uppercase;
+}
+
+.ipd-dr-select,
+.ipd-dr-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #d97706;
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 12px;
+  color: #0f172a;
+  outline: none;
+}
+
+.ipd-dr-select:focus,
+.ipd-dr-input:focus {
+  border-color: #b45309;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
+}
+
+.ipd-dr-link-btn {
+  background: none;
+  border: none;
+  color: #b45309;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+

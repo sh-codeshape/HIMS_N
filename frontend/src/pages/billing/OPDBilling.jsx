@@ -4,6 +4,7 @@ import { jwtDecode } from "jwt-decode";
 import Icon from "../../components/common/Icon.jsx";
 import patientService from "../../api/services/patientService";
 import billingInvoicesService from "../../api/services/billingInvoicesService";
+import billingService from "../../api/services/billingService";
 import "./OPDBilling.css";
 
 // Comprehensive Catalog of OPD Services
@@ -150,8 +151,39 @@ export default function OPDBilling() {
   const [showRecentInvoicesModal, setShowRecentInvoicesModal] = useState(false);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
 
-  // 1. Initial Load: Fetch real registered patients from backend
+  // Discount & Referral Reference Master Data
+  const [discountReasons, setDiscountReasons] = useState([]);
+  const [referralDoctors, setReferralDoctors] = useState([]);
+  const [referralSources, setReferralSources] = useState([]);
+
+  // Discount & Referral Reference State
+  const [enableDiscount, setEnableDiscount] = useState(false);
+  const [discountReasonId, setDiscountReasonId] = useState("");
+  const [discountType, setDiscountType] = useState("percent"); // "percent" | "fixed"
+  const [discountValue, setDiscountValue] = useState("");
+  const [referralDoctorId, setReferralDoctorId] = useState("");
+  const [referralDoctorName, setReferralDoctorName] = useState("");
+  const [isCustomReferralDoc, setIsCustomReferralDoc] = useState(false);
+  const [referralSource, setReferralSource] = useState("Doctor Referral");
+  const [discountReference, setDiscountReference] = useState("");
+
+  // 1. Initial Load: Fetch real registered patients, discount reasons, & referral doctors
   useEffect(() => {
+    billingService
+      .getDiscountReasons()
+      .then((reasons) => {
+        if (Array.isArray(reasons)) setDiscountReasons(reasons);
+      })
+      .catch((err) => console.warn("Failed to load discount reasons:", err));
+
+    billingService
+      .getReferrals()
+      .then((data) => {
+        if (Array.isArray(data?.doctors)) setReferralDoctors(data.doctors);
+        if (Array.isArray(data?.referral_sources)) setReferralSources(data.referral_sources);
+      })
+      .catch((err) => console.warn("Failed to load referrals:", err));
+
     patientService
       .getAll({ limit: 12 })
       .then((data) => {
@@ -264,18 +296,54 @@ export default function OPDBilling() {
     toast("Bill items cleared", { icon: "🗑️" });
   };
 
+  const handleDiscountReasonChange = (reasonId) => {
+    setDiscountReasonId(reasonId);
+    if (!reasonId) {
+      setEnableDiscount(false);
+      setDiscountValue("");
+      return;
+    }
+    setEnableDiscount(true);
+    const found = discountReasons.find((r) => r.id === reasonId);
+    if (found && Number(found.default_percent) > 0) {
+      setDiscountType("percent");
+      setDiscountValue(Number(found.default_percent).toString());
+    }
+    if (found?.code === "DOC_REF" || found?.name?.toLowerCase().includes("doctor")) {
+      setReferralSource("Doctor Referral");
+    }
+  };
+
   // Financial Computations
   const grossTotal = useMemo(
     () => billItems.reduce((acc, curr) => acc + curr.rate * curr.qty, 0),
     [billItems]
   );
-  const totalDiscount = useMemo(
+
+  const itemDiscounts = useMemo(
     () => billItems.reduce((acc, curr) => acc + Number(curr.discount || 0), 0),
     [billItems]
   );
+
+  const billDiscount = useMemo(() => {
+    if (!enableDiscount || !discountValue) return 0;
+    const val = Number(discountValue) || 0;
+    if (val <= 0) return 0;
+    if (discountType === "percent") {
+      const pct = Math.min(100, val);
+      return Math.round((grossTotal * pct) / 100);
+    }
+    return Math.min(grossTotal, val);
+  }, [enableDiscount, discountType, discountValue, grossTotal]);
+
+  const totalDiscount = Math.min(grossTotal, itemDiscounts + billDiscount);
   const netAmount = Math.max(0, grossTotal - totalDiscount);
   const numericReceived = Number(receivedAmount) || 0;
   const balance = Math.max(0, netAmount - numericReceived);
+
+  const effectiveReferredBy = isCustomReferralDoc
+    ? referralDoctorName.trim()
+    : (referralDoctors.find((d) => d.practitioner_id === referralDoctorId)?.name || referralDoctorName || "");
 
   // Sync received amount to net amount by default
   useEffect(() => {
@@ -317,6 +385,8 @@ export default function OPDBilling() {
       .toString()
       .padStart(2, "0")}-${Math.floor(1000 + Math.random() * 9000)}`;
 
+    const selectedReasonObj = discountReasons.find((r) => r.id === discountReasonId);
+
     const currentInvoiceData = {
       invoice_no: invoiceNo,
       date: new Date().toLocaleString("en-IN", {
@@ -331,6 +401,11 @@ export default function OPDBilling() {
       grossTotal,
       totalDiscount,
       netAmount,
+      discountReasonName: selectedReasonObj?.name || (totalDiscount > 0 ? "Hospital Concession" : ""),
+      discountPercent: discountType === "percent" ? Number(discountValue) : 0,
+      referredBy: effectiveReferredBy,
+      referralSource: referralSource,
+      discountReference: discountReference,
       receivedAmount: numericReceived,
       balance,
       paymentMode,
@@ -339,11 +414,13 @@ export default function OPDBilling() {
       counter: "OPD Billing Counter-01",
     };
 
-    let facilityId = "00000000-0000-0000-0000-000000000000";
+    let facilityId = undefined;
     try {
       const token = localStorage.getItem("hims_token");
       const decoded = token ? jwtDecode(token) : null;
-      facilityId = decoded?.facilityId || decoded?.facility_id || facilityId;
+      if (decoded?.facilityId && decoded.facilityId !== "00000000-0000-0000-0000-000000000000") {
+        facilityId = decoded.facilityId;
+      }
     } catch (e) {
       // fallback
     }
@@ -359,8 +436,14 @@ export default function OPDBilling() {
             name: item.name,
             qty: Number(item.qty) || 1,
             price: Number(item.rate) || 0,
+            discount_amount: Number(item.discount) || 0,
           })),
           discount_total: Number(totalDiscount) || 0,
+          discount_reason_id: discountReasonId || undefined,
+          discount_reference: discountReference || undefined,
+          referred_by: effectiveReferredBy || undefined,
+          referral_source: referralSource || undefined,
+          notes: remarks || undefined,
           payment_mode: paymentMode.toLowerCase().replace(/[^a-z]/g, ""),
         });
         toast.success(`OPD Bill ${invoiceNo} generated & saved successfully!`, { icon: "🧾" });
@@ -827,6 +910,154 @@ export default function OPDBilling() {
           </div>
 
           <form onSubmit={handleGenerateBill} className="opdb-checkout-box">
+            {/* Discount with Referral Reference Section */}
+            <div className="opdb-discount-ref-box">
+              <div className="opdb-dr-header">
+                <div className="opdb-dr-title">
+                  <Icon name="LuTag" size={15} style={{ color: "#d97706" }} />
+                  <span>Discount &amp; Referral Reference</span>
+                </div>
+                <label className="opdb-switch-label">
+                  <input
+                    type="checkbox"
+                    checked={enableDiscount}
+                    onChange={(e) => {
+                      setEnableDiscount(e.target.checked);
+                      if (!e.target.checked) {
+                        setDiscountValue("");
+                        setDiscountReasonId("");
+                      }
+                    }}
+                  />
+                  <span>Apply Discount</span>
+                </label>
+              </div>
+
+              {enableDiscount && (
+                <div className="opdb-dr-fields-grid">
+                  {/* Discount Reason */}
+                  <div className="opdb-dr-field">
+                    <label className="opdb-dr-lbl">Discount Reason / Scheme *</label>
+                    <select
+                      className="opdb-dr-select"
+                      value={discountReasonId}
+                      onChange={(e) => handleDiscountReasonChange(e.target.value)}
+                    >
+                      <option value="">-- Select Reason / Scheme --</option>
+                      {discountReasons.map((dr) => (
+                        <option key={dr.id} value={dr.id}>
+                          {dr.name} {dr.default_percent ? `(${Number(dr.default_percent)}%)` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Discount Value & Type */}
+                  <div className="opdb-dr-field">
+                    <label className="opdb-dr-lbl">Discount Value</label>
+                    <div className="opdb-dr-input-addon">
+                      <select
+                        className="opdb-dr-addon-select"
+                        value={discountType}
+                        onChange={(e) => setDiscountType(e.target.value)}
+                      >
+                        <option value="percent">% Percent</option>
+                        <option value="fixed">₹ Fixed</option>
+                      </select>
+                      <input
+                        type="number"
+                        min="0"
+                        max={discountType === "percent" ? 100 : grossTotal}
+                        placeholder={discountType === "percent" ? "e.g. 10%" : "₹ Amount"}
+                        className="opdb-dr-input"
+                        value={discountValue}
+                        onChange={(e) => setDiscountValue(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Referral Source */}
+                  <div className="opdb-dr-field">
+                    <label className="opdb-dr-lbl">Referral Source</label>
+                    <select
+                      className="opdb-dr-select"
+                      value={referralSource}
+                      onChange={(e) => setReferralSource(e.target.value)}
+                    >
+                      {referralSources.length > 0 ? (
+                        referralSources.map((s, idx) => (
+                          <option key={idx} value={s}>{s}</option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="Doctor Referral">Doctor Referral</option>
+                          <option value="Self / Direct Walk-in">Self / Direct Walk-in</option>
+                          <option value="Hospital Consultant / Internal">Hospital Consultant / Internal</option>
+                          <option value="Hospital Transfer / Casualty">Hospital Transfer / Casualty</option>
+                          <option value="Management / Director Discretion">Management / Director Discretion</option>
+                          <option value="Senior Citizen / Community Concession">Senior Citizen / Community Concession</option>
+                          <option value="Corporate / Institutional Tie-Up">Corporate / Institutional Tie-Up</option>
+                          <option value="Charitable Trust / BPL Scheme">Charitable Trust / BPL Scheme</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Referring Doctor / Authority */}
+                  <div className="opdb-dr-field">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <label className="opdb-dr-lbl">Referred By (Doctor / Authorizer) *</label>
+                      <button
+                        type="button"
+                        className="opdb-dr-link-btn"
+                        onClick={() => setIsCustomReferralDoc(!isCustomReferralDoc)}
+                      >
+                        {isCustomReferralDoc ? "📋 Hospital Doctors" : "➕ External Doctor"}
+                      </button>
+                    </div>
+                    {isCustomReferralDoc ? (
+                      <input
+                        type="text"
+                        className="opdb-dr-input"
+                        placeholder="Type external referring doctor name..."
+                        value={referralDoctorName}
+                        onChange={(e) => setReferralDoctorName(e.target.value)}
+                      />
+                    ) : (
+                      <select
+                        className="opdb-dr-select"
+                        value={referralDoctorId}
+                        onChange={(e) => {
+                          setReferralDoctorId(e.target.value);
+                          const doc = referralDoctors.find((d) => d.practitioner_id === e.target.value);
+                          if (doc) setReferralDoctorName(doc.name);
+                        }}
+                      >
+                        <option value="">-- Select Referring Doctor --</option>
+                        {referralDoctors.map((doc) => (
+                          <option key={doc.practitioner_id} value={doc.practitioner_id}>
+                            {doc.name} {doc.department ? `(${doc.department})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {/* Discount Reference Memo / Card # */}
+                  <div className="opdb-dr-field" style={{ gridColumn: "1 / -1" }}>
+                    <label className="opdb-dr-lbl">Discount Reference No. / Approval Memo (संदर्भ संख्या)</label>
+                    <input
+                      type="text"
+                      className="opdb-dr-input"
+                      placeholder="e.g. Ref: Doctor Referral slip #104 / Director Approval Memo / Card #SENIOR-88"
+                      value={discountReference}
+                      onChange={(e) => setDiscountReference(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Totals Summary Card */}
             <div className="opdb-summary-card">
               <div className="opdb-sum-row">
@@ -1070,6 +1301,22 @@ export default function OPDBilling() {
                       {generatedInvoice.patient.doctor || ""}
                     </span>
                   </div>
+                  {generatedInvoice.referredBy && (
+                    <div className="opdb-inv-meta-item">
+                      <label>Referred By:</label>
+                      <span style={{ fontWeight: 800, color: "#1e3a8a" }}>
+                        {generatedInvoice.referredBy} {generatedInvoice.referralSource ? `(${generatedInvoice.referralSource})` : ""}
+                      </span>
+                    </div>
+                  )}
+                  {generatedInvoice.discountReference && (
+                    <div className="opdb-inv-meta-item">
+                      <label>Reference Note / Memo:</label>
+                      <span style={{ fontWeight: 700, color: "#78350f" }}>
+                        {generatedInvoice.discountReference}
+                      </span>
+                    </div>
+                  )}
                   <div className="opdb-inv-meta-item">
                     <label>Payment Mode:</label>
                     <span style={{ fontWeight: 800, color: "#059669" }}>
@@ -1120,7 +1367,16 @@ export default function OPDBilling() {
                       </tr>
                       {generatedInvoice.totalDiscount > 0 && (
                         <tr>
-                          <td>Discount:</td>
+                          <td>
+                            Discount / Concession:
+                            {generatedInvoice.discountReasonName && (
+                              <span style={{ fontSize: 10.5, color: "#64748b", display: "block" }}>
+                                Reason: {generatedInvoice.discountReasonName}
+                                {generatedInvoice.discountPercent ? ` (${generatedInvoice.discountPercent}%)` : ""}
+                                {generatedInvoice.discountReference ? ` • Ref: ${generatedInvoice.discountReference}` : ""}
+                              </span>
+                            )}
+                          </td>
                           <td style={{ textAlign: "right", color: "#dc2626", fontWeight: 700 }}>
                             - ₹ {generatedInvoice.totalDiscount.toFixed(2)}
                           </td>

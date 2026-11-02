@@ -127,6 +127,14 @@ export default function IPDBilling() {
   // Active Billing Tab: "tariff" (Hospital services) vs "pharmacy" (Medicines & Drugs)
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState("tariff"); // "tariff" | "pharmacy"
 
+  // Active Ledger View: "charges" (Inpatient Charges) vs "payments" (Payment Receipts & History)
+  const [activeLedgerView, setActiveLedgerView] = useState("charges"); // "charges" | "payments"
+  const [chargeDate, setChargeDate] = useState(() => new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
+  const [paymentSearchTerm, setPaymentSearchTerm] = useState("");
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState("All");
+  const [paymentModeFilter, setPaymentModeFilter] = useState("All");
+  const [selectedPaymentForReceipt, setSelectedPaymentForReceipt] = useState(null);
+
   // Standard Tariff Form State
   const [activeCategory, setActiveCategory] = useState("Room Charges");
   const [selectedServiceName, setSelectedServiceName] = useState("General Ward (Per Day)");
@@ -144,12 +152,36 @@ export default function IPDBilling() {
     qty: 2,
     rate: 120,
     searchQuery: "",
+    date: new Date().toISOString().slice(0, 10),
   });
   const [isCustomMed, setIsCustomMed] = useState(false);
   const [customMedName, setCustomMedName] = useState("");
 
   // Remarks State
   const [remarks, setRemarks] = useState("");
+
+  // Discount & Referral Reference Master Data
+  const [discountReasons, setDiscountReasons] = useState([]);
+  const [referralSources, setReferralSources] = useState([]);
+
+  // Tariff Service Discount & Reference State
+  const [showServiceDiscountRef, setShowServiceDiscountRef] = useState(false);
+  const [serviceDiscountPercent, setServiceDiscountPercent] = useState("");
+  const [serviceDiscountAmount, setServiceDiscountAmount] = useState("");
+  const [serviceDiscountReasonId, setServiceDiscountReasonId] = useState("");
+  const [serviceDiscountReason, setServiceDiscountReason] = useState("");
+  const [serviceDiscountReference, setServiceDiscountReference] = useState("");
+  const [serviceReferralDoctorId, setServiceReferralDoctorId] = useState("");
+  const [serviceReferredBy, setServiceReferredBy] = useState("");
+  const [isCustomServiceRefDoc, setIsCustomServiceRefDoc] = useState(false);
+
+  // Pharmacy Medicine Discount & Reference State
+  const [showMedDiscountRef, setShowMedDiscountRef] = useState(false);
+  const [medDiscountPercent, setMedDiscountPercent] = useState("");
+  const [medDiscountAmount, setMedDiscountAmount] = useState("");
+  const [medDiscountReason, setMedDiscountReason] = useState("");
+  const [medDiscountReference, setMedDiscountReference] = useState("");
+  const [medReferredBy, setMedReferredBy] = useState("");
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -187,6 +219,7 @@ export default function IPDBilling() {
     amount: "",
     mode: "Cash",
     type: "Payment", // "Advance" | "Payment" | "Settlement"
+    payment_date: new Date().toISOString().slice(0, 16),
     remarks: "",
   });
 
@@ -310,6 +343,8 @@ export default function IPDBilling() {
       ratePlan: `${wardName} (${bedName})`,
       initialDeposit: Number(bp.total_payments || 0),
       avatar: bp.avatar || "",
+      referredBy: bp.referred_by || bp.referral_doctor || "",
+      referralSource: bp.referral_source || "",
       historyPayments: [],
       items: [],
       raw: bp,
@@ -331,31 +366,67 @@ export default function IPDBilling() {
 
       const mappedItems = safeItems.map((i) => {
         const itemStatus = String(i.payment_status || i.custom_fields?.payment_status || (i.status === "billed" ? "paid" : i.status) || "billable").toLowerCase();
+        const rawDate = i.charged_at || i.created_at;
+        const dt = rawDate ? new Date(rawDate) : new Date();
+        const isValidDate = !isNaN(dt.getTime());
+        const dateStr = isValidDate ? dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+        const timeStr = isValidDate ? dt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }) : "";
+
+        const grossAmt = Number(i.gross_amount || (Number(i.quantity || 1) * Number(i.rate || i.unit_price || 0)));
+        const discAmt = Number(i.discount_amount || 0);
+        const discPct = Number(i.discount_percent || 0);
+        const netAmt = Number(i.total_amount || i.net_amount || Math.max(0, grossAmt - discAmt));
+
         return {
           id: i.id,
-          date: new Date(i.created_at || i.charged_at || new Date()).toLocaleDateString("en-GB").replace(/\//g, "-"),
+          date: dateStr,
+          time: timeStr,
+          rawDate: rawDate,
           category: i.item_category || (i.source_type === "order_item" ? "Lab Test" : "General"),
           name: i.item_name || i.description || "Medical Service",
           qty: Number(i.quantity || 1),
           rate: Number(i.rate || i.unit_price || 0),
-          amount: Number(i.total_amount || i.net_amount || (Number(i.quantity || 1) * Number(i.rate || 0))),
+          grossAmount: grossAmt,
+          discountAmount: discAmt,
+          discountPercent: discPct,
+          discountReason: i.discount_reason || i.custom_fields?.discount_reason || null,
+          discountReference: i.discount_reference || i.custom_fields?.discount_reference || null,
+          referredBy: i.referred_by || i.custom_fields?.referred_by || i.practitioner_name || null,
+          referralSource: i.referral_source || i.custom_fields?.referral_source || null,
+          amount: netAmt,
           status: itemStatus,
           selected: false,
         };
       });
 
-      const mappedPayments = safePayments.map((pay) => ({
-        id: pay.id,
-        date: new Date(pay.payment_date || pay.created_at || new Date()).toLocaleDateString("en-GB").replace(/\//g, "-"),
-        amount: Number(pay.amount || 0),
-        mode: pay.payment_method || pay.payment_method_name || "Cash",
-        type: pay.payment_type || "Payment",
-        direction: pay.direction || "in",
-        remarks: pay.notes || "Receipt",
-      }));
+      const mappedPayments = safePayments.map((pay) => {
+        const rawDate = pay.payment_date || pay.paid_at || pay.created_at;
+        const dt = rawDate ? new Date(rawDate) : new Date();
+        const isValidDate = !isNaN(dt.getTime());
+        const dateStr = isValidDate ? dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+        const timeStr = isValidDate ? dt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }) : "";
+
+        return {
+          id: pay.id,
+          receiptNo: pay.receipt_no || "REC-" + String(pay.id).slice(-4).toUpperCase(),
+          date: dateStr,
+          time: timeStr,
+          rawDate: rawDate,
+          amount: Number(pay.amount || 0),
+          mode: pay.payment_method || pay.payment_method_name || "Cash",
+          type: pay.payment_type || "Payment",
+          direction: pay.direction || "in",
+          status: pay.status || "completed",
+          remarks: pay.notes || pay.reference_no || "Inpatient payment receipt",
+          raw: pay,
+        };
+      });
 
       const walletBal = Number(duesData?.walletBalance ?? p.walletBalance ?? 0);
       const excessAmt = Number(duesData?.excessAmount ?? 0);
+      const itemWithRef = mappedItems.find((i) => i.referredBy);
+      const resolvedReferredBy = p.referredBy || itemWithRef?.referredBy || "";
+      const resolvedReferralSource = p.referralSource || itemWithRef?.referralSource || "";
 
       setPatient((prev) => ({
         ...(prev || p),
@@ -363,6 +434,8 @@ export default function IPDBilling() {
         historyPayments: mappedPayments,
         walletBalance: walletBal,
         excessAmount: excessAmt,
+        referredBy: resolvedReferredBy || prev?.referredBy || "",
+        referralSource: resolvedReferralSource || prev?.referralSource || "",
       }));
     } catch (err) {
       console.error("Failed to load billing data", err);
@@ -381,11 +454,13 @@ export default function IPDBilling() {
           location.state?.admissionId ||
           location.state?.admission?.id;
 
-        const [admissionsRes, doctorsRes, categoriesRes, itemsRes] = await Promise.all([
+        const [admissionsRes, doctorsRes, categoriesRes, itemsRes, discountReasonsRes, referralsRes] = await Promise.all([
           ipdService.getAdmissions({ status: "all" }).catch(() => []),
           staffService.getDoctors().catch(() => []),
           ipdService.getBedCategories().catch(() => []),
           inventoryService.getItems({ limit: 100 }).catch(() => ({ data: [] })),
+          billingService.getDiscountReasons().catch(() => []),
+          billingService.getReferrals().catch(() => ({ doctors: [], referral_sources: [] })),
         ]);
 
         const list = Array.isArray(admissionsRes) ? admissionsRes : admissionsRes?.rows || admissionsRes?.data || [];
@@ -395,6 +470,8 @@ export default function IPDBilling() {
         if (Array.isArray(doctorsRes)) setDoctorsList(doctorsRes);
         if (Array.isArray(categoriesRes)) setBedCategories(categoriesRes);
         if (itemsRes?.data && Array.isArray(itemsRes.data)) setInventoryMeds(itemsRes.data);
+        if (Array.isArray(discountReasonsRes)) setDiscountReasons(discountReasonsRes);
+        if (Array.isArray(referralsRes?.referral_sources)) setReferralSources(referralsRes.referral_sources);
 
         // Auto-select patient if targetAdmissionId provided (e.g. from IPD discharge page)
         if (targetAdmissionId) {
@@ -518,6 +595,7 @@ export default function IPDBilling() {
       amount: String(pendingAmount > 0 ? pendingAmount : 0),
       mode: "Cash",
       type: "Settlement",
+      payment_date: new Date().toISOString().slice(0, 16),
       remarks: `Discharge settlement for ${patient.admissionNo} (${patient.name})`,
     });
     setShowReceivePayModal(true);
@@ -582,25 +660,63 @@ export default function IPDBilling() {
       toast.error("Please enter a valid rate amount greater than ₹0.");
       return;
     }
-    const amount = rate * qty;
+    const gross = rate * qty;
+    let discAmt = Number(serviceDiscountAmount) || 0;
+    let discPct = Number(serviceDiscountPercent) || 0;
+    if (discPct > 0 && discAmt === 0) {
+      discAmt = Math.round((gross * discPct) / 100);
+    } else if (discAmt > 0 && discPct === 0 && gross > 0) {
+      discPct = Number(((discAmt / gross) * 100).toFixed(2));
+    }
+    discAmt = Math.min(discAmt, gross);
+    const netAmount = Math.max(0, gross - discAmt);
+
+    const effectiveServiceRefDoc = isCustomServiceRefDoc
+      ? serviceReferredBy.trim()
+      : (doctorsList.find((d) => (d.practitioner_id || d.id) === serviceReferralDoctorId)?.name || serviceReferredBy || "");
 
     try {
       setActionLoading(true);
       const encounterId = patient.encounterId || patient.id;
+      const now = new Date();
+      let chargedTimestamp = new Date();
+      if (chargeDate) {
+        const [y, m, d] = chargeDate.split("-").map(Number);
+        chargedTimestamp = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds());
+      }
       await billingService.addCharge({
         encounter_id: encounterId,
         item_name: sName,
         item_category: activeCategory === "Room Charges" ? "Room" : activeCategory,
         quantity: qty,
         rate: rate,
-        total_amount: amount,
+        unit_price: rate,
+        gross_amount: gross,
+        discount_percent: discPct,
+        discount_amount: discAmt,
+        total_amount: netAmount,
+        net_amount: netAmount,
+        discount_reason_id: serviceDiscountReasonId || null,
+        discount_reason: serviceDiscountReason || null,
+        discount_reference: serviceDiscountReference || null,
+        referred_by: effectiveServiceRefDoc || null,
+        ordered_by_practitioner_id: (!isCustomServiceRefDoc && serviceReferralDoctorId) ? serviceReferralDoctorId : null,
+        charged_at: chargedTimestamp.toISOString(),
       });
       await fetchPatientBilling(patient);
       if (isCustomService) {
         setCustomServiceName("");
         setIsCustomService(false);
       }
-      toast.success(`Added ${sName} (₹${amount.toLocaleString("en-IN")}) to inpatient bill!`, { icon: "✅" });
+      setServiceDiscountPercent("");
+      setServiceDiscountAmount("");
+      setServiceDiscountReason("");
+      setServiceDiscountReasonId("");
+      setServiceDiscountReference("");
+      setServiceReferredBy("");
+      setServiceReferralDoctorId("");
+      setShowServiceDiscountRef(false);
+      toast.success(`Added ${sName} (₹${netAmount.toLocaleString("en-IN")}) to inpatient bill!`, { icon: "✅" });
     } catch (err) {
       console.error("Failed to add charge", err);
       toast.error("Failed to add charge to bill.");
@@ -626,38 +742,62 @@ export default function IPDBilling() {
       toast.error("Please enter a valid medicine price.");
       return;
     }
-    const amount = qty * rate;
+    const gross = qty * rate;
+    let discAmt = Number(medDiscountAmount) || 0;
+    let discPct = Number(medDiscountPercent) || 0;
+    if (discPct > 0 && discAmt === 0) {
+      discAmt = Math.round((gross * discPct) / 100);
+    } else if (discAmt > 0 && discPct === 0 && gross > 0) {
+      discPct = Number(((discAmt / gross) * 100).toFixed(2));
+    }
+    discAmt = Math.min(discAmt, gross);
+    const netAmount = Math.max(0, gross - discAmt);
     const fullName = `${medName} [${medForm.form} • ${medForm.route} • ${medForm.freq}]`;
 
     try {
       setActionLoading(true);
       const encounterId = patient.encounterId || patient.id;
+      const now = new Date();
+      let chargedTimestamp = new Date();
+      if (medForm.date) {
+        const [y, m, d] = medForm.date.split("-").map(Number);
+        chargedTimestamp = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds());
+      }
       const chargeRes = await billingService.addCharge({
         encounter_id: encounterId,
         item_name: fullName,
         item_category: "Medicines",
         quantity: qty,
         rate: rate,
-        total_amount: amount,
+        unit_price: rate,
+        gross_amount: gross,
+        discount_percent: discPct,
+        discount_amount: discAmt,
+        total_amount: netAmount,
+        net_amount: netAmount,
+        discount_reason: medDiscountReason || null,
+        discount_reference: medDiscountReference || null,
+        referred_by: medReferredBy || null,
+        charged_at: chargedTimestamp.toISOString(),
       });
 
       // If requested and patient has sufficient wallet balance, auto-settle the medicine
-      if (settleMedFromWallet && walletBalance >= amount) {
+      if (settleMedFromWallet && walletBalance >= netAmount) {
         try {
           const newChargeId = chargeRes?.id || chargeRes?.data?.id;
           await billingService.settleWithWallet({
             encounter_id: encounterId,
             patient_id: patient.patientId,
-            amount: amount,
+            amount: netAmount,
             charge_id: newChargeId,
           });
-          toast.success(`Dispensed ${medName} & settled ₹${amount.toLocaleString("en-IN")} from Patient Wallet!`, { icon: "👛" });
+          toast.success(`Dispensed ${medName} & settled ₹${netAmount.toLocaleString("en-IN")} from Patient Wallet!`, { icon: "👛" });
         } catch (wErr) {
           console.warn("Wallet settlement error:", wErr);
-          toast.success(`Dispensed ${medName} (Qty: ${qty} • ₹${amount}). Wallet auto-deduct notice.`, { icon: "💊" });
+          toast.success(`Dispensed ${medName} (Qty: ${qty} • ₹${netAmount}). Wallet auto-deduct notice.`, { icon: "💊" });
         }
       } else {
-        toast.success(`Dispensed ${medName} (Qty: ${qty} • ₹${amount}) to inpatient bill!`, { icon: "💊" });
+        toast.success(`Dispensed ${medName} (Qty: ${qty} • ₹${netAmount}) to inpatient bill!`, { icon: "💊" });
       }
 
       await fetchPatientBilling(patient);
@@ -665,7 +805,12 @@ export default function IPDBilling() {
         setIsCustomMed(false);
         setCustomMedName("");
       }
-      toast.success(`Dispensed ${medName} (Qty: ${qty} • ₹${amount}) to inpatient bill!`, { icon: "💊" });
+      setMedDiscountPercent("");
+      setMedDiscountAmount("");
+      setMedDiscountReason("");
+      setMedDiscountReference("");
+      setMedReferredBy("");
+      setShowMedDiscountRef(false);
     } catch (err) {
       console.error("Failed to add medicine", err);
       toast.error("Failed to post medicine charge.");
@@ -783,14 +928,15 @@ export default function IPDBilling() {
     try {
       setActionLoading(true);
       const encounterId = patient.encounterId || patient.id;
-      const isSettlement = paymentForm.type === "Settlement" || amt >= pendingAmount;
+      const isExplicitSettlement = paymentForm.type === "Settlement";
 
-      if (isSettlement) {
+      if (isExplicitSettlement) {
         // Official settle endpoint: closes billable charges and encounter billing
         await billingService.settleBill({
           encounter_id: encounterId,
           amount: amt,
           payment_mode: paymentForm.mode,
+          payment_date: paymentForm.payment_date,
           remarks: paymentForm.remarks || `Settlement payment for ${patient.name}`,
         });
       } else {
@@ -799,7 +945,8 @@ export default function IPDBilling() {
           amount: amt,
           payment_method: paymentForm.mode,
           payment_type: paymentForm.type,
-          notes: paymentForm.remarks || `${paymentForm.type} received for ${patient.name}`,
+          payment_date: paymentForm.payment_date,
+          notes: paymentForm.remarks || `${paymentForm.type === "Advance" ? "Advance Deposit" : "Running Bill Interim Payment"} received for ${patient.name}`,
         });
       }
 
@@ -810,17 +957,21 @@ export default function IPDBilling() {
         amount: "",
         mode: "Cash",
         type: "Payment",
+        payment_date: new Date().toISOString().slice(0, 16),
         remarks: "",
       });
+      // Switch view to payments so the user immediately sees the newly added payment record!
+      setActiveLedgerView("payments");
+
       toast.success(
-        isSettlement
+        isExplicitSettlement
           ? `Settlement of ₹${amt.toLocaleString("en-IN")} received! Bill marked fully cleared.`
           : `Payment receipt of ₹${amt.toLocaleString("en-IN")} recorded successfully!`,
         { icon: "💳" }
       );
     } catch (err) {
       console.error("Failed to record payment", err);
-      toast.error(err?.response?.data?.message || "Failed to record payment.");
+      toast.error(err?.response?.data?.message || err?.message || "Failed to record payment.");
     } finally {
       setActionLoading(false);
     }
@@ -1033,6 +1184,13 @@ export default function IPDBilling() {
   const billItems = patient && patient.items ? patient.items : [];
   const activeBillItems = billItems.filter((i) => !isItemSettled(i));
   const totalBills = activeBillItems.reduce((acc, curr) => acc + curr.amount, 0);
+  const totalGrossAmount = activeBillItems.reduce((acc, curr) => acc + (Number(curr.grossAmount) || (Number(curr.rate) * Number(curr.qty))), 0);
+  const totalDiscounts = activeBillItems.reduce((acc, curr) => acc + (Number(curr.discountAmount) || 0), 0);
+
+  // Totals for all items (for full tax invoice statement)
+  const allItemsGross = billItems.reduce((acc, curr) => acc + (Number(curr.grossAmount) || (Number(curr.rate) * Number(curr.qty))), 0);
+  const allItemsDiscounts = billItems.reduce((acc, curr) => acc + (Number(curr.discountAmount) || 0), 0);
+  const allItemsNet = billItems.reduce((acc, curr) => acc + Number(curr.amount), 0);
 
   const isDirectItemPayment = (p) => {
     const text = String(p.remarks || p.notes || "").toLowerCase();
@@ -1114,6 +1272,41 @@ export default function IPDBilling() {
 
     return list;
   }, [patient, billCategoryFilter, billItemSearch]);
+
+  // Filtered Payments Table (for Payment Receipts & History Record View)
+  const filteredPayments = useMemo(() => {
+    if (!patient || !patient.historyPayments) return [];
+    let list = patient.historyPayments;
+
+    if (paymentTypeFilter !== "All") {
+      list = list.filter((p) => {
+        const t = String(p.type || "").toLowerCase();
+        if (paymentTypeFilter === "Advance") return t === "advance";
+        if (paymentTypeFilter === "Settlement") return t === "settlement";
+        if (paymentTypeFilter === "Payment") return t !== "advance" && t !== "settlement" && t !== "refund";
+        if (paymentTypeFilter === "Refund") return t === "refund" || p.direction === "out";
+        return true;
+      });
+    }
+
+    if (paymentModeFilter !== "All") {
+      list = list.filter((p) => String(p.mode || "").toLowerCase().includes(paymentModeFilter.toLowerCase()));
+    }
+
+    if (paymentSearchTerm.trim()) {
+      const q = paymentSearchTerm.trim().toLowerCase();
+      list = list.filter((p) =>
+        String(p.receiptNo || "").toLowerCase().includes(q) ||
+        String(p.mode || "").toLowerCase().includes(q) ||
+        String(p.type || "").toLowerCase().includes(q) ||
+        String(p.remarks || "").toLowerCase().includes(q) ||
+        String(p.amount || "").includes(q) ||
+        String(p.date || "").toLowerCase().includes(q)
+      );
+    }
+
+    return list;
+  }, [patient, paymentTypeFilter, paymentModeFilter, paymentSearchTerm]);
 
   return (
     <div className="ipd-erp-container">
@@ -1436,27 +1629,68 @@ export default function IPDBilling() {
             )}
 
             {/* Section 2: Inpatient Charges & Running Bill Ledger (Unified Single Console) */}
-            <div className="ipd-section-header-bar">
-              
-              <div className="ipd-mode-tabs" style={{ margin: 0 }}>
+            <div className="ipd-ledger-view-switcher-bar">
+              <div className="ipd-view-toggle-pills">
                 <button
                   type="button"
-                  className={`ipd-mode-tab ${activeWorkspaceTab === "tariff" ? "active" : ""}`}
-                  onClick={() => setActiveWorkspaceTab("tariff")}
+                  className={`ipd-view-pill-btn ${activeLedgerView === "charges" ? "active" : ""}`}
+                  onClick={() => setActiveLedgerView("charges")}
                 >
-                  <Icon name="LuBuilding" size={13} />
-                  <span>Hospital Tariff</span>
+                  <Icon name="LuFileSpreadsheet" size={15} />
+                  <span>Charges Record View</span>
+                  <span className="ipd-pill-badge">{patient?.items?.length || 0}</span>
                 </button>
                 <button
                   type="button"
-                  className={`ipd-mode-tab ${activeWorkspaceTab === "pharmacy" ? "active" : ""}`}
-                  onClick={() => setActiveWorkspaceTab("pharmacy")}
+                  className={`ipd-view-pill-btn ${activeLedgerView === "payments" ? "active" : ""}`}
+                  onClick={() => setActiveLedgerView("payments")}
                 >
-                  <Icon name="LuPill" size={13} />
-                  <span>Inpatient Pharmacy &amp; Medicines</span>
+                  <Icon name="LuCreditCard" size={15} />
+                  <span>Payment Receipts &amp; History</span>
+                  <span className="ipd-pill-badge ipd-pill-badge--green">{patient?.historyPayments?.length || 0}</span>
                 </button>
               </div>
+
+              {activeLedgerView === "charges" ? (
+                <div className="ipd-mode-tabs" style={{ margin: 0 }}>
+                  <button
+                    type="button"
+                    className={`ipd-mode-tab ${activeWorkspaceTab === "tariff" ? "active" : ""}`}
+                    onClick={() => setActiveWorkspaceTab("tariff")}
+                  >
+                    <Icon name="LuBuilding" size={13} />
+                    <span>Hospital Tariff</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`ipd-mode-tab ${activeWorkspaceTab === "pharmacy" ? "active" : ""}`}
+                    onClick={() => setActiveWorkspaceTab("pharmacy")}
+                  >
+                    <Icon name="LuPill" size={13} />
+                    <span>Inpatient Pharmacy &amp; Medicines</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="ipd-btn-receive-pay-action"
+                  onClick={() => {
+                    setPaymentForm({
+                      amount: "",
+                      mode: "Cash",
+                      type: "Payment",
+                      payment_date: new Date().toISOString().slice(0, 16),
+                      remarks: "",
+                    });
+                    setShowReceivePayModal(true);
+                  }}
+                >
+                  <Icon name="LuCreditCard" size={14} /> + Receive Payment
+                </button>
+              )}
             </div>
+
+            {activeLedgerView === "charges" ? (
 
             <div className="ipd-section-body" style={{ paddingBottom: 14 }}>
               {/* Unified Charge Entry Console Card */}
@@ -1566,20 +1800,189 @@ export default function IPDBilling() {
                           type="text"
                           className="ipd-input-control ipd-input-readonly"
                           readOnly
-                          value={(Number(rateInput || 0) * Number(qtyInput || 1)).toLocaleString("en-IN")}
+                          value={Math.max(
+                            0,
+                            (Number(rateInput || 0) * Number(qtyInput || 1)) -
+                            (Number(serviceDiscountAmount) || (serviceDiscountPercent ? Math.round(((Number(rateInput || 0) * Number(qtyInput || 1)) * Number(serviceDiscountPercent)) / 100) : 0))
+                          ).toLocaleString("en-IN")}
                         />
                       </div>
 
-                      <button
-                        type="button"
-                        className="ipd-btn-add-item"
-                        disabled={actionLoading}
-                        onClick={handleAddServiceItem}
-                      >
-                        <Icon name="LuPlus" size={16} />
-                        <span>Add Charge</span>
-                      </button>
+                      <div className="ipd-form-field ipd-form-field--date">
+                        <label className="ipd-field-label">Charge Date</label>
+                        <input
+                          type="date"
+                          className="ipd-input-control"
+                          value={chargeDate}
+                          onChange={(e) => setChargeDate(e.target.value)}
+                        />
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
+                        <button
+                          type="button"
+                          className="ipd-dr-toggle-btn"
+                          onClick={() => setShowServiceDiscountRef(!showServiceDiscountRef)}
+                          title="Apply doctor referral discount or concession"
+                        >
+                          <Icon name="LuTag" size={13} />
+                          <span>{showServiceDiscountRef ? "Hide Disc & Ref" : "🏷️ Disc & Ref"}</span>
+                          {(Number(serviceDiscountAmount) > 0 || Number(serviceDiscountPercent) > 0) && (
+                            <span style={{ color: "#dc2626", fontWeight: 800 }}>
+                              (-₹{serviceDiscountAmount || Math.round(((Number(rateInput || 0) * Number(qtyInput || 1)) * Number(serviceDiscountPercent)) / 100)})
+                            </span>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          className="ipd-btn-add-item"
+                          disabled={actionLoading}
+                          onClick={handleAddServiceItem}
+                        >
+                          <Icon name="LuPlus" size={16} />
+                          <span>Add Charge</span>
+                        </button>
+                      </div>
                     </div>
+
+                    {showServiceDiscountRef && (
+                      <div className="ipd-discount-ref-box">
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                          <span style={{ fontSize: 11.5, fontWeight: 800, color: "#92400e", display: "flex", alignItems: "center", gap: 6 }}>
+                            <Icon name="LuTag" size={14} /> DISCOUNT WITH REFERRAL REFERENCE (छूट एवं डॉक्टर संदर्भ)
+                          </span>
+                          <span style={{ fontSize: 11, color: "#78350f" }}>
+                            Gross: ₹{(Number(rateInput || 0) * Number(qtyInput || 1)).toLocaleString("en-IN")}
+                          </span>
+                        </div>
+                        <div className="ipd-dr-grid">
+                          <div className="ipd-dr-field">
+                            <label className="ipd-dr-label">Discount Scheme / Reason</label>
+                            <select
+                              className="ipd-dr-select"
+                              value={serviceDiscountReasonId}
+                              onChange={(e) => {
+                                const rId = e.target.value;
+                                setServiceDiscountReasonId(rId);
+                                const found = discountReasons.find((r) => r.id === rId);
+                                if (found) {
+                                  setServiceDiscountReason(found.name);
+                                  if (found.default_percent) {
+                                    setServiceDiscountPercent(Number(found.default_percent).toString());
+                                    const gr = Number(rateInput || 0) * Number(qtyInput || 1);
+                                    setServiceDiscountAmount(Math.round((gr * Number(found.default_percent)) / 100).toString());
+                                  }
+                                } else {
+                                  setServiceDiscountReason("");
+                                }
+                              }}
+                            >
+                              <option value="">-- Select Reason / Scheme --</option>
+                              {discountReasons.map((dr) => (
+                                <option key={dr.id} value={dr.id}>
+                                  {dr.name} {dr.default_percent ? `(${Number(dr.default_percent)}%)` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="ipd-dr-field">
+                            <label className="ipd-dr-label">Disc (%)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              className="ipd-dr-input"
+                              placeholder="%"
+                              value={serviceDiscountPercent}
+                              onChange={(e) => {
+                                const pct = e.target.value;
+                                setServiceDiscountPercent(pct);
+                                const gr = Number(rateInput || 0) * Number(qtyInput || 1);
+                                if (pct && gr > 0) {
+                                  setServiceDiscountAmount(Math.round((gr * Number(pct)) / 100).toString());
+                                } else if (!pct) {
+                                  setServiceDiscountAmount("");
+                                }
+                              }}
+                            />
+                          </div>
+
+                          <div className="ipd-dr-field">
+                            <label className="ipd-dr-label">Disc Amount (₹)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max={Number(rateInput || 0) * Number(qtyInput || 1)}
+                              className="ipd-dr-input"
+                              placeholder="₹"
+                              value={serviceDiscountAmount}
+                              onChange={(e) => {
+                                const amt = e.target.value;
+                                setServiceDiscountAmount(amt);
+                                const gr = Number(rateInput || 0) * Number(qtyInput || 1);
+                                if (amt && gr > 0) {
+                                  setServiceDiscountPercent(((Number(amt) / gr) * 100).toFixed(1));
+                                } else if (!amt) {
+                                  setServiceDiscountPercent("");
+                                }
+                              }}
+                            />
+                          </div>
+
+                          <div className="ipd-dr-field">
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <label className="ipd-dr-label">Referred By (Doctor / Authority)</label>
+                              <button
+                                type="button"
+                                className="ipd-dr-link-btn"
+                                onClick={() => setIsCustomServiceRefDoc(!isCustomServiceRefDoc)}
+                              >
+                                {isCustomServiceRefDoc ? "📋 Hospital Doctors" : "➕ External Doctor"}
+                              </button>
+                            </div>
+                            {isCustomServiceRefDoc ? (
+                              <input
+                                type="text"
+                                className="ipd-dr-input"
+                                placeholder="Type external doctor name..."
+                                value={serviceReferredBy}
+                                onChange={(e) => setServiceReferredBy(e.target.value)}
+                              />
+                            ) : (
+                              <select
+                                className="ipd-dr-select"
+                                value={serviceReferralDoctorId}
+                                onChange={(e) => {
+                                  setServiceReferralDoctorId(e.target.value);
+                                  const doc = doctorsList.find((d) => (d.practitioner_id || d.id) === e.target.value);
+                                  if (doc) setServiceReferredBy(doc.name);
+                                }}
+                              >
+                                <option value="">-- Select Referring Doctor --</option>
+                                {doctorsList.map((doc) => (
+                                  <option key={doc.practitioner_id || doc.id} value={doc.practitioner_id || doc.id}>
+                                    {doc.name} {doc.department ? `(${doc.department})` : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+
+                          <div className="ipd-dr-field" style={{ gridColumn: "1 / -1" }}>
+                            <label className="ipd-dr-label">Discount Reference Memo / Slip # (संदर्भ संख्या)</label>
+                            <input
+                              type="text"
+                              className="ipd-dr-input"
+                              placeholder="e.g. Doctor recommendation slip #204 / Director Approval Memo / Senior Citizen Card #55"
+                              value={serviceDiscountReference}
+                              onChange={(e) => setServiceDiscountReference(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="ipd-pharmacy-panel-clean">
@@ -1761,20 +2164,161 @@ export default function IPDBilling() {
                           type="text"
                           className="ipd-input-control ipd-input-readonly"
                           readOnly
-                          value={(Number(medForm.qty || 1) * Number(medForm.rate || 0)).toLocaleString("en-IN")}
+                          value={Math.max(
+                            0,
+                            (Number(medForm.qty || 1) * Number(medForm.rate || 0)) -
+                            (Number(medDiscountAmount) || (medDiscountPercent ? Math.round(((Number(medForm.qty || 1) * Number(medForm.rate || 0)) * Number(medDiscountPercent)) / 100) : 0))
+                          ).toLocaleString("en-IN")}
                         />
                       </div>
 
-                      <button
-                        type="button"
-                        className="ipd-btn-add-item ipd-btn-add-item--purple"
-                        disabled={actionLoading}
-                        onClick={handleAddMedicineItem}
-                      >
-                        <Icon name="LuPlus" size={16} />
-                        <span>Dispense Drug</span>
-                      </button>
+                      <div className="ipd-form-field ipd-form-field--date">
+                        <label className="ipd-field-label">Dispense Date</label>
+                        <input
+                          type="date"
+                          className="ipd-input-control"
+                          value={medForm.date}
+                          onChange={(e) => setMedForm({ ...medForm, date: e.target.value })}
+                        />
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
+                        <button
+                          type="button"
+                          className="ipd-dr-toggle-btn"
+                          onClick={() => setShowMedDiscountRef(!showMedDiscountRef)}
+                          title="Apply pharmacy concession or doctor referral"
+                        >
+                          <Icon name="LuTag" size={13} />
+                          <span>{showMedDiscountRef ? "Hide Disc & Ref" : "🏷️ Disc & Ref"}</span>
+                          {(Number(medDiscountAmount) > 0 || Number(medDiscountPercent) > 0) && (
+                            <span style={{ color: "#dc2626", fontWeight: 800 }}>
+                              (-₹{medDiscountAmount || Math.round(((Number(medForm.qty || 1) * Number(medForm.rate || 0)) * Number(medDiscountPercent)) / 100)})
+                            </span>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          className="ipd-btn-add-item ipd-btn-add-item--purple"
+                          disabled={actionLoading}
+                          onClick={handleAddMedicineItem}
+                        >
+                          <Icon name="LuPlus" size={16} />
+                          <span>Dispense Drug</span>
+                        </button>
+                      </div>
                     </div>
+
+                    {showMedDiscountRef && (
+                      <div className="ipd-discount-ref-box">
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                          <span style={{ fontSize: 11.5, fontWeight: 800, color: "#92400e", display: "flex", alignItems: "center", gap: 6 }}>
+                            <Icon name="LuTag" size={14} /> PHARMACY CONCESSION &amp; REFERRAL (दवा छूट एवं संदर्भ)
+                          </span>
+                          <span style={{ fontSize: 11, color: "#78350f" }}>
+                            Gross: ₹{(Number(medForm.qty || 1) * Number(medForm.rate || 0)).toLocaleString("en-IN")}
+                          </span>
+                        </div>
+                        <div className="ipd-dr-grid">
+                          <div className="ipd-dr-field">
+                            <label className="ipd-dr-label">Concession Scheme / Reason</label>
+                            <select
+                              className="ipd-dr-select"
+                              value={medDiscountReason}
+                              onChange={(e) => {
+                                const reasonName = e.target.value;
+                                setMedDiscountReason(reasonName);
+                                const found = discountReasons.find((r) => r.name === reasonName);
+                                if (found && found.default_percent) {
+                                  setMedDiscountPercent(Number(found.default_percent).toString());
+                                  const gr = Number(medForm.qty || 1) * Number(medForm.rate || 0);
+                                  setMedDiscountAmount(Math.round((gr * Number(found.default_percent)) / 100).toString());
+                                }
+                              }}
+                            >
+                              <option value="">-- Select Concession Scheme --</option>
+                              {discountReasons.map((dr) => (
+                                <option key={dr.id} value={dr.name}>
+                                  {dr.name} {dr.default_percent ? `(${Number(dr.default_percent)}%)` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="ipd-dr-field">
+                            <label className="ipd-dr-label">Disc (%)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              className="ipd-dr-input"
+                              placeholder="%"
+                              value={medDiscountPercent}
+                              onChange={(e) => {
+                                const pct = e.target.value;
+                                setMedDiscountPercent(pct);
+                                const gr = Number(medForm.qty || 1) * Number(medForm.rate || 0);
+                                if (pct && gr > 0) {
+                                  setMedDiscountAmount(Math.round((gr * Number(pct)) / 100).toString());
+                                } else if (!pct) {
+                                  setMedDiscountAmount("");
+                                }
+                              }}
+                            />
+                          </div>
+
+                          <div className="ipd-dr-field">
+                            <label className="ipd-dr-label">Disc Amount (₹)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max={Number(medForm.qty || 1) * Number(medForm.rate || 0)}
+                              className="ipd-dr-input"
+                              placeholder="₹"
+                              value={medDiscountAmount}
+                              onChange={(e) => {
+                                const amt = e.target.value;
+                                setMedDiscountAmount(amt);
+                                const gr = Number(medForm.qty || 1) * Number(medForm.rate || 0);
+                                if (amt && gr > 0) {
+                                  setMedDiscountPercent(((Number(amt) / gr) * 100).toFixed(1));
+                                } else if (!amt) {
+                                  setMedDiscountPercent("");
+                                }
+                              }}
+                            />
+                          </div>
+
+                          <div className="ipd-dr-field">
+                            <label className="ipd-dr-label">Referred By (Doctor / Authorizer)</label>
+                            <select
+                              className="ipd-dr-select"
+                              value={medReferredBy}
+                              onChange={(e) => setMedReferredBy(e.target.value)}
+                            >
+                              <option value="">-- Select Doctor / Authorizer --</option>
+                              {doctorsList.map((doc) => (
+                                <option key={doc.practitioner_id || doc.id} value={doc.name}>
+                                  {doc.name} {doc.department ? `(${doc.department})` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="ipd-dr-field" style={{ gridColumn: "1 / -1" }}>
+                            <label className="ipd-dr-label">Pharmacy Discount Ref / Prescription Memo #</label>
+                            <input
+                              type="text"
+                              className="ipd-dr-input"
+                              placeholder="e.g. Rx Dr. Amit Saxena concession order #108 / Welfare Memo"
+                              value={medDiscountReference}
+                              onChange={(e) => setMedDiscountReference(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {walletBalance > 0 && (
                       <div className="ipd-wallet-settle-check-wrap">
@@ -1809,20 +2353,21 @@ export default function IPDBilling() {
                         />
                       </th>
                       <th style={{ width: 45 }}>#</th>
-                      <th style={{ width: 110 }}>DATE</th>
+                      <th style={{ width: 140 }}>DATE &amp; TIME</th>
                       <th>PARTICULAR / SERVICE / MEDICINE DESCRIPTION</th>
-                      <th style={{ width: 150 }}>DEPARTMENT</th>
-                      <th style={{ width: 110, textAlign: "right" }}>RATE (₹)</th>
-                      <th style={{ width: 85, textAlign: "center" }}>DAYS / QTY</th>
-                      <th style={{ width: 125, textAlign: "right" }}>AMOUNT (₹)</th>
-                      <th style={{ width: 100, textAlign: "center" }}>STATUS</th>
-                      <th style={{ width: 60, textAlign: "center" }}>ACTION</th>
+                      <th style={{ width: 140 }}>DEPARTMENT</th>
+                      <th style={{ width: 105, textAlign: "right" }}>RATE (₹)</th>
+                      <th style={{ width: 80, textAlign: "center" }}>DAYS / QTY</th>
+                      <th style={{ width: 100, textAlign: "right" }}>DISC (₹)</th>
+                      <th style={{ width: 120, textAlign: "right" }}>AMOUNT (₹)</th>
+                      <th style={{ width: 95, textAlign: "center" }}>STATUS</th>
+                      <th style={{ width: 55, textAlign: "center" }}>ACTION</th>
                     </tr>
                   </thead>
                   <tbody>
                     {!patient || filteredBillItems.length === 0 ? (
                       <tr>
-                        <td colSpan="10" style={{ textAlign: "center", padding: "36px 16px", color: "#64748b" }}>
+                        <td colSpan="11" style={{ textAlign: "center", padding: "36px 16px", color: "#64748b" }}>
                           <Icon name="LuFileX" size={32} style={{ color: "#94a3b8", marginBottom: 8 }} />
                           <div style={{ fontWeight: 700, color: "#1e293b", fontSize: 14 }}>No Inpatient Charges Posted Yet</div>
                           <div style={{ fontSize: 12, marginTop: 4, color: "#64748b" }}>Use the form above to add room rent, doctor visits, medicines, or procedures.</div>
@@ -1841,9 +2386,31 @@ export default function IPDBilling() {
                           <td style={{ color: "#64748b", fontFamily: "monospace", fontWeight: 700 }}>
                             {String(idx + 1).padStart(2, "0")}
                           </td>
-                          <td style={{ color: "#475569", fontSize: 12, whiteSpace: "nowrap", fontFamily: "monospace" }}>{item.date}</td>
+                          <td style={{ color: "#475569", fontSize: 12, whiteSpace: "nowrap" }}>
+                            <div style={{ fontWeight: 600, color: "#1e293b", fontFamily: "monospace" }}>{item.date}</div>
+                            {item.time && <div style={{ fontSize: 11, color: "#64748b" }}>{item.time}</div>}
+                          </td>
                           <td>
                             <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 13 }}>{item.name}</div>
+                            {(item.discountAmount > 0 || item.discountReason || item.referredBy || item.discountReference) && (
+                              <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+                                {item.discountAmount > 0 && (
+                                  <span style={{ fontSize: 10.5, background: "#fee2e2", color: "#991b1b", padding: "1px 6px", borderRadius: 4, fontWeight: 700 }}>
+                                    🏷️ -₹{Number(item.discountAmount).toLocaleString("en-IN")} ({item.discountPercent ? `${item.discountPercent}%` : item.discountReason || "Disc"})
+                                  </span>
+                                )}
+                                {item.referredBy && (
+                                  <span style={{ fontSize: 10.5, background: "#e0f2fe", color: "#0369a1", padding: "1px 6px", borderRadius: 4, fontWeight: 600 }}>
+                                    👨‍⚕️ Ref: {item.referredBy}
+                                  </span>
+                                )}
+                                {item.discountReference && (
+                                  <span style={{ fontSize: 10.5, background: "#fef3c7", color: "#92400e", padding: "1px 6px", borderRadius: 4 }}>
+                                    📝 {item.discountReference}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </td>
                           <td>
                             <span className={`ipd-cat-badge ${getCatBadgeClass(item.category)}`}>
@@ -1854,6 +2421,9 @@ export default function IPDBilling() {
                             ₹{item.rate.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                           </td>
                           <td style={{ textAlign: "center", fontWeight: 800, color: "#1e293b" }}>{item.qty}</td>
+                          <td style={{ textAlign: "right", fontFamily: "monospace", color: item.discountAmount > 0 ? "#dc2626" : "#94a3b8", fontWeight: 700 }}>
+                            {item.discountAmount > 0 ? `-₹${Number(item.discountAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "—"}
+                          </td>
                           <td style={{ textAlign: "right", fontFamily: "monospace", fontWeight: 800, color: "#0f172a" }}>
                             ₹{item.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                           </td>
@@ -1891,13 +2461,257 @@ export default function IPDBilling() {
                   </tbody>
                 </table>
               </div>
-
-
             </div>
+            ) : (
+              <div className="ipd-section-body" style={{ paddingBottom: 14 }}>
+                <div className="ipd-payments-view-container">
+                  {/* Financial Summary KPI Cards */}
+                  <div className="ipd-pay-metrics-strip">
+                    <div className="ipd-pay-metric-card">
+                      <span className="pay-m-lbl">Total Charges Incurred</span>
+                      <span className="pay-m-val">₹{totalBills.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                      <span className="pay-m-sub">{patient?.items?.length || 0} posted services &amp; drugs</span>
+                    </div>
+                    <div className="ipd-pay-metric-card ipd-pay-metric-card--green">
+                      <span className="pay-m-lbl">Total Payments Collected</span>
+                      <span className="pay-m-val" style={{ color: "#059669" }}>
+                        ₹{totalPaymentsReceivedAll.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </span>
+                      <span className="pay-m-sub">{patient?.historyPayments?.length || 0} receipts recorded</span>
+                    </div>
+                    <div className="ipd-pay-metric-card">
+                      <span className="pay-m-lbl">Initial Advance Deposits</span>
+                      <span className="pay-m-val">₹{totalAdvance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                      <span className="pay-m-sub">Admission advance</span>
+                    </div>
+                    <div className="ipd-pay-metric-card">
+                      <span className="pay-m-lbl">Interim Payments</span>
+                      <span className="pay-m-val">₹{totalReceived.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                      <span className="pay-m-sub">Running bill installments</span>
+                    </div>
+                    <div className={`ipd-pay-metric-card ${pendingAmount > 0 ? "ipd-pay-metric-card--rose" : "ipd-pay-metric-card--cleared"}`}>
+                      <span className="pay-m-lbl">{pendingAmount > 0 ? "Balance Due Remaining" : "Excess Advance Available"}</span>
+                      <span className="pay-m-val" style={{ color: pendingAmount > 0 ? "#e11d48" : "#059669" }}>
+                        ₹{(pendingAmount > 0 ? pendingAmount : excessAdvance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </span>
+                      <span className="pay-m-sub">{pendingAmount > 0 ? "Collection pending" : "All dues settled"}</span>
+                    </div>
+                  </div>
+
+                  {/* Controls & Filter Bar */}
+                  <div className="ipd-pay-controls-bar">
+                    <div className="ipd-pay-search-box">
+                      <Icon name="LuSearch" size={15} />
+                      <input
+                        type="text"
+                        placeholder="Search receipt #, remarks, payment mode, date, or amount..."
+                        value={paymentSearchTerm}
+                        onChange={(e) => setPaymentSearchTerm(e.target.value)}
+                      />
+                      {paymentSearchTerm && (
+                        <button type="button" className="ipd-search-clear-btn" onClick={() => setPaymentSearchTerm("")}>
+                          <Icon name="LuX" size={13} />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="ipd-pay-filters-group">
+                      <select
+                        className="ipd-select-control"
+                        style={{ width: "auto" }}
+                        value={paymentTypeFilter}
+                        onChange={(e) => setPaymentTypeFilter(e.target.value)}
+                      >
+                        <option value="All">All Categories</option>
+                        <option value="Payment">Running Bill (Interim)</option>
+                        <option value="Advance">Initial Advance Deposit</option>
+                        <option value="Settlement">Discharge Settlement</option>
+                        <option value="Refund">Refunds</option>
+                      </select>
+
+                      <select
+                        className="ipd-select-control"
+                        style={{ width: "auto" }}
+                        value={paymentModeFilter}
+                        onChange={(e) => setPaymentModeFilter(e.target.value)}
+                      >
+                        <option value="All">All Payment Modes</option>
+                        <option value="Cash">Cash</option>
+                        <option value="UPI">UPI</option>
+                        <option value="Card">Card</option>
+                        <option value="Net Banking">Net Banking</option>
+                        <option value="Insurance">Insurance / TPA</option>
+                      </select>
+
+                      <button
+                        type="button"
+                        className="ipd-btn-receive-pay-action"
+                        onClick={() => {
+                          setPaymentForm({
+                            amount: "",
+                            mode: "Cash",
+                            type: "Payment",
+                            payment_date: new Date().toISOString().slice(0, 16),
+                            remarks: "",
+                          });
+                          setShowReceivePayModal(true);
+                        }}
+                      >
+                        <Icon name="LuCreditCard" size={14} /> + Receive Payment
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Payments History Table */}
+                  <div className="ipd-ledger-table-wrap-premium">
+                    <table className="ipd-ledger-table-premium">
+                      <thead>
+                        <tr>
+                          <th style={{ width: 45 }}>#</th>
+                          <th style={{ width: 140 }}>DATE &amp; TIME</th>
+                          <th style={{ width: 140 }}>RECEIPT NO</th>
+                          <th style={{ width: 170 }}>RECEIPT CATEGORY</th>
+                          <th style={{ width: 140 }}>PAYMENT METHOD</th>
+                          <th>TRANSACTION NOTES &amp; REFERENCE</th>
+                          <th style={{ width: 135, textAlign: "right" }}>AMOUNT (₹)</th>
+                          <th style={{ width: 100, textAlign: "center" }}>STATUS</th>
+                          <th style={{ width: 90, textAlign: "center" }}>ACTION</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredPayments.length === 0 ? (
+                          <tr>
+                            <td colSpan="9" style={{ textAlign: "center", padding: "40px 16px", color: "#64748b" }}>
+                              <Icon name="LuReceipt" size={36} style={{ color: "#94a3b8", marginBottom: 8 }} />
+                              <div style={{ fontWeight: 700, color: "#1e293b", fontSize: 14 }}>No Payment Records Found</div>
+                              <div style={{ fontSize: 12, marginTop: 4, color: "#64748b" }}>
+                                {patient?.historyPayments?.length === 0
+                                  ? "No advance or bill payments have been received for this inpatient admission yet."
+                                  : "No payment receipts match your search filter."}
+                              </div>
+                              {patient?.historyPayments?.length === 0 && (
+                                <button
+                                  type="button"
+                                  className="ipd-ppc-btn ipd-ppc-btn--pay"
+                                  style={{ marginTop: 14, display: "inline-flex" }}
+                                  onClick={() => {
+                                    setPaymentForm({
+                                      amount: "",
+                                      mode: "Cash",
+                                      type: "Advance",
+                                      payment_date: new Date().toISOString().slice(0, 16),
+                                      remarks: "",
+                                    });
+                                    setShowReceivePayModal(true);
+                                  }}
+                                >
+                                  <Icon name="LuCreditCard" size={13} /> + Record Initial Payment
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredPayments.map((pay, idx) => {
+                            const isOut = pay.direction === "out" || String(pay.type || "").toLowerCase() === "refund";
+                            const isAdvance = String(pay.type || "").toLowerCase() === "advance";
+                            const isSettlement = String(pay.type || "").toLowerCase() === "settlement";
+
+                            return (
+                              <tr key={pay.id || idx}>
+                                <td style={{ color: "#64748b", fontFamily: "monospace", fontWeight: 700 }}>
+                                  {String(idx + 1).padStart(2, "0")}
+                                </td>
+                                <td style={{ color: "#334155", fontSize: 12, whiteSpace: "nowrap" }}>
+                                  <div style={{ fontWeight: 600, color: "#0f172a", fontFamily: "monospace" }}>{pay.date}</div>
+                                  {pay.time && <div style={{ fontSize: 11, color: "#64748b" }}>{pay.time}</div>}
+                                </td>
+                                <td>
+                                  <span className="ipd-receipt-code-pill">
+                                    <Icon name="LuFileText" size={12} /> {pay.receiptNo}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span
+                                    className={`ipd-pay-type-badge ${
+                                      isAdvance ? "advance" : isSettlement ? "settlement" : isOut ? "refund" : "interim"
+                                    }`}
+                                  >
+                                    {isAdvance
+                                      ? "Advance Deposit"
+                                      : isSettlement
+                                      ? "Discharge Settlement"
+                                      : isOut
+                                      ? "Refund"
+                                      : "Running Bill Payment"}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span className="ipd-pay-mode-pill">
+                                    <Icon
+                                      name={
+                                        pay.mode.toLowerCase().includes("cash")
+                                          ? "LuBanknote"
+                                          : pay.mode.toLowerCase().includes("upi")
+                                          ? "LuSmartphone"
+                                          : pay.mode.toLowerCase().includes("card")
+                                          ? "LuCreditCard"
+                                          : "LuBuilding2"
+                                      }
+                                      size={12}
+                                    />
+                                    <span>{pay.mode}</span>
+                                  </span>
+                                </td>
+                                <td>
+                                  <div style={{ color: "#334155", fontSize: 12.5, fontWeight: 500 }}>
+                                    {pay.remarks || "Counter payment receipt"}
+                                  </div>
+                                </td>
+                                <td
+                                  style={{
+                                    textAlign: "right",
+                                    fontFamily: "monospace",
+                                    fontWeight: 800,
+                                    color: isOut ? "#e11d48" : "#059669",
+                                    fontSize: 13,
+                                  }}
+                                >
+                                  {isOut ? "- " : "+ "}₹{pay.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                </td>
+                                <td style={{ textAlign: "center" }}>
+                                  <span className="ipd-charge-status-pill ipd-charge-status-pill--paid">
+                                    <Icon name="LuCheckCircle2" size={11} /> COMPLETED
+                                  </span>
+                                </td>
+                                <td style={{ textAlign: "center" }}>
+                                  <button
+                                    type="button"
+                                    className="ipd-btn-print-receipt-sm"
+                                    title="Print official payment receipt slip"
+                                    onClick={() => setSelectedPaymentForReceipt(pay)}
+                                  >
+                                    <Icon name="LuPrinter" size={13} /> Print
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Bottom Form Action Footer (Inside the Master Form) */}
             <div className="ipd-master-form-footer">
               <div className="opd-footer-summary-chip">
+                {totalDiscounts > 0 && (
+                  <span style={{ fontSize: 12, color: "#059669", fontWeight: 700, marginRight: 8, background: "#ecfdf5", border: "1px solid #a7f3d0", padding: "2px 8px", borderRadius: 4 }}>
+                    🏷️ Total Disc: -₹{totalDiscounts.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </span>
+                )}
                 <span className="chip-label">{pendingAmount > 0 ? "Pending Balance Due:" : ""}</span>
                 <span className={`chip-amount ${pendingAmount > 0 ? "due" : "cleared"}`}>
                   ₹{pendingAmount > 0 ? pendingAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}
@@ -2031,10 +2845,21 @@ export default function IPDBilling() {
                 value={paymentForm.type}
                 onChange={(e) => setPaymentForm({ ...paymentForm, type: e.target.value })}
               >
-                <option value="Advance">Initial Advance Deposit (Admission)</option>
                 <option value="Payment">Running Bill Payment / Interim</option>
+                <option value="Advance">Initial Advance Deposit (Admission)</option>
                 <option value="Settlement">Final Discharge Settlement</option>
               </select>
+            </div>
+
+            <div className="ipd-form-field">
+              <label className="ipd-field-label">Payment Date &amp; Time *</label>
+              <input
+                type="datetime-local"
+                className="ipd-input-control"
+                required
+                value={paymentForm.payment_date}
+                onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}
+              />
             </div>
 
             <div className="ipd-form-field">
@@ -2048,11 +2873,38 @@ export default function IPDBilling() {
                 value={paymentForm.amount}
                 onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
               />
-              {pendingAmount > 0 && (
-                <span style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
-                  Current Balance Due: <strong>₹{pendingAmount.toLocaleString("en-IN")}</strong>
-                </span>
-              )}
+              <div className="ipd-quick-amt-row">
+                {pendingAmount > 0 && (
+                  <button
+                    type="button"
+                    className="ipd-quick-amt-pill ipd-quick-amt-pill--highlight"
+                    onClick={() => setPaymentForm({ ...paymentForm, amount: pendingAmount })}
+                  >
+                    Pay Full Due: ₹{pendingAmount.toLocaleString("en-IN")}
+                  </button>
+                )}
+                {[1000, 2500, 5000, 10000, 20000, 50000].map((quickAmt) => (
+                  <button
+                    key={quickAmt}
+                    type="button"
+                    className={`ipd-quick-amt-pill ${Number(paymentForm.amount) === quickAmt ? "active" : ""}`}
+                    onClick={() => setPaymentForm({ ...paymentForm, amount: quickAmt })}
+                  >
+                    + ₹{quickAmt.toLocaleString("en-IN")}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 12, marginTop: 8, fontSize: 11.5, color: "#64748b", flexWrap: "wrap" }}>
+                <span>Total Billed: <strong>₹{totalBills.toLocaleString("en-IN")}</strong></span>
+                <span>•</span>
+                <span>Paid So Far: <strong style={{ color: "#059669" }}>₹{totalPaymentsReceivedAll.toLocaleString("en-IN")}</strong></span>
+                {pendingAmount > 0 && (
+                  <>
+                    <span>•</span>
+                    <span>Remaining Due: <strong style={{ color: "#e11d48" }}>₹{pendingAmount.toLocaleString("en-IN")}</strong></span>
+                  </>
+                )}
+              </div>
             </div>
 
             <div className="ipd-form-field">
@@ -2095,6 +2947,183 @@ export default function IPDBilling() {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+{/* 1.1 Official Inpatient Payment Receipt Modal */}
+{
+  selectedPaymentForReceipt && (
+    <div className="ipd-modal-backdrop" onClick={() => setSelectedPaymentForReceipt(null)}>
+      <div className="ipd-modal-box ipd-modal-box--print" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 750 }}>
+        <div className="ipd-modal-header hims-no-print">
+          <div className="ipd-modal-header-left">
+            <div className="ipd-modal-icon-wrap" style={{ background: "#ecfdf5", color: "#059669" }}>
+              <Icon name="LuReceipt" size={20} />
+            </div>
+            <div>
+              <h3 className="ipd-modal-title">Official Inpatient Payment Receipt</h3>
+              <span className="ipd-modal-subtitle">
+                Receipt No: {selectedPaymentForReceipt.receiptNo} • {selectedPaymentForReceipt.date} {selectedPaymentForReceipt.time}
+              </span>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              className="ipd-btn-search"
+              onClick={() => window.print()}
+            >
+              <Icon name="LuPrinter" size={15} /> Print Receipt
+            </button>
+            <button
+              type="button"
+              className="ipd-modal-close-btn"
+              onClick={() => setSelectedPaymentForReceipt(null)}
+            >
+              <Icon name="LuX" size={18} />
+            </button>
+          </div>
+        </div>
+
+        <div className="ipd-modal-body hims-inv-print-body" style={{ background: "#ffffff" }}>
+          <div className="hims-receipt-sheet">
+            <div className="hims-inv-top-bar">
+              <div className="hims-inv-brand-col">
+                <div className="hims-inv-brand-title">AURA MULTISPECIALTY HOSPITAL &amp; RESEARCH CENTER</div>
+                <div className="hims-inv-brand-sub">Accredited Multi-Specialty Hospital &amp; Surgical Care Center</div>
+                <div className="hims-inv-brand-contact">
+                  Plot 45, Institutional Area, Hospital Road • Helpline: +91 141 289 0000 • Email: billing@aurahospital.org
+                </div>
+              </div>
+              <div className="hims-inv-tax-col">
+                <div className="hims-inv-tax-title">OFFICIAL PAYMENT RECEIPT</div>
+                <div className="hims-inv-tax-row"><span>GSTIN:</span> <strong>08AAACN1234F1Z8</strong></div>
+                <div className="hims-inv-tax-row"><span>STATUS:</span> <strong style={{ color: "#059669" }}>PAID &amp; RECORDED</strong></div>
+              </div>
+            </div>
+
+            <div className="hims-inv-doc-banner">
+              <span>INPATIENT CASH &amp; ELECTRONIC PAYMENT RECEIPT SLIP</span>
+            </div>
+
+            <div className="hims-inv-demographics-grid">
+              <div className="hims-demo-col">
+                <table className="hims-demo-table">
+                  <tbody>
+                    <tr>
+                      <td className="demo-k">Patient Name</td>
+                      <td className="demo-sep">:</td>
+                      <td className="demo-v demo-v--name">{patient?.name}</td>
+                    </tr>
+                    <tr>
+                      <td className="demo-k">Patient UHID</td>
+                      <td className="demo-sep">:</td>
+                      <td className="demo-v demo-v--code">{patient?.uhid}</td>
+                    </tr>
+                    <tr>
+                      <td className="demo-k">Age / Gender</td>
+                      <td className="demo-sep">:</td>
+                      <td className="demo-v">{patient?.age} Y / {patient?.gender}</td>
+                    </tr>
+                    <tr>
+                      <td className="demo-k">Contact / Phone</td>
+                      <td className="demo-sep">:</td>
+                      <td className="demo-v">{patient?.mobile || "—"}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="hims-demo-col">
+                <table className="hims-demo-table">
+                  <tbody>
+                    <tr>
+                      <td className="demo-k">Receipt Number</td>
+                      <td className="demo-sep">:</td>
+                      <td className="demo-v demo-v--code">{selectedPaymentForReceipt.receiptNo}</td>
+                    </tr>
+                    <tr>
+                      <td className="demo-k">Payment Date / Time</td>
+                      <td className="demo-sep">:</td>
+                      <td className="demo-v">{selectedPaymentForReceipt.date} {selectedPaymentForReceipt.time}</td>
+                    </tr>
+                    <tr>
+                      <td className="demo-k">IPD Admission No</td>
+                      <td className="demo-sep">:</td>
+                      <td className="demo-v demo-v--code">{patient?.admissionNo}</td>
+                    </tr>
+                    <tr>
+                      <td className="demo-k">Ward / Bed</td>
+                      <td className="demo-sep">:</td>
+                      <td className="demo-v">{patient?.ward} - {patient?.bedNo}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="hims-receipt-amount-box">
+              <div className="hims-receipt-amt-left">
+                <div className="hims-receipt-amt-label">Amount Received (INR)</div>
+                <div className="hims-receipt-amt-number">₹{selectedPaymentForReceipt.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</div>
+                <div className="hims-receipt-amt-words">
+                  In Words: <strong>{numberToWords(selectedPaymentForReceipt.amount)}</strong>
+                </div>
+              </div>
+              <div className="hims-receipt-amt-right">
+                <div className="hims-receipt-info-row">
+                  <span>Receipt Category:</span>
+                  <strong>
+                    {selectedPaymentForReceipt.type === "Advance"
+                      ? "Initial Advance Deposit"
+                      : selectedPaymentForReceipt.type === "Settlement"
+                      ? "Discharge Settlement"
+                      : "Running Bill Interim Payment"}
+                  </strong>
+                </div>
+                <div className="hims-receipt-info-row">
+                  <span>Payment Mode:</span>
+                  <strong>{selectedPaymentForReceipt.mode}</strong>
+                </div>
+                <div className="hims-receipt-info-row">
+                  <span>Notes / Reference:</span>
+                  <span>{selectedPaymentForReceipt.remarks || "Counter Receipt"}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="hims-receipt-audit-box">
+              <div className="hims-audit-chip">
+                <span className="lbl">Total Charges Incurred:</span>
+                <span className="val">₹{totalBills.toLocaleString("en-IN")}</span>
+              </div>
+              <div className="hims-audit-chip">
+                <span className="lbl">Total Paid So Far:</span>
+                <span className="val" style={{ color: "#059669" }}>₹{totalPaymentsReceivedAll.toLocaleString("en-IN")}</span>
+              </div>
+              <div className="hims-audit-chip">
+                <span className="lbl">Current Remaining Balance:</span>
+                <span className="val" style={{ color: pendingAmount > 0 ? "#e11d48" : "#059669" }}>
+                  ₹{pendingAmount.toLocaleString("en-IN")}
+                </span>
+              </div>
+            </div>
+
+            <div className="hims-inv-signatures-row" style={{ marginTop: 28 }}>
+              <div className="hims-sig-box">
+                <div className="hims-sig-line"></div>
+                <div className="hims-sig-title">Patient / Attendant Signature</div>
+              </div>
+              <div className="hims-sig-box">
+                <div className="hims-sig-line"></div>
+                <div className="hims-sig-title">Cashier / Authorized Signatory</div>
+                <div className="hims-sig-sub">Aura Hospital Accounts Desk</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -2401,6 +3430,13 @@ export default function IPDBilling() {
                       <td className="demo-sep">:</td>
                       <td className="demo-v">{patient.consultant} ({patient.department})</td>
                     </tr>
+                    {patient.referredBy && (
+                      <tr>
+                        <td className="demo-k">Referred By</td>
+                        <td className="demo-sep">:</td>
+                        <td className="demo-v">Dr. {patient.referredBy} {patient.referralSource ? `(${patient.referralSource})` : ""}</td>
+                      </tr>
+                    )}
                     <tr>
                       <td className="demo-k">Length of Stay</td>
                       <td className="demo-sep">:</td>
@@ -2437,7 +3473,20 @@ export default function IPDBilling() {
                         <td>
                           <span className="hims-inv-cat-pill">{item.category}</span>
                         </td>
-                        <td style={{ fontWeight: 600, color: "#0f172a" }}>{item.name}</td>
+                        <td style={{ fontWeight: 600, color: "#0f172a" }}>
+                          {item.name}
+                          {(Number(item.discountAmount) > 0 || item.referredBy || item.discountReference) && (
+                            <div style={{ fontSize: 10, color: "#0284c7", marginTop: 2, fontWeight: 500 }}>
+                              {Number(item.discountAmount) > 0 && (
+                                <span style={{ color: "#059669", fontWeight: 600 }}>
+                                  🏷️ Disc: ₹{Number(item.discountAmount).toFixed(2)}{item.discountReason ? ` (${item.discountReason})` : ""}
+                                </span>
+                              )}
+                              {item.referredBy && <span>{Number(item.discountAmount) > 0 ? " • " : ""}Ref: Dr. {item.referredBy}</span>}
+                              {item.discountReference && <span> ({item.discountReference})</span>}
+                            </div>
+                          )}
+                        </td>
                         <td style={{ textAlign: "center", fontWeight: 700 }}>{item.qty}</td>
                         <td style={{ textAlign: "right", fontFamily: "monospace" }}>
                           ₹{Number(item.rate).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
@@ -2472,7 +3521,7 @@ export default function IPDBilling() {
               <div className="hims-settle-left">
                 <div className="hims-words-wrap">
                   <span className="hims-words-lbl">Total Bill Amount In Words:</span>
-                  <div className="hims-words-val">{numberToWords(totalBills)}</div>
+                  <div className="hims-words-val">{numberToWords(allItemsNet || totalBills)}</div>
                 </div>
 
                 <div className="hims-pay-audit-box">
@@ -2504,19 +3553,21 @@ export default function IPDBilling() {
                   <tbody>
                     <tr>
                       <td>Total Gross Charges</td>
-                      <td className="calc-val">₹{totalBills.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                      <td className="calc-val">₹{(allItemsGross || totalGrossAmount || totalBills).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
                     </tr>
-                    <tr>
-                      <td>Hospital Concession / Discount</td>
-                      <td className="calc-val">₹0.00</td>
-                    </tr>
+                    {(allItemsDiscounts > 0 || totalDiscounts > 0) && (
+                      <tr style={{ color: "#059669" }}>
+                        <td>(-) Referral &amp; Hospital Concession</td>
+                        <td className="calc-val">(-) ₹{(allItemsDiscounts || totalDiscounts).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                    )}
                     <tr>
                       <td>Tax (GST Exempted Healthcare)</td>
                       <td className="calc-val">₹0.00</td>
                     </tr>
                     <tr className="calc-row-sub">
                       <td><strong>Net Billable Charges</strong></td>
-                      <td className="calc-val"><strong>₹{totalBills.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></td>
+                      <td className="calc-val"><strong>₹{(allItemsNet || totalBills).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></td>
                     </tr>
                     <tr>
                       <td>(-) Less Total Payments &amp; Deposits</td>

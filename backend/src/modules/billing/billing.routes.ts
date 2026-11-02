@@ -11,6 +11,10 @@ const controller = new BillingController();
 router.use(authenticate); // Require authentication for all billing routes
 router.use(moduleGuard('billing'));
 
+// Master Data: Discount reasons and referral sources (MUST be declared before /:id)
+router.get('/discount-reasons', controller.getDiscountReasons);
+router.get('/referrals', controller.getReferrals);
+
 // Report routes (MUST be declared before /:id)
 router.get('/reports/summary', controller.getReportsSummary);
 router.get('/reports/pending-dues', controller.getPendingDuesReport);
