@@ -168,7 +168,7 @@ export default function Sidebar() {
             <img src={NarayanLogo} alt="CodeShape Logo" className="sidebar__logo-img" />
           </div>
           <div className="sidebar__brand-text">
-            <span className="sidebar__brand-hospital">Narayan Hospital</span>
+            <span className="sidebar__brand-hospital">Narayan Multispeciality Hospital</span>
             <span className="sidebar__brand-system">Hospital Management System</span>
           </div>
         </div>

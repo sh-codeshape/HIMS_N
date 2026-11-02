@@ -2900,3 +2900,67 @@
   background: #e2e8f0;
   color: #0f172a;
 }
+
+
+/* ── Custom Field Toggle & Inputs (Floor Location Example Style) ── */
+.opd-field-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.opd-custom-toggle-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #2563eb;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.opd-custom-toggle-btn:hover {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.opd-custom-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.opd-custom-input-wrap .opd-custom-input {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+}
+
+.opd-custom-input-wrap .opd-btn-add-complaint {
+  height: 38px;
+  padding: 0 14px;
+  background: linear-gradient(135deg, #1e5a8e, #0e3b68);
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 4px rgba(30, 90, 142, 0.2);
+}
+
+.opd-custom-input-wrap .opd-btn-add-complaint:hover {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(37, 99, 235, 0.25);
+}

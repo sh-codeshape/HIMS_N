@@ -126,7 +126,7 @@ export default function Login() {
           />
           <div className="absolute inset-x-0 bottom-0 pt-16 pb-8 px-8 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end">
             <h1 className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight mb-1.5 drop-shadow-md">
-              Narayan Hospital
+              Narayan Multispeciality Hospital
             </h1>
             <p className="text-xs sm:text-sm text-slate-100 font-medium leading-relaxed max-w-sm drop-shadow">
               Advanced Hospital Information & Management System. Streamlining healthcare operations.
@@ -147,7 +147,7 @@ export default function Login() {
                   className="w-13 h-13 sm:w-14 sm:h-14 object-contain rounded-xl shadow-md shadow-blue-500/10 border border-slate-100 bg-white p-1 shrink-0"
                 />
                 <div>
-                  <span className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight block leading-tight">Narayan Hospital</span>
+                  <span className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight block leading-tight">Narayan Multispeciality Hospital</span>
                   <span className="text-xs font-semibold text-blue-600">Login Credentials</span>
                 </div>
               </div>

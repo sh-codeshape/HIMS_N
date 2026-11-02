@@ -123,6 +123,14 @@ export default function OPDTokenQueue() {
   const complaintRef = useRef(null);
   const complaintInputRef = useRef(null);
 
+  // Custom Input Toggles & Fields for Consultation Details (Image 2 style)
+  const [isCustomComplaint, setIsCustomComplaint] = useState(false);
+  const [customComplaintInput, setCustomComplaintInput] = useState("");
+  const [isCustomDepartment, setIsCustomDepartment] = useState(false);
+  const [customDeptInput, setCustomDeptInput] = useState("");
+  const [isCustomDoctor, setIsCustomDoctor] = useState(false);
+  const [customDoctorName, setCustomDoctorName] = useState("");
+
   // Attendant Details (Optional)
   const [attendantName, setAttendantName] = useState("");
   const [attendantRelation, setAttendantRelation] = useState("");
@@ -294,6 +302,7 @@ export default function OPDTokenQueue() {
   // Update Consultation Fee when Selected Doctor or Visit Type changes (Doctor is NOT forced auto-selected)
   useEffect(() => {
     if (selectedDoctor) {
+      if (selectedDoctor.isCustom) return;
       const stillValid = currentDoctors.find(
         (d) => d.name === selectedDoctor?.name || d.id === selectedDoctor?.id
       );
@@ -389,12 +398,30 @@ export default function OPDTokenQueue() {
       return;
     }
 
-    const chiefComplaintText = selectedComplaints.length > 0
-      ? selectedComplaints.join(", ")
+    // Resolve Chief Complaint
+    const complaintsList = [...selectedComplaints];
+    if (isCustomComplaint && customComplaintInput.trim() && !complaintsList.includes(customComplaintInput.trim())) {
+      complaintsList.push(customComplaintInput.trim());
+    }
+    const chiefComplaintText = complaintsList.length > 0
+      ? complaintsList.join(", ")
       : (complaintSearch.trim() || "General Consultation");
 
+    // Resolve Department
+    const finalDepartment = isCustomDepartment ? customDeptInput.trim() : (department || "").trim();
+    if (!finalDepartment) {
+      toast.error("Please select or enter a department!");
+      return;
+    }
+
     // Doctor consultation is now optional as requested
-    const docId = selectedDoctor?.id || selectedDoctor?.practitioner_id || undefined;
+    const docId = (!isCustomDoctor && (selectedDoctor?.id || selectedDoctor?.practitioner_id))
+      ? (selectedDoctor?.id || selectedDoctor?.practitioner_id)
+      : undefined;
+
+    const finalDoctorName = isCustomDoctor
+      ? (customDoctorName.trim() || "General OPD / On Duty Doctor")
+      : (selectedDoctor?.name || "General OPD / On Duty Doctor");
 
     try {
       const payload = {
@@ -426,10 +453,10 @@ export default function OPDTokenQueue() {
           selectedPatient.state,
           selectedPatient.postal_code || selectedPatient.pincode
         ].filter(Boolean).join(", ") || "—",
-        doctor: selectedDoctor?.name || "General OPD / On Duty Doctor",
-        doctorDegree: selectedDoctor?.qualification || selectedDoctor?.degree || "",
+        doctor: finalDoctorName,
+        doctorDegree: selectedDoctor?.qualification || selectedDoctor?.degree || (isCustomDoctor && customDoctorName.trim() ? "Consultant" : ""),
         roomNo: selectedDoctor?.address || selectedDoctor?.room || "OPD",
-        department: department || "General OPD",
+        department: finalDepartment || "General OPD",
         chiefComplaint: `${chiefComplaintText}${duration ? ` (${duration} ${durationUnit})` : ""}`,
         symptoms,
         visitType,
@@ -711,109 +738,44 @@ export default function OPDTokenQueue() {
           </h3>
 
           <div className="opd-form-row col-3">
-            {/* 1. Patient Complaint Multi-Select Dropdown */}
+            {/* 1. Patient Complaint Multi-Select Dropdown / Custom Input */}
             <div className="opd-field-group">
               <div className="flex-justify-between">
                 <label className="opd-label">
                   Patient Complaint <span className="req">*</span> <span className="opd-hint">· मरीज की समस्या (Multiple Select)</span>
                 </label>
-                {selectedComplaints.length > 0 && (
-                  <span className="opd-complaints-count-badge">
-                    {selectedComplaints.length} selected
-                  </span>
-                )}
+                <div className="opd-field-header-actions">
+                  {selectedComplaints.length > 0 && (
+                    <span className="opd-complaints-count-badge">
+                      {selectedComplaints.length} selected
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    className="opd-custom-toggle-btn"
+                    onClick={() => setIsCustomComplaint(!isCustomComplaint)}
+                  >
+                    {isCustomComplaint ? "← Dropdown" : "✏️ Custom Complaint"}
+                  </button>
+                </div>
               </div>
-              <select
-                className="opd-select"
-                value=""
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (!val) return;
-                  if (val === "Other") {
-                    setShowOtherInput(true);
-                  } else {
-                    if (!selectedComplaints.includes(val)) {
-                      setSelectedComplaints([...selectedComplaints, val]);
-                    }
-                  }
-                }}
-              >
-                <option value="">
-                  {selectedComplaints.length === 0
-                    ? "— Select Complaint / समस्या चुनें —"
-                    : "+ Add more problem / और समस्या जोड़ें..."}
-                </option>
-                <option value="Fever" disabled={selectedComplaints.includes("Fever")}>
-                  {selectedComplaints.includes("Fever") ? "✓ Fever (Added)" : "Fever (बुखार)"}
-                </option>
-                <option value="Cough & Cold" disabled={selectedComplaints.includes("Cough & Cold")}>
-                  {selectedComplaints.includes("Cough & Cold") ? "✓ Cough & Cold (Added)" : "Cough & Cold (खांसी और जुकाम)"}
-                </option>
-                <option value="Headache" disabled={selectedComplaints.includes("Headache")}>
-                  {selectedComplaints.includes("Headache") ? "✓ Headache (Added)" : "Headache (सिरदर्द)"}
-                </option>
-                <option value="Body Pain" disabled={selectedComplaints.includes("Body Pain")}>
-                  {selectedComplaints.includes("Body Pain") ? "✓ Body Pain (Added)" : "Body Pain (बदन दर्द)"}
-                </option>
-                <option value="Chest Pain" disabled={selectedComplaints.includes("Chest Pain")}>
-                  {selectedComplaints.includes("Chest Pain") ? "✓ Chest Pain (Added)" : "Chest Pain (छाती में दर्द)"}
-                </option>
-                <option value="Abdominal Pain" disabled={selectedComplaints.includes("Abdominal Pain")}>
-                  {selectedComplaints.includes("Abdominal Pain") ? "✓ Abdominal Pain (Added)" : "Abdominal Pain (पेट दर्द)"}
-                </option>
-                <option value="Vomiting" disabled={selectedComplaints.includes("Vomiting")}>
-                  {selectedComplaints.includes("Vomiting") ? "✓ Vomiting (Added)" : "Vomiting / Nausea (उल्टी / मतली)"}
-                </option>
-                <option value="Weakness" disabled={selectedComplaints.includes("Weakness")}>
-                  {selectedComplaints.includes("Weakness") ? "✓ Weakness (Added)" : "Weakness / Fatigue (कमजोरी)"}
-                </option>
-                <option value="High Blood Pressure" disabled={selectedComplaints.includes("High Blood Pressure")}>
-                  {selectedComplaints.includes("High Blood Pressure") ? "✓ High Blood Pressure (Added)" : "High Blood Pressure (उच्च रक्तचाप / बीपी)"}
-                </option>
-                <option value="Diabetes Consultation" disabled={selectedComplaints.includes("Diabetes Consultation")}>
-                  {selectedComplaints.includes("Diabetes Consultation") ? "✓ Diabetes (Added)" : "Diabetes Consultation (शुगर समस्या)"}
-                </option>
-                <option value="Backache / Joint Pain" disabled={selectedComplaints.includes("Backache / Joint Pain")}>
-                  {selectedComplaints.includes("Backache / Joint Pain") ? "✓ Joint Pain (Added)" : "Backache / Joint Pain (कमर / जोड़ों का दर्द)"}
-                </option>
-                <option value="Breathing Difficulty" disabled={selectedComplaints.includes("Breathing Difficulty")}>
-                  {selectedComplaints.includes("Breathing Difficulty") ? "✓ Breathing (Added)" : "Breathing Difficulty (सांस लेने में तकलीफ)"}
-                </option>
-                <option value="Acidity / Gas" disabled={selectedComplaints.includes("Acidity / Gas")}>
-                  {selectedComplaints.includes("Acidity / Gas") ? "✓ Acidity / Gas (Added)" : "Acidity / Gas (गैस / एसिडिटी)"}
-                </option>
-                <option value="Skin Rash / Allergy" disabled={selectedComplaints.includes("Skin Rash / Allergy")}>
-                  {selectedComplaints.includes("Skin Rash / Allergy") ? "✓ Skin Rash (Added)" : "Skin Rash / Allergy (त्वचा रोग)"}
-                </option>
-                <option value="Injury / Trauma" disabled={selectedComplaints.includes("Injury / Trauma")}>
-                  {selectedComplaints.includes("Injury / Trauma") ? "✓ Injury (Added)" : "Injury / Trauma (चोट / दर्द)"}
-                </option>
-                <option value="Follow-up Consultation" disabled={selectedComplaints.includes("Follow-up Consultation")}>
-                  {selectedComplaints.includes("Follow-up Consultation") ? "✓ Follow-up (Added)" : "Follow-up Consultation (फॉलो-अप)"}
-                </option>
-                <option value="General Health Checkup" disabled={selectedComplaints.includes("General Health Checkup")}>
-                  {selectedComplaints.includes("General Health Checkup") ? "✓ General Checkup (Added)" : "General Health Checkup (सामान्य जांच)"}
-                </option>
-                <option value="Other">+ Other / अन्य समस्या (Custom)...</option>
-              </select>
 
-              {showOtherInput && (
-                <div className="opd-other-input-row">
+              {isCustomComplaint ? (
+                <div className="opd-custom-input-wrap">
                   <input
                     type="text"
-                    className="opd-input"
-                    placeholder="Type custom problem / अन्य समस्या दर्ज करें..."
-                    value={otherComplaintText}
-                    onChange={(e) => setOtherComplaintText(e.target.value)}
+                    className="opd-input opd-custom-input"
+                    placeholder="Type custom problem / समस्या लिखें (e.g. Fever with chills)..."
+                    value={customComplaintInput}
+                    onChange={(e) => setCustomComplaintInput(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        if (otherComplaintText.trim()) {
-                          if (!selectedComplaints.includes(otherComplaintText.trim())) {
-                            setSelectedComplaints([...selectedComplaints, otherComplaintText.trim()]);
+                        if (customComplaintInput.trim()) {
+                          if (!selectedComplaints.includes(customComplaintInput.trim())) {
+                            setSelectedComplaints([...selectedComplaints, customComplaintInput.trim()]);
                           }
-                          setOtherComplaintText("");
-                          setShowOtherInput(false);
+                          setCustomComplaintInput("");
                         }
                       }
                     }}
@@ -823,29 +785,91 @@ export default function OPDTokenQueue() {
                     type="button"
                     className="opd-btn-add-complaint"
                     onClick={() => {
-                      if (otherComplaintText.trim()) {
-                        if (!selectedComplaints.includes(otherComplaintText.trim())) {
-                          setSelectedComplaints([...selectedComplaints, otherComplaintText.trim()]);
+                      if (customComplaintInput.trim()) {
+                        if (!selectedComplaints.includes(customComplaintInput.trim())) {
+                          setSelectedComplaints([...selectedComplaints, customComplaintInput.trim()]);
                         }
-                        setOtherComplaintText("");
-                        setShowOtherInput(false);
+                        setCustomComplaintInput("");
                       }
                     }}
                   >
                     + Add
                   </button>
-                  <button
-                    type="button"
-                    className="opd-btn-cancel-complaint"
-                    onClick={() => {
-                      setOtherComplaintText("");
-                      setShowOtherInput(false);
-                    }}
-                    title="Cancel"
-                  >
-                    ✕
-                  </button>
                 </div>
+              ) : (
+                <select
+                  className="opd-select"
+                  value=""
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) return;
+                    if (val === "Other") {
+                      setIsCustomComplaint(true);
+                    } else {
+                      if (!selectedComplaints.includes(val)) {
+                        setSelectedComplaints([...selectedComplaints, val]);
+                      }
+                    }
+                  }}
+                >
+                  <option value="">
+                    {selectedComplaints.length === 0
+                      ? "— Select Complaint / समस्या चुनें —"
+                      : "+ Add more problem / और समस्या जोड़ें..."}
+                  </option>
+                  <option value="Fever" disabled={selectedComplaints.includes("Fever")}>
+                    {selectedComplaints.includes("Fever") ? "✓ Fever (Added)" : "Fever (बुखार)"}
+                  </option>
+                  <option value="Cough & Cold" disabled={selectedComplaints.includes("Cough & Cold")}>
+                    {selectedComplaints.includes("Cough & Cold") ? "✓ Cough & Cold (Added)" : "Cough & Cold (खांसी और जुकाम)"}
+                  </option>
+                  <option value="Headache" disabled={selectedComplaints.includes("Headache")}>
+                    {selectedComplaints.includes("Headache") ? "✓ Headache (Added)" : "Headache (सिरदर्द)"}
+                  </option>
+                  <option value="Body Pain" disabled={selectedComplaints.includes("Body Pain")}>
+                    {selectedComplaints.includes("Body Pain") ? "✓ Body Pain (Added)" : "Body Pain (बदन दर्द)"}
+                  </option>
+                  <option value="Chest Pain" disabled={selectedComplaints.includes("Chest Pain")}>
+                    {selectedComplaints.includes("Chest Pain") ? "✓ Chest Pain (Added)" : "Chest Pain (छाती में दर्द)"}
+                  </option>
+                  <option value="Abdominal Pain" disabled={selectedComplaints.includes("Abdominal Pain")}>
+                    {selectedComplaints.includes("Abdominal Pain") ? "✓ Abdominal Pain (Added)" : "Abdominal Pain (पेट दर्द)"}
+                  </option>
+                  <option value="Vomiting" disabled={selectedComplaints.includes("Vomiting")}>
+                    {selectedComplaints.includes("Vomiting") ? "✓ Vomiting (Added)" : "Vomiting / Nausea (उल्टी / मतली)"}
+                  </option>
+                  <option value="Weakness" disabled={selectedComplaints.includes("Weakness")}>
+                    {selectedComplaints.includes("Weakness") ? "✓ Weakness (Added)" : "Weakness / Fatigue (कमजोरी)"}
+                  </option>
+                  <option value="High Blood Pressure" disabled={selectedComplaints.includes("High Blood Pressure")}>
+                    {selectedComplaints.includes("High Blood Pressure") ? "✓ High Blood Pressure (Added)" : "High Blood Pressure (उच्च रक्तचाप / बीपी)"}
+                  </option>
+                  <option value="Diabetes Consultation" disabled={selectedComplaints.includes("Diabetes Consultation")}>
+                    {selectedComplaints.includes("Diabetes Consultation") ? "✓ Diabetes (Added)" : "Diabetes Consultation (शुगर समस्या)"}
+                  </option>
+                  <option value="Backache / Joint Pain" disabled={selectedComplaints.includes("Backache / Joint Pain")}>
+                    {selectedComplaints.includes("Backache / Joint Pain") ? "✓ Joint Pain (Added)" : "Backache / Joint Pain (कमर / जोड़ों का दर्द)"}
+                  </option>
+                  <option value="Breathing Difficulty" disabled={selectedComplaints.includes("Breathing Difficulty")}>
+                    {selectedComplaints.includes("Breathing Difficulty") ? "✓ Breathing (Added)" : "Breathing Difficulty (सांस लेने में तकलीफ)"}
+                  </option>
+                  <option value="Acidity / Gas" disabled={selectedComplaints.includes("Acidity / Gas")}>
+                    {selectedComplaints.includes("Acidity / Gas") ? "✓ Acidity / Gas (Added)" : "Acidity / Gas (गैस / एसिडिटी)"}
+                  </option>
+                  <option value="Skin Rash / Allergy" disabled={selectedComplaints.includes("Skin Rash / Allergy")}>
+                    {selectedComplaints.includes("Skin Rash / Allergy") ? "✓ Skin Rash (Added)" : "Skin Rash / Allergy (त्वचा रोग)"}
+                  </option>
+                  <option value="Injury / Trauma" disabled={selectedComplaints.includes("Injury / Trauma")}>
+                    {selectedComplaints.includes("Injury / Trauma") ? "✓ Injury (Added)" : "Injury / Trauma (चोट / दर्द)"}
+                  </option>
+                  <option value="Follow-up Consultation" disabled={selectedComplaints.includes("Follow-up Consultation")}>
+                    {selectedComplaints.includes("Follow-up Consultation") ? "✓ Follow-up (Added)" : "Follow-up Consultation (फॉलो-अप)"}
+                  </option>
+                  <option value="General Health Checkup" disabled={selectedComplaints.includes("General Health Checkup")}>
+                    {selectedComplaints.includes("General Health Checkup") ? "✓ General Checkup (Added)" : "General Health Checkup (सामान्य जांच)"}
+                  </option>
+                  <option value="Other">+ Other / अन्य समस्या (Custom)...</option>
+                </select>
               )}
 
               {/* Selected Complaint Badges / Tags */}
@@ -877,93 +901,181 @@ export default function OPDTokenQueue() {
               )}
             </div>
 
-            {/* 2. Department Dropdown */}
+            {/* 2. Department Dropdown / Custom Input */}
             <div className="opd-field-group">
               <div className="flex-justify-between">
                 <label className="opd-label">
                   Department <span className="req">*</span> <span className="opd-hint">· विभाग</span>
                 </label>
-                <span className="opd-avail-doc-text">
+                <div className="opd-field-header-actions">
+                  {!isCustomDepartment && (
+                    <button
+                      type="button"
+                      className="opd-refresh-link"
+                      onClick={async () => {
+                        await loadDoctorsAndDepartments();
+                        toast.success("Refreshed doctors and departments from DB");
+                      }}
+                      title="Refresh from Database"
+                    >
+                      <Icon name="LuRefreshCw" size={12} /> Refresh
+                    </button>
+                  )}
                   <button
                     type="button"
-                    className="opd-refresh-link"
-                    onClick={async () => {
-                      await loadDoctorsAndDepartments();
-                      toast.success("Refreshed doctors and departments from DB");
+                    className="opd-custom-toggle-btn"
+                    onClick={() => {
+                      const next = !isCustomDepartment;
+                      setIsCustomDepartment(next);
+                      if (!next) {
+                        setDepartment("");
+                      } else {
+                        setDepartment(customDeptInput);
+                      }
                     }}
                   >
-                    <Icon name="LuRefreshCw" size={12} /> Refresh
+                    {isCustomDepartment ? "← Dropdown" : "✏️ Custom Dept"}
                   </button>
-                </span>
+                </div>
               </div>
-              <select
-                className="opd-select"
-                value={department}
-                onChange={(e) => {
-                  setDepartment(e.target.value);
-                  setSelectedDoctor(null);
-                }}
-                disabled={loadingDoctors}
-              >
-                <option value="">— Select Department / विभाग चुनें —</option>
-                {departments.map((dep) => {
-                  const deptName = dep.name || dep;
-                  return (
-                    <option key={dep.id || deptName} value={deptName}>
-                      {deptName}
-                    </option>
-                  );
-                })}
-              </select>
+              {isCustomDepartment ? (
+                <input
+                  type="text"
+                  className="opd-input"
+                  placeholder="Enter custom department / विभाग दर्ज करें (e.g. Cardiology)..."
+                  value={customDeptInput}
+                  onChange={(e) => {
+                    setCustomDeptInput(e.target.value);
+                    setDepartment(e.target.value);
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <select
+                  className="opd-select"
+                  value={department}
+                  onChange={(e) => {
+                    setDepartment(e.target.value);
+                    setSelectedDoctor(null);
+                  }}
+                  disabled={loadingDoctors}
+                >
+                  <option value="">— Select Department / विभाग चुनें —</option>
+                  {departments.map((dep) => {
+                    const deptName = dep.name || dep;
+                    return (
+                      <option key={dep.id || deptName} value={deptName}>
+                        {deptName}
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
             </div>
 
-            {/* 3. Doctor Dropdown (Optional) */}
+            {/* 3. Doctor Dropdown / Custom Input (Optional) */}
             <div className="opd-field-group">
               <div className="flex-justify-between">
                 <label className="opd-label">
                   Doctor to Consult <span className="opd-hint">· चिकित्सक चुनें (Optional)</span>
                 </label>
-                {selectedDoctor && (
-                  <span
-                    className={`opd-doc-status ${
-                      selectedDoctor.is_active !== false ? "status-avail" : "status-busy"
-                    }`}
+                <div className="opd-field-header-actions">
+                  {!isCustomDoctor && selectedDoctor && (
+                    <span
+                      className={`opd-doc-status ${
+                        selectedDoctor.is_active !== false ? "status-avail" : "status-busy"
+                      }`}
+                    >
+                      ● {selectedDoctor.is_active !== false ? "Available" : "On Leave"}
+                    </span>
+                  )}
+                  {isCustomDoctor && customDoctorName.trim() && (
+                    <span className="opd-doc-status status-avail">
+                      ● Custom Doctor
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    className="opd-custom-toggle-btn"
+                    onClick={() => {
+                      const next = !isCustomDoctor;
+                      setIsCustomDoctor(next);
+                      if (!next) {
+                        setSelectedDoctor(null);
+                        setCustomDoctorName("");
+                      } else {
+                        if (customDoctorName.trim()) {
+                          setSelectedDoctor({
+                            name: customDoctorName.trim(),
+                            qualification: "Consultant Doctor",
+                            isCustom: true,
+                            is_active: true,
+                          });
+                        } else {
+                          setSelectedDoctor(null);
+                        }
+                      }
+                    }}
                   >
-                    ● {selectedDoctor.is_active !== false ? "Available" : "On Leave"}
-                  </span>
-                )}
+                    {isCustomDoctor ? "← Dropdown" : "✏️ Custom Doctor"}
+                  </button>
+                </div>
               </div>
-              <select
-                className="opd-select"
-                value={selectedDoctor?.name || ""}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (!val) {
-                    setSelectedDoctor(null);
-                    setConsultationFee(500);
-                    return;
-                  }
-                  const doc = currentDoctors.find((d) => d.name === val || d.id === val);
-                  if (doc) {
-                    setSelectedDoctor(doc);
-                    const fee =
-                      visitType === "Emergency"
-                        ? (doc.emergency_fee || 800)
-                        : visitType === "Re-visit / Follow-up"
-                        ? (doc.old_patient_fee || 300)
-                        : (doc.consultation_fee || 500);
-                    setConsultationFee(fee);
-                  }
-                }}
-                disabled={loadingDoctors}
-              >
-                <option value="">— Select Doctor / डॉक्टर चुनें —</option>
-                {currentDoctors.map((doc) => (
-                  <option key={doc.id || doc.name} value={doc.name}>
-                    {doc.name} ({doc.qualification || doc.degree || "Doctor"}) — {doc.is_active !== false ? "Available" : "On Leave"}
-                  </option>
-                ))}
-              </select>
+              {isCustomDoctor ? (
+                <input
+                  type="text"
+                  className="opd-input"
+                  placeholder="Enter doctor name / डॉक्टर का नाम दर्ज करें (e.g. Dr. Rajesh Sharma)..."
+                  value={customDoctorName}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomDoctorName(val);
+                    if (val.trim()) {
+                      setSelectedDoctor({
+                        name: val.trim(),
+                        qualification: "Consultant Doctor",
+                        isCustom: true,
+                        is_active: true,
+                      });
+                    } else {
+                      setSelectedDoctor(null);
+                    }
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <select
+                  className="opd-select"
+                  value={selectedDoctor?.name || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) {
+                      setSelectedDoctor(null);
+                      setConsultationFee(500);
+                      return;
+                    }
+                    const doc = currentDoctors.find((d) => d.name === val || d.id === val);
+                    if (doc) {
+                      setSelectedDoctor(doc);
+                      const fee =
+                        visitType === "Emergency"
+                          ? (doc.emergency_fee || 800)
+                          : visitType === "Re-visit / Follow-up"
+                          ? (doc.old_patient_fee || 300)
+                          : (doc.consultation_fee || 500);
+                      setConsultationFee(fee);
+                    }
+                  }}
+                  disabled={loadingDoctors}
+                >
+                  <option value="">— Select Doctor / डॉक्टर चुनें —</option>
+                  {currentDoctors.map((doc) => (
+                    <option key={doc.id || doc.name} value={doc.name}>
+                      {doc.name} ({doc.qualification || doc.degree || "Doctor"}) — {doc.is_active !== false ? "Available" : "On Leave"}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
 
