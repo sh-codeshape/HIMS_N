@@ -70,6 +70,14 @@ export class BillingService {
     return charge;
   }
 
+  async updateChargeDiscount(id: string, data: any) {
+    return this.repository.updateChargeDiscount(id, data);
+  }
+
+  async applyConcessionBatch(data: any) {
+    return this.repository.applyConcessionBatch(data);
+  }
+
   async getRunningBill(encounterId: string, facilityId?: string) {
     return this.repository.getRunningBill(encounterId, facilityId);
   }

@@ -27,6 +27,14 @@ const billingService = {
     const res = await axiosInstance.delete(`/billing/charges/${id}`, { data: payload });
     return res.data?.data ?? res.data ?? null;
   },
+  updateChargeDiscount: async (id, payload) => {
+    const res = await axiosInstance.patch(`/billing/charges/${id}/discount`, payload);
+    return res.data?.data ?? res.data ?? null;
+  },
+  applyConcessionBatch: async (payload) => {
+    const res = await axiosInstance.post(`/billing/charges/apply-concession`, payload);
+    return res.data?.data ?? res.data ?? null;
+  },
   getRunningBill: async (encounterId, params = {}) => {
     const res = await axiosInstance.get(`/billing/running-bill/${encounterId}`, { params });
     return res.data?.data ?? res.data ?? [];

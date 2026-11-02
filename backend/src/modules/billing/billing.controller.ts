@@ -61,6 +61,17 @@ export class BillingController {
     sendSuccess(res, result, 'Charge removed successfully');
   };
 
+  updateChargeDiscount = async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const result = await this.service.updateChargeDiscount(id, req.body);
+    sendSuccess(res, result, 'Concession updated successfully');
+  };
+
+  applyConcessionBatch = async (req: Request, res: Response) => {
+    const result = await this.service.applyConcessionBatch(req.body);
+    sendSuccess(res, result, 'Concession applied to charges successfully');
+  };
+
   getRunningBill = async (req: Request, res: Response) => {
     const facilityId = (req.user?.facilityId as string) || (req.query.facilityId as string);
     const encounterId = req.params.encounterId as string;

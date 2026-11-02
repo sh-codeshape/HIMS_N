@@ -8,6 +8,17 @@ class BillingController {
     constructor() {
         this.service = new billing_service_1.BillingService();
     }
+    getDiscountReasons = async (req, res) => {
+        const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
+        const reasons = await this.service.getDiscountReasons(organizationId);
+        (0, response_1.sendSuccess)(res, reasons, 'Discount reasons retrieved successfully');
+    };
+    getReferrals = async (req, res) => {
+        const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
+        const facilityId = req.user?.facilityId || req.query.facilityId || '00000000-0000-0000-0000-000000000000';
+        const data = await this.service.getReferrals(organizationId, facilityId);
+        (0, response_1.sendSuccess)(res, data, 'Referrals retrieved successfully');
+    };
     createInvoice = async (req, res) => {
         const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
         if (!req.body.facility_id) {
@@ -28,50 +39,59 @@ class BillingController {
         (0, response_1.sendSuccess)(res, invoice, 'Invoice retrieved successfully');
     };
     addCharge = async (req, res) => {
-        const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
-        const userId = req.user?.userId || '00000000-0000-0000-0000-000000000000';
+        const organizationId = req.user?.organizationId;
+        const userId = req.user?.userId;
         if (!req.body.facility_id)
             req.body.facility_id = req.user?.facilityId;
         const result = await this.service.addCharge(req.body, organizationId, userId);
         (0, response_1.sendSuccess)(res, result, 'Charge added successfully', 201);
     };
     removeCharge = async (req, res) => {
-        const facilityId = req.user?.facilityId || req.body.facility_id || '00000000-0000-0000-0000-000000000000';
+        const facilityId = req.user?.facilityId || req.body.facility_id;
         const id = req.params.id;
         const result = await this.service.removeCharge(id, facilityId);
         (0, response_1.sendSuccess)(res, result, 'Charge removed successfully');
     };
+    updateChargeDiscount = async (req, res) => {
+        const id = req.params.id;
+        const result = await this.service.updateChargeDiscount(id, req.body);
+        (0, response_1.sendSuccess)(res, result, 'Concession updated successfully');
+    };
+    applyConcessionBatch = async (req, res) => {
+        const result = await this.service.applyConcessionBatch(req.body);
+        (0, response_1.sendSuccess)(res, result, 'Concession applied to charges successfully');
+    };
     getRunningBill = async (req, res) => {
-        const facilityId = req.user?.facilityId || req.query.facilityId || '00000000-0000-0000-0000-000000000000';
+        const facilityId = req.user?.facilityId || req.query.facilityId;
         const encounterId = req.params.encounterId;
         const charges = await this.service.getRunningBill(encounterId, facilityId);
         (0, response_1.sendSuccess)(res, charges, 'Running bill retrieved successfully');
     };
     recordAdvancePayment = async (req, res) => {
-        const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
-        const userId = req.user?.userId || '00000000-0000-0000-0000-000000000000';
+        const organizationId = req.user?.organizationId;
+        const userId = req.user?.userId;
         if (!req.body.facility_id)
             req.body.facility_id = req.user?.facilityId;
         const result = await this.service.recordAdvancePayment(req.body, organizationId, userId);
         (0, response_1.sendSuccess)(res, result, 'Advance payment recorded successfully', 201);
     };
     getEncounterPayments = async (req, res) => {
-        const facilityId = req.user?.facilityId || req.query.facilityId || '00000000-0000-0000-0000-000000000000';
+        const facilityId = req.user?.facilityId || req.query.facilityId;
         const encounterId = req.params.encounterId;
         const payments = await this.service.getEncounterPayments(encounterId, facilityId);
         (0, response_1.sendSuccess)(res, payments, 'Payments retrieved successfully');
     };
     settleBill = async (req, res) => {
-        const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
-        const userId = req.user?.userId || '00000000-0000-0000-0000-000000000000';
+        const organizationId = req.user?.organizationId;
+        const userId = req.user?.userId;
         if (!req.body.facility_id)
             req.body.facility_id = req.user?.facilityId;
         const result = await this.service.settleBill(req.body, organizationId, userId);
         (0, response_1.sendSuccess)(res, result, 'Bill settled successfully');
     };
     processRefund = async (req, res) => {
-        const organizationId = req.user?.organizationId || '00000000-0000-0000-0000-000000000000';
-        const userId = req.user?.userId || '00000000-0000-0000-0000-000000000000';
+        const organizationId = req.user?.organizationId;
+        const userId = req.user?.userId;
         if (!req.body.facility_id)
             req.body.facility_id = req.user?.facilityId;
         const result = await this.service.processRefund(req.body, organizationId, userId);

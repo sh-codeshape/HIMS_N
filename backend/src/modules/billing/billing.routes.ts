@@ -25,6 +25,8 @@ router.get('/patient/:patientId/dues', controller.getPatientDues);
 router.post('/charges', controller.addCharge);
 router.post('/charges/bed', validate(postBedChargesSchema), controller.postBedCharges);
 router.post('/bed-charges', validate(postBedChargesSchema), controller.postBedCharges);
+router.post('/charges/apply-concession', controller.applyConcessionBatch);
+router.patch('/charges/:id/discount', controller.updateChargeDiscount);
 router.delete('/charges/:id', controller.removeCharge);
 router.get('/running-bill/:encounterId', controller.getRunningBill);
 router.post('/payments/advance', controller.recordAdvancePayment);

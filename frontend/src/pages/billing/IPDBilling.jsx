@@ -7,6 +7,14 @@ import { inventoryService } from "../../api/services/inventoryService";
 import toast from "react-hot-toast";
 import Icon from "../../components/common/Icon.jsx";
 import "./IPDBilling.css";
+import settingsService from "../../api/services/settingsService.js";
+import {
+  IPDBillingPrintHandler,
+  mapPatientToBillingPayload,
+  DEFAULT_IPD_BILLING_SETTINGS,
+  buildBillingHTML,
+  IPD_BILLING_SETTINGS_KEY,
+} from "../settings/index.js";
 
 // Standard Clinical Inpatient Medicines Catalog (with dosage, unit, standard hospital tariff)
 const STANDARD_MEDICINES = [
@@ -194,10 +202,49 @@ export default function IPDBilling() {
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [showChangeBedModal, setShowChangeBedModal] = useState(false);
   const [showPrintBillModal, setShowPrintBillModal] = useState(false);
+  const [ipdBillingSettings, setIpdBillingSettings] = useState(DEFAULT_IPD_BILLING_SETTINGS);
+  const [showSlipCustomizer, setShowSlipCustomizer] = useState(false);
+  const [customizerSaving, setCustomizerSaving] = useState(false);
+  const [customizerSavedToast, setCustomizerSavedToast] = useState(null);
+
+  // Load custom billing print settings from database
+  useEffect(() => {
+    IPDBillingPrintHandler.getSettings().then((s) => {
+      if (s) setIpdBillingSettings(s);
+    });
+  }, []);
+
+  // Print Preview Zoom & Dynamic Iframe Height state
+  const [printZoom, setPrintZoom] = useState(100);
+  const [printFrameHeight, setPrintFrameHeight] = useState(1280);
+
+  useEffect(() => {
+    const handleBillHeight = (e) => {
+      if (e.data && e.data.type === "HIMS_BILL_FRAME_HEIGHT" && Number(e.data.height) > 200) {
+        setPrintFrameHeight(Number(e.data.height) + 30);
+      }
+    };
+    window.addEventListener("message", handleBillHeight);
+    return () => window.removeEventListener("message", handleBillHeight);
+  }, []);
+
   // Any admission slip request directly opens the official comprehensive HIMS print slip
   const [showAdmissionSlipModal, setShowAdmissionSlipModal] = [showPrintBillModal, setShowPrintBillModal];
   const [showDischargeModal, setShowDischargeModal] = useState(false);
   const [showDischargeSuccessModal, setShowDischargeSuccessModal] = useState(false);
+
+  // Concession & Discount Modal State
+  const [showConcessionModal, setShowConcessionModal] = useState(false);
+  const [concessionTargetItem, setConcessionTargetItem] = useState(null);
+  const [concessionApplyScope, setConcessionApplyScope] = useState("item"); // "item" | "selected" | "all"
+  const [concessionReasonId, setConcessionReasonId] = useState("");
+  const [concessionReason, setConcessionReason] = useState("");
+  const [concessionPercent, setConcessionPercent] = useState("");
+  const [concessionAmount, setConcessionAmount] = useState("");
+  const [concessionReference, setConcessionReference] = useState("");
+  const [concessionReferredBy, setConcessionReferredBy] = useState("");
+  const [concessionDoctorId, setConcessionDoctorId] = useState("");
+  const [isCustomConcessionDoc, setIsCustomConcessionDoc] = useState(false);
 
   // Auto-settle medicine from patient wallet checkbox
   const [settleMedFromWallet, setSettleMedFromWallet] = useState(false);
@@ -608,6 +655,108 @@ export default function IPDBilling() {
     }
   };
 
+  // Automatically calculate Inpatient Bed Stay & Tariff based on IPD Admission Date
+  const bedStayMetrics = useMemo(() => {
+    if (!patient) return null;
+    const admDateRaw = patient.raw?.admitted_at || patient.raw?.admission_date || patient.admissionDate;
+    const disDateRaw = patient.raw?.discharged_at || patient.dischargeDate;
+    const start = admDateRaw ? new Date(admDateRaw) : new Date();
+    const end = (patient.isDischarged && disDateRaw) ? new Date(disDateRaw) : new Date();
+    const diffMs = Math.max(0, end.getTime() - start.getTime());
+    const stayDays = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+    const stayHours = Math.floor(diffMs / (1000 * 60 * 60));
+
+    // Determine standard bed daily rate based on patient's ward/bed
+    const wardLower = String(patient.ward || "").toLowerCase();
+    let dailyRate = 1500;
+    if (wardLower.includes("icu") || wardLower.includes("intensive")) dailyRate = 5500;
+    else if (wardLower.includes("emergency") || wardLower.includes("trauma")) dailyRate = 2000;
+    else if (wardLower.includes("deluxe") || wardLower.includes("private")) dailyRate = 2500;
+    else if (wardLower.includes("semi")) dailyRate = 1500;
+    else if (wardLower.includes("general")) dailyRate = 1500;
+
+    // Check dynamic tariff for matching bed charge
+    const roomTariffs = dynamicTariff["Room Charges"] || [];
+    const matched = roomTariffs.find((t) =>
+      String(t.name).toLowerCase().includes(wardLower) ||
+      wardLower.includes(String(t.name).toLowerCase())
+    );
+    if (matched && Number(matched.rate) > 0) {
+      dailyRate = Number(matched.rate);
+    }
+
+    // Scan existing billed bed items
+    const billedBedItems = (patient.items || []).filter((i) =>
+      i.category === "Room" ||
+      i.category === "Room Charges" ||
+      String(i.name).toLowerCase().includes("bed charge") ||
+      String(i.name).toLowerCase().includes("room charge") ||
+      String(i.name).toLowerCase().includes("ward (per day)")
+    );
+    const alreadyBilledDays = billedBedItems.reduce((acc, it) => acc + (Number(it.qty) || 1), 0);
+    const alreadyBilledAmount = billedBedItems.reduce((acc, it) => acc + Number(it.amount || 0), 0);
+    const unbilledDays = Math.max(0, stayDays - alreadyBilledDays);
+    const unbilledAmount = unbilledDays * dailyRate;
+    const totalCalculatedAmount = stayDays * dailyRate;
+
+    return {
+      stayDays,
+      stayHours,
+      dailyRate,
+      alreadyBilledDays,
+      alreadyBilledAmount,
+      unbilledDays,
+      unbilledAmount,
+      totalCalculatedAmount,
+      admissionFormatted: start.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }),
+      billedUpToFormatted: end.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }),
+      isFullyBilled: unbilledDays === 0 && alreadyBilledDays > 0,
+      hasNoBedBilled: alreadyBilledDays === 0,
+    };
+  }, [patient, dynamicTariff]);
+
+  // Auto calculate and post bed charges based on inpatient admission date
+  const handleAutoPostBedCharges = async () => {
+    if (!patient || !bedStayMetrics) return;
+    const daysToPost = bedStayMetrics.unbilledDays > 0 ? bedStayMetrics.unbilledDays : bedStayMetrics.stayDays;
+    const rate = bedStayMetrics.dailyRate;
+    const gross = daysToPost * rate;
+    const sName = `Bed Charge: ${patient.ward} - ${patient.bedNo} (${daysToPost} Day${daysToPost > 1 ? "s" : ""} Stay)`;
+
+    try {
+      setActionLoading(true);
+      const encounterId = patient.encounterId || patient.id;
+      await billingService.addCharge({
+        encounter_id: encounterId,
+        item_name: sName,
+        item_category: "Room",
+        quantity: daysToPost,
+        rate: rate,
+        unit_price: rate,
+        gross_amount: gross,
+        discount_percent: 0,
+        discount_amount: 0,
+        net_amount: gross,
+        charged_at: new Date().toISOString(),
+        custom_fields: {
+          item_category: "Room",
+          auto_calculated: true,
+          admission_date: patient.admissionDate,
+          stay_days: daysToPost,
+          ward: patient.ward,
+          bed: patient.bedNo,
+        },
+      });
+      await fetchPatientBilling(patient);
+      toast.success(`Auto-calculated & posted ${daysToPost} day(s) bed charge: ₹${gross.toLocaleString("en-IN")}`, { icon: "🛏️" });
+    } catch (err) {
+      console.error("Failed to auto-post bed charges:", err);
+      toast.error(err.response?.data?.message || err.message || "Failed to post bed charges.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Tariff Category Selection
   const handleCategoryClick = (cat) => {
     setActiveCategory(cat);
@@ -619,6 +768,13 @@ export default function IPDBilling() {
     } else {
       setSelectedServiceName("");
       setRateInput(0);
+    }
+    if (cat === "Room Charges" && bedStayMetrics) {
+      const suggestedDays = bedStayMetrics.unbilledDays > 0 ? bedStayMetrics.unbilledDays : bedStayMetrics.stayDays;
+      setQtyInput(suggestedDays);
+      if (bedStayMetrics.dailyRate > 0) {
+        setRateInput(bedStayMetrics.dailyRate);
+      }
     }
   };
 
@@ -642,10 +798,13 @@ export default function IPDBilling() {
 
   // Auto Bed Rent Allotment based on Stay Days
   const handleAutoAllotBedRent = () => {
-    if (!patient) return;
-    const days = patient.stayDays || 1;
+    if (!patient || !bedStayMetrics) return;
+    const days = bedStayMetrics.unbilledDays > 0 ? bedStayMetrics.unbilledDays : bedStayMetrics.stayDays;
     setQtyInput(days);
-    toast.success(`Days auto-filled to ${days} day(s) based on inpatient stay!`, { icon: "🛏️" });
+    if (bedStayMetrics.dailyRate > 0) {
+      setRateInput(bedStayMetrics.dailyRate);
+    }
+    toast.success(`Bed charge auto-calculated to ${days} day(s) @ ₹${bedStayMetrics.dailyRate}/day based on admission date!`, { icon: "🛏️" });
   };
 
   // Add Item to Bill (Standard Tariff)
@@ -1183,21 +1342,20 @@ export default function IPDBilling() {
   };
 
   // Bill Calculations
-  const isItemSettled = (i) => {
-    const s = String(i?.status || "").toLowerCase();
-    return s === "paid" || s === "completed" || s === "billed";
-  };
-
   const billItems = patient && patient.items ? patient.items : [];
-  const activeBillItems = billItems.filter((i) => !isItemSettled(i));
-  const totalBills = activeBillItems.reduce((acc, curr) => acc + curr.amount, 0);
-  const totalGrossAmount = activeBillItems.reduce((acc, curr) => acc + (Number(curr.grossAmount) || (Number(curr.rate) * Number(curr.qty))), 0);
-  const totalDiscounts = activeBillItems.reduce((acc, curr) => acc + (Number(curr.discountAmount) || 0), 0);
+  const totalBills = billItems.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+  const totalGrossAmount = billItems.reduce((acc, curr) => acc + (Number(curr.grossAmount) || (Number(curr.rate || 0) * Number(curr.qty || 1))), 0);
+  const totalDiscounts = billItems.reduce((acc, curr) => acc + Number(curr.discountAmount || 0), 0);
+  const discountedItemsCount = billItems.filter((i) => Number(i.discountAmount || 0) > 0).length;
+
+  const selectedItems = billItems.filter((i) => i.selected);
+  const selectedCount = selectedItems.length;
+  const selectedGross = selectedItems.reduce((acc, curr) => acc + (Number(curr.grossAmount) || (Number(curr.rate || 0) * Number(curr.qty || 1))), 0);
 
   // Totals for all items (for full tax invoice statement)
-  const allItemsGross = billItems.reduce((acc, curr) => acc + (Number(curr.grossAmount) || (Number(curr.rate) * Number(curr.qty))), 0);
-  const allItemsDiscounts = billItems.reduce((acc, curr) => acc + (Number(curr.discountAmount) || 0), 0);
-  const allItemsNet = billItems.reduce((acc, curr) => acc + Number(curr.amount), 0);
+  const allItemsGross = totalGrossAmount;
+  const allItemsDiscounts = totalDiscounts;
+  const allItemsNet = totalBills;
 
   const isDirectItemPayment = (p) => {
     const text = String(p.remarks || p.notes || "").toLowerCase();
@@ -1227,34 +1385,286 @@ export default function IPDBilling() {
   const excessAdvance = Math.max(0, totalPaymentsReceivedAll - totalBills);
   const walletBalance = Number(patient?.walletBalance || 0);
 
-  // Category Summaries for Matrix (showing active unpaid dues)
-  const roomChargesTotal = activeBillItems
+  // Category Summaries for Matrix (showing charges incurred per category)
+  const roomChargesTotal = billItems
     .filter((i) => i.category === "Room")
-    .reduce((acc, curr) => acc + curr.amount, 0);
+    .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
 
-  const consultationTotal = activeBillItems
+  const consultationTotal = billItems
     .filter((i) => i.category === "Consultation")
-    .reduce((acc, curr) => acc + curr.amount, 0);
+    .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
 
-  const medicinesTotal = activeBillItems
+  const medicinesTotal = billItems
     .filter((i) => i.category === "Medicines")
-    .reduce((acc, curr) => acc + curr.amount, 0);
+    .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
 
-  const labTotal = activeBillItems
+  const labTotal = billItems
     .filter((i) => i.category === "Lab Test")
-    .reduce((acc, curr) => acc + curr.amount, 0);
+    .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
 
-  const radiologyTotal = activeBillItems
+  const radiologyTotal = billItems
     .filter((i) => i.category === "Radiology")
-    .reduce((acc, curr) => acc + curr.amount, 0);
+    .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
 
-  const proceduresTotal = activeBillItems
+  const proceduresTotal = billItems
     .filter((i) => i.category === "Procedures")
-    .reduce((acc, curr) => acc + curr.amount, 0);
+    .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
 
-  const othersTotal = activeBillItems
+  const othersTotal = billItems
     .filter((i) => !["Room", "Consultation", "Medicines", "Lab Test", "Radiology", "Procedures"].includes(i.category))
-    .reduce((acc, curr) => acc + curr.amount, 0);
+    .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+
+  // Live IPD Billing Print Slip Payload & HTML generated from customized settings
+  const currentBillingPayload = useMemo(() => {
+    if (!patient) return null;
+    return mapPatientToBillingPayload(patient, billItems, patient.historyPayments || [], {
+      grossCharges: allItemsGross || totalGrossAmount || totalBills,
+      concessions: allItemsDiscounts || totalDiscounts,
+      netBillable: allItemsNet || totalBills,
+      totalPaid: totalPaymentsReceivedAll,
+      pendingAmount: pendingAmount,
+      excessAdvance: excessAdvance,
+    });
+  }, [patient, billItems, allItemsGross, totalGrossAmount, totalBills, allItemsDiscounts, totalDiscounts, allItemsNet, totalPaymentsReceivedAll, pendingAmount, excessAdvance]);
+
+  const currentBillingHtml = useMemo(() => {
+    if (!currentBillingPayload) return "";
+    return buildBillingHTML(currentBillingPayload, ipdBillingSettings, false);
+  }, [currentBillingPayload, ipdBillingSettings]);
+
+  const handleOpenPrintBillModal = async () => {
+    try {
+      const s = await IPDBillingPrintHandler.loadDbSettings(true);
+      if (s) setIpdBillingSettings(s);
+    } catch (_) {}
+    setShowPrintBillModal(true);
+  };
+
+  const handlePrintOfficialBill = () => {
+    if (!currentBillingPayload) return;
+    IPDBillingPrintHandler.printBillingSlip(currentBillingPayload, ipdBillingSettings);
+  };
+
+  const handleToggleStamp = () => {
+    setIpdBillingSettings((prev) => {
+      const isCurrentlyShown = prev.settlement?.showOfficialStamp !== false;
+      const nextState = !isCurrentlyShown;
+      toast.success(nextState ? "Official Rubber Stamp Seal: ENABLED" : "Official Rubber Stamp Seal: REMOVED", { id: "ipd-stamp-toggle" });
+      return {
+        ...prev,
+        settlement: {
+          ...prev.settlement,
+          showOfficialStamp: nextState,
+        },
+      };
+    });
+  };
+
+  const handleToggleQr = () => {
+    setIpdBillingSettings((prev) => {
+      const isCurrentlyShown = prev.header?.showQRCode !== false || prev.bankDetails?.showUpiQr !== false;
+      const nextState = !isCurrentlyShown;
+      toast.success(nextState ? "Verified & UPI QR Codes: ENABLED" : "QR Codes: REMOVED", { id: "ipd-qr-toggle" });
+      return {
+        ...prev,
+        header: {
+          ...prev.header,
+          showQRCode: nextState,
+        },
+        bankDetails: {
+          ...prev.bankDetails,
+          showUpiQr: nextState,
+        },
+      };
+    });
+  };
+
+  const handleUpdateBillingSetting = (path, value) => {
+    setIpdBillingSettings((prev) => {
+      const copy = JSON.parse(JSON.stringify(prev || {}));
+      const parts = path.split(".");
+      let cur = copy;
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (!cur[parts[i]]) cur[parts[i]] = {};
+        cur = cur[parts[i]];
+      }
+      cur[parts[parts.length - 1]] = value;
+      return copy;
+    });
+  };
+
+  const handleAddAccreditation = () => {
+    const list = [...(ipdBillingSettings.hospital?.accreditations || [])];
+    list.push("NABH ACCREDITED");
+    handleUpdateBillingSetting("hospital.accreditations", list);
+  };
+
+  const handleRemoveAccreditation = (idx) => {
+    const list = [...(ipdBillingSettings.hospital?.accreditations || [])];
+    list.splice(idx, 1);
+    handleUpdateBillingSetting("hospital.accreditations", list);
+  };
+
+  const handleAccreditationChange = (idx, val) => {
+    const list = [...(ipdBillingSettings.hospital?.accreditations || [])];
+    list[idx] = val;
+    handleUpdateBillingSetting("hospital.accreditations", list);
+  };
+
+  const handleSaveSlipSettingsAsDefault = async () => {
+    try {
+      setCustomizerSaving(true);
+      await settingsService.updateSetting(IPD_BILLING_SETTINGS_KEY, ipdBillingSettings);
+      await IPDBillingPrintHandler.loadDbSettings(true);
+      toast.success("Hospital letterhead & print slip settings saved as default!");
+      setCustomizerSavedToast("Saved as Hospital Default!");
+      setTimeout(() => setCustomizerSavedToast(null), 3500);
+    } catch (err) {
+      console.error("Failed to save slip settings:", err);
+      toast.error(err?.message || "Failed to save settings");
+    } finally {
+      setCustomizerSaving(false);
+    }
+  };
+
+  const handleRevertSlipSettings = async () => {
+    try {
+      const s = await IPDBillingPrintHandler.loadDbSettings(true);
+      if (s) {
+        setIpdBillingSettings(s);
+        toast.success("Reverted slip settings to saved defaults");
+      }
+    } catch (_) {}
+  };
+
+  // Concession Modal Gross Calculation
+  const concessionGross = useMemo(() => {
+    if (!patient) return 0;
+    if (concessionApplyScope === "item" && concessionTargetItem) {
+      return Number(concessionTargetItem.grossAmount) || (Number(concessionTargetItem.rate || 0) * Number(concessionTargetItem.qty || 1));
+    }
+    if (concessionApplyScope === "selected") {
+      return selectedGross;
+    }
+    return totalGrossAmount;
+  }, [patient, concessionApplyScope, concessionTargetItem, selectedGross, totalGrossAmount]);
+
+  const handleOpenConcessionModal = (item = null, forceScope = null) => {
+    if (!patient) return;
+    setConcessionTargetItem(item);
+    let scope = forceScope;
+    if (!scope) {
+      if (item) {
+        scope = "item";
+      } else if (selectedCount > 0) {
+        scope = "selected";
+      } else {
+        scope = "all";
+      }
+    }
+    setConcessionApplyScope(scope);
+
+    if (item) {
+      setConcessionPercent(item.discountPercent ? String(item.discountPercent) : "");
+      setConcessionAmount(item.discountAmount ? String(item.discountAmount) : "");
+      setConcessionReason(item.discountReason || "");
+      setConcessionReference(item.discountReference || "");
+      const matched = discountReasons.find((r) => r.name === item.discountReason);
+      setConcessionReasonId(matched?.id || "");
+      setConcessionReferredBy(item.referredBy || patient.referredBy || "");
+    } else {
+      setConcessionPercent("");
+      setConcessionAmount("");
+      setConcessionReason("");
+      setConcessionReasonId("");
+      setConcessionReference("");
+      setConcessionReferredBy(patient.referredBy || "");
+    }
+    setShowConcessionModal(true);
+  };
+
+  const handleConcessionPercentChange = (val) => {
+    setConcessionPercent(val);
+    if (val && concessionGross > 0) {
+      setConcessionAmount(Math.round((concessionGross * Number(val)) / 100).toString());
+    } else if (!val) {
+      setConcessionAmount("");
+    }
+  };
+
+  const handleConcessionAmountChange = (val) => {
+    setConcessionAmount(val);
+    if (val && concessionGross > 0) {
+      setConcessionPercent(((Number(val) / concessionGross) * 100).toFixed(1));
+    } else if (!val) {
+      setConcessionPercent("");
+    }
+  };
+
+  const handleSelectConcessionReason = (rId) => {
+    setConcessionReasonId(rId);
+    const found = discountReasons.find((r) => r.id === rId);
+    if (found) {
+      setConcessionReason(found.name);
+      if (found.default_percent) {
+        handleConcessionPercentChange(Number(found.default_percent).toString());
+      }
+    } else {
+      setConcessionReason("");
+    }
+  };
+
+  const handleApplyConcessionSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (!patient) return;
+
+    const discPct = Number(concessionPercent) || 0;
+    const discAmt = Number(concessionAmount) || 0;
+
+    if (discPct <= 0 && discAmt <= 0) {
+      toast.error("Please enter a discount percentage (%) or amount (₹).");
+      return;
+    }
+
+    const effectiveDoc = isCustomConcessionDoc
+      ? concessionReferredBy.trim()
+      : (doctorsList.find((d) => (d.practitioner_id || d.id) === concessionDoctorId)?.name || concessionReferredBy || "");
+
+    const payload = {
+      encounter_id: patient.encounterId || patient.id,
+      discount_percent: discPct,
+      discount_amount: discAmt,
+      discount_reason: concessionReason || null,
+      discount_reason_id: concessionReasonId || null,
+      discount_reference: concessionReference || null,
+      referred_by: effectiveDoc || null,
+    };
+
+    try {
+      setActionLoading(true);
+      if (concessionApplyScope === "item" && concessionTargetItem) {
+        await billingService.updateChargeDiscount(concessionTargetItem.id, payload);
+        toast.success(`Concession applied to ${concessionTargetItem.name}!`, { icon: "🏷️" });
+      } else if (concessionApplyScope === "selected") {
+        const ids = selectedItems.map((i) => i.id);
+        await billingService.applyConcessionBatch({
+          ...payload,
+          charge_ids: ids,
+        });
+        toast.success(`Concession applied to ${ids.length} selected charge(s)!`, { icon: "🏷️" });
+      } else {
+        await billingService.applyConcessionBatch(payload);
+        toast.success(`Concession applied to all inpatient charges!`, { icon: "🏷️" });
+      }
+      setShowConcessionModal(false);
+      await fetchPatientBilling(patient);
+    } catch (err) {
+      console.error("Failed to apply concession", err);
+      toast.error("Failed to apply concession.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   // Filtered Bill Items Table
   const filteredBillItems = useMemo(() => {
@@ -1592,6 +2002,21 @@ export default function IPDBilling() {
 
                 {/* Top Right: Action Buttons Group */}
                 <div className="ipd-ppc-actions">
+                  {bedStayMetrics && bedStayMetrics.unbilledDays > 0 && (
+                    <button
+                      type="button"
+                      className="ipd-ppc-btn"
+                      style={{ background: "#fff1f2", color: "#be123c", border: "1.5px solid #fca5a5", fontWeight: 800 }}
+                      onClick={() => {
+                        setActiveWorkspaceTab("tariff");
+                        handleCategoryClick("Room Charges");
+                      }}
+                      title="Click to view and auto-post unbilled bed charges"
+                    >
+                      <Icon name="LuBed" size={13} />
+                      <span>🛏️ {bedStayMetrics.unbilledDays} Unbilled Day{bedStayMetrics.unbilledDays > 1 ? "s" : ""} (₹{bedStayMetrics.unbilledAmount.toLocaleString("en-IN")})</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="ipd-ppc-btn ipd-ppc-btn--pay"
@@ -1609,7 +2034,7 @@ export default function IPDBilling() {
                   <button
                     type="button"
                     className="ipd-ppc-btn ipd-ppc-btn--print"
-                    onClick={() => setShowPrintBillModal(true)}
+                    onClick={handleOpenPrintBillModal}
                     title="Print full Inpatient Tax Invoice / Bill Slip"
                   >
                     <Icon name="LuPrinter" size={12} /> Print Bill Slip
@@ -1655,15 +2080,15 @@ export default function IPDBilling() {
                 </div>
 
                 {/* Balance Due Mini-Card on the right of the strip */}
-                <div className={`ipd-ppc-balance-box ${pendingAmount > 0 ? "has-due" : "cleared"}`}>
+                <div className={`ipd-ppc-balance-box ${pendingAmount > 0 ? "has-due" : excessAdvance > 0 ? "has-excess" : "cleared"}`}>
                   <div className="ipd-ppc-bb-head">
-                    <span className="lbl">OUTSTANDING BALANCE</span>
-                    <span className={`tag ${pendingAmount > 0 ? "due" : "cleared"}`}>
-                      {pendingAmount > 0 ? "Due" : "Cleared"}
+                    <span className="lbl">{pendingAmount > 0 ? "OUTSTANDING BALANCE" : excessAdvance > 0 ? "EXCESS ADVANCE" : "SETTLEMENT STATUS"}</span>
+                    <span className={`tag ${pendingAmount > 0 ? "due" : excessAdvance > 0 ? "excess" : "cleared"}`}>
+                      {pendingAmount > 0 ? "Due" : excessAdvance > 0 ? "Excess Credit" : "All Cleared"}
                     </span>
                   </div>
                   <div className="ipd-ppc-bb-amount">
-                    ₹{pendingAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    ₹{(pendingAmount > 0 ? pendingAmount : excessAdvance > 0 ? excessAdvance : 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </div>
                   <div className="ipd-ppc-bb-audit">
                     <span>Billed: ₹{totalBills.toLocaleString("en-IN")}</span>
@@ -1674,41 +2099,6 @@ export default function IPDBilling() {
               </div>
             </div>
 
-            {/* Excess Advance Available Card */}
-            {excessAdvance > 0 && (
-              <div className="ipd-excess-advance-card">
-                <div className="ipd-eac-left">
-                  <div className="ipd-eac-icon">💰</div>
-                  <div>
-                    <div className="ipd-eac-title">
-                      Excess Advance Available: <strong style={{ color: "#047857" }}>₹{excessAdvance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
-                    </div>
-                    <div className="ipd-eac-sub">
-                      Patient has paid more advance deposit than current incurred charges. Move to their digital wallet (to auto-settle upcoming medicines &amp; services) or process an official cash/digital refund.
-                    </div>
-                  </div>
-                </div>
-                <div className="ipd-eac-actions">
-                  <button
-                    type="button"
-                    className="ipd-eac-btn-wallet"
-                    disabled={actionLoading}
-                    onClick={handleCreditExcessToWallet}
-                  >
-                    👛 Move ₹{excessAdvance.toLocaleString("en-IN")} to Wallet
-                  </button>
-                  <button
-                    type="button"
-                    className="ipd-eac-btn-refund"
-                    disabled={actionLoading}
-                    onClick={handleOpenRefundModal}
-                  >
-                    💵 Process Refund
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Executive Financial Strip */}
             <div className="ipd-workbench-financial-strip">
               <div className="ipd-wfs-card ipd-wfs-card--charges">
@@ -1716,18 +2106,33 @@ export default function IPDBilling() {
                 <div className="wfs-info">
                   <span className="wfs-lbl">Total Inpatient Charges</span>
                   <strong className="wfs-val">₹{totalBills.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
-                  <span className="wfs-sub">{patient?.items?.length || 0} posted service{patient?.items?.length === 1 ? "" : "s"} &amp; drugs</span>
+                  <span className="wfs-sub">
+                    {patient?.items?.length || 0} posted service{patient?.items?.length === 1 ? "" : "s"} &amp; drugs
+                    {totalDiscounts > 0 ? ` • Gross: ₹${totalGrossAmount.toLocaleString("en-IN")}` : ""}
+                  </span>
                 </div>
               </div>
 
-              <div className="ipd-wfs-card ipd-wfs-card--discounts">
+              <div
+                className={`ipd-wfs-card ipd-wfs-card--discounts ${totalDiscounts > 0 ? "has-discount" : ""}`}
+                onClick={() => handleOpenConcessionModal(null)}
+                title="Click to apply or manage concessions & discounts"
+                style={{ cursor: "pointer" }}
+              >
                 <div className="wfs-icon">🏷️</div>
-                <div className="wfs-info">
-                  <span className="wfs-lbl">Concessions &amp; Discounts</span>
+                <div className="wfs-info" style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span className="wfs-lbl">Concessions &amp; Discounts</span>
+                    <span className="ipd-wfs-quick-action">🏷️ Manage</span>
+                  </div>
                   <strong className="wfs-val" style={{ color: totalDiscounts > 0 ? "#dc2626" : "#64748b" }}>
                     {totalDiscounts > 0 ? `-₹${totalDiscounts.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "₹0.00"}
                   </strong>
-                  <span className="wfs-sub">{totalDiscounts > 0 ? "Authorized concessions" : "No discounts applied"}</span>
+                  <span className="wfs-sub">
+                    {totalDiscounts > 0
+                      ? `${discountedItemsCount} item${discountedItemsCount > 1 ? "s" : ""} discounted (Click to edit)`
+                      : "Click to apply discount / concession"}
+                  </span>
                 </div>
               </div>
 
@@ -1739,24 +2144,29 @@ export default function IPDBilling() {
                     ₹{totalPaymentsReceivedAll.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </strong>
                   <span className="wfs-sub">
-                    {patient?.historyPayments?.length || 0} receipt{patient?.historyPayments?.length === 1 ? "" : "s"} (Adv: ₹{totalAdvance.toLocaleString("en-IN")})
+                    {patient?.historyPayments?.length || 0} receipt{patient?.historyPayments?.length === 1 ? "" : "s"}
+                    {totalAdvance > 0 ? ` (Adv: ₹${totalAdvance.toLocaleString("en-IN")})` : ""}
                   </span>
                 </div>
               </div>
 
-              <div className={`ipd-wfs-card ${pendingAmount > 0 ? "ipd-wfs-card--due" : "ipd-wfs-card--cleared"}`}>
-                <div className="wfs-icon">{pendingAmount > 0 ? "⚠️" : "✅"}</div>
+              <div className={`ipd-wfs-card ${pendingAmount > 0 ? "ipd-wfs-card--due" : excessAdvance > 0 ? "ipd-wfs-card--excess" : "ipd-wfs-card--cleared"}`}>
+                <div className="wfs-icon">{pendingAmount > 0 ? "⚠️" : excessAdvance > 0 ? "💰" : "✅"}</div>
                 <div className="wfs-info">
-                  <span className="wfs-lbl">{pendingAmount > 0 ? "Net Balance Remaining" : "Clearance Status"}</span>
-                  <strong className="wfs-val" style={{ color: pendingAmount > 0 ? "#e11d48" : "#059669" }}>
+                  <span className="wfs-lbl">{pendingAmount > 0 ? "Outstanding Due" : excessAdvance > 0 ? "Clearance (Excess)" : "Clearance Status"}</span>
+                  <strong className="wfs-val" style={{ color: pendingAmount > 0 ? "#e11d48" : excessAdvance > 0 ? "#059669" : "#059669" }}>
                     {pendingAmount > 0
-                      ? `₹${pendingAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+                      ? `Due: ₹${pendingAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
                       : excessAdvance > 0
                       ? `Excess: ₹${excessAdvance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
-                      : "₹0.00 (Fully Settled)"}
+                      : "All Cleared (₹0.00)"}
                   </strong>
                   <span className="wfs-sub">
-                    {pendingAmount > 0 ? "Discharge gate locked" : "Approved for discharge"}
+                    {pendingAmount > 0
+                      ? "Outstanding balance to settle"
+                      : excessAdvance > 0
+                      ? "Available advance credit (Refund/Wallet on side)"
+                      : "Ready for formal discharge"}
                   </span>
                 </div>
               </div>
@@ -1799,6 +2209,87 @@ export default function IPDBilling() {
                   <div className="ipd-charge-console-card">
                 {activeWorkspaceTab === "tariff" ? (
                   <div className="ipd-tariff-panel-clean">
+                    {/* Automated Inpatient Bed Stay & Tariff Calculator */}
+                    {activeCategory === "Room Charges" && bedStayMetrics && (
+                      <div className="ipd-auto-bed-card">
+                        <div className="ipd-abc-header">
+                          <div className="ipd-abc-title-group">
+                            <div className="ipd-abc-icon">🛏️</div>
+                            <div>
+                              <div className="ipd-abc-title">Automated Inpatient Bed Stay &amp; Tariff Calculator</div>
+                              <div className="ipd-abc-subtitle">
+                                Calculated from IPD Admission: <strong>{bedStayMetrics.admissionFormatted}</strong> &rarr; <strong>{bedStayMetrics.billedUpToFormatted}</strong>
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="ipd-abc-btn-autopost"
+                            disabled={actionLoading || bedStayMetrics.isFullyBilled}
+                            onClick={handleAutoPostBedCharges}
+                            title="Auto-calculate and post bed charges directly to patient bill"
+                          >
+                            <Icon name="LuZap" size={14} />
+                            <span>
+                              {bedStayMetrics.isFullyBilled
+                                ? "✓ Bed Charges Fully Synced"
+                                : `⚡ Auto-Post Bed Charges (${bedStayMetrics.unbilledDays > 0 ? bedStayMetrics.unbilledDays : bedStayMetrics.stayDays}d • ₹${(bedStayMetrics.unbilledDays > 0 ? bedStayMetrics.unbilledAmount : bedStayMetrics.totalCalculatedAmount).toLocaleString("en-IN")})`}
+                            </span>
+                          </button>
+                        </div>
+
+                        <div className="ipd-abc-metrics-grid">
+                          <div className="ipd-abc-metric-box">
+                            <span className="lbl">Total Inpatient Stay</span>
+                            <span className="val">⏱️ {bedStayMetrics.stayDays} Day{bedStayMetrics.stayDays > 1 ? "s" : ""} ({bedStayMetrics.stayHours} hrs)</span>
+                          </div>
+                          <div className="ipd-abc-metric-box">
+                            <span className="lbl">Allotted Ward &amp; Bed</span>
+                            <span className="val" style={{ color: "#0284c7" }}>🛏️ {patient.ward} • {patient.bedNo}</span>
+                          </div>
+                          <div className="ipd-abc-metric-box">
+                            <span className="lbl">Daily Tariff Rate</span>
+                            <span className="val" style={{ color: "#0f766e" }}>₹{bedStayMetrics.dailyRate.toLocaleString("en-IN")} / day</span>
+                          </div>
+                          <div className={`ipd-abc-metric-box ${bedStayMetrics.alreadyBilledDays > 0 ? "highlight" : ""}`}>
+                            <span className="lbl">Already Billed Days</span>
+                            <span className="val">{bedStayMetrics.alreadyBilledDays} Day{bedStayMetrics.alreadyBilledDays > 1 ? "s" : ""} (₹{bedStayMetrics.alreadyBilledAmount.toLocaleString("en-IN")})</span>
+                          </div>
+                          <div className={`ipd-abc-metric-box ${bedStayMetrics.unbilledDays > 0 ? "warning" : "highlight"}`}>
+                            <span className="lbl">Unbilled Stay Duration</span>
+                            <span className="val">
+                              {bedStayMetrics.unbilledDays > 0
+                                ? `${bedStayMetrics.unbilledDays} Day(s) (₹${bedStayMetrics.unbilledAmount.toLocaleString("en-IN")})`
+                                : "✓ All Days Billed"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="ipd-abc-actions">
+                          <div>
+                            {bedStayMetrics.isFullyBilled ? (
+                              <span className="ipd-abc-status-chip synced">
+                                <Icon name="LuCheckCircle" size={13} /> Bed charges fully posted for {bedStayMetrics.stayDays}-day inpatient stay
+                              </span>
+                            ) : (
+                              <span className="ipd-abc-status-chip unbilled">
+                                <Icon name="LuClock" size={13} /> {bedStayMetrics.unbilledDays > 0 ? `${bedStayMetrics.unbilledDays} day(s) unbilled` : "Bed charge not yet posted"} • Calculated Total: ₹{bedStayMetrics.totalCalculatedAmount.toLocaleString("en-IN")}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <button
+                              type="button"
+                              className="ipd-link-autofill"
+                              style={{ fontSize: 11.5, fontWeight: 700, color: "#0284c7" }}
+                              onClick={handleAutoAllotBedRent}
+                            >
+                              📝 Fill In Form Below ({bedStayMetrics.unbilledDays > 0 ? bedStayMetrics.unbilledDays : bedStayMetrics.stayDays} Days)
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <div className="ipd-add-service-row">
                       <div className="ipd-form-field ipd-form-field--category">
                         <label className="ipd-field-label">Department / Category</label>
@@ -2495,6 +2986,37 @@ export default function IPDBilling() {
                     </div>
                   </div>
 
+                  {/* Bulk Action Bar for Selected Charges */}
+                  {selectedCount > 0 && (
+                    <div className="ipd-table-bulk-bar">
+                      <div className="ipd-tbb-left">
+                        <span className="ipd-tbb-count">
+                          <strong>{selectedCount}</strong> charge item{selectedCount > 1 ? "s" : ""} selected
+                        </span>
+                        <span className="ipd-tbb-sub">
+                          Gross: ₹{selectedGross.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="ipd-tbb-actions">
+                        <button
+                          type="button"
+                          className="ipd-tbb-btn ipd-tbb-btn--concession"
+                          onClick={() => handleOpenConcessionModal(null, "selected")}
+                        >
+                          <Icon name="LuTag" size={13} /> Apply Concession
+                        </button>
+                        <button
+                          type="button"
+                          className="ipd-tbb-btn ipd-tbb-btn--delete"
+                          onClick={handleRemoveSelected}
+                          disabled={actionLoading}
+                        >
+                          <Icon name="LuTrash2" size={13} /> Remove Selected
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Itemized Charges Table Grouped By Date with Dotted Lines */}
                   <div className="ipd-ledger-table-wrap-premium">
                     <table className="ipd-ledger-table-premium">
@@ -2516,7 +3038,7 @@ export default function IPDBilling() {
                           <th style={{ width: 75, textAlign: "right" }}>DISC</th>
                           <th style={{ width: 85, textAlign: "right" }}>AMOUNT</th>
                           <th style={{ width: 70, textAlign: "center" }}>STATUS</th>
-                          <th style={{ width: 45, textAlign: "center" }}>ACT</th>
+                          <th style={{ width: 68, textAlign: "center" }}>ACT</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2597,8 +3119,18 @@ export default function IPDBilling() {
                                       ₹{item.rate.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                                     </td>
                                     <td style={{ textAlign: "center", fontWeight: 800, color: "#1e293b", fontSize: 12 }}>{item.qty}</td>
-                                    <td style={{ textAlign: "right", fontFamily: "monospace", color: item.discountAmount > 0 ? "#dc2626" : "#94a3b8", fontWeight: 700, fontSize: 11.5 }}>
-                                      {item.discountAmount > 0 ? `-₹${Number(item.discountAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "—"}
+                                    <td
+                                      style={{ textAlign: "right", fontFamily: "monospace", color: item.discountAmount > 0 ? "#dc2626" : "#94a3b8", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}
+                                      onClick={() => handleOpenConcessionModal(item, "item")}
+                                      title="Click to apply or edit concession on this charge"
+                                    >
+                                      {item.discountAmount > 0 ? (
+                                        <span className="ipd-table-disc-cell">
+                                          -₹{Number(item.discountAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                        </span>
+                                      ) : (
+                                        <span className="ipd-table-add-disc-btn">+ Disc</span>
+                                      )}
                                     </td>
                                     <td style={{ textAlign: "right", fontFamily: "monospace", fontWeight: 800, color: "#0f172a", fontSize: 12 }}>
                                       ₹{item.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
@@ -2620,14 +3152,24 @@ export default function IPDBilling() {
                                       )}
                                     </td>
                                     <td style={{ textAlign: "center" }}>
-                                      <button
-                                        type="button"
-                                        className="ipd-btn-trash-premium"
-                                        title="Remove charge item"
-                                        onClick={() => handleRemoveItem(item.id, item.name)}
-                                      >
-                                        <Icon name="LuTrash2" size={13} />
-                                      </button>
+                                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 3 }}>
+                                        <button
+                                          type="button"
+                                          className="ipd-btn-disc-row"
+                                          title="Edit or apply concession"
+                                          onClick={() => handleOpenConcessionModal(item, "item")}
+                                        >
+                                          <Icon name="LuTag" size={13} />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="ipd-btn-trash-premium"
+                                          title="Remove charge item"
+                                          onClick={() => handleRemoveItem(item.id, item.name)}
+                                        >
+                                          <Icon name="LuTrash2" size={13} />
+                                        </button>
+                                      </div>
                                     </td>
                                   </tr>
                                 ))}
@@ -3018,11 +3560,13 @@ export default function IPDBilling() {
                     </div>
                     <div className="rac-row rac-row--final">
                       <span className="rac-lbl">
-                        {pendingAmount > 0 ? "Remaining Balance Due:" : "Clearance Status:"}
+                        {pendingAmount > 0 ? "Remaining Balance Due:" : excessAdvance > 0 ? "Excess Advance Credit:" : "Clearance Status:"}
                       </span>
                       <strong className="rac-val" style={{ color: pendingAmount > 0 ? "#e11d48" : "#059669" }}>
                         {pendingAmount > 0
                           ? `₹${pendingAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+                          : excessAdvance > 0
+                          ? `₹${excessAdvance.toLocaleString("en-IN", { minimumFractionDigits: 2 })} (Credit)`
                           : "₹0.00 (All Cleared)"}
                       </strong>
                     </div>
@@ -3039,15 +3583,17 @@ export default function IPDBilling() {
                     🏷️ Total Disc: -₹{totalDiscounts.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </span>
                 )}
-                <span className="chip-label">{pendingAmount > 0 ? "Pending Balance Due:" : ""}</span>
+                <span className="chip-label">{pendingAmount > 0 ? "Pending Balance Due:" : excessAdvance > 0 ? "Excess Advance Credit:" : "Balance Due:"}</span>
                 <span className={`chip-amount ${pendingAmount > 0 ? "due" : "cleared"}`}>
-                  ₹{pendingAmount > 0 ? pendingAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}
+                  ₹{pendingAmount > 0 ? pendingAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : excessAdvance > 0 ? excessAdvance.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}
                 </span>
                 <span className="chip-sub">
                   {patient.isDischarged
                     ? "• Patient Discharged & Bed Vacated"
                     : pendingAmount > 0
                     ? "• Payment Pending (Discharge Locked)"
+                    : excessAdvance > 0
+                    ? "• Excess Credit Available (Disburse Refund or Transfer to Wallet)"
                     : "• Dues 100% Cleared (Discharge Approved)"}
                 </span>
               </div>
@@ -3056,7 +3602,7 @@ export default function IPDBilling() {
                 <button
                   type="button"
                   className="ipd-btn-outline"
-                  onClick={() => setShowPrintBillModal(true)}
+                  onClick={handleOpenPrintBillModal}
                   title="Generate & print official Inpatient Billing Slip"
                 >
                   <Icon name="LuPrinter" size={14} /> 🧾 Print Official Bill Slip
@@ -3314,6 +3860,213 @@ export default function IPDBilling() {
   )
 }
 
+{/* 1a. Concession & Discount Modal */}
+{showConcessionModal && patient && (
+  <div className="ipd-modal-backdrop" onClick={() => setShowConcessionModal(false)}>
+    <div className="ipd-modal-box ipd-modal-box--concession" onClick={(e) => e.stopPropagation()}>
+      <div className="ipd-modal-header" style={{ background: "linear-gradient(100deg, #78350f 0%, #b45309 100%)" }}>
+        <div className="ipd-modal-header-left">
+          <div className="ipd-modal-icon-wrap" style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }}>
+            <Icon name="LuTag" size={18} />
+          </div>
+          <div>
+            <h3 className="ipd-modal-title">Authorized Concession &amp; Discount</h3>
+            <span className="ipd-modal-subtitle">
+              {patient.name} ({patient.admissionNo} • {patient.uhid})
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="ipd-modal-close-btn"
+          onClick={() => setShowConcessionModal(false)}
+        >
+          <Icon name="LuX" size={18} />
+        </button>
+      </div>
+
+      <form onSubmit={handleApplyConcessionSubmit}>
+        <div className="ipd-modal-body">
+          {/* Scope Selector */}
+          <div className="ipd-form-field">
+            <label className="ipd-field-label">Apply Concession To</label>
+            <div className="ipd-concession-scope-pills">
+              {concessionTargetItem && (
+                <button
+                  type="button"
+                  className={`ipd-scope-pill ${concessionApplyScope === "item" ? "active" : ""}`}
+                  onClick={() => setConcessionApplyScope("item")}
+                >
+                  <Icon name="LuPin" size={12} /> Single: {concessionTargetItem.name.slice(0, 22)}...
+                </button>
+              )}
+              {selectedCount > 0 && (
+                <button
+                  type="button"
+                  className={`ipd-scope-pill ${concessionApplyScope === "selected" ? "active" : ""}`}
+                  onClick={() => setConcessionApplyScope("selected")}
+                >
+                  <Icon name="LuCheckSquare" size={12} /> Selected ({selectedCount} items)
+                </button>
+              )}
+              <button
+                type="button"
+                className={`ipd-scope-pill ${concessionApplyScope === "all" ? "active" : ""}`}
+                onClick={() => setConcessionApplyScope("all")}
+              >
+                <Icon name="LuLayers" size={12} /> All Charges ({patient?.items?.length || 0})
+              </button>
+            </div>
+          </div>
+
+          {/* Scheme / Reason Selection */}
+          <div className="ipd-form-field">
+            <label className="ipd-field-label">Concession Scheme / Category</label>
+            <select
+              className="ipd-select-control"
+              value={concessionReasonId}
+              onChange={(e) => handleSelectConcessionReason(e.target.value)}
+            >
+              <option value="">-- Select Concession Scheme / Category --</option>
+              {discountReasons.map((dr) => (
+                <option key={dr.id} value={dr.id}>
+                  {dr.name} {dr.default_percent ? `(${Number(dr.default_percent)}%)` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Percent and Amount Inputs */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="ipd-form-field">
+              <label className="ipd-field-label">Discount Percent (%)</label>
+              <div className="ipd-input-group">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  placeholder="e.g. 15"
+                  className="ipd-input-control"
+                  value={concessionPercent}
+                  onChange={(e) => handleConcessionPercentChange(e.target.value)}
+                />
+                <span className="ipd-input-affix">%</span>
+              </div>
+            </div>
+
+            <div className="ipd-form-field">
+              <label className="ipd-field-label">Discount Amount (₹)</label>
+              <div className="ipd-input-group">
+                <span className="ipd-input-affix">₹</span>
+                <input
+                  type="number"
+                  min="0"
+                  max={concessionGross}
+                  step="1"
+                  placeholder="e.g. 750"
+                  className="ipd-input-control"
+                  value={concessionAmount}
+                  onChange={(e) => handleConcessionAmountChange(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Real-time Calculation Summary Card */}
+          <div className="ipd-concession-calc-card">
+            <div className="calc-row">
+              <span className="lbl">Target Gross Charges:</span>
+              <span className="val">₹{concessionGross.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+            </div>
+            <div className="calc-row discount">
+              <span className="lbl">(-) Concession / Discount:</span>
+              <span className="val">-₹{Number(concessionAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+            </div>
+            <div className="calc-divider" />
+            <div className="calc-row net">
+              <span className="lbl">Net Billable Amount:</span>
+              <span className="val">₹{Math.max(0, concessionGross - Number(concessionAmount || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+            </div>
+          </div>
+
+          {/* Authorizing Doctor / Authority */}
+          <div className="ipd-form-field">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <label className="ipd-field-label">Authorizing Doctor / Referral Authority</label>
+              <button
+                type="button"
+                className="ipd-dr-link-btn"
+                onClick={() => setIsCustomConcessionDoc(!isCustomConcessionDoc)}
+              >
+                {isCustomConcessionDoc ? "📋 Hospital Doctors" : "➕ Custom Authority"}
+              </button>
+            </div>
+            {isCustomConcessionDoc ? (
+              <input
+                type="text"
+                className="ipd-input-control"
+                placeholder="e.g. Medical Superintendent / Dr. Rajesh Varma / Director"
+                value={concessionReferredBy}
+                onChange={(e) => setConcessionReferredBy(e.target.value)}
+              />
+            ) : (
+              <select
+                className="ipd-select-control"
+                value={concessionDoctorId}
+                onChange={(e) => {
+                  const docId = e.target.value;
+                  setConcessionDoctorId(docId);
+                  const found = doctorsList.find((d) => (d.practitioner_id || d.id) === docId);
+                  if (found) setConcessionReferredBy(found.name);
+                }}
+              >
+                <option value="">-- Select Authorizing Doctor --</option>
+                {doctorsList.map((doc) => (
+                  <option key={doc.practitioner_id || doc.id} value={doc.practitioner_id || doc.id}>
+                    {doc.name} {doc.department ? `(${doc.department})` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Reference / Memo */}
+          <div className="ipd-form-field">
+            <label className="ipd-field-label">Prescription / Concession Memo # / Reason Reference</label>
+            <input
+              type="text"
+              className="ipd-input-control"
+              placeholder="e.g. Referral Slip #882 / Staff Welfare Card #12 / MS Approval"
+              value={concessionReference}
+              onChange={(e) => setConcessionReference(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="ipd-modal-footer">
+          <button
+            type="button"
+            className="ipd-btn-cancel"
+            disabled={actionLoading}
+            onClick={() => setShowConcessionModal(false)}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="ipd-btn-confirm"
+            style={{ background: "#d97706", borderColor: "#b45309" }}
+            disabled={actionLoading || (Number(concessionPercent || 0) <= 0 && Number(concessionAmount || 0) <= 0)}
+          >
+            {actionLoading ? "Applying..." : "🏷️ Save & Apply Concession"}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
 {/* 1b. Refund Excess Advance Modal */}
 {
   showRefundModal && (
@@ -3485,346 +4238,460 @@ export default function IPDBilling() {
   )
 }
 
-{/* 3. Real-time HIMS Software Standard IPD Admission & Tax Invoice Print Slip Modal */}
+{/* 3. Real-time Customizable HIMS Inpatient Admission & Tax Invoice Print Slip Modal */}
 {
   showPrintBillModal && patient && (
     <div className="ipd-modal-backdrop" onClick={() => setShowPrintBillModal(false)}>
-      <div className="ipd-modal-box ipd-modal-box--print-lg" onClick={(e) => e.stopPropagation()}>
-        <div className="ipd-modal-header" style={{ background: "linear-gradient(100deg, #0b2556 0%, #1e5a8e 100%)" }}>
+      <div className="ipd-modal-box ipd-modal-box--print-lg" onClick={(e) => e.stopPropagation()} style={{ maxWidth: showSlipCustomizer ? 1340 : 1060, width: "96vw" }}>
+        <div className="ipd-modal-header" style={{ background: "linear-gradient(100deg, #081a3d 0%, #123a6b 100%)", padding: "12px 20px" }}>
           <div className="ipd-modal-header-left">
             <div className="ipd-modal-icon-wrap" style={{ background: "#ffd766", color: "#081a3d" }}>
               <Icon name="LuPrinter" size={18} />
             </div>
             <div>
-              <h3 className="ipd-modal-title">Official Inpatient Admission &amp; Tax Invoice Slip</h3>
+              <h3 className="ipd-modal-title">Official Inpatient Tax Invoice &amp; Admission Slip</h3>
               <span className="ipd-modal-subtitle">
-                Patient: {patient.name} ({patient.admissionNo}) • Real-time HIMS Official Record
+                {patient.name} • UHID: {patient.uhid} • ADM: {patient.admissionNo} • {patient.ward} ({patient.bedNo})
               </span>
             </div>
           </div>
-          <button
-            type="button"
-            className="ipd-modal-close-btn"
-            onClick={() => setShowPrintBillModal(false)}
-          >
-            <Icon name="LuX" size={18} />
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {/* Quick Toggle: Stamp Seal */}
+            <button
+              type="button"
+              className={`ipd-slip-toggle-pill ${ipdBillingSettings?.settlement?.showOfficialStamp !== false ? "ipd-slip-toggle-pill--active" : ""}`}
+              onClick={handleToggleStamp}
+              title={ipdBillingSettings?.settlement?.showOfficialStamp !== false ? "Click to remove official rubber stamp seal" : "Click to add official rubber stamp seal"}
+            >
+              <span className="ipd-slip-toggle-dot" />
+              <span>Stamp: {ipdBillingSettings?.settlement?.showOfficialStamp !== false ? "ON" : "OFF"}</span>
+            </button>
+
+            {/* Quick Toggle: QR Codes */}
+            <button
+              type="button"
+              className={`ipd-slip-toggle-pill ${(ipdBillingSettings?.header?.showQRCode !== false || ipdBillingSettings?.bankDetails?.showUpiQr !== false) ? "ipd-slip-toggle-pill--active" : ""}`}
+              onClick={handleToggleQr}
+              title={(ipdBillingSettings?.header?.showQRCode !== false || ipdBillingSettings?.bankDetails?.showUpiQr !== false) ? "Click to remove QR codes" : "Click to add QR codes"}
+            >
+              <span className="ipd-slip-toggle-dot" />
+              <span>QR Code: {(ipdBillingSettings?.header?.showQRCode !== false || ipdBillingSettings?.bankDetails?.showUpiQr !== false) ? "ON" : "OFF"}</span>
+            </button>
+
+            {/* Quick Letterhead & Badges Editor Drawer Toggle */}
+            <button
+              type="button"
+              className={`ipd-slip-edit-btn ${showSlipCustomizer ? "active" : ""}`}
+              onClick={() => setShowSlipCustomizer((v) => !v)}
+              title="Edit hospital name, subtitle, accreditations, address, phone, email, website and reg no"
+            >
+              <Icon name="LuPencilLine" size={14} />
+              <span>{showSlipCustomizer ? "Hide Letterhead Editor" : "✏️ Edit Header & Details"}</span>
+            </button>
+
+            {/* Zoom Controls */}
+            <div className="ipd-print-toolbar">
+              <span style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 700 }}>Zoom:</span>
+              <div className="ipd-zoom-ctrl-group">
+                <button
+                  type="button"
+                  className="ipd-zoom-btn"
+                  onClick={() => setPrintZoom((z) => Math.max(60, z - 10))}
+                  title="Zoom Out"
+                >
+                  -
+                </button>
+                <button
+                  type="button"
+                  className={`ipd-zoom-btn ${printZoom === 85 ? "active" : ""}`}
+                  onClick={() => setPrintZoom(85)}
+                >
+                  85%
+                </button>
+                <button
+                  type="button"
+                  className={`ipd-zoom-btn ${printZoom === 100 ? "active" : ""}`}
+                  onClick={() => setPrintZoom(100)}
+                >
+                  100%
+                </button>
+                <button
+                  type="button"
+                  className={`ipd-zoom-btn ${printZoom === 115 ? "active" : ""}`}
+                  onClick={() => setPrintZoom(115)}
+                >
+                  115%
+                </button>
+                <button
+                  type="button"
+                  className="ipd-zoom-btn"
+                  onClick={() => setPrintZoom((z) => Math.min(150, z + 10))}
+                  title="Zoom In"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="ipd-btn-outline"
+              style={{ background: "rgba(255,255,255,0.12)", color: "#ffffff", borderColor: "rgba(255,255,255,0.25)", height: 34, padding: "0 10px", fontSize: 11.5 }}
+              onClick={() => window.open("/settings?tab=print-templates", "_blank")}
+              title="Open full IPD Billing Print Customizer Settings in new tab"
+            >
+              <Icon name="LuSliders" size={13} /> Full Designer
+            </button>
+            <button
+              type="button"
+              className="ipd-btn-search"
+              style={{ background: "#059669", height: 34, padding: "0 16px", fontSize: 12.5, fontWeight: 800, gap: 7 }}
+              onClick={handlePrintOfficialBill}
+              title="Print official customized bill slip"
+            >
+              <Icon name="LuPrinter" size={16} /> Print Slip Now
+            </button>
+            <button
+              type="button"
+              className="ipd-modal-close-btn"
+              onClick={() => setShowPrintBillModal(false)}
+            >
+              <Icon name="LuX" size={18} />
+            </button>
+          </div>
         </div>
 
-        <div className="ipd-modal-body" style={{ background: "#f8fafc", padding: 18 }}>
-          <div className="hims-tax-invoice-wrap">
-            {/* 1. Official Hospital Letterhead */}
-            <div className="hims-inv-letterhead">
-              <div className="hims-inv-lh-brand">
-                <div className="hims-inv-logo-badge">
-                  <Icon name="LuPlus" size={30} />
-                </div>
+        {/* Modal Body: Split Container when Drawer is open */}
+        <div className="ipd-print-split-container">
+          {showSlipCustomizer && (
+            <aside className="ipd-slip-editor-sidebar">
+              <div className="ipd-slip-editor-head">
                 <div>
-                  <h1 className="hims-inv-hosp-name">NARAYAN MULTISPECIALITY HOSPITAL</h1>
-                  <div className="hims-inv-hosp-tagline">
-                    NABH &amp; NABL ACCREDITED TERTIARY CARE HOSPITAL &amp; RESEARCH INSTITUTE
-                  </div>
-                  <div className="hims-inv-hosp-contact">
-                    Sector 4, Central Hospital Road, Jaipur - 302020 (Rajasthan) • 24×7 Emergency: +91 9811223344
-                    <br />Email: billing@narayanhospital.com • Website: www.narayanhospital.com
-                  </div>
+                  <h4 className="ipd-slip-editor-title">Hospital Header &amp; Slip Editor</h4>
+                  <p className="ipd-slip-editor-subtitle">Updates live in preview instantly</p>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    type="button"
+                    className="ipd-btn-revert-sm"
+                    onClick={handleRevertSlipSettings}
+                    title="Revert to last saved settings"
+                  >
+                    <Icon name="LuRotateCcw" size={12} /> Revert
+                  </button>
+                  <button
+                    type="button"
+                    className="ipd-btn-save-sm"
+                    onClick={handleSaveSlipSettingsAsDefault}
+                    disabled={customizerSaving}
+                    title="Save these details as default for the whole hospital"
+                  >
+                    <Icon name={customizerSaving ? "LuLoader" : "LuSave"} size={13} className={customizerSaving ? "animate-spin" : ""} />
+                    <span>{customizerSaving ? "Saving..." : "Save Default"}</span>
+                  </button>
                 </div>
               </div>
-              <div className="hims-inv-lh-tax-box">
-                <div className="hims-inv-tax-title">TAX INVOICE &amp; ADM SLIP</div>
-                <div className="hims-inv-tax-row"><span>GSTIN:</span> <strong>08AAACN1234F1Z8</strong></div>
-                <div className="hims-inv-tax-row"><span>PAN:</span> <strong>AAACN1234F</strong></div>
-                <div className="hims-inv-tax-row"><span>STATE:</span> <strong>08 - Rajasthan</strong></div>
-              </div>
-            </div>
 
-            {/* 2. Document Banner */}
-            <div className="hims-inv-doc-banner">
-              <span>INPATIENT ADMISSION &amp; FINAL BILL SETTLEMENT STATEMENT</span>
-            </div>
+              {customizerSavedToast && (
+                <div className="ipd-slip-saved-toast">
+                  <Icon name="LuCheckCircle2" size={14} />
+                  <span>{customizerSavedToast}</span>
+                </div>
+              )}
 
-            {/* 3. Patient & Inpatient Demographics Grid */}
-            <div className="hims-inv-demographics-grid">
-              <div className="hims-demo-col">
-                <table className="hims-demo-table">
-                  <tbody>
-                    <tr>
-                      <td className="demo-k">Patient Name</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v demo-v--name">{patient.name}</td>
-                    </tr>
-                    <tr>
-                      <td className="demo-k">Patient UHID</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v demo-v--code">{patient.uhid}</td>
-                    </tr>
-                    <tr>
-                      <td className="demo-k">Age / Gender</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v">{patient.age} Y / {patient.gender}</td>
-                    </tr>
-                    <tr>
-                      <td className="demo-k">Contact / Phone</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v">{patient.mobile || "—"}</td>
-                    </tr>
-                    <tr>
-                      <td className="demo-k">Blood Group</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v">{patient.bloodGroup || "O+"}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <div className="ipd-slip-editor-scroll">
+                {/* 1. Hospital Letterhead */}
+                <div className="ipd-slip-section-card">
+                  <div className="ipd-slip-section-header">
+                    <Icon name="LuBuilding2" size={15} className="text-sky-700" />
+                    <span>Hospital Letterhead &amp; Brand</span>
+                  </div>
 
-              <div className="hims-demo-col">
-                <table className="hims-demo-table">
-                  <tbody>
-                    <tr>
-                      <td className="demo-k">Invoice / Bill No</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v demo-v--code">INV-{patient.admissionNo}</td>
-                    </tr>
-                    <tr>
-                      <td className="demo-k">Invoice Date</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v">{new Date().toLocaleDateString("en-IN")}</td>
-                    </tr>
-                    <tr>
-                      <td className="demo-k">IPD Admission No</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v demo-v--code">{patient.admissionNo}</td>
-                    </tr>
-                    <tr>
-                      <td className="demo-k">Admission Date</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v">{patient.admissionDate}</td>
-                    </tr>
-                    <tr>
-                      <td className="demo-k">Discharge Date</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v">{patient.dischargeDate || "Under Active Inpatient Care"}</td>
-                    </tr>
-                    <tr>
-                      <td className="demo-k">Ward &amp; Bed</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v">{patient.ward} • {patient.bedNo}</td>
-                    </tr>
-                    <tr>
-                      <td className="demo-k">Attending Consultant</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v">{patient.consultant} ({patient.department})</td>
-                    </tr>
-                    {patient.referredBy && (
-                      <tr>
-                        <td className="demo-k">Referred By</td>
-                        <td className="demo-sep">:</td>
-                        <td className="demo-v">Dr. {patient.referredBy} {patient.referralSource ? `(${patient.referralSource})` : ""}</td>
-                      </tr>
+                  <div className="ipd-slip-form-group">
+                    <label>Hospital Name</label>
+                    <input
+                      type="text"
+                      value={ipdBillingSettings?.hospital?.name || ""}
+                      onChange={(e) => handleUpdateBillingSetting("hospital.name", e.target.value)}
+                      placeholder="e.g. Narayan Hospital"
+                      className="ipd-slip-input font-bold"
+                    />
+                  </div>
+
+                  <div className="ipd-slip-form-group">
+                    <label>Tagline / Subtitle</label>
+                    <input
+                      type="text"
+                      value={ipdBillingSettings?.hospital?.subtitle || ""}
+                      onChange={(e) => handleUpdateBillingSetting("hospital.subtitle", e.target.value)}
+                      placeholder="e.g. NABH & NABL ACCREDITED TERTIARY CARE HOSPITAL"
+                      className="ipd-slip-input"
+                    />
+                  </div>
+
+                  {/* Quality Accreditations List */}
+                  <div className="ipd-slip-form-group">
+                    <div className="flex items-center justify-between" style={{ marginBottom: 4 }}>
+                      <label style={{ margin: 0 }}>Quality Accreditations</label>
+                      <label className="flex items-center gap-1 cursor-pointer text-[11px] text-slate-600 font-semibold">
+                        <input
+                          type="checkbox"
+                          checked={ipdBillingSettings?.hospital?.showAccreditationBadges !== false}
+                          onChange={(e) => handleUpdateBillingSetting("hospital.showAccreditationBadges", e.target.checked)}
+                          className="h-3.5 w-3.5 rounded text-sky-700"
+                        />
+                        <span>Show Badges</span>
+                      </label>
+                    </div>
+
+                    {ipdBillingSettings?.hospital?.showAccreditationBadges !== false && (
+                      <div className="space-y-1.5 pt-1">
+                        {(ipdBillingSettings?.hospital?.accreditations || []).map((badge, idx) => (
+                          <div key={idx} className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-sky-800 bg-sky-100 px-1.5 py-0.5 rounded">✓</span>
+                            <input
+                              type="text"
+                              value={badge}
+                              onChange={(e) => handleAccreditationChange(idx, e.target.value)}
+                              className="flex-1 ipd-slip-input-sm font-semibold"
+                              placeholder="e.g. NABH ACCREDITED"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAccreditation(idx)}
+                              className="text-slate-400 hover:text-red-600 p-1"
+                              title="Delete accreditation"
+                            >
+                              <Icon name="LuTrash2" size={13} />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={handleAddAccreditation}
+                          className="mt-1 text-[11px] font-bold text-sky-700 hover:text-sky-900 flex items-center gap-1"
+                        >
+                          <Icon name="LuPlus" size={12} />
+                          <span>Add Quality Accreditation</span>
+                        </button>
+                      </div>
                     )}
-                    <tr>
-                      <td className="demo-k">Length of Stay</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v">{patient.stayDays} Day{patient.stayDays > 1 ? "s" : ""}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* 4. Categorized Itemized Charges Table */}
-            <div className="hims-inv-table-section">
-              <div className="hims-inv-table-heading">ITEMIZED INPATIENT CHARGES &amp; SERVICE BREAKDOWN</div>
-              <table className="hims-inv-items-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 45, textAlign: "center" }}>#</th>
-                    <th style={{ width: 105 }}>POSTED DATE</th>
-                    <th style={{ width: 140 }}>DEPARTMENT</th>
-                    <th>PARTICULARS / SERVICE / MEDICINE DESCRIPTION</th>
-                    <th style={{ width: 70, textAlign: "center" }}>QTY</th>
-                    <th style={{ width: 110, textAlign: "right" }}>UNIT RATE (₹)</th>
-                    <th style={{ width: 125, textAlign: "right" }}>AMOUNT (₹)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {patient.items && patient.items.length > 0 ? (
-                    patient.items.map((item, idx) => (
-                      <tr key={item.id || idx}>
-                        <td style={{ textAlign: "center", color: "#64748b" }}>{idx + 1}</td>
-                        <td style={{ fontSize: 11, color: "#475569", fontFamily: "monospace" }}>
-                          {item.date || patient.admissionDate}
-                        </td>
-                        <td>
-                          <span className="hims-inv-cat-pill">{item.category}</span>
-                        </td>
-                        <td style={{ fontWeight: 600, color: "#0f172a" }}>
-                          {item.name}
-                          {(Number(item.discountAmount) > 0 || item.referredBy || item.discountReference) && (
-                            <div style={{ fontSize: 10, color: "#0284c7", marginTop: 2, fontWeight: 500 }}>
-                              {Number(item.discountAmount) > 0 && (
-                                <span style={{ color: "#059669", fontWeight: 600 }}>
-                                  🏷️ Disc: ₹{Number(item.discountAmount).toFixed(2)}{item.discountReason ? ` (${item.discountReason})` : ""}
-                                </span>
-                              )}
-                              {item.referredBy && <span>{Number(item.discountAmount) > 0 ? " • " : ""}Ref: Dr. {item.referredBy}</span>}
-                              {item.discountReference && <span> ({item.discountReference})</span>}
-                            </div>
-                          )}
-                        </td>
-                        <td style={{ textAlign: "center", fontWeight: 700 }}>{item.qty}</td>
-                        <td style={{ textAlign: "right", fontFamily: "monospace" }}>
-                          ₹{Number(item.rate).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </td>
-                        <td style={{ textAlign: "right", fontFamily: "monospace", fontWeight: 700, color: "#0f172a" }}>
-                          ₹{Number(item.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="7" style={{ textAlign: "center", padding: 18, color: "#94a3b8" }}>
-                        No itemized charges posted.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* 5. Department Summary Pills */}
-            <div className="hims-inv-dept-summary-row">
-              {roomChargesTotal > 0 && <span className="hims-dsum-pill">🛏️ Bed Rent: ₹{roomChargesTotal.toLocaleString("en-IN")}</span>}
-              {consultationTotal > 0 && <span className="hims-dsum-pill">🩺 Doctor Visits: ₹{consultationTotal.toLocaleString("en-IN")}</span>}
-              {medicinesTotal > 0 && <span className="hims-dsum-pill">💊 Pharmacy &amp; IV: ₹{medicinesTotal.toLocaleString("en-IN")}</span>}
-              {(labTotal + radiologyTotal) > 0 && <span className="hims-dsum-pill">🧪 Diagnostics: ₹{(labTotal + radiologyTotal).toLocaleString("en-IN")}</span>}
-              {(proceduresTotal + othersTotal) > 0 && <span className="hims-dsum-pill">⚡ Procedures &amp; Care: ₹{(proceduresTotal + othersTotal).toLocaleString("en-IN")}</span>}
-            </div>
-
-            {/* 6. Settlement Reconciliation & Totals Box */}
-            <div className="hims-inv-settlement-card">
-              <div className="hims-settle-left">
-                <div className="hims-words-wrap">
-                  <span className="hims-words-lbl">Total Bill Amount In Words:</span>
-                  <div className="hims-words-val">{numberToWords(allItemsNet || totalBills)}</div>
-                </div>
-
-                <div className="hims-pay-audit-box">
-                  <div className="hims-pab-title">PAYMENTS &amp; DEPOSITS AUDIT RECONCILIATION</div>
-                  <div className="hims-pab-row">
-                    <span>Initial Admission Advance Deposit:</span>
-                    <strong>₹{totalAdvance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
                   </div>
-                  <div className="hims-pab-row">
-                    <span>Interim / Running Bill Payments:</span>
-                    <strong>₹{totalReceived.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
+
+                  <div className="ipd-slip-form-group">
+                    <label>Hospital Address</label>
+                    <input
+                      type="text"
+                      value={ipdBillingSettings?.hospital?.address || ""}
+                      onChange={(e) => handleUpdateBillingSetting("hospital.address", e.target.value)}
+                      placeholder="Address line"
+                      className="ipd-slip-input"
+                    />
                   </div>
-                  <div className="hims-pab-row hims-pab-row--tot">
-                    <span>Total Payments Received:</span>
-                    <strong style={{ color: "#059669" }}>
-                      ₹{totalPaymentsReceivedAll.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                    </strong>
+
+                  <div className="ipd-slip-grid-2">
+                    <div className="ipd-slip-form-group">
+                      <label>24×7 Help / Phone</label>
+                      <input
+                        type="text"
+                        value={ipdBillingSettings?.hospital?.phone || ""}
+                        onChange={(e) => handleUpdateBillingSetting("hospital.phone", e.target.value)}
+                        placeholder="+91 ..."
+                        className="ipd-slip-input"
+                      />
+                    </div>
+                    <div className="ipd-slip-form-group">
+                      <label>Registration No.</label>
+                      <input
+                        type="text"
+                        value={ipdBillingSettings?.hospital?.registrationNo || ""}
+                        onChange={(e) => handleUpdateBillingSetting("hospital.registrationNo", e.target.value)}
+                        placeholder="REG/..."
+                        className="ipd-slip-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="ipd-slip-grid-2">
+                    <div className="ipd-slip-form-group">
+                      <label>Email Address</label>
+                      <input
+                        type="text"
+                        value={ipdBillingSettings?.hospital?.email || ""}
+                        onChange={(e) => handleUpdateBillingSetting("hospital.email", e.target.value)}
+                        placeholder="billing@..."
+                        className="ipd-slip-input"
+                      />
+                    </div>
+                    <div className="ipd-slip-form-group">
+                      <label>Website</label>
+                      <input
+                        type="text"
+                        value={ipdBillingSettings?.hospital?.website || ""}
+                        onChange={(e) => handleUpdateBillingSetting("hospital.website", e.target.value)}
+                        placeholder="www..."
+                        className="ipd-slip-input"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                {/* Official Status Stamp */}
-                <div className={`hims-official-stamp ${pendingAmount === 0 ? "hims-stamp--paid" : "hims-stamp--due"}`}>
-                  {pendingAmount === 0 ? "✓ PAID & SETTLED IN FULL" : `⚠ BALANCE PAYABLE: ₹${pendingAmount.toLocaleString("en-IN")}`}
-                </div>
-              </div>
+                {/* 2. Stamps & QR Codes Control */}
+                <div className="ipd-slip-section-card">
+                  <div className="ipd-slip-section-header">
+                    <Icon name="LuStamp" size={15} className="text-sky-700" />
+                    <span>Official Rubber Stamp &amp; QR Codes</span>
+                  </div>
 
-              <div className="hims-settle-right">
-                <table className="hims-totals-calc-table">
-                  <tbody>
-                    <tr>
-                      <td>Total Gross Charges</td>
-                      <td className="calc-val">₹{(allItemsGross || totalGrossAmount || totalBills).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                    </tr>
-                    {(allItemsDiscounts > 0 || totalDiscounts > 0) && (
-                      <tr style={{ color: "#059669" }}>
-                        <td>(-) Referral &amp; Hospital Concession</td>
-                        <td className="calc-val">(-) ₹{(allItemsDiscounts || totalDiscounts).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                      </tr>
-                    )}
-                    <tr>
-                      <td>Tax (GST Exempted Healthcare)</td>
-                      <td className="calc-val">₹0.00</td>
-                    </tr>
-                    <tr className="calc-row-sub">
-                      <td><strong>Net Billable Charges</strong></td>
-                      <td className="calc-val"><strong>₹{(allItemsNet || totalBills).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></td>
-                    </tr>
-                    <tr>
-                      <td>(-) Less Total Payments &amp; Deposits</td>
-                      <td className="calc-val" style={{ color: "#059669" }}>
-                        (-) ₹{totalPaymentsReceivedAll.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                    <tr className="calc-row-net">
-                      <td><strong>NET BALANCE PAYABLE</strong></td>
-                      <td className={`calc-val calc-val--net ${pendingAmount > 0 ? "due" : "cleared"}`}>
-                        ₹{pendingAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                  <div className="space-y-2 pt-1 text-xs">
+                    <label className="flex items-center justify-between cursor-pointer p-1.5 rounded bg-slate-50 border border-slate-200">
+                      <div>
+                        <div className="font-bold text-slate-800">Official Rubber Stamp Seal</div>
+                        <div className="text-[10px] text-slate-500">Circular audit stamp on settlement total</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={ipdBillingSettings?.settlement?.showOfficialStamp !== false}
+                        onChange={(e) => handleUpdateBillingSetting("settlement.showOfficialStamp", e.target.checked)}
+                        className="h-4 w-4 rounded text-sky-700"
+                      />
+                    </label>
 
-            {/* 7. Terms & Official Signatures */}
-            <div className="hims-inv-signatures-section">
-              <div className="hims-inv-terms">
-                <div>• This is an authenticated computer-generated Inpatient Final Tax Invoice valid under hospital information system bylaws.</div>
-                <div>• Medicines &amp; surgical consumables billed as per approved hospital inpatient formulary rates.</div>
-                <div>• Incase of any billing dispute, kindly present this slip at Inpatient Accounts Desk within 7 working days.</div>
-              </div>
+                    <label className="flex items-center justify-between cursor-pointer p-1.5 rounded bg-slate-50 border border-slate-200">
+                      <div>
+                        <div className="font-bold text-slate-800">Verified Invoice QR Code</div>
+                        <div className="text-[10px] text-slate-500">Top-right header verified QR box</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={ipdBillingSettings?.header?.showQRCode !== false}
+                        onChange={(e) => handleUpdateBillingSetting("header.showQRCode", e.target.checked)}
+                        className="h-4 w-4 rounded text-sky-700"
+                      />
+                    </label>
 
-              <div className="hims-sig-row">
-                <div className="hims-sig-box">
-                  <div className="hims-sig-line" />
-                  <span className="hims-sig-title">Billing Cashier</span>
-                  <span className="hims-sig-sub">Narayan HIMS Counter</span>
-                </div>
-                <div className="hims-sig-box">
-                  <div className="hims-sig-line" />
-                  <span className="hims-sig-title">Accounts Officer</span>
-                  <span className="hims-sig-sub">Audit &amp; Reconciliation</span>
-                </div>
-                <div className="hims-sig-box">
-                  <div className="hims-sig-line" />
-                  <span className="hims-sig-title">Patient / Attendant</span>
-                  <span className="hims-sig-sub">Signature &amp; Verification</span>
-                </div>
-                <div className="hims-sig-box">
-                  <div className="hims-sig-line" />
-                  <span className="hims-sig-title">Medical Superintendent</span>
-                  <span className="hims-sig-sub">Authorized Signatory</span>
-                </div>
-              </div>
+                    <label className="flex items-center justify-between cursor-pointer p-1.5 rounded bg-slate-50 border border-slate-200">
+                      <div>
+                        <div className="font-bold text-slate-800">Dynamic UPI Payment QR Code</div>
+                        <div className="text-[10px] text-slate-500">Scan-to-pay QR when balance is due</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={ipdBillingSettings?.bankDetails?.showUpiQr !== false}
+                        onChange={(e) => handleUpdateBillingSetting("bankDetails.showUpiQr", e.target.checked)}
+                        className="h-4 w-4 rounded text-sky-700"
+                      />
+                    </label>
 
-              <div className="hims-inv-bottom-tag">
-                NARAYAN HOSPITAL • Sector 4, Hospital Road, Jaipur • "Quality Care With Compassion &amp; Clinical Excellence"
+                    <label className="flex items-center justify-between cursor-pointer p-1.5 rounded bg-slate-50 border border-slate-200">
+                      <div>
+                        <div className="font-bold text-slate-800">Invoice Barcode</div>
+                        <div className="text-[10px] text-slate-500">Vector barcode for invoice scanning</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={ipdBillingSettings?.header?.showBarcode !== false}
+                        onChange={(e) => handleUpdateBillingSetting("header.showBarcode", e.target.checked)}
+                        className="h-4 w-4 rounded text-sky-700"
+                      />
+                    </label>
+
+                    <label className="flex items-center justify-between cursor-pointer p-1.5 rounded bg-slate-50 border border-slate-200">
+                      <div>
+                        <div className="font-bold text-slate-800">Tax Invoice Credentials Box</div>
+                        <div className="text-[10px] text-slate-500">GSTIN, PAN, CIN and Place of Supply</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={ipdBillingSettings?.header?.showTaxBox !== false}
+                        onChange={(e) => handleUpdateBillingSetting("header.showTaxBox", e.target.checked)}
+                        className="h-4 w-4 rounded text-sky-700"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* 3. Bank Remittance Info */}
+                <div className="ipd-slip-section-card">
+                  <div className="ipd-slip-section-header">
+                    <Icon name="LuLandmark" size={15} className="text-sky-700" />
+                    <span>Hospital Bank Remittance</span>
+                  </div>
+
+                  <div className="ipd-slip-grid-2">
+                    <div className="ipd-slip-form-group">
+                      <label>Bank Name</label>
+                      <input
+                        type="text"
+                        value={ipdBillingSettings?.bankDetails?.bankName || ""}
+                        onChange={(e) => handleUpdateBillingSetting("bankDetails.bankName", e.target.value)}
+                        className="ipd-slip-input"
+                      />
+                    </div>
+                    <div className="ipd-slip-form-group">
+                      <label>UPI ID (VPA)</label>
+                      <input
+                        type="text"
+                        value={ipdBillingSettings?.bankDetails?.upiId || ""}
+                        onChange={(e) => handleUpdateBillingSetting("bankDetails.upiId", e.target.value)}
+                        placeholder="narayan@sbi"
+                        className="ipd-slip-input font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
+            </aside>
+          )}
+
+          <div className="ipd-print-paper-canvas">
+            <div
+              className="ipd-print-paper-page"
+              style={{
+                width: ipdBillingSettings?.page?.size === "Thermal" ? "380px" : `${Math.round(840 * (printZoom / 100))}px`,
+                maxWidth: "100%",
+              }}
+            >
+              <iframe
+                title="Official IPD Billing Slip Preview"
+                srcDoc={currentBillingHtml}
+                style={{
+                  width: "100%",
+                  height: `${printFrameHeight}px`,
+                  border: "none",
+                  display: "block",
+                  background: "#ffffff",
+                }}
+              />
             </div>
           </div>
         </div>
 
-        <div className="ipd-modal-footer">
-          <button
-            type="button"
-            className="ipd-btn-outline"
-            onClick={() => setShowPrintBillModal(false)}
-          >
-            Close
-          </button>
-          <button
-            type="button"
-            className="ipd-btn-search"
-            style={{ width: "auto", padding: "10px 24px", background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)" }}
-            onClick={() => window.print()}
-          >
-            <Icon name="LuPrinter" size={16} /> Print Official IPD Slip &amp; Tax Invoice
-          </button>
+        <div className="ipd-modal-footer" style={{ padding: "10px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "#64748b" }}>
+            <span>Paper: <strong>{ipdBillingSettings?.page?.size || "A4"} {ipdBillingSettings?.page?.orientation || "portrait"}</strong></span>
+            <span>•</span>
+            <span>Mode: <strong>{ipdBillingSettings?.hospital?.letterheadMode === "stationery" ? "Pre-printed Stationery Margin" : "Full Hospital Letterhead"}</strong></span>
+            <span>•</span>
+            <span>GST: <strong>{ipdBillingSettings?.gst?.mode === "taxable" ? `Taxable ${ipdBillingSettings?.gst?.taxRate}%` : "Exempted (0%)"}</strong></span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              type="button"
+              className="ipd-btn-outline"
+              onClick={() => setShowPrintBillModal(false)}
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              className="ipd-btn-search"
+              style={{ background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)", height: 34, padding: "0 18px", gap: 6 }}
+              onClick={handlePrintOfficialBill}
+            >
+              <Icon name="LuPrinter" size={15} /> 🖨️ Print Official IPD Slip &amp; Tax Invoice
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -3861,8 +4728,8 @@ export default function IPDBilling() {
           {/* Financial Clearance Audit Banner */}
           <div className="ipd-discharge-audit-card">
             <div className="ipd-dac-header">
-              <span className="ipd-dac-badge">FINANCIAL BILLING AUDIT: 100% CLEARED</span>
-              <span className="ipd-dac-net">Net Balance: ₹0.00</span>
+              <span className="ipd-dac-badge">{pendingAmount > 0 ? "FINANCIAL BILLING AUDIT: PENDING DUES" : "FINANCIAL BILLING AUDIT: 100% CLEARED"}</span>
+              <span className="ipd-dac-net">{pendingAmount > 0 ? `Balance Due: ₹${pendingAmount.toLocaleString("en-IN")}` : excessAdvance > 0 ? `Excess Credit: ₹${excessAdvance.toLocaleString("en-IN")}` : "Net Balance: ₹0.00"}</span>
             </div>
             <div className="ipd-dac-grid">
               <div>
@@ -3984,7 +4851,7 @@ export default function IPDBilling() {
             className="ipd-btn-success-primary"
             onClick={() => {
               setShowDischargeSuccessModal(false);
-              setShowPrintBillModal(true);
+              handleOpenPrintBillModal();
             }}
           >
             <Icon name="LuPrinter" size={16} /> 🧾 Print Official Bill Slip

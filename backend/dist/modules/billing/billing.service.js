@@ -8,16 +8,30 @@ class BillingService {
     constructor() {
         this.repository = new billing_repository_1.BillingRepository();
     }
+    async getDiscountReasons(organizationId) {
+        return this.repository.getDiscountReasons(organizationId);
+    }
+    async getReferrals(organizationId, facilityId) {
+        return this.repository.getReferrals(organizationId, facilityId);
+    }
     async createInvoice(data, organizationId) {
         const subtotal = data.items.reduce((acc, item) => acc + (item.qty * item.price), 0);
         const totalAmount = Math.max(0, subtotal - (data.discount_total || 0));
         return this.repository.createInvoice({
+            ...data,
             organization_id: organizationId,
             facility_id: data.facility_id,
             patient_id: data.patient_id,
+            encounter_id: data.encounter_id,
             invoice_type: data.invoice_type,
             subtotal,
             discount_total: data.discount_total || 0,
+            discount_reason_id: data.discount_reason_id,
+            discount_approved_by: data.discount_approved_by,
+            discount_reference: data.discount_reference,
+            referral_source: data.referral_source,
+            referred_by: data.referred_by,
+            notes: data.notes,
             total_amount: totalAmount,
             items: data.items,
             payment_mode: data.payment_mode
@@ -36,8 +50,8 @@ class BillingService {
     async addCharge(data, organizationId, userId) {
         return this.repository.addCharge({
             ...data,
-            organization_id: organizationId,
-            user_id: userId
+            organization_id: organizationId || data.organization_id,
+            user_id: userId || data.user_id
         });
     }
     async removeCharge(id, facilityId) {
@@ -47,14 +61,20 @@ class BillingService {
         }
         return charge;
     }
+    async updateChargeDiscount(id, data) {
+        return this.repository.updateChargeDiscount(id, data);
+    }
+    async applyConcessionBatch(data) {
+        return this.repository.applyConcessionBatch(data);
+    }
     async getRunningBill(encounterId, facilityId) {
         return this.repository.getRunningBill(encounterId, facilityId);
     }
     async recordAdvancePayment(data, organizationId, userId) {
         return this.repository.recordAdvancePayment({
             ...data,
-            organization_id: organizationId,
-            user_id: userId
+            organization_id: organizationId || data.organization_id,
+            user_id: userId || data.user_id
         });
     }
     async getEncounterPayments(encounterId, facilityId) {
@@ -63,15 +83,15 @@ class BillingService {
     async settleBill(data, organizationId, userId) {
         return this.repository.settleBill({
             ...data,
-            organization_id: organizationId,
-            user_id: userId
+            organization_id: organizationId || data.organization_id,
+            user_id: userId || data.user_id
         });
     }
     async processRefund(data, organizationId, userId) {
         return this.repository.processRefund({
             ...data,
-            organization_id: organizationId,
-            user_id: userId
+            organization_id: organizationId || data.organization_id,
+            user_id: userId || data.user_id
         });
     }
     async creditWallet(data) {

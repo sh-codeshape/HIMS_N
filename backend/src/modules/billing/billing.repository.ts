@@ -563,6 +563,58 @@ export class BillingRepository {
 
     const postedCharges: any[] = [];
 
+    // Fallback if no specific bed assignments exist for this admission: calculate based on admission stay dates
+    if (baRes.rows.length === 0) {
+      const fromDate = new Date(encounter.admitted_at || encounter.started_at || new Date());
+      const toDate = encounter.discharged_at ? new Date(encounter.discharged_at) : (encounter.ended_at ? new Date(encounter.ended_at) : new Date());
+      const diffMs = Math.max(0, toDate.getTime() - fromDate.getTime());
+      const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+      const rate = 1500;
+      const description = `Bed Charge: General Inpatient Stay (${days} day(s))`;
+
+      const existingCharge = await db.query(
+        `SELECT id, quantity, net_amount FROM charges 
+         WHERE encounter_id = $1 AND (custom_fields->>'item_category') = 'Room Charges' AND status != 'cancelled'
+         LIMIT 1;`,
+        [encounterId]
+      );
+
+      if (existingCharge.rows.length > 0) {
+        const existing = existingCharge.rows[0];
+        if (Number(existing.quantity) !== days) {
+          const total = days * rate;
+          const updated = await db.query(
+            `UPDATE charges 
+             SET quantity = $2, unit_price = $3, taxable_amount = $4, net_amount = $4, description = $5, updated_at = NOW()
+             WHERE id = $1 RETURNING *;`,
+            [existing.id, days, rate, total, description]
+          );
+          postedCharges.push(updated.rows[0]);
+        } else {
+          postedCharges.push(existing);
+        }
+      } else {
+        const total = days * rate;
+        const charge = await this.addCharge({
+          organization_id: orgId,
+          facility_id: encounter.facility_id || facilityId,
+          patient_id: encounter.patient_id,
+          encounter_id: encounterId,
+          service_id: null,
+          item_name: description,
+          item_category: 'Room Charges',
+          quantity: days,
+          unit_price: rate,
+          rate: rate,
+          total_amount: total,
+          user_id: userId,
+          custom_fields: { days, item_category: 'Room Charges', auto_bed_charge: true },
+        });
+        postedCharges.push(charge);
+      }
+      return postedCharges;
+    }
+
     for (const ba of baRes.rows) {
       const fromDate = new Date(ba.assigned_from);
       const toDate = ba.assigned_to ? new Date(ba.assigned_to) : new Date();
@@ -643,7 +695,7 @@ export class BillingRepository {
     let query = `
       UPDATE charges 
       SET status = 'cancelled', updated_at = NOW()
-      WHERE id = $1 AND status = 'billable'
+      WHERE id = $1 AND status IN ('billable', 'billed')
     `;
     const params: any[] = [id];
     if (facilityId && facilityId !== '00000000-0000-0000-0000-000000000000') {
@@ -653,6 +705,81 @@ export class BillingRepository {
     query += ` RETURNING *;`;
     const res = await db.query(query, params);
     return res.rows[0];
+  }
+
+  async updateChargeDiscount(id: string, data: any) {
+    const chargeRes = await db.query(
+      `SELECT * FROM charges WHERE id = $1 AND status IN ('billable', 'billed')`,
+      [id]
+    );
+    if (chargeRes.rows.length === 0) {
+      throw new NotFoundError('Charge item not found or already cancelled');
+    }
+    const charge = chargeRes.rows[0];
+    const qty = Number(charge.quantity) || 1;
+    const price = Number(charge.unit_price) || 0;
+    const gross = Number(charge.gross_amount || (price * qty));
+
+    let discPct = Number(data.discount_percent ?? data.discountPercent ?? 0);
+    let discAmt = Number(data.discount_amount ?? data.discountAmount ?? 0);
+
+    if (discPct > 0 && discAmt === 0) {
+      discAmt = Math.round((gross * discPct) / 100);
+    } else if (discAmt > 0 && discPct === 0 && gross > 0) {
+      discPct = Number(((discAmt / gross) * 100).toFixed(2));
+    }
+    discAmt = Math.min(discAmt, gross);
+    if (discAmt > 0 && gross > 0 && discPct === 0) {
+      discPct = Number(((discAmt / gross) * 100).toFixed(2));
+    }
+
+    const taxable = Math.max(0, gross - discAmt);
+    const taxAmt = Number(charge.tax_amount || 0);
+    const net = taxable + taxAmt;
+
+    const customFields = {
+      ...(charge.custom_fields || {}),
+      discount_reason: data.discount_reason || data.discountReason || null,
+      discount_reason_id: data.discount_reason_id || data.discountReasonId || null,
+      discount_reference: data.discount_reference || data.discountReference || null,
+      referred_by: data.referred_by || data.referredBy || charge.custom_fields?.referred_by || null,
+      referral_source: data.referral_source || data.referralSource || charge.custom_fields?.referral_source || null,
+    };
+
+    const res = await db.query(
+      `UPDATE charges 
+       SET discount_percent = $1, discount_amount = $2, taxable_amount = $3, net_amount = $4, custom_fields = $5, updated_at = NOW()
+       WHERE id = $6 RETURNING *`,
+      [discPct, discAmt, taxable, net, JSON.stringify(customFields), id]
+    );
+    return res.rows[0];
+  }
+
+  async applyConcessionBatch(data: any) {
+    const { encounter_id, charge_ids, discount_percent, discount_amount, discount_reason, discount_reference, referred_by, referral_source } = data;
+    if (!encounter_id) {
+      throw new ValidationError('encounter_id is required for applying concession');
+    }
+    let query = `SELECT * FROM charges WHERE encounter_id = $1 AND status IN ('billable', 'billed')`;
+    const params: any[] = [encounter_id];
+    if (Array.isArray(charge_ids) && charge_ids.length > 0) {
+      params.push(charge_ids);
+      query += ` AND id = ANY($2)`;
+    }
+    const chargesRes = await db.query(query, params);
+    const updated = [];
+    for (const c of chargesRes.rows) {
+      const up = await this.updateChargeDiscount(c.id, {
+        discount_percent,
+        discount_amount,
+        discount_reason,
+        discount_reference,
+        referred_by,
+        referral_source,
+      });
+      updated.push(up);
+    }
+    return updated;
   }
 
   async getRunningBill(encounterId: string, facilityId?: string) {

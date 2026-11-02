@@ -17,8 +17,10 @@
   --sky-100: #e6f0f9;
   --sky-50: #f3f8fd;
   --ink: #0b1b36;
-  --muted: #55698a;
-  --line: #9fbbd6;
+  --muted: #496182;
+  --line: #527e9f;
+  --line-bold: #23547d;
+  --line-subtle: #9cbcd5;
   --gold: #f5c542;
   --green: #0f9d6b;
   --red: #e11d1d;
@@ -145,12 +147,12 @@
 .ipd-card {
   position: relative;
   padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.97);
   backdrop-filter: blur(8px);
-  border: 1.5px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: 10px;
-  box-shadow: 0 4px 14px rgba(8, 26, 61, 0.08);
-  transition: border-color 0.15s ease;
+  box-shadow: 0 4px 18px rgba(8, 26, 61, 0.12);
+  transition: all 0.15s ease;
 }
 
 .opd-card-title,
@@ -160,11 +162,11 @@
   justify-content: space-between;
   gap: 8px;
   margin: -14px -16px 12px -16px;
-  padding: 8px 14px;
-  background: linear-gradient(180deg, #d3e4f4 0%, #bdd7ee 100%);
-  border-bottom: 1.5px solid var(--line);
-  border-top-left-radius: 9px;
-  border-top-right-radius: 9px;
+  padding: 9px 14px;
+  background: linear-gradient(180deg, #cce1f4 0%, #b2d2ed 100%);
+  border-bottom: 2px solid var(--line-bold);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
   font-size: 13px;
   font-weight: 800;
   letter-spacing: -0.01em;
@@ -2498,9 +2500,9 @@
 /* ── 11. UNIFIED SINGLE MASTER BILLING FORM (ONE SEAMLESS CONTAINER) ── */
 .ipd-master-billing-sheet {
   background: #ffffff;
-  border: 1.5px solid var(--line);
+  border: 2px solid var(--line-bold);
   border-radius: 12px;
-  box-shadow: 0 6px 24px rgba(8, 26, 61, 0.08);
+  box-shadow: 0 8px 30px rgba(8, 26, 61, 0.14);
   overflow: hidden;
   margin-top: 14px;
 }
@@ -2508,12 +2510,12 @@
 /* ── Pure White Professional Inpatient Profile Card ── */
 .ipd-patient-profile-card {
   background: #ffffff;
-  border-bottom: 1.5px solid #e2e8f0;
-  padding: 12px 20px 12px 20px;
+  border-bottom: 2px solid var(--line-bold);
+  padding: 14px 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(8, 26, 61, 0.04);
 }
 
 .ipd-ppc-header {
@@ -2702,8 +2704,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding-top: 8px;
-  border-top: 1px solid #f1f5f9;
+  padding-top: 10px;
+  border-top: 1.5px solid var(--line-subtle);
   flex-wrap: wrap;
 }
 
@@ -2752,21 +2754,27 @@
 .ipd-ppc-balance-box {
   display: flex;
   flex-direction: column;
-  padding: 4px 12px;
-  border-radius: 7px;
+  padding: 6px 14px;
+  border-radius: 8px;
   min-width: 140px;
   background: #ffffff;
-  border: 1.5px solid #e2e8f0;
+  border: 2px solid var(--line);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
 .ipd-ppc-balance-box.has-due {
-  background: #fffafa;
-  border-color: #fca5a5;
+  background: #fff5f5;
+  border-color: #dc2626;
 }
 
 .ipd-ppc-balance-box.cleared {
   background: #f0fdf4;
-  border-color: #bbf7d0;
+  border-color: #16a34a;
+}
+
+.ipd-ppc-balance-box.has-excess {
+  background: #f0f9ff;
+  border-color: #0284c7;
 }
 
 .ipd-ppc-bb-head {
@@ -2817,6 +2825,10 @@
   color: #16a34a;
 }
 
+.ipd-ppc-balance-box.has-excess .ipd-ppc-bb-amount {
+  color: #0284c7;
+}
+
 .ipd-ppc-bb-audit {
   font-size: 10px;
   color: #64748b;
@@ -2831,10 +2843,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 18px;
+  padding: 10px 18px;
   background: linear-gradient(180deg, #f0f7ff 0%, #e2eefb 100%);
-  border-top: 1.5px solid var(--line);
-  border-bottom: 1.5px solid var(--line);
+  border-top: 2px solid var(--line-bold);
+  border-bottom: 2px solid var(--line-bold);
   flex-wrap: wrap;
 }
 
@@ -5580,6 +5592,827 @@
 
 .ipd-ppc-bb-audit {
   font-size: 10px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   IPD BILLING UI ENHANCEMENTS: CONCESSIONS, METRICS & BULK ACTIONS
+   ═══════════════════════════════════════════════════════════════ */
+
+.ipd-ppc-balance-box.has-excess {
+  background: #f0fdf4 !important;
+  border-color: #86efac !important;
+}
+
+.ipd-ppc-balance-box.has-excess .ipd-ppc-bb-amount {
+  color: #059669 !important;
+}
+
+.ipd-ppc-bb-head .tag.excess {
+  background: #dcfce7 !important;
+  color: #047857 !important;
+  border: 1px solid #86efac !important;
+}
+
+.ipd-wfs-card--excess::before {
+  background: #059669 !important;
+}
+
+.ipd-wfs-card--discounts {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ipd-wfs-card--discounts:hover {
+  background: #fffbeb !important;
+  border-color: #fde68a !important;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.12) !important;
+  transform: translateY(-1px);
+}
+
+.ipd-wfs-quick-action {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #b45309;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 4px;
+  padding: 1px 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-wfs-card--discounts:hover .ipd-wfs-quick-action {
+  background: #f59e0b;
+  color: #ffffff;
+  border-color: #d97706;
+}
+
+/* Excess Advance Card in Right Side Panel */
+.ipd-col-payments .ipd-excess-advance-card {
+  margin: 0 0 14px 0 !important;
+  padding: 10px 14px !important;
+  border-radius: 8px !important;
+}
+
+.ipd-col-payments .ipd-excess-advance-card .ipd-eac-icon {
+  width: 36px !important;
+  height: 36px !important;
+  font-size: 20px !important;
+}
+
+.ipd-col-payments .ipd-excess-advance-card .ipd-eac-title {
+  font-size: 13px !important;
+}
+
+.ipd-col-payments .ipd-excess-advance-card .ipd-eac-sub {
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+}
+
+.ipd-col-payments .ipd-excess-advance-card .ipd-eac-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.ipd-col-payments .ipd-excess-advance-card .ipd-eac-btn-wallet,
+.ipd-col-payments .ipd-excess-advance-card .ipd-eac-btn-refund {
+  padding: 6px 10px !important;
+  font-size: 11.5px !important;
+  border-radius: 6px !important;
+}
+
+/* Table Bulk Action Bar */
+.ipd-table-bulk-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+  border: 1.5px solid #bfdbfe;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  animation: ipdModalIn 0.15s ease-out;
+}
+
+.ipd-tbb-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ipd-tbb-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e40af;
+}
+
+.ipd-tbb-sub {
+  font-size: 11px;
+  color: #3b82f6;
+  font-weight: 600;
+  background: #ffffff;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid #dbeafe;
+}
+
+.ipd-tbb-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ipd-tbb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-tbb-btn--concession {
+  background: #d97706;
+  color: #ffffff;
+}
+
+.ipd-tbb-btn--concession:hover {
+  background: #b45309;
+  transform: translateY(-1px);
+}
+
+.ipd-tbb-btn--delete {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+.ipd-tbb-btn--delete:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+/* Row Action Buttons & Cells */
+.ipd-btn-disc-row {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #ea580c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.ipd-btn-disc-row:hover {
+  background: #ea580c;
+  color: #ffffff;
+  border-color: #c2410c;
+  transform: translateY(-1px);
+}
+
+.ipd-table-disc-cell {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  display: inline-block;
+  transition: all 0.15s ease;
+}
+
+.ipd-table-disc-cell:hover {
+  background: #fecaca;
+  transform: scale(1.03);
+}
+
+.ipd-table-add-disc-btn {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  border: 1px dashed #cbd5e1;
+  padding: 1px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  transition: all 0.15s ease;
+}
+
+.ipd-table-add-disc-btn:hover {
+  color: #d97706;
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+/* Concession Modal Styles */
+.ipd-modal-box--concession {
+  max-width: 560px;
+  border-top: 3px solid #d97706;
+}
+
+.ipd-concession-scope-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.ipd-scope-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 6px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-scope-pill.active {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #f59e0b;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(245, 158, 11, 0.15);
+}
+
+.ipd-input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ipd-input-group .ipd-input-control {
+  padding-left: 26px;
+}
+
+.ipd-input-group .ipd-input-affix {
+  position: absolute;
+  left: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.ipd-concession-calc-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ipd-concession-calc-card .calc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12.5px;
+}
+
+.ipd-concession-calc-card .calc-row .lbl {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.ipd-concession-calc-card .calc-row .val {
+  font-weight: 700;
+  font-family: monospace;
+  color: #1e293b;
+}
+
+.ipd-concession-calc-card .calc-row.discount .val {
+  color: #dc2626;
+}
+
+.ipd-concession-calc-card .calc-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 4px 0;
+}
+
+.ipd-concession-calc-card .calc-row.net {
+  font-size: 13.5px;
+}
+
+.ipd-concession-calc-card .calc-row.net .lbl {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.ipd-concession-calc-card .calc-row.net .val {
+  color: #059669;
+  font-weight: 900;
+  font-size: 15px;
+}
+
+/* ==========================================================================
+   AUTOMATED INPATIENT BED STAY & TARIFF CALCULATOR CARD
+   ========================================================================== */
+.ipd-auto-bed-card {
+  margin: 10px 0 14px;
+  background: #f8fafc;
+  border: 2px solid var(--line-bold);
+  border-radius: 9px;
+  padding: 12px 14px;
+  box-shadow: 0 3px 12px rgba(8, 26, 61, 0.06);
+}
+
+.ipd-abc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1.5px solid var(--line-subtle);
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.ipd-abc-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ipd-abc-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  box-shadow: 0 2px 5px rgba(2, 132, 199, 0.25);
+}
+
+.ipd-abc-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--navy-900);
+}
+
+.ipd-abc-subtitle {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.ipd-abc-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ipd-abc-metric-box {
+  background: #ffffff;
+  border: 1.5px solid var(--line-subtle);
+  border-radius: 7px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ipd-abc-metric-box .lbl {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+}
+
+.ipd-abc-metric-box .val {
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.ipd-abc-metric-box.highlight {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.ipd-abc-metric-box.highlight .val {
+  color: #15803d;
+}
+
+.ipd-abc-metric-box.warning {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.ipd-abc-metric-box.warning .val {
+  color: #b45309;
+}
+
+.ipd-abc-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-top: 1px dashed var(--line-subtle);
+  padding-top: 10px;
+}
+
+.ipd-abc-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 14px;
+}
+
+.ipd-abc-status-chip.synced {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1.5px solid #a7f3d0;
+}
+
+.ipd-abc-status-chip.unbilled {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1.5px solid #fecdd3;
+}
+
+.ipd-abc-btn-autopost {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border: 1.5px solid #075985;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
+}
+
+.ipd-abc-btn-autopost:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0369a1 0%, #0c4a6e 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(2, 132, 199, 0.35);
+}
+
+.ipd-abc-btn-autopost:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   PRINT SLIP STUDIO MODAL & TOOLBAR
+   ========================================================================== */
+.ipd-print-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.25);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.ipd-zoom-ctrl-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.ipd-zoom-btn {
+  background: transparent;
+  border: none;
+  color: #e2e8f0;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.ipd-zoom-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.ipd-zoom-btn.active {
+  background: #38bdf8;
+  color: #0f172a;
+}
+
+.ipd-print-paper-canvas {
+  background: #1e293b;
+  padding: 24px 16px;
+  min-height: 70vh;
+  max-height: 82vh;
+  overflow-y: auto;
+  overflow-x: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.ipd-print-paper-page {
+  background: #ffffff;
+  border: 1px solid #475569;
+  border-radius: 4px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  transition: width 0.15s ease;
+  margin: 0 auto;
+}
+
+/* Quick Print Customizer & Real-time Toggles */
+.ipd-slip-toggle-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 9999px;
+  padding: 4px 11px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.ipd-slip-toggle-pill:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #f1f5f9;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.ipd-slip-toggle-pill--active {
+  background: rgba(16, 185, 129, 0.22);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.55);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+}
+
+.ipd-slip-toggle-pill--active:hover {
+  background: rgba(16, 185, 129, 0.32);
+  color: #6ee7b7;
+  border-color: #34d399;
+}
+
+.ipd-slip-toggle-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #64748b;
+  display: inline-block;
+  transition: all 0.2s ease;
+}
+
+.ipd-slip-toggle-pill--active .ipd-slip-toggle-dot {
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+}
+
+.ipd-slip-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  height: 34px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ipd-slip-edit-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.ipd-slip-edit-btn.active {
+  background: #ffd766;
+  color: #081a3d;
+  border-color: #f59e0b;
+  box-shadow: 0 0 12px rgba(255, 215, 102, 0.4);
+}
+
+.ipd-print-split-container {
+  display: flex;
+  align-items: stretch;
+  background: #1e293b;
+  min-height: 70vh;
+  max-height: 82vh;
+  overflow: hidden;
+}
+
+.ipd-print-split-container .ipd-print-paper-canvas {
+  flex: 1;
+  min-width: 0;
+  max-height: 82vh;
+  overflow-y: auto;
+}
+
+.ipd-slip-editor-sidebar {
+  width: 380px;
+  min-width: 360px;
+  max-width: 400px;
+  background: #f8fafc;
+  border-right: 2px solid var(--line-bold, #23547d);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+.ipd-slip-editor-head {
+  padding: 12px 14px;
+  background: #ffffff;
+  border-bottom: 1.5px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ipd-slip-editor-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.ipd-slip-editor-subtitle {
+  font-size: 10.5px;
+  color: #64748b;
+  margin: 2px 0 0 0;
+}
+
+.ipd-btn-save-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #0f2e5a;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(15, 46, 90, 0.25);
+  transition: all 0.15s ease;
+}
+
+.ipd-btn-save-sm:hover:not(:disabled) {
+  background: #1e40af;
+  transform: translateY(-1px);
+}
+
+.ipd-btn-revert-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ffffff;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-btn-revert-sm:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.ipd-slip-saved-toast {
+  background: #ecfdf5;
+  border-bottom: 1px solid #a7f3d0;
+  color: #065f46;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ipd-slip-editor-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ipd-slip-section-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.ipd-slip-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #1e3a8a;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 6px;
+}
+
+.ipd-slip-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ipd-slip-form-group label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  margin: 0;
+}
+
+.ipd-slip-input {
+  width: 100%;
+  padding: 6px 9px;
+  font-size: 11.5px;
+  color: #0f172a;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.ipd-slip-input:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+}
+
+.ipd-slip-input-sm {
+  padding: 4px 7px;
+  font-size: 11px;
+  color: #0f172a;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 5px;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.ipd-slip-input-sm:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+}
+
+.ipd-slip-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 

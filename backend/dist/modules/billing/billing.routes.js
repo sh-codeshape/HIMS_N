@@ -11,6 +11,9 @@ const router = (0, express_1.Router)();
 const controller = new billing_controller_1.BillingController();
 router.use(authenticate_1.authenticate); // Require authentication for all billing routes
 router.use((0, moduleGuard_1.moduleGuard)('billing'));
+// Master Data: Discount reasons and referral sources (MUST be declared before /:id)
+router.get('/discount-reasons', controller.getDiscountReasons);
+router.get('/referrals', controller.getReferrals);
 // Report routes (MUST be declared before /:id)
 router.get('/reports/summary', controller.getReportsSummary);
 router.get('/reports/pending-dues', controller.getPendingDuesReport);
@@ -20,6 +23,8 @@ router.get('/patient/:patientId/dues', controller.getPatientDues);
 router.post('/charges', controller.addCharge);
 router.post('/charges/bed', (0, validate_1.validate)(billing_schema_1.postBedChargesSchema), controller.postBedCharges);
 router.post('/bed-charges', (0, validate_1.validate)(billing_schema_1.postBedChargesSchema), controller.postBedCharges);
+router.post('/charges/apply-concession', controller.applyConcessionBatch);
+router.patch('/charges/:id/discount', controller.updateChargeDiscount);
 router.delete('/charges/:id', controller.removeCharge);
 router.get('/running-bill/:encounterId', controller.getRunningBill);
 router.post('/payments/advance', controller.recordAdvancePayment);

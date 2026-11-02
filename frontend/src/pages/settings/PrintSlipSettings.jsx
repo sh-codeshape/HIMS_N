@@ -5,6 +5,7 @@ import settingsService from "../../api/services/settingsService.js";
 import PrintSlipHandler from "../../services/PrintSlipHandler.js";
 import { DEFAULT_HOSPITAL_CONFIG } from "../../data/printlslip.data.jsx";
 import IPDDischargePrintSettings from "./IPDDischargePrintSettings.jsx";
+import IPDBillingPrintSettings from "./IPDBillingPrintSettings.jsx";
 
 const SAMPLE_SLIP_DATA = {
   patientName: "Adeesh",
@@ -306,6 +307,18 @@ export default function PrintSlipSettings() {
           </button>
           <button
             type="button"
+            onClick={() => setActiveTab("ipd-billing")}
+            className={`px-4 py-2 font-bold text-sm rounded-lg flex items-center gap-2 transition-all ${
+              activeTab === "ipd-billing"
+                ? "bg-sky-900 text-white shadow-sm"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
+          >
+            <Icon name="LuIndianRupee" size={16} />
+            <span>IPD Billing Slip / Invoice</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab("ipd-discharge")}
             className={`px-4 py-2 font-bold text-sm rounded-lg flex items-center gap-2 transition-all ${
               activeTab === "ipd-discharge"
@@ -331,7 +344,7 @@ export default function PrintSlipSettings() {
         </div>
 
         {/* Global Action Buttons for OPD */}
-        {activeTab !== "ipd-discharge" && (
+        {activeTab !== "ipd-discharge" && activeTab !== "ipd-billing" && (
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -363,8 +376,11 @@ export default function PrintSlipSettings() {
       {/* Render IPD Discharge Designer Tab */}
       {activeTab === "ipd-discharge" && <IPDDischargePrintSettings />}
 
+      {/* Render IPD Billing Slip Designer Tab */}
+      {activeTab === "ipd-billing" && <IPDBillingPrintSettings />}
+
       {/* Save Notification for OPD */}
-      {activeTab !== "ipd-discharge" && saveStatus && (
+      {activeTab !== "ipd-discharge" && activeTab !== "ipd-billing" && saveStatus && (
         <div
           className={`p-3.5 rounded-xl border text-sm font-medium flex items-center justify-between ${
             saveStatus.type === "success"
@@ -387,7 +403,7 @@ export default function PrintSlipSettings() {
       )}
 
       {/* Main Split Grid: Left Form Controls, Right Live Preview */}
-      {activeTab !== "ipd-discharge" && (
+      {activeTab !== "ipd-discharge" && activeTab !== "ipd-billing" && (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
           {/* LEFT COLUMN: Controls Form (5 cols) */}
           <div className="xl:col-span-5 space-y-6">
