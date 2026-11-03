@@ -47,6 +47,16 @@ axiosInstance.interceptors.response.use(
 
     const { status, data } = error.response;
 
+    // Allow callers to suppress the default axios toast if they handle it themselves
+    if (error.config?.skipErrorToast) {
+      return Promise.reject(error);
+    }
+
+    const serverMessage =
+      data?.error?.message ||
+      data?.message ||
+      (typeof data === "string" ? data : null);
+
     if (status === 401) {
       if (!error.config.url.includes('/auth/login')) {
         toast.error("Session expired. Please log in again.");
@@ -55,13 +65,18 @@ axiosInstance.interceptors.response.use(
         window.location.href = "/login";
       }
     } else if (status === 403) {
-      toast.error("You don't have permission to do that.");
+      toast.error(serverMessage || "You don't have permission to do that.");
     } else if (status === 404) {
-      toast.error(data?.message || "Requested resource not found.");
+      toast.error(serverMessage || "Requested resource not found.");
+    } else if (status === 409) {
+      toast.error(
+        serverMessage || "A patient with this name and phone number already exists.",
+        { id: "conflict-error", duration: 5000, icon: "⚠️" }
+      );
     } else if (status >= 500) {
-      toast.error("Server error. Please try again shortly.");
+      toast.error(serverMessage || "Server error. Please try again shortly.");
     } else {
-      toast.error(data?.message || "Something went wrong.");
+      toast.error(serverMessage || "Something went wrong.");
     }
 
     return Promise.reject(error);

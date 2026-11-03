@@ -97,7 +97,12 @@ export default function PatientRegistrationForm({ onRegistered }) {
         notes: "",
       });
     } catch (err) {
-      toast.error("Failed to register patient");
+      const serverMsg =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to register patient";
+      toast.error(serverMsg, { id: "patient-registration-error", duration: 5000 });
       console.error(err);
     }
   };

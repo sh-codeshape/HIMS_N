@@ -8,6 +8,8 @@ vi.mock('./patient.repository', () => ({
     searchPatients: vi.fn(),
     updatePatient: vi.fn(),
     updatePatientAddress: vi.fn(),
+    findPatientByPhoneAndName: vi.fn(),
+    checkPhoneNameExists: vi.fn(),
   },
 }));
 
@@ -109,5 +111,48 @@ describe('patientService.searchPatients', () => {
       }),
     );
     expect((patientRepository.updatePatient as any).mock.calls.at(-1)[2]).not.toHaveProperty('blood_group');
+  });
+});
+
+describe('patientService.createPatient duplicate verification', () => {
+  it('throws ConflictError with existing patient UHID and details when phone and name match', async () => {
+    vi.mocked(patientRepository.findPatientByPhoneAndName).mockResolvedValue({
+      id: 'existing-id-123',
+      uhid: '1026-0001',
+      first_name: 'John',
+      last_name: 'Doe',
+      full_name: 'John Doe',
+      phone: '9876543210',
+    } as any);
+
+    await expect(
+      patientService.createPatient('org-1', {
+        facility_id: '00000000-0000-0000-0000-000000000000',
+        first_name: 'John',
+        last_name: 'Doe',
+        phone: '9876543210',
+        gender: 'male',
+      } as any)
+    ).rejects.toThrow('A patient with this name and phone number already exists (UHID: 1026-0001).');
+  });
+
+  it('falls back to checkPhoneNameExists if findPatientByPhoneAndName is unavailable', async () => {
+    const originalFind = patientRepository.findPatientByPhoneAndName;
+    (patientRepository as any).findPatientByPhoneAndName = undefined;
+    vi.mocked(patientRepository.checkPhoneNameExists).mockResolvedValue(true);
+
+    try {
+      await expect(
+        patientService.createPatient('org-1', {
+          facility_id: '00000000-0000-0000-0000-000000000000',
+          first_name: 'Alice',
+          last_name: 'Smith',
+          phone: '9123456789',
+          gender: 'female',
+        } as any)
+      ).rejects.toThrow('A patient with this name and phone number already exists.');
+    } finally {
+      (patientRepository as any).findPatientByPhoneAndName = originalFind;
+    }
   });
 });

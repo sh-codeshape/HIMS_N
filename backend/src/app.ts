@@ -64,6 +64,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   
   res.status(statusCode).json({
     success: false,
+    message,
     error: {
       code: err.code || 'INTERNAL_ERROR',
       message,

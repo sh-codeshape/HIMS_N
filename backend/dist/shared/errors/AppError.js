@@ -41,8 +41,10 @@ class ForbiddenError extends AppError {
 }
 exports.ForbiddenError = ForbiddenError;
 class ConflictError extends AppError {
-    constructor(message = 'Resource conflict') {
+    details;
+    constructor(message = 'Resource conflict', details) {
         super(message, 409, 'CONFLICT');
+        this.details = details;
     }
 }
 exports.ConflictError = ConflictError;

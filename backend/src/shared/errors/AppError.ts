@@ -39,7 +39,9 @@ export class ForbiddenError extends AppError {
 }
 
 export class ConflictError extends AppError {
-  constructor(message = 'Resource conflict') {
+  public readonly details?: any;
+  constructor(message = 'Resource conflict', details?: any) {
     super(message, 409, 'CONFLICT');
+    this.details = details;
   }
 }

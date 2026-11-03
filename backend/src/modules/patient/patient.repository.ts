@@ -7,17 +7,29 @@ export class PatientRepository {
     return Number(result.rows[0].next_serial);
   }
 
-  async checkPhoneNameExists(organization_id: string, phone: string, first_name: string, last_name: string): Promise<boolean> {
+  async findPatientByPhoneAndName(
+    organization_id: string,
+    phone: string,
+    first_name: string,
+    last_name: string
+  ): Promise<{ id: string; uhid: string; first_name: string; last_name: string; full_name?: string } | null> {
     const query = `
-      SELECT 1 FROM patients 
+      SELECT id, uhid, first_name, last_name, full_name, phone 
+      FROM patients 
       WHERE organization_id = $1 
       AND phone = $2 
       AND lower(first_name) = lower($3) 
-      AND lower(last_name) = lower($4)
+      AND lower(COALESCE(last_name, '')) = lower(COALESCE($4, ''))
+      AND deleted_at IS NULL
       LIMIT 1
     `;
-    const result = await db.query(query, [organization_id, phone, first_name, last_name]);
-    return (result.rowCount ?? 0) > 0;
+    const result = await db.query(query, [organization_id, phone, first_name, last_name ?? '']);
+    return result.rows[0] || null;
+  }
+
+  async checkPhoneNameExists(organization_id: string, phone: string, first_name: string, last_name: string): Promise<boolean> {
+    const existing = await this.findPatientByPhoneAndName(organization_id, phone, first_name, last_name);
+    return !!existing;
   }
 
   async createPatient(

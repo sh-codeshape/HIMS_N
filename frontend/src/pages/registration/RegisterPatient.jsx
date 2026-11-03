@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import {
   LuUserPlus, LuUser, LuPhone, LuFileText,
   LuCircleCheck, LuSearch, LuX, LuStethoscope,
@@ -98,7 +99,6 @@ export default function RegisterPatient() {
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
-  const [toast, setToast] = useState(null); // { msg, type }
 
   // ── Search state ────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
@@ -126,8 +126,13 @@ export default function RegisterPatient() {
   }, []);
 
   const showToast = (msg, type = "success") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 4000);
+    if (type === "error") {
+      toast.error(msg, { id: "rp-toast", duration: 5000 });
+    } else if (type === "info") {
+      toast(msg, { id: "rp-toast", duration: 4000, icon: "ℹ️" });
+    } else {
+      toast.success(msg, { id: "rp-toast", duration: 4000 });
+    }
   };
 
   // ── Live search handler ──────────────────────────────────────────────────
@@ -444,7 +449,7 @@ export default function RegisterPatient() {
     if (!validate()) return;
     try {
       const payload = buildPatientRecord();
-      const patient = await patientService.create(payload);
+      const patient = await patientService.create(payload, { skipErrorToast: true });
       showToast(`🎉 Patient Registered! UHID: ${patient.uhid}`);
       if (path) {
         const doctorParam = formData.doctor ? `&doctor=${encodeURIComponent(formData.doctor)}` : "";
@@ -452,7 +457,13 @@ export default function RegisterPatient() {
       }
       handleReset();
     } catch (err) {
-      showToast("Error registering patient: " + err.message, "error");
+      const serverMsg =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Error registering patient";
+
+      showToast(serverMsg, "error");
     }
   };
 
@@ -461,15 +472,6 @@ export default function RegisterPatient() {
 
   return (
     <div className="rp-page">
-
-      {/* Toast Notification */}
-      {toast && (
-        <div className={`rp-toast rp-toast--${toast.type === "error" ? "error" : toast.type === "info" ? "info" : "success"}`}>
-          <LuCircleCheck size={16} />
-          {toast.msg}
-        </div>
-      )}
-
       {/* FAMILY MODAL */}
       {selectedPatientForFamily && (
         <div className="rp-overlay">

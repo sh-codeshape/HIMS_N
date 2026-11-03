@@ -70,8 +70,8 @@ const patientService = {
     const res = await axiosInstance.get(`${ENDPOINTS.PATIENTS.BASE}/${id}`);
     return normalizePatientRecord(res.data?.data ?? res.data);
   },
-  create: async (data) => {
-    const res = await axiosInstance.post(ENDPOINTS.PATIENTS.BASE, data);
+  create: async (data, config = {}) => {
+    const res = await axiosInstance.post(ENDPOINTS.PATIENTS.BASE, data, config);
     return normalizePatientRecord(res.data?.data ?? res.data);
   },
   update: async (id, data) => {

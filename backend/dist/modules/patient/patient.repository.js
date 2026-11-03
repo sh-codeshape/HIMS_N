@@ -7,17 +7,23 @@ class PatientRepository {
         const result = await database_1.db.query(`SELECT nextval('uhid_seq') AS next_serial`);
         return Number(result.rows[0].next_serial);
     }
-    async checkPhoneNameExists(organization_id, phone, first_name, last_name) {
+    async findPatientByPhoneAndName(organization_id, phone, first_name, last_name) {
         const query = `
-      SELECT 1 FROM patients 
+      SELECT id, uhid, first_name, last_name, full_name, phone 
+      FROM patients 
       WHERE organization_id = $1 
       AND phone = $2 
       AND lower(first_name) = lower($3) 
-      AND lower(last_name) = lower($4)
+      AND lower(COALESCE(last_name, '')) = lower(COALESCE($4, ''))
+      AND deleted_at IS NULL
       LIMIT 1
     `;
-        const result = await database_1.db.query(query, [organization_id, phone, first_name, last_name]);
-        return (result.rowCount ?? 0) > 0;
+        const result = await database_1.db.query(query, [organization_id, phone, first_name, last_name ?? '']);
+        return result.rows[0] || null;
+    }
+    async checkPhoneNameExists(organization_id, phone, first_name, last_name) {
+        const existing = await this.findPatientByPhoneAndName(organization_id, phone, first_name, last_name);
+        return !!existing;
     }
     async createPatient(client, data) {
         const query = `

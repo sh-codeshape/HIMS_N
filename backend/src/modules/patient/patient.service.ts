@@ -152,17 +152,34 @@ export class PatientService {
     const normalizedData = normalizePatientRequest(data);
 
     // Identity verification (phone + name deduplication)
-    const exists = normalizedData.phone && normalizedData.phone.trim()
-      ? await patientRepository.checkPhoneNameExists(
-          organizationId, 
-          normalizedData.phone.trim(), 
-          normalizedData.first_name,
-          normalizedData.last_name ?? ''
-        )
-      : false;
+    const existingPatient = normalizedData.phone && normalizedData.phone.trim()
+      ? (patientRepository.findPatientByPhoneAndName
+          ? await patientRepository.findPatientByPhoneAndName(
+              organizationId, 
+              normalizedData.phone.trim(), 
+              normalizedData.first_name,
+              normalizedData.last_name ?? ''
+            )
+          : (await patientRepository.checkPhoneNameExists(
+              organizationId, 
+              normalizedData.phone.trim(), 
+              normalizedData.first_name,
+              normalizedData.last_name ?? ''
+            ) ? { id: '', uhid: '', first_name: normalizedData.first_name, last_name: normalizedData.last_name ?? '', full_name: '' } : null))
+      : null;
 
-    if (exists) {
-      throw new ConflictError('A patient with this name and phone number already exists.');
+    if (existingPatient) {
+      const uhidPart = existingPatient.uhid ? ` (UHID: ${existingPatient.uhid})` : '';
+      throw new ConflictError(
+        `A patient with this name and phone number already exists${uhidPart}.`,
+        {
+          existing_patient: {
+            id: existingPatient.id,
+            uhid: existingPatient.uhid,
+            name: existingPatient.full_name || [existingPatient.first_name, existingPatient.last_name].filter(Boolean).join(' ').trim()
+          }
+        }
+      );
     }
 
     const uhid = await this.generateUHID(organizationId);

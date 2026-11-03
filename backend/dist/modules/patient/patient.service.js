@@ -134,11 +134,20 @@ class PatientService {
     async createPatient(organizationId, data) {
         const normalizedData = (0, exports.normalizePatientRequest)(data);
         // Identity verification (phone + name deduplication)
-        const exists = normalizedData.phone && normalizedData.phone.trim()
-            ? await patient_repository_1.patientRepository.checkPhoneNameExists(organizationId, normalizedData.phone.trim(), normalizedData.first_name, normalizedData.last_name ?? '')
-            : false;
-        if (exists) {
-            throw new AppError_1.ConflictError('A patient with this name and phone number already exists.');
+        const existingPatient = normalizedData.phone && normalizedData.phone.trim()
+            ? (patient_repository_1.patientRepository.findPatientByPhoneAndName
+                ? await patient_repository_1.patientRepository.findPatientByPhoneAndName(organizationId, normalizedData.phone.trim(), normalizedData.first_name, normalizedData.last_name ?? '')
+                : (await patient_repository_1.patientRepository.checkPhoneNameExists(organizationId, normalizedData.phone.trim(), normalizedData.first_name, normalizedData.last_name ?? '') ? { id: '', uhid: '', first_name: normalizedData.first_name, last_name: normalizedData.last_name ?? '', full_name: '' } : null))
+            : null;
+        if (existingPatient) {
+            const uhidPart = existingPatient.uhid ? ` (UHID: ${existingPatient.uhid})` : '';
+            throw new AppError_1.ConflictError(`A patient with this name and phone number already exists${uhidPart}.`, {
+                existing_patient: {
+                    id: existingPatient.id,
+                    uhid: existingPatient.uhid,
+                    name: existingPatient.full_name || [existingPatient.first_name, existingPatient.last_name].filter(Boolean).join(' ').trim()
+                }
+            });
         }
         const uhid = await this.generateUHID(organizationId);
         const client = await database_1.db.getClient();
