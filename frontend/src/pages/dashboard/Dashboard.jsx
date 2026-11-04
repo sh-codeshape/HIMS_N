@@ -492,28 +492,14 @@ export default function Dashboard() {
               onChange={(e) => setSelectedDoctor(e.target.value)}
             >
               <option value="All Doctors">All Doctors</option>
-              <option value="Dr. Sadhana Chaurasiya">Dr. Sadhana Chaurasiya (BAMS)</option>
-              <option value="Dr. Anand Prakash Tiwari">Dr. Anand Prakash Tiwari (MS)Ay</option>
-              <option value="Dr. Akhilesh Kumar Singh">Dr. Akhilesh Kumar Singh</option>
-              <option value="Dr. Meenakshi Iyer">Dr. Meenakshi Iyer</option>
+             
             </select>
           </div>
         </div>
 
         {/* Row Count Bar & Export CSV Button */}
         <div className="dash-toolbar-row">
-          <div className="dash-toolbar-left">
-            <select
-              className="dash-rows-select"
-              value={rowsPerPage}
-              onChange={(e) => setRowsPerPage(Number(e.target.value))}
-            >
-              <option value={10}>10 rows</option>
-              <option value={20}>20 rows</option>
-              <option value={30}>30 rows</option>
-              <option value={50}>50 rows</option>
-            </select>
-          </div>
+         
 
           <button type="button" className="dash-btn-export" onClick={handleExportCSV}>
             <Icon name="LuDownload" size={14} /> Export CSV
