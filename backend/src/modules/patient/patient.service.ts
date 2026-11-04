@@ -118,11 +118,15 @@ export const normalizePatientRequest = <T extends {
   blood_group?: string;
   date_of_birth?: string;
   age?: string | number;
+  aadhaar_number?: string;
+  pan_number?: string;
 }>(data: T): T => {
   const normalizedGender = normalizeGender(data.gender) ?? 'unknown';
   const normalizedNationality = normalizeCountryCode(data.nationality) ?? 'IN';
   const normalizedCountry = normalizeCountryCode(data.country) ?? 'IN';
   const normalizedDob = data.date_of_birth || deriveDateOfBirthFromAge(data.age);
+  const normalizedAadhaar = data.aadhaar_number ? data.aadhaar_number.replace(/\s+/g, '').trim() || undefined : undefined;
+  const normalizedPan = data.pan_number ? data.pan_number.trim().toUpperCase() || undefined : undefined;
 
   return {
     ...data,
@@ -135,6 +139,8 @@ export const normalizePatientRequest = <T extends {
     blood_group: normalizeBloodGroup(data.blood_group as string | undefined),
     date_of_birth: normalizedDob,
     age: data.age ?? (normalizedDob ? String(getPatientAge(normalizedDob) ?? '') : undefined),
+    aadhaar_number: normalizedAadhaar,
+    pan_number: normalizedPan,
   } as T;
 };
 
@@ -180,6 +186,49 @@ export class PatientService {
           }
         }
       );
+    }
+
+    // Identity verification (Aadhaar & PAN deduplication)
+    if (normalizedData.aadhaar_number) {
+      const existingByIdentifier = patientRepository.findPatientByIdentifier
+        ? await patientRepository.findPatientByIdentifier(organizationId, 'aadhaar_token', normalizedData.aadhaar_number)
+        : null;
+      if (existingByIdentifier) {
+        const uhidPart = existingByIdentifier.uhid ? ` (UHID: ${existingByIdentifier.uhid})` : '';
+        const patientName = existingByIdentifier.full_name || [existingByIdentifier.first_name, existingByIdentifier.last_name].filter(Boolean).join(' ').trim();
+        throw new ConflictError(
+          `A patient with this Aadhaar number already exists${uhidPart}${patientName ? ` - ${patientName}` : ''}.`,
+          {
+            field: 'aadhaar',
+            existing_patient: {
+              id: existingByIdentifier.id,
+              uhid: existingByIdentifier.uhid,
+              name: patientName,
+            }
+          }
+        );
+      }
+    }
+
+    if (normalizedData.pan_number) {
+      const existingByPan = patientRepository.findPatientByIdentifier
+        ? await patientRepository.findPatientByIdentifier(organizationId, 'pan', normalizedData.pan_number)
+        : null;
+      if (existingByPan) {
+        const uhidPart = existingByPan.uhid ? ` (UHID: ${existingByPan.uhid})` : '';
+        const patientName = existingByPan.full_name || [existingByPan.first_name, existingByPan.last_name].filter(Boolean).join(' ').trim();
+        throw new ConflictError(
+          `A patient with this PAN number already exists${uhidPart}${patientName ? ` - ${patientName}` : ''}.`,
+          {
+            field: 'pan',
+            existing_patient: {
+              id: existingByPan.id,
+              uhid: existingByPan.uhid,
+              name: patientName,
+            }
+          }
+        );
+      }
     }
 
     const uhid = await this.generateUHID(organizationId);
@@ -237,12 +286,12 @@ export class PatientService {
         });
       }
 
-      if (data.aadhaar_number) {
-        await patientRepository.createPatientIdentifier(client, organizationId, newPatient.id, 'aadhaar_token', data.aadhaar_number);
+      if (normalizedData.aadhaar_number) {
+        await patientRepository.createPatientIdentifier(client, organizationId, newPatient.id, 'aadhaar_token', normalizedData.aadhaar_number);
       }
       
-      if (data.pan_number) {
-        await patientRepository.createPatientIdentifier(client, organizationId, newPatient.id, 'pan', data.pan_number);
+      if (normalizedData.pan_number) {
+        await patientRepository.createPatientIdentifier(client, organizationId, newPatient.id, 'pan', normalizedData.pan_number);
       }
 
       if (data.emergency_name) {
@@ -256,8 +305,11 @@ export class PatientService {
         full_name: patientName,
         addresses: addresses.length > 0 ? addresses : null,
       };
-    } catch (error) {
+    } catch (error: any) {
       await client.query('ROLLBACK');
+      if (error?.code === '23505' && error?.constraint === 'patient_identifiers_organization_id_id_type_id_value_key') {
+        throw new ConflictError('A patient with this government identifier (Aadhaar or PAN) is already registered in the system.');
+      }
       throw error;
     } finally {
       client.release();

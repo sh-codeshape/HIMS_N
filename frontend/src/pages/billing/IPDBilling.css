@@ -6,37 +6,35 @@
 @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap");
 
 .ipd-erp-container {
-  /* Signature Hospital Dashboard Theme (exact match to IPD Registration) */
-  --navy-900: #081a3d;
-  --navy-800: #0b2556;
-  --navy-700: #123a6b;
-  --blue-600: #1e5a8e;
-  --blue-500: #2f7bbf;
-  --sky-300: #b9d1e6;
-  --sky-200: #d3e3f1;
-  --sky-100: #e6f0f9;
-  --sky-50: #f3f8fd;
-  --ink: #0b1b36;
-  --muted: #496182;
-  --line: #527e9f;
-  --line-bold: #23547d;
-  --line-subtle: #9cbcd5;
-  --gold: #f5c542;
-  --green: #0f9d6b;
-  --red: #e11d1d;
+  /* Modern High-End Clinical Design System */
+  --navy-900: #0f172a;
+  --navy-800: #1e293b;
+  --navy-700: #334155;
+  --blue-600: #2563eb;
+  --blue-500: #3b82f6;
+  --sky-300: #cbd5e1;
+  --sky-200: #e2e8f0;
+  --sky-100: #f1f5f9;
+  --sky-50: #f8fafc;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --line-bold: #cbd5e1;
+  --line-subtle: #f1f5f9;
+  --gold: #f59e0b;
+  --green: #10b981;
+  --red: #ef4444;
 
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
   max-width: 100%;
   margin: 0;
-  padding: 8px 12px 24px;
-  font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  padding: 12px 18px 32px;
+  font-family: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: var(--ink);
-  background:
-    radial-gradient(1200px 500px at 100% 0%, rgba(120, 180, 235, 0.28), transparent 70%),
-    linear-gradient(160deg, #dbe9f6 0%, #c3d9ec 55%, #b3cde5 100%);
+  background: #f8fafc;
   min-height: calc(100vh - 64px);
   box-sizing: border-box;
 }
@@ -60,16 +58,16 @@
   font-size: 11.5px;
 }
 
-/* ── 1. COMPACT EXECUTIVE PAGE HEADER (MATCHING IPD REGISTRATION) ── */
+/* ── 1. COMPACT EXECUTIVE PAGE HEADER ── */
 .opd-page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 16px;
-  background: linear-gradient(100deg, var(--navy-800) 0%, var(--blue-600) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 12px 18px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #1e3a8a 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
-  box-shadow: 0 4px 14px rgba(8, 26, 61, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.16);
   color: #ffffff;
   position: relative;
   overflow: hidden;
@@ -78,51 +76,51 @@
 .opd-header-left {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
 .opd-header-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(145deg, #ffd766, var(--gold));
-  color: var(--navy-900);
-  border: 1px solid #e0ac1f;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+  background: rgba(255, 255, 255, 0.1);
+  color: #60a5fa;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .opd-page-title {
   margin: 0;
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 800;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
   color: #ffffff;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
 .opd-page-sub {
   margin: 2px 0 0;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
-  color: #cfe2f5;
+  color: #94a3b8;
 }
 
 .ipd-live-tag {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(16, 185, 129, 0.2);
-  color: #a7f3d0;
-  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.25);
   padding: 4px 10px;
-  border-radius: 14px;
-  font-size: 11.5px;
+  border-radius: 6px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -147,11 +145,10 @@
 .ipd-card {
   position: relative;
   padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.97);
-  backdrop-filter: blur(8px);
-  border: 2px solid var(--line);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
-  box-shadow: 0 4px 18px rgba(8, 26, 61, 0.12);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03), 0 4px 16px -2px rgba(15, 23, 42, 0.04);
   transition: all 0.15s ease;
 }
 
@@ -162,15 +159,15 @@
   justify-content: space-between;
   gap: 8px;
   margin: -14px -16px 12px -16px;
-  padding: 9px 14px;
-  background: linear-gradient(180deg, #cce1f4 0%, #b2d2ed 100%);
-  border-bottom: 2px solid var(--line-bold);
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  border-top-left-radius: 9px;
+  border-top-right-radius: 9px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.01em;
-  color: var(--navy-900);
+  color: #0f172a;
 }
 
 .opd-card-title-left,
@@ -233,28 +230,28 @@
 
 .opd-search-input {
   width: 100%;
-  height: 34px;
-  padding: 0 34px 0 34px;
+  height: 38px;
+  padding: 0 36px 0 36px;
   background: #ffffff;
-  border: 1.5px solid var(--line);
+  border: 1px solid #cbd5e1;
   border-radius: 6px;
   font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--navy-900);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #0f172a;
   outline: none;
   transition: all 0.15s ease;
 }
 
 .opd-search-input::placeholder {
-  color: #78909c;
+  color: #94a3b8;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .opd-search-input:focus {
-  border-color: var(--blue-600);
-  box-shadow: 0 0 0 3px rgba(30, 90, 142, 0.2);
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
   background: #ffffff;
 }
 
@@ -265,8 +262,8 @@
   height: 20px;
   border-radius: 50%;
   border: none;
-  background: var(--sky-200);
-  color: var(--navy-900);
+  background: #f1f5f9;
+  color: #64748b;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -275,8 +272,8 @@
 }
 
 .opd-search-clear-btn:hover {
-  background: var(--red);
-  color: #ffffff;
+  background: #fee2e2;
+  color: #ef4444;
 }
 
 .opd-btn-search {
@@ -284,24 +281,25 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 34px;
-  padding: 0 14px;
+  height: 38px;
+  padding: 0 16px;
   border-radius: 6px;
-  background: linear-gradient(135deg, var(--blue-600) 0%, var(--navy-800) 100%);
+  background: #2563eb;
   color: #ffffff;
-  border: 1px solid var(--navy-900);
+  border: none;
   font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 700;
+  font-size: 12.5px;
+  font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(8, 26, 61, 0.2);
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
   transition: all 0.15s ease;
   white-space: nowrap;
 }
 
 .opd-btn-search:hover {
-  background: linear-gradient(135deg, var(--navy-800) 0%, var(--navy-900) 100%);
-  box-shadow: 0 4px 10px rgba(8, 26, 61, 0.35);
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(37, 99, 235, 0.25);
 }
 
 /* Queue Filter Buttons */
@@ -449,43 +447,43 @@
 .ipd-inpatient-dir-table-wrap {
   margin-top: 12px;
   background: #ffffff;
-  border: 1.5px solid var(--line);
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   overflow-x: auto;
-  box-shadow: 0 2px 8px rgba(8, 26, 61, 0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .ipd-dir-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .ipd-dir-table th {
-  background: linear-gradient(180deg, #dbe9f6 0%, #cce0f2 100%);
-  padding: 6px 10px;
-  font-weight: 800;
-  color: var(--navy-900);
-  border-bottom: 1.5px solid var(--line);
+  background: #f8fafc;
+  padding: 8px 12px;
+  font-weight: 700;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
   white-space: nowrap;
   font-size: 10.5px;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 
 .ipd-dir-row {
   cursor: pointer;
   transition: all 0.12s ease;
-  border-bottom: 1px solid var(--sky-200);
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .ipd-dir-row:hover {
-  background: #f0f7ff;
+  background: #f8fafc;
 }
 
 .ipd-dir-row td {
-  padding: 6px 10px;
+  padding: 8px 12px;
   vertical-align: middle;
 }
 
@@ -496,29 +494,29 @@
 }
 
 .ipd-dir-avatar {
-  width: 26px;
-  height: 26px;
-  border-radius: 5px;
-  background: linear-gradient(135deg, var(--navy-800) 0%, var(--blue-600) 100%);
-  color: #ffffff;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #1d4ed8;
   font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 11px;
   flex-shrink: 0;
-  border: 1px solid var(--navy-900);
+  border: 1px solid #dbeafe;
 }
 
 .ipd-dir-name {
   font-weight: 700;
-  color: var(--navy-900);
-  font-size: 12px;
+  color: #0f172a;
+  font-size: 12.5px;
 }
 
 .ipd-dir-sub {
-  font-size: 10.5px;
-  color: var(--muted);
+  font-size: 11px;
+  color: #64748b;
   margin-top: 1px;
 }
 
@@ -526,24 +524,24 @@
   display: inline-block;
   background: #eff6ff;
   color: #1d4ed8;
-  padding: 2px 7px;
-  border-radius: 5px;
-  font-weight: 700;
-  font-size: 11.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 11px;
   font-family: monospace;
-  border: 1px solid #bfdbfe;
+  border: 1px solid #dbeafe;
 }
 
 .ipd-adm-pill {
   display: inline-block;
-  background: var(--sky-50);
-  color: var(--navy-900);
-  padding: 2px 7px;
-  border-radius: 5px;
-  font-weight: 700;
-  font-size: 11.5px;
+  background: #f8fafc;
+  color: #475569;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 11px;
   font-family: monospace;
-  border: 1px solid var(--line);
+  border: 1px solid #e2e8f0;
 }
 
 .ipd-dir-ward {
@@ -551,44 +549,45 @@
   align-items: center;
   gap: 5px;
   font-weight: 700;
-  color: var(--navy-800);
+  color: #1e293b;
 }
 
 .ipd-dir-bed {
   font-size: 11px;
-  color: var(--muted);
+  color: #64748b;
 }
 
 .ipd-stay-pill {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #fef3c7;
+  background: #fffbeb;
   color: #92400e;
   padding: 2px 7px;
-  border-radius: 10px;
+  border-radius: 4px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
+  border: 1px solid #fef3c7;
 }
 
 .ipd-dir-doc {
   font-weight: 700;
-  color: var(--navy-900);
+  color: #0f172a;
 }
 
 .ipd-dir-dept {
   font-size: 10.5px;
-  color: var(--muted);
+  color: #64748b;
 }
 
 .ipd-status-pill {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 2px 8px;
-  border-radius: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .ipd-status-pill.admitted {
@@ -599,8 +598,8 @@
 
 .ipd-status-pill.discharged {
   background: #f1f5f9;
-  color: #64748b;
-  border: 1px solid #cbd5e1;
+  color: #475569;
+  border: 1px solid #e2e8f0;
 }
 
 .ipd-status-pill .ipd-dot {
@@ -614,21 +613,23 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  background: #2563eb;
   color: #ffffff;
-  border: 1px solid #065f46;
+  border: none;
   border-radius: 5px;
-  padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 700;
+  padding: 5px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
 }
 
 .ipd-btn-select-inpatient:hover {
-  background: linear-gradient(135deg, #047857 0%, #064e3b 100%);
+  background: #1d4ed8;
   transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
 }
 
 .ipd-btn-select-inpatient--discharged {
@@ -651,11 +652,11 @@
   align-items: center;
   gap: 16px;
   padding: 12px 18px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.97) 0%, rgba(235, 244, 252, 0.94) 100%);
-  border: 1.5px solid var(--line);
-  border-left: 5px solid var(--blue-600);
-  border-radius: 12px;
-  box-shadow: 0 4px 18px rgba(8, 26, 61, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #2563eb;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
   flex-wrap: wrap;
 }
 
@@ -749,8 +750,8 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 10px;
-  border-radius: 12px;
+  padding: 2px 7px;
+  border-radius: 4px;
   font-size: 11px;
   font-weight: 700;
 }
@@ -759,7 +760,6 @@
   background: #ecfdf5;
   color: #059669;
   border: 1px solid #86efac;
-  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15);
 }
 
 .ipd-clearance-pill--due {
@@ -773,11 +773,11 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 2px 9px;
-  border-radius: 12px;
+  padding: 2px 7px;
+  border-radius: 4px;
   font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.3px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
@@ -1732,10 +1732,10 @@
 }
 
 .ipd-bhero-tag {
-  padding: 4px 10px;
-  border-radius: 20px;
+  padding: 2px 7px;
+  border-radius: 4px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.02em;
 }
 
@@ -2500,22 +2500,21 @@
 /* ── 11. UNIFIED SINGLE MASTER BILLING FORM (ONE SEAMLESS CONTAINER) ── */
 .ipd-master-billing-sheet {
   background: #ffffff;
-  border: 2px solid var(--line-bold);
-  border-radius: 12px;
-  box-shadow: 0 8px 30px rgba(8, 26, 61, 0.14);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05);
   overflow: hidden;
-  margin-top: 14px;
+  margin-top: 12px;
 }
 
 /* ── Pure White Professional Inpatient Profile Card ── */
 .ipd-patient-profile-card {
   background: #ffffff;
-  border-bottom: 2px solid var(--line-bold);
-  padding: 14px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 14px 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: 0 2px 8px rgba(8, 26, 61, 0.04);
 }
 
 .ipd-ppc-header {
@@ -2533,26 +2532,25 @@
 }
 
 .ipd-ppc-avatar {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
   background: #eff6ff;
-  color: #1d4ed8;
-  border: 1.5px solid #bfdbfe;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 800;
   position: relative;
   flex-shrink: 0;
-  box-shadow: 0 1px 3px rgba(29, 78, 216, 0.12);
 }
 
 .ipd-ppc-status-dot {
   position: absolute;
-  bottom: 0;
-  right: 0;
+  bottom: -2px;
+  right: -2px;
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -2576,13 +2574,13 @@
 .ipd-ppc-name-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   flex-wrap: wrap;
 }
 
 .ipd-ppc-name {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
   color: #0f172a;
   letter-spacing: -0.01em;
@@ -2590,23 +2588,23 @@
 
 .ipd-ppc-uhid {
   font-family: monospace;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 700;
-  color: #1d4ed8;
+  color: #2563eb;
   background: #eff6ff;
   border: 1px solid #bfdbfe;
-  padding: 1.5px 7px;
+  padding: 2px 7px;
   border-radius: 4px;
 }
 
 .ipd-ppc-adm {
   font-family: monospace;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 700;
   color: #475569;
   background: #f8fafc;
   border: 1px solid #cbd5e1;
-  padding: 1.5px 7px;
+  padding: 2px 7px;
   border-radius: 4px;
 }
 
@@ -2616,8 +2614,8 @@
   gap: 5px;
   font-size: 11px;
   font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 12px;
+  padding: 2px 7px;
+  border-radius: 4px;
 }
 
 .ipd-ppc-status.admitted {
@@ -2638,8 +2636,8 @@
   background: #fef2f2;
   color: #dc2626;
   border: 1px solid #fecaca;
-  padding: 1.5px 7px;
-  border-radius: 12px;
+  padding: 2px 7px;
+  border-radius: 4px;
 }
 
 .ipd-ppc-actions {
@@ -2653,8 +2651,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 33px;
-  padding: 0 13px;
+  height: 32px;
+  padding: 0 12px;
   border-radius: 6px;
   font-size: 12px;
   font-weight: 700;
@@ -2664,33 +2662,34 @@
 }
 
 .ipd-ppc-btn--slip {
-  background: #0f2744;
+  background: #0f172a;
   color: #ffffff;
-  border: 1px solid #081a3d;
-  box-shadow: 0 1px 3px rgba(15, 39, 68, 0.2);
+  border: 1px solid #0f172a;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.15);
 }
 
 .ipd-ppc-btn--slip:hover {
-  background: #173b66;
+  background: #1e293b;
+  border-color: #1e293b;
   transform: translateY(-1px);
 }
 
 .ipd-ppc-btn--pay {
-  background: #16a34a;
+  background: #059669;
   color: #ffffff;
-  border: 1px solid #15803d;
-  box-shadow: 0 1px 3px rgba(22, 163, 74, 0.2);
+  border: 1px solid #047857;
+  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.2);
 }
 
 .ipd-ppc-btn--pay:hover {
-  background: #15803d;
+  background: #047857;
   transform: translateY(-1px);
 }
 
 .ipd-ppc-btn--change {
   background: #ffffff;
   color: #475569;
-  border: 1.5px solid #cbd5e1;
+  border: 1px solid #cbd5e1;
 }
 
 .ipd-ppc-btn--change:hover {
@@ -2705,7 +2704,7 @@
   justify-content: space-between;
   gap: 16px;
   padding-top: 10px;
-  border-top: 1.5px solid var(--line-subtle);
+  border-top: 1px solid #f1f5f9;
   flex-wrap: wrap;
 }
 
@@ -2731,7 +2730,7 @@
 }
 
 .ipd-ppc-metric .val {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 700;
   color: #1e293b;
   display: flex;
@@ -2754,27 +2753,27 @@
 .ipd-ppc-balance-box {
   display: flex;
   flex-direction: column;
-  padding: 6px 14px;
-  border-radius: 8px;
-  min-width: 140px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  min-width: 150px;
   background: #ffffff;
-  border: 2px solid var(--line);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .ipd-ppc-balance-box.has-due {
   background: #fff5f5;
-  border-color: #dc2626;
+  border-color: #fca5a5;
 }
 
 .ipd-ppc-balance-box.cleared {
   background: #f0fdf4;
-  border-color: #16a34a;
+  border-color: #86efac;
 }
 
 .ipd-ppc-balance-box.has-excess {
-  background: #f0f9ff;
-  border-color: #0284c7;
+  background: #f0fdf4;
+  border-color: #86efac;
 }
 
 .ipd-ppc-bb-head {
@@ -2795,14 +2794,14 @@
 .ipd-ppc-bb-head .tag {
   font-size: 9px;
   font-weight: 800;
-  padding: 1px 4px;
+  padding: 1px 5px;
   border-radius: 3px;
   text-transform: uppercase;
 }
 
 .ipd-ppc-bb-head .tag.due {
   background: #fee2e2;
-  color: #b91c1c;
+  color: #be123c;
 }
 
 .ipd-ppc-bb-head .tag.cleared {
@@ -2812,21 +2811,21 @@
 
 .ipd-ppc-bb-amount {
   font-size: 16px;
-  font-weight: 900;
+  font-weight: 800;
   font-family: monospace;
   line-height: 1.2;
 }
 
 .ipd-ppc-balance-box.has-due .ipd-ppc-bb-amount {
-  color: #dc2626;
+  color: #e11d48;
 }
 
 .ipd-ppc-balance-box.cleared .ipd-ppc-bb-amount {
-  color: #16a34a;
+  color: #059669;
 }
 
 .ipd-ppc-balance-box.has-excess .ipd-ppc-bb-amount {
-  color: #0284c7;
+  color: #059669;
 }
 
 .ipd-ppc-bb-audit {
@@ -2843,10 +2842,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 18px;
-  background: linear-gradient(180deg, #f0f7ff 0%, #e2eefb 100%);
-  border-top: 2px solid var(--line-bold);
-  border-bottom: 2px solid var(--line-bold);
+  padding: 8px 18px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
   flex-wrap: wrap;
 }
 
@@ -2858,31 +2857,30 @@
 }
 
 .ipd-aqb-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .ipd-aqb-icon--blue {
-  background: #dbeafe;
-  color: #0284c7;
+  background: #eff6ff;
+  color: #2563eb;
   border: 1px solid #bfdbfe;
 }
 
 .ipd-aqb-icon--green {
-  background: #dcfce7;
-  color: #16a34a;
-  border: 1px solid #bbf7d0;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
 }
 
 .ipd-aqb-icon--purple {
-  background: #f3e8ff;
-  color: #9333ea;
+  background: #faf5ff;
+  color: #7c3aed;
   border: 1px solid #e9d5ff;
 }
 
@@ -2902,7 +2900,7 @@
 }
 
 .ipd-aqb-val {
-  font-size: 12.5px;
+  font-size: 12px;
   color: #0f172a;
   display: flex;
   align-items: center;
@@ -2914,11 +2912,11 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
+  padding: 2px 7px;
   background: #ffffff;
   border: 1px solid #cbd5e1;
-  border-radius: 5px;
-  color: #0284c7;
+  border-radius: 4px;
+  color: #2563eb;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
@@ -2927,10 +2925,9 @@
 }
 
 .ipd-aqb-btn:hover {
-  background: #0284c7;
+  background: #2563eb;
   color: #ffffff;
-  border-color: #0284c7;
-  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
+  border-color: #2563eb;
 }
 
 .ipd-aqb-btn--auto {
@@ -2942,13 +2939,12 @@
   background: #7c3aed;
   color: #ffffff;
   border-color: #7c3aed;
-  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.25);
 }
 
 .ipd-aqb-divider {
   width: 1px;
-  height: 28px;
-  background: #cbd5e1;
+  height: 24px;
+  background: #e2e8f0;
 }
 
 /* Master Section Divider Bar */
@@ -2956,13 +2952,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 9px 18px;
-  background: linear-gradient(180deg, #d3e4f4 0%, #bdd7ee 100%);
-  border-top: 1.5px solid var(--line);
-  border-bottom: 1.5px solid var(--line);
-  font-size: 13.5px;
+  padding: 8px 18px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 13px;
   font-weight: 800;
-  color: var(--navy-900);
+  color: #0f172a;
   gap: 12px;
   flex-wrap: wrap;
 }
@@ -2974,19 +2970,20 @@
 }
 
 .ipd-ledger-count-pill {
-  background: #0284c7;
-  color: #ffffff;
-  padding: 2px 8px;
-  border-radius: 12px;
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+  padding: 1px 6px;
+  border-radius: 4px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.02em;
 }
 
 .ipd-section-hindi-hint {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #475569;
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
   margin-left: 4px;
 }
 
@@ -2996,32 +2993,32 @@
 
 /* Unified Charge Console Card */
 .ipd-charge-console-card {
-  background: #f0f7ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 10px;
-  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
   margin-bottom: 12px;
 }
 
 .ipd-charge-console-card .ipd-category-pills {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .ipd-charge-console-card .ipd-add-service-row,
 .ipd-charge-console-card .ipd-add-med-row {
   background: #ffffff;
-  border: 1px solid #cbd5e1;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
 }
 
 .ipd-charge-console-card .ipd-med-quick-chips {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   overflow-x: auto;
   white-space: nowrap;
-  padding-bottom: 4px;
+  padding-bottom: 2px;
 }
 
 .ipd-charge-console-card .ipd-med-chips-scroll {
@@ -3032,10 +3029,10 @@
 
 /* Section 3: Premium Inpatient Bill Ledger Table */
 .ipd-ledger-table-wrap-premium {
-  border: 1.5px solid #cbd5e1;
-  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   background: #ffffff;
 }
 
@@ -3047,7 +3044,7 @@
 }
 
 .ipd-ledger-table-premium th {
-  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  background: #0f172a;
   color: #ffffff;
   padding: 6px 8px;
   font-size: 10px;
@@ -3075,9 +3072,9 @@
   background: transparent;
   border: none;
   color: #94a3b8;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3088,7 +3085,6 @@
 .ipd-btn-trash-premium:hover {
   color: #ef4444;
   background: #fee2e2;
-  transform: scale(1.08);
 }
 
 /* Ledger Summary & Remarks Footer Strip */
@@ -3097,11 +3093,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  margin-top: 12px;
-  padding: 10px 14px;
+  margin-top: 10px;
+  padding: 8px 12px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 6px;
   flex-wrap: wrap;
 }
 
@@ -3111,9 +3107,9 @@
   gap: 8px;
   flex: 1 1 320px;
   background: #ffffff;
-  border: 1.5px solid #cbd5e1;
-  border-radius: 6px;
-  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  padding: 5px 9px;
 }
 
 .ipd-remarks-input-wrap:focus-within {
@@ -3133,25 +3129,25 @@
 .ipd-ledger-metrics-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .ipd-metric-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  gap: 5px;
+  padding: 4px 9px;
   background: #ffffff;
   border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: 4px;
+  font-size: 11.5px;
 }
 
 .ipd-metric-pill .lbl {
   color: #64748b;
   font-weight: 600;
-  font-size: 11px;
+  font-size: 10.5px;
 }
 
 .ipd-metric-pill .val {
@@ -3161,12 +3157,12 @@
 }
 
 .ipd-metric-pill--paid {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
+  border-color: #a7f3d0;
+  background: #ecfdf5;
 }
 
 .ipd-metric-pill--paid .val {
-  color: #15803d;
+  color: #047857;
 }
 
 .ipd-metric-pill--status.has-due {
@@ -3181,13 +3177,13 @@
 }
 
 .ipd-metric-pill--status.cleared {
-  background: #022c22;
-  border-color: #047857;
-  color: #34d399;
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
 }
 
 .ipd-metric-pill--status.cleared .val {
-  color: #34d399;
+  color: #047857;
   font-weight: 800;
 }
 
@@ -4220,9 +4216,9 @@
   background: #ecfdf5;
   color: #047857;
   border: 1px solid #a7f3d0;
-  border-radius: 999px;
-  padding: 3px 10px;
-  font-size: 11.5px;
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.01em;
 }
@@ -4232,12 +4228,12 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
-  border: 1.5px solid #a7f3d0;
-  border-radius: 10px;
-  padding: 12px 18px;
-  margin: 12px 16px 0;
-  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.08);
+  background: #f0fdf4;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 10px 14px 0;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.06);
 }
 
 .ipd-eac-left {
@@ -5050,17 +5046,17 @@
 .ipd-col-panel {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
 }
 
 .ipd-col-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 10px 14px;
+  background: #f8fafc;
   border-bottom: 1px solid #e2e8f0;
   gap: 8px;
   flex-wrap: wrap;
@@ -5069,8 +5065,8 @@
 .ipd-col-panel-title {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12.5px;
+  gap: 7px;
+  font-size: 13px;
   font-weight: 800;
   color: #0f172a;
 }
@@ -5078,8 +5074,9 @@
 .ipd-col-subtabs {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  background: #e2e8f0;
+  gap: 2px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
   padding: 2px;
   border-radius: 6px;
 }
@@ -5088,13 +5085,13 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 9px;
+  padding: 4px 10px;
   border-radius: 4px;
   border: none;
   background: transparent;
   color: #475569;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 11.5px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.12s ease;
 }
@@ -5102,6 +5099,7 @@
 .ipd-col-subtab-btn.active {
   background: #ffffff;
   color: #0f172a;
+  font-weight: 700;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
@@ -5111,7 +5109,7 @@
   background: #ecfdf5;
   border: 1px solid #a7f3d0;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .ipd-header-stat-chip strong {
@@ -5120,7 +5118,7 @@
 }
 
 .ipd-col-panel-body {
-  padding: 10px 12px;
+  padding: 12px 14px;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -5130,7 +5128,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 8px;
+  padding: 6px 10px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
@@ -5142,21 +5140,23 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 2px 7px;
+  padding: 3px 8px;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #e2e8f0;
   border-radius: 4px;
   white-space: nowrap;
 }
 
 .ipd-matrix-lbl {
   font-size: 10px;
-  color: #475569;
+  color: #64748b;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .ipd-matrix-val {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 800;
   font-family: monospace;
   color: #0f172a;
@@ -5179,16 +5179,21 @@
   gap: 6px;
   background: #ffffff;
   border: 1px solid #cbd5e1;
-  border-radius: 5px;
-  padding: 3px 8px;
+  border-radius: 6px;
+  padding: 0 9px;
   flex: 1 1 180px;
-  height: 28px;
+  height: 32px;
+}
+
+.ipd-filter-search-box:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
 }
 
 .ipd-filter-search-box input {
   border: none;
   outline: none;
-  font-size: 11.5px;
+  font-size: 12px;
   color: #0f172a;
   width: 100%;
   background: transparent;
@@ -5196,7 +5201,7 @@
 
 .ipd-filter-cat-pills {
   display: inline-flex;
-  gap: 3px;
+  gap: 4px;
   flex-wrap: wrap;
 }
 
@@ -5204,26 +5209,32 @@
   border: 1px solid #cbd5e1;
   background: #ffffff;
   color: #475569;
-  padding: 2px 7px;
+  padding: 3px 8px;
   border-radius: 4px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.12s ease;
 }
 
+.ipd-cat-filter-btn:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
 .ipd-cat-filter-btn.active {
-  background: #1e293b;
+  background: #0f172a;
   color: #ffffff;
-  border-color: #1e293b;
+  border-color: #0f172a;
 }
 
 /* ═══════════════════════════════════════════════════════════════
    PREMIUM TABLE & DOTTED LINE DATE SEPARATION
    ═══════════════════════════════════════════════════════════════ */
 .ipd-ledger-table-wrap-premium {
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
   overflow-y: auto;
   overflow-x: auto;
   max-height: 480px;
@@ -5235,44 +5246,43 @@
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .ipd-ledger-table-premium th {
   background: #0f172a;
   color: #f8fafc;
-  padding: 6px 8px;
-  font-size: 10px;
+  padding: 7px 9px;
+  font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
   position: sticky;
   top: 0;
   z-index: 5;
-  box-shadow: 0 1px 0 #334155;
 }
 
 .ipd-ledger-table-premium td {
-  padding: 6px 8px;
-  border-bottom: 1.5px dashed #e2e8f0;
+  padding: 7px 9px;
+  border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
 }
 
 .ipd-row-dashed {
-  border-bottom: 1.5px dashed #e2e8f0 !important;
+  border-bottom: 1px solid #f1f5f9 !important;
 }
 
 .ipd-row-dashed:hover {
   background: #f8fafc;
 }
 
-/* Dotted Line Date Separator Banner */
+/* Date Separator Banner */
 .ipd-date-sep-row td {
-  padding: 6px 8px 4px 8px !important;
-  background: #f1f5f9 !important;
-  border-top: 1px solid #cbd5e1 !important;
-  border-bottom: 1px solid #cbd5e1 !important;
+  padding: 6px 9px !important;
+  background: #f8fafc !important;
+  border-top: 1px solid #e2e8f0 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
 }
 
 .ipd-date-sep-wrap {
@@ -5286,12 +5296,12 @@
   align-items: center;
   gap: 4px;
   padding: 2px 7px;
-  background: #e0f2fe;
-  color: #0369a1;
-  font-size: 10.5px;
-  font-weight: 800;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 700;
   border-radius: 4px;
-  border: 1px solid #bae6fd;
+  border: 1px solid #bfdbfe;
   white-space: nowrap;
 }
 
@@ -5303,17 +5313,17 @@
 
 .ipd-date-dots {
   flex: 1;
-  border-bottom: 2px dashed #94a3b8;
+  border-bottom: 1px solid #cbd5e1;
   height: 1px;
 }
 
 .ipd-date-dots--green {
-  border-bottom: 2px dashed #10b981;
+  border-bottom: 1px solid #a7f3d0;
 }
 
 .ipd-date-subtotal {
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 11.5px;
+  font-weight: 700;
   font-family: monospace;
   color: #0f172a;
   white-space: nowrap;
@@ -5323,111 +5333,114 @@
    EMBEDDED SINGLE FAST PAYMENT CONSOLE
    ═══════════════════════════════════════════════════════════════ */
 .ipd-embedded-pay-box {
-  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
-  border: 1.5px solid #86efac;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 10px;
-  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.08);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
 }
 
 .ipd-embedded-pay-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
-  gap: 6px;
+  margin-bottom: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .ipd-eph-title {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 12px;
+  gap: 6px;
+  font-size: 12.5px;
   font-weight: 800;
-  color: #14532d;
+  color: #0f172a;
 }
 
 .ipd-eph-category-toggle {
   display: inline-flex;
-  gap: 3px;
-  background: #dcfce7;
+  gap: 2px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
   padding: 2px;
   border-radius: 6px;
 }
 
 .ipd-eph-cat-pill {
-  padding: 2px 7px;
+  padding: 3px 9px;
   border-radius: 4px;
   border: none;
   background: transparent;
-  color: #166534;
-  font-size: 10.5px;
-  font-weight: 700;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.12s ease;
 }
 
 .ipd-eph-cat-pill.active {
   background: #ffffff;
-  color: #14532d;
+  color: #0f172a;
+  font-weight: 700;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .ipd-pay-fields-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 8px;
-  margin-bottom: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .ipd-pay-fgroup {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .ipd-pay-fgroup .ipd-field-label {
   font-size: 10px;
   font-weight: 700;
-  color: #334155;
+  color: #475569;
   text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .ipd-pay-fgroup .ipd-input-control,
 .ipd-pay-fgroup .ipd-select-control {
-  height: 29px;
-  font-size: 11.5px;
-  padding: 3px 6px;
+  height: 32px;
+  font-size: 12px;
+  padding: 4px 8px;
   border: 1px solid #cbd5e1;
-  border-radius: 4px;
+  border-radius: 5px;
 }
 
 .ipd-pay-fgroup .ipd-input-control--lg {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
   font-family: monospace;
-  border-color: #059669;
+  border-color: #2563eb;
 }
 
 /* Quick Pay Amount Preset Chips */
 .ipd-quick-pay-presets {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex-wrap: wrap;
   margin-top: 4px;
 }
 
 .ipd-quick-pay-chip {
-  background: #f1f5f9;
+  background: #f8fafc;
   border: 1px solid #cbd5e1;
   color: #334155;
   border-radius: 4px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
-  padding: 2px 6px;
+  padding: 3px 8px;
   cursor: pointer;
   transition: all 0.12s ease;
 }
@@ -5444,14 +5457,14 @@
 }
 
 .ipd-quick-pay-chip--due {
-  background: #fee2e2;
+  background: #fff1f2;
   border-color: #fca5a5;
-  color: #b91c1c;
+  color: #be123c;
   font-weight: 800;
 }
 
 .ipd-quick-pay-chip--due:hover {
-  background: #fecdd3;
+  background: #fee2e2;
 }
 
 .ipd-btn-collect-payment {
@@ -5460,22 +5473,22 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 14px;
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  height: 36px;
+  padding: 0 16px;
+  background: #059669;
   color: #ffffff;
   font-size: 12.5px;
-  font-weight: 800;
-  border: none;
+  font-weight: 700;
+  border: 1px solid #047857;
   border-radius: 6px;
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.3);
+  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.2);
   transition: all 0.15s ease;
 }
 
-.ipd-btn-collect-payment:hover {
-  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+.ipd-btn-collect-payment:hover:not(:disabled) {
+  background: #047857;
   transform: translateY(-1px);
-  box-shadow: 0 3px 6px rgba(5, 150, 105, 0.4);
 }
 
 .ipd-btn-collect-payment:disabled {
@@ -5690,9 +5703,9 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
-  border: 1.5px solid #bfdbfe;
-  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
   margin-bottom: 8px;
   animation: ipdModalIn 0.15s ease-out;
 }
@@ -5711,12 +5724,12 @@
 
 .ipd-tbb-sub {
   font-size: 11px;
-  color: #3b82f6;
+  color: #2563eb;
   font-weight: 600;
-  background: #ffffff;
-  padding: 1px 8px;
-  border-radius: 999px;
-  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid #bfdbfe;
 }
 
 .ipd-tbb-actions {
@@ -6038,22 +6051,22 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 14px;
+  padding: 2px 7px;
+  border-radius: 4px;
 }
 
 .ipd-abc-status-chip.synced {
   background: #ecfdf5;
   color: #047857;
-  border: 1.5px solid #a7f3d0;
+  border: 1px solid #a7f3d0;
 }
 
 .ipd-abc-status-chip.unbilled {
   background: #fff1f2;
   color: #be123c;
-  border: 1.5px solid #fecdd3;
+  border: 1px solid #fecdd3;
 }
 
 .ipd-abc-btn-autopost {
@@ -6156,8 +6169,8 @@
   background: rgba(255, 255, 255, 0.1);
   color: #cbd5e1;
   border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 9999px;
-  padding: 4px 11px;
+  border-radius: 4px;
+  padding: 3px 9px;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;

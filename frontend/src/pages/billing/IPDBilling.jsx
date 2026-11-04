@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import ipdService from "../../api/services/ipdService";
 import billingService from "../../api/services/billingService";
@@ -107,6 +107,8 @@ export default function IPDBilling() {
   const [allAdmissions, setAllAdmissions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const autoPostingRef = useRef(false);
+  const suppressedBedAutoPostEncounters = useRef(new Set());
 
   // Inpatients list filter: "admitted" | "discharged" | "all"
   const [inpatientFilter, setInpatientFilter] = useState("admitted");
@@ -401,7 +403,7 @@ export default function IPDBilling() {
   };
 
   // Fetch Live Running Bill & Encounter Payments from DB
-  const fetchPatientBilling = async (p) => {
+  const fetchPatientBilling = async (p, autoSyncBed = true) => {
     try {
       const encounterId = p.encounterId || p.id;
       const [itemsData, paymentsData, duesData] = await Promise.all([
@@ -447,6 +449,91 @@ export default function IPDBilling() {
           selected: false,
         };
       });
+
+      // Automated Inpatient Bed Stay: directly calculate and post unbilled bed charges into running bill list
+      const hasInpatientContext = Boolean(p.ward || p.bedNo || p.admissionNo || p.raw?.admitted_at || p.raw?.admission_date || p.admissionDate);
+      if (
+        autoSyncBed &&
+        hasInpatientContext &&
+        encounterId &&
+        !autoPostingRef.current &&
+        !suppressedBedAutoPostEncounters.current.has(encounterId)
+      ) {
+        const admDateRaw = p.raw?.admitted_at || p.raw?.admission_date || p.admissionDate;
+        const disDateRaw = p.raw?.discharged_at || p.dischargeDate;
+        const start = admDateRaw ? new Date(admDateRaw) : new Date();
+        const end = (p.isDischarged && disDateRaw) ? new Date(disDateRaw) : new Date();
+        const diffMs = Math.max(0, end.getTime() - start.getTime());
+        const stayDays = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+
+        const billedBedItems = mappedItems.filter((i) =>
+          i.category === "Room" ||
+          i.category === "Room Charges" ||
+          String(i.name).toLowerCase().includes("bed charge") ||
+          String(i.name).toLowerCase().includes("room charge") ||
+          String(i.name).toLowerCase().includes("ward (per day)")
+        );
+        const alreadyBilledDays = billedBedItems.reduce((acc, it) => acc + (Number(it.qty) || 1), 0);
+        const unbilledDays = Math.max(0, stayDays - alreadyBilledDays);
+
+        if (unbilledDays > 0) {
+          autoPostingRef.current = true;
+          try {
+            const wardLower = String(p.ward || "").toLowerCase();
+            let dailyRate = 1500;
+            if (wardLower.includes("icu") || wardLower.includes("intensive")) dailyRate = 5500;
+            else if (wardLower.includes("emergency") || wardLower.includes("trauma")) dailyRate = 2000;
+            else if (wardLower.includes("deluxe") || wardLower.includes("private")) dailyRate = 2500;
+            else if (wardLower.includes("semi")) dailyRate = 1500;
+            else if (wardLower.includes("general")) dailyRate = 1500;
+
+            const roomTariffs = dynamicTariff?.["Room Charges"] || [];
+            const matched = roomTariffs.find((t) =>
+              String(t.name).toLowerCase().includes(wardLower) ||
+              wardLower.includes(String(t.name).toLowerCase())
+            );
+            if (matched && Number(matched.rate) > 0) {
+              dailyRate = Number(matched.rate);
+            }
+
+            const gross = unbilledDays * dailyRate;
+            const sName = p.ward
+              ? `Bed Charge: ${p.ward} - ${p.bedNo || "Bed"} (${unbilledDays} Day${unbilledDays > 1 ? "s" : ""} Stay)`
+              : `Inpatient Bed Charge (${unbilledDays} Day${unbilledDays > 1 ? "s" : ""})`;
+
+            await billingService.addCharge({
+              encounter_id: encounterId,
+              item_name: sName,
+              item_category: "Room Charges",
+              quantity: unbilledDays,
+              rate: dailyRate,
+              unit_price: dailyRate,
+              gross_amount: gross,
+              discount_percent: 0,
+              discount_amount: 0,
+              net_amount: gross,
+              charged_at: new Date().toISOString(),
+              custom_fields: {
+                item_category: "Room Charges",
+                auto_calculated: true,
+                admission_date: p.admissionDate || p.raw?.admitted_at,
+                stay_days: unbilledDays,
+                ward: p.ward,
+                bed: p.bedNo,
+              },
+            });
+            toast.success(
+              `Auto-added bed charge to list: ${unbilledDays} day${unbilledDays > 1 ? "s" : ""} @ ₹${dailyRate}/day`,
+              { icon: "🛏️" }
+            );
+            autoPostingRef.current = false;
+            return await fetchPatientBilling(p, false);
+          } catch (postErr) {
+            console.error("Failed to auto-post bed charges:", postErr);
+            autoPostingRef.current = false;
+          }
+        }
+      }
 
       const mappedPayments = safePayments.map((pay) => {
         const rawDate = pay.payment_date || pay.paid_at || pay.created_at;
@@ -715,21 +802,26 @@ export default function IPDBilling() {
     };
   }, [patient, dynamicTariff]);
 
-  // Auto calculate and post bed charges based on inpatient admission date
+  // Auto calculate and post bed charges based on inpatient admission date directly to list
   const handleAutoPostBedCharges = async () => {
     if (!patient || !bedStayMetrics) return;
     const daysToPost = bedStayMetrics.unbilledDays > 0 ? bedStayMetrics.unbilledDays : bedStayMetrics.stayDays;
     const rate = bedStayMetrics.dailyRate;
     const gross = daysToPost * rate;
-    const sName = `Bed Charge: ${patient.ward} - ${patient.bedNo} (${daysToPost} Day${daysToPost > 1 ? "s" : ""} Stay)`;
+    const sName = patient.ward
+      ? `Bed Charge: ${patient.ward} - ${patient.bedNo || "Bed"} (${daysToPost} Day${daysToPost > 1 ? "s" : ""} Stay)`
+      : `Inpatient Bed Charge (${daysToPost} Day${daysToPost > 1 ? "s" : ""})`;
 
     try {
       setActionLoading(true);
       const encounterId = patient.encounterId || patient.id;
+      if (encounterId) {
+        suppressedBedAutoPostEncounters.current.delete(encounterId);
+      }
       await billingService.addCharge({
         encounter_id: encounterId,
         item_name: sName,
-        item_category: "Room",
+        item_category: "Room Charges",
         quantity: daysToPost,
         rate: rate,
         unit_price: rate,
@@ -739,16 +831,16 @@ export default function IPDBilling() {
         net_amount: gross,
         charged_at: new Date().toISOString(),
         custom_fields: {
-          item_category: "Room",
+          item_category: "Room Charges",
           auto_calculated: true,
-          admission_date: patient.admissionDate,
+          admission_date: patient.admissionDate || patient.raw?.admitted_at,
           stay_days: daysToPost,
           ward: patient.ward,
           bed: patient.bedNo,
         },
       });
-      await fetchPatientBilling(patient);
-      toast.success(`Auto-calculated & posted ${daysToPost} day(s) bed charge: ₹${gross.toLocaleString("en-IN")}`, { icon: "🛏️" });
+      await fetchPatientBilling(patient, false);
+      toast.success(`Auto-added ${daysToPost} day(s) bed charge to list: ₹${gross.toLocaleString("en-IN")}`, { icon: "🛏️" });
     } catch (err) {
       console.error("Failed to auto-post bed charges:", err);
       toast.error(err.response?.data?.message || err.message || "Failed to post bed charges.");
@@ -770,7 +862,7 @@ export default function IPDBilling() {
       setRateInput(0);
     }
     if (cat === "Room Charges" && bedStayMetrics) {
-      const suggestedDays = bedStayMetrics.unbilledDays > 0 ? bedStayMetrics.unbilledDays : bedStayMetrics.stayDays;
+      const suggestedDays = bedStayMetrics.unbilledDays > 0 ? bedStayMetrics.unbilledDays : 1;
       setQtyInput(suggestedDays);
       if (bedStayMetrics.dailyRate > 0) {
         setRateInput(bedStayMetrics.dailyRate);
@@ -794,17 +886,6 @@ export default function IPDBilling() {
     if (found) {
       setRateInput(found.rate);
     }
-  };
-
-  // Auto Bed Rent Allotment based on Stay Days
-  const handleAutoAllotBedRent = () => {
-    if (!patient || !bedStayMetrics) return;
-    const days = bedStayMetrics.unbilledDays > 0 ? bedStayMetrics.unbilledDays : bedStayMetrics.stayDays;
-    setQtyInput(days);
-    if (bedStayMetrics.dailyRate > 0) {
-      setRateInput(bedStayMetrics.dailyRate);
-    }
-    toast.success(`Bed charge auto-calculated to ${days} day(s) @ ₹${bedStayMetrics.dailyRate}/day based on admission date!`, { icon: "🛏️" });
   };
 
   // Add Item to Bill (Standard Tariff)
@@ -1003,8 +1084,13 @@ export default function IPDBilling() {
     if (!patient) return;
     try {
       setActionLoading(true);
+      const encId = patient.encounterId || patient.id;
+      const lowerName = String(itemName || "").toLowerCase();
+      if (lowerName.includes("bed charge") || lowerName.includes("room charge") || lowerName.includes("inpatient bed")) {
+        if (encId) suppressedBedAutoPostEncounters.current.add(encId);
+      }
       await billingService.removeCharge(id, { modified_by: "system" });
-      await fetchPatientBilling(patient);
+      await fetchPatientBilling(patient, false);
       toast.success(`Removed charge: ${itemName || ""}`);
     } catch (err) {
       console.error("Failed to remove charge", err);
@@ -1046,10 +1132,18 @@ export default function IPDBilling() {
 
     try {
       setActionLoading(true);
+      const encId = patient.encounterId || patient.id;
+      const hasBed = selectedItems.some((it) => {
+        const lowerName = String(it.name || "").toLowerCase();
+        return lowerName.includes("bed charge") || lowerName.includes("room charge") || lowerName.includes("inpatient bed");
+      });
+      if (hasBed && encId) {
+        suppressedBedAutoPostEncounters.current.add(encId);
+      }
       for (const item of selectedItems) {
         await billingService.removeCharge(item.id, { modified_by: "system" });
       }
-      await fetchPatientBilling(patient);
+      await fetchPatientBilling(patient, false);
       toast.success(`Removed ${selectedItems.length} selected items.`);
     } catch (err) {
       console.error("Failed to remove charges", err);
@@ -2002,35 +2096,29 @@ export default function IPDBilling() {
 
                 {/* Top Right: Action Buttons Group */}
                 <div className="ipd-ppc-actions">
-                  {bedStayMetrics && bedStayMetrics.unbilledDays > 0 && (
+                  {bedStayMetrics && bedStayMetrics.unbilledDays > 0 ? (
                     <button
                       type="button"
                       className="ipd-ppc-btn"
                       style={{ background: "#fff1f2", color: "#be123c", border: "1.5px solid #fca5a5", fontWeight: 800 }}
-                      onClick={() => {
-                        setActiveWorkspaceTab("tariff");
-                        handleCategoryClick("Room Charges");
-                      }}
-                      title="Click to view and auto-post unbilled bed charges"
+                      onClick={handleAutoPostBedCharges}
+                      disabled={actionLoading}
+                      title="Click to auto-post unbilled bed charges directly to list"
                     >
                       <Icon name="LuBed" size={13} />
-                      <span>🛏️ {bedStayMetrics.unbilledDays} Unbilled Day{bedStayMetrics.unbilledDays > 1 ? "s" : ""} (₹{bedStayMetrics.unbilledAmount.toLocaleString("en-IN")})</span>
+                      <span>⚡ Auto-Add Bed Stay ({bedStayMetrics.unbilledDays}d • ₹{bedStayMetrics.unbilledAmount.toLocaleString("en-IN")})</span>
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    className="ipd-ppc-btn ipd-ppc-btn--pay"
-                    onClick={() => {
-                      const el = document.getElementById("ipd-collect-amount-input");
-                      if (el) {
-                        el.focus();
-                        el.scrollIntoView({ behavior: "smooth", block: "center" });
-                      }
-                    }}
-                    title="Jump to Fast Payment Collection Console"
-                  >
-                    <Icon name="LuCreditCard" size={12} /> + Receive Payment
-                  </button>
+                  ) : bedStayMetrics && bedStayMetrics.alreadyBilledDays > 0 ? (
+                    <span
+                      className="ipd-ppc-btn"
+                      style={{ background: "#f0fdf4", color: "#166534", border: "1.5px solid #bbf7d0", fontWeight: 700, cursor: "default" }}
+                      title={`Bed charges automated & posted for ${bedStayMetrics.alreadyBilledDays} day(s)`}
+                    >
+                      <Icon name="LuCheckCircle" size={13} style={{ color: "#16a34a" }} />
+                      <span>🛏️ Bed Stay Synced ({bedStayMetrics.alreadyBilledDays}d)</span>
+                    </span>
+                  ) : null}
+
                   <button
                     type="button"
                     className="ipd-ppc-btn ipd-ppc-btn--print"
@@ -2100,7 +2188,7 @@ export default function IPDBilling() {
             </div>
 
             {/* Executive Financial Strip */}
-            <div className="ipd-workbench-financial-strip">
+            {/* <div className="ipd-workbench-financial-strip">
               <div className="ipd-wfs-card ipd-wfs-card--charges">
                 <div className="wfs-icon">🧾</div>
                 <div className="wfs-info">
@@ -2170,7 +2258,7 @@ export default function IPDBilling() {
                   </span>
                 </div>
               </div>
-            </div>
+            </div> */}
 
             {/* UNIFIED SIDE-BY-SIDE SPLIT WORKBENCH */}
             <div className="ipd-split-workbench-grid">
@@ -2209,87 +2297,6 @@ export default function IPDBilling() {
                   <div className="ipd-charge-console-card">
                 {activeWorkspaceTab === "tariff" ? (
                   <div className="ipd-tariff-panel-clean">
-                    {/* Automated Inpatient Bed Stay & Tariff Calculator */}
-                    {activeCategory === "Room Charges" && bedStayMetrics && (
-                      <div className="ipd-auto-bed-card">
-                        <div className="ipd-abc-header">
-                          <div className="ipd-abc-title-group">
-                            <div className="ipd-abc-icon">🛏️</div>
-                            <div>
-                              <div className="ipd-abc-title">Automated Inpatient Bed Stay &amp; Tariff Calculator</div>
-                              <div className="ipd-abc-subtitle">
-                                Calculated from IPD Admission: <strong>{bedStayMetrics.admissionFormatted}</strong> &rarr; <strong>{bedStayMetrics.billedUpToFormatted}</strong>
-                              </div>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            className="ipd-abc-btn-autopost"
-                            disabled={actionLoading || bedStayMetrics.isFullyBilled}
-                            onClick={handleAutoPostBedCharges}
-                            title="Auto-calculate and post bed charges directly to patient bill"
-                          >
-                            <Icon name="LuZap" size={14} />
-                            <span>
-                              {bedStayMetrics.isFullyBilled
-                                ? "✓ Bed Charges Fully Synced"
-                                : `⚡ Auto-Post Bed Charges (${bedStayMetrics.unbilledDays > 0 ? bedStayMetrics.unbilledDays : bedStayMetrics.stayDays}d • ₹${(bedStayMetrics.unbilledDays > 0 ? bedStayMetrics.unbilledAmount : bedStayMetrics.totalCalculatedAmount).toLocaleString("en-IN")})`}
-                            </span>
-                          </button>
-                        </div>
-
-                        <div className="ipd-abc-metrics-grid">
-                          <div className="ipd-abc-metric-box">
-                            <span className="lbl">Total Inpatient Stay</span>
-                            <span className="val">⏱️ {bedStayMetrics.stayDays} Day{bedStayMetrics.stayDays > 1 ? "s" : ""} ({bedStayMetrics.stayHours} hrs)</span>
-                          </div>
-                          <div className="ipd-abc-metric-box">
-                            <span className="lbl">Allotted Ward &amp; Bed</span>
-                            <span className="val" style={{ color: "#0284c7" }}>🛏️ {patient.ward} • {patient.bedNo}</span>
-                          </div>
-                          <div className="ipd-abc-metric-box">
-                            <span className="lbl">Daily Tariff Rate</span>
-                            <span className="val" style={{ color: "#0f766e" }}>₹{bedStayMetrics.dailyRate.toLocaleString("en-IN")} / day</span>
-                          </div>
-                          <div className={`ipd-abc-metric-box ${bedStayMetrics.alreadyBilledDays > 0 ? "highlight" : ""}`}>
-                            <span className="lbl">Already Billed Days</span>
-                            <span className="val">{bedStayMetrics.alreadyBilledDays} Day{bedStayMetrics.alreadyBilledDays > 1 ? "s" : ""} (₹{bedStayMetrics.alreadyBilledAmount.toLocaleString("en-IN")})</span>
-                          </div>
-                          <div className={`ipd-abc-metric-box ${bedStayMetrics.unbilledDays > 0 ? "warning" : "highlight"}`}>
-                            <span className="lbl">Unbilled Stay Duration</span>
-                            <span className="val">
-                              {bedStayMetrics.unbilledDays > 0
-                                ? `${bedStayMetrics.unbilledDays} Day(s) (₹${bedStayMetrics.unbilledAmount.toLocaleString("en-IN")})`
-                                : "✓ All Days Billed"}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="ipd-abc-actions">
-                          <div>
-                            {bedStayMetrics.isFullyBilled ? (
-                              <span className="ipd-abc-status-chip synced">
-                                <Icon name="LuCheckCircle" size={13} /> Bed charges fully posted for {bedStayMetrics.stayDays}-day inpatient stay
-                              </span>
-                            ) : (
-                              <span className="ipd-abc-status-chip unbilled">
-                                <Icon name="LuClock" size={13} /> {bedStayMetrics.unbilledDays > 0 ? `${bedStayMetrics.unbilledDays} day(s) unbilled` : "Bed charge not yet posted"} • Calculated Total: ₹{bedStayMetrics.totalCalculatedAmount.toLocaleString("en-IN")}
-                              </span>
-                            )}
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <button
-                              type="button"
-                              className="ipd-link-autofill"
-                              style={{ fontSize: 11.5, fontWeight: 700, color: "#0284c7" }}
-                              onClick={handleAutoAllotBedRent}
-                            >
-                              📝 Fill In Form Below ({bedStayMetrics.unbilledDays > 0 ? bedStayMetrics.unbilledDays : bedStayMetrics.stayDays} Days)
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                     <div className="ipd-add-service-row">
                       <div className="ipd-form-field ipd-form-field--category">
                         <label className="ipd-field-label">Department / Category</label>
@@ -2438,7 +2445,6 @@ export default function IPDBilling() {
                         </button>
                       </div>
                     </div>
-
                     {showServiceDiscountRef && (
                       <div className="ipd-discount-ref-box">
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
@@ -3292,7 +3298,7 @@ export default function IPDBilling() {
                           Pay Full Due: ₹{pendingAmount.toLocaleString("en-IN")}
                         </button>
                       )}
-                      {[1000, 2500, 5000, 10000, 20000].map((presetAmt) => (
+                      {/* {[1000, 2500, 5000, 10000, 20000].map((presetAmt) => (
                         <button
                           key={presetAmt}
                           type="button"
@@ -3301,7 +3307,7 @@ export default function IPDBilling() {
                         >
                           +₹{presetAmt.toLocaleString("en-IN")}
                         </button>
-                      ))}
+                      ))} */}
                     </div>
 
                     {/* Submit Collect Payment Button */}
@@ -3323,7 +3329,7 @@ export default function IPDBilling() {
                     </div>
                   </div>
 
-                  {/* Excess Advance Card if any */}
+                  {/* Excess Advance Card if any
                   {excessAdvance > 0 && (
                     <div className="ipd-excess-advance-card" style={{ marginBottom: 14 }}>
                       <div className="ipd-eac-left">
@@ -3356,7 +3362,7 @@ export default function IPDBilling() {
                         </button>
                       </div>
                     </div>
-                  )}
+                  )} */}
 
                   {/* Search and Filters Bar for Payments */}
                   <div className="ipd-pay-controls-bar">

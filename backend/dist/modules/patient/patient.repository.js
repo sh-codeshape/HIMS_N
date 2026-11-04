@@ -25,6 +25,23 @@ class PatientRepository {
         const existing = await this.findPatientByPhoneAndName(organization_id, phone, first_name, last_name);
         return !!existing;
     }
+    async findPatientByIdentifier(organization_id, id_type, id_value) {
+        const trimmed = id_value?.trim();
+        if (!trimmed)
+            return null;
+        const query = `
+      SELECT p.id, p.uhid, p.first_name, p.last_name, p.full_name
+      FROM patient_identifiers pi
+      JOIN patients p ON pi.patient_id = p.id
+      WHERE pi.organization_id = $1 
+      AND pi.id_type = $2 
+      AND pi.id_value = $3
+      AND p.deleted_at IS NULL
+      LIMIT 1
+    `;
+        const result = await database_1.db.query(query, [organization_id, id_type, trimmed]);
+        return result.rows[0] || null;
+    }
     async createPatient(client, data) {
         const query = `
       INSERT INTO patients (
@@ -86,13 +103,14 @@ class PatientRepository {
         await client.query(query, [patient_id, data.address_line1, data.city, data.state, data.postal_code, countryCode]);
     }
     async createPatientIdentifier(client, organization_id, patient_id, id_type, id_value) {
-        if (!id_value)
+        const trimmed = id_value?.trim();
+        if (!trimmed)
             return;
         const query = `
       INSERT INTO patient_identifiers (organization_id, patient_id, id_type, id_value)
       VALUES ($1, $2, $3, $4)
     `;
-        await client.query(query, [organization_id, patient_id, id_type, id_value]);
+        await client.query(query, [organization_id, patient_id, id_type, trimmed]);
     }
     async createPatientContact(client, patient_id, name, relationship, phone) {
         if (!name)

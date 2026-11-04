@@ -59,8 +59,21 @@ app.use('/api/v1/settings', settingsRoutes);
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   logger.error(err);
   
-  const statusCode = err.statusCode || 500;
-  const message = err.message || 'Internal Server Error';
+  let statusCode = err.statusCode || 500;
+  let message = err.message || 'Internal Server Error';
+
+  if (err?.code === '23505') {
+    statusCode = 409;
+    if (err.constraint === 'patient_identifiers_organization_id_id_type_id_value_key') {
+      message = 'A patient with this government identifier (Aadhaar or PAN) is already registered.';
+    } else if (err.constraint?.includes('uhid')) {
+      message = 'A patient with this UHID already exists.';
+    } else if (err.constraint?.includes('phone')) {
+      message = 'A record with this phone number already exists.';
+    } else {
+      message = 'A record with duplicate unique identifier already exists.';
+    }
+  }
   
   res.status(statusCode).json({
     success: false,

@@ -10,6 +10,7 @@ vi.mock('./patient.repository', () => ({
     updatePatientAddress: vi.fn(),
     findPatientByPhoneAndName: vi.fn(),
     checkPhoneNameExists: vi.fn(),
+    findPatientByIdentifier: vi.fn(),
   },
 }));
 
@@ -154,5 +155,60 @@ describe('patientService.createPatient duplicate verification', () => {
     } finally {
       (patientRepository as any).findPatientByPhoneAndName = originalFind;
     }
+  });
+
+  it('throws ConflictError with existing patient UHID and name when Aadhaar matches', async () => {
+    vi.mocked(patientRepository.findPatientByPhoneAndName).mockResolvedValue(null);
+    vi.mocked(patientRepository.findPatientByIdentifier).mockResolvedValue({
+      id: 'existing-aadhaar-patient',
+      uhid: '1026-0042',
+      first_name: 'Radha',
+      last_name: 'Sharma',
+      full_name: 'Radha Sharma',
+    } as any);
+
+    await expect(
+      patientService.createPatient('org-1', {
+        facility_id: '00000000-0000-0000-0000-000000000000',
+        first_name: 'Radha',
+        last_name: 'Devi',
+        phone: '9876543219',
+        gender: 'female',
+        aadhaar_number: '1234 5678 9012',
+      } as any)
+    ).rejects.toThrow('A patient with this Aadhaar number already exists (UHID: 1026-0042) - Radha Sharma.');
+
+    expect(patientRepository.findPatientByIdentifier).toHaveBeenCalledWith(
+      'org-1',
+      'aadhaar_token',
+      '123456789012'
+    );
+  });
+
+  it('throws ConflictError with existing patient UHID and name when PAN matches', async () => {
+    vi.mocked(patientRepository.findPatientByPhoneAndName).mockResolvedValue(null);
+    vi.mocked(patientRepository.findPatientByIdentifier).mockResolvedValue({
+      id: 'existing-pan-patient',
+      uhid: '1026-0099',
+      first_name: 'Adarsh',
+      last_name: 'Singh',
+      full_name: 'Adarsh Singh',
+    } as any);
+
+    await expect(
+      patientService.createPatient('org-1', {
+        facility_id: '00000000-0000-0000-0000-000000000000',
+        first_name: 'Adarsh',
+        phone: '9876543219',
+        gender: 'male',
+        pan_number: 'abcde1234f',
+      } as any)
+    ).rejects.toThrow('A patient with this PAN number already exists (UHID: 1026-0099) - Adarsh Singh.');
+
+    expect(patientRepository.findPatientByIdentifier).toHaveBeenCalledWith(
+      'org-1',
+      'pan',
+      'ABCDE1234F'
+    );
   });
 });

@@ -32,6 +32,27 @@ export class PatientRepository {
     return !!existing;
   }
 
+  async findPatientByIdentifier(
+    organization_id: string,
+    id_type: string,
+    id_value: string
+  ): Promise<{ id: string; uhid: string; first_name: string; last_name: string; full_name?: string } | null> {
+    const trimmed = id_value?.trim();
+    if (!trimmed) return null;
+    const query = `
+      SELECT p.id, p.uhid, p.first_name, p.last_name, p.full_name
+      FROM patient_identifiers pi
+      JOIN patients p ON pi.patient_id = p.id
+      WHERE pi.organization_id = $1 
+      AND pi.id_type = $2 
+      AND pi.id_value = $3
+      AND p.deleted_at IS NULL
+      LIMIT 1
+    `;
+    const result = await db.query(query, [organization_id, id_type, trimmed]);
+    return result.rows[0] || null;
+  }
+
   async createPatient(
     client: PoolClient,
     data: {
@@ -125,12 +146,13 @@ export class PatientRepository {
     id_type: string,
     id_value: string
   ) {
-    if (!id_value) return;
+    const trimmed = id_value?.trim();
+    if (!trimmed) return;
     const query = `
       INSERT INTO patient_identifiers (organization_id, patient_id, id_type, id_value)
       VALUES ($1, $2, $3, $4)
     `;
-    await client.query(query, [organization_id, patient_id, id_type, id_value]);
+    await client.query(query, [organization_id, patient_id, id_type, trimmed]);
   }
 
   async createPatientContact(

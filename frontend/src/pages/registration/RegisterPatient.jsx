@@ -463,6 +463,12 @@ export default function RegisterPatient() {
         err?.message ||
         "Error registering patient";
 
+      const field = err?.response?.data?.error?.details?.field;
+      if (field) {
+        setErrors((p) => ({ ...p, [field]: serverMsg }));
+        setFieldTouched(field);
+      }
+
       showToast(serverMsg, "error");
     }
   };
