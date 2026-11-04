@@ -533,10 +533,7 @@ export default function RegisterPatient() {
 
       {/* ── TOP SEARCH & QUICK LOAD BAR (Higher z-index to always float above cards) ── */}
       <div ref={searchRef} className="rp-search-panel">
-        <div className="dash-section-bar">
-          <LuSearch size={15} />
-          <span>Search & Quick Load Registered Patient</span>
-        </div>
+       
 
         <div className="rp-search-row">
           <div className="rp-search-input-wrap">
