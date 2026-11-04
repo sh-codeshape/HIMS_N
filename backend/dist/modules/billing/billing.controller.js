@@ -119,6 +119,30 @@ class BillingController {
         const summary = await this.service.getReportsSummary(facilityId, dateFrom, dateTo);
         (0, response_1.sendSuccess)(res, summary, 'Billing reports summary retrieved successfully');
     };
+    getReportsAnalytics = async (req, res) => {
+        const facilityId = req.user?.facilityId || req.query.facilityId || '00000000-0000-0000-0000-000000000000';
+        const dateFrom = req.query.dateFrom;
+        const dateTo = req.query.dateTo;
+        let practitionerId = req.query.practitionerId;
+        // RBAC: If user is a doctor without admin billing privileges, scope practitioner filter
+        const isDoctor = req.user?.roles?.includes('doctor');
+        const isAdminOrBilling = req.user?.roles?.includes('admin') ||
+            req.user?.roles?.includes('super_admin') ||
+            req.user?.roles?.includes('developer') ||
+            req.user?.permissions?.includes('billing.manage');
+        if (isDoctor && !isAdminOrBilling) {
+            if (!practitionerId && req.user?.practitionerId) {
+                practitionerId = req.user.practitionerId;
+            }
+        }
+        const analytics = await this.service.getReportsAnalytics(facilityId, {
+            dateFrom,
+            dateTo,
+            practitionerId,
+            role: req.user?.roles?.[0]
+        });
+        (0, response_1.sendSuccess)(res, analytics, 'Billing reports analytics retrieved successfully');
+    };
     getPendingDuesReport = async (req, res) => {
         const facilityId = req.user?.facilityId || req.query.facilityId || '00000000-0000-0000-0000-000000000000';
         const page = parseInt(req.query.page || '1', 10);

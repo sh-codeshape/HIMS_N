@@ -95,6 +95,16 @@ const billingService = {
     }
   },
 
+  getReportsAnalytics: async (params = {}) => {
+    try {
+      const res = await axiosInstance.get("/billing/reports/analytics", { params });
+      return res.data?.data ?? res.data ?? null;
+    } catch (err) {
+      console.warn("API /billing/reports/analytics error:", err?.message);
+      return null;
+    }
+  },
+
   getPendingDues: async (params = {}) => {
     try {
       const res = await axiosInstance.get("/billing/reports/pending-dues", { params });

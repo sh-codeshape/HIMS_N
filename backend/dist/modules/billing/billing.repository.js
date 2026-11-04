@@ -1117,6 +1117,316 @@ class BillingRepository {
             ledger: ledgerRes.rows
         };
     }
+    async getReportsAnalytics(facilityId, options) {
+        const params = [facilityId];
+        let dateFilterInv = '';
+        let dateFilterPay = '';
+        let dateFilterChg = '';
+        if (options?.dateFrom && options?.dateTo) {
+            params.push(options.dateFrom, options.dateTo);
+            const p1 = params.length - 1;
+            const p2 = params.length;
+            dateFilterInv = ` AND i.issued_at >= $${p1}::timestamptz AND i.issued_at <= $${p2}::timestamptz`;
+            dateFilterPay = ` AND p.paid_at >= $${p1}::timestamptz AND p.paid_at <= $${p2}::timestamptz`;
+            dateFilterChg = ` AND c.charged_at >= $${p1}::timestamptz AND c.charged_at <= $${p2}::timestamptz`;
+        }
+        else if (options?.dateFrom) {
+            params.push(options.dateFrom);
+            const p1 = params.length;
+            dateFilterInv = ` AND i.issued_at >= $${p1}::timestamptz`;
+            dateFilterPay = ` AND p.paid_at >= $${p1}::timestamptz`;
+            dateFilterChg = ` AND c.charged_at >= $${p1}::timestamptz`;
+        }
+        // 1. Overall Financial KPIs
+        const kpiQuery = `
+      SELECT 
+        COALESCE(SUM(i.total_amount), 0)::numeric as total_invoiced,
+        COALESCE(SUM(i.paid_amount), 0)::numeric as total_revenue,
+        COALESCE(SUM(i.due_amount), 0)::numeric as outstanding_dues,
+        COUNT(i.id) as total_invoices,
+        COUNT(i.id) FILTER (WHERE i.due_amount > 0) as pending_invoices_count
+      FROM invoices i
+      WHERE (i.facility_id = $1 OR $1 = '00000000-0000-0000-0000-000000000000')
+        AND i.status != 'cancelled'
+        ${dateFilterInv}
+    `;
+        const kpiRes = await database_1.db.query(kpiQuery, params);
+        const kpiRow = kpiRes.rows[0] || {};
+        // Today's collections
+        const todayCollRes = await database_1.db.query(`SELECT COALESCE(SUM(amount), 0)::numeric as today_collections
+       FROM payments
+       WHERE (facility_id = $1 OR $1 = '00000000-0000-0000-0000-000000000000')
+         AND paid_at >= CURRENT_DATE AND status = 'completed'`, [facilityId]);
+        const todayCollections = Number(todayCollRes.rows[0]?.today_collections || 0);
+        // 2. Revenue Trends (time-series)
+        const trendsQuery = `
+      WITH daily_invoices AS (
+        SELECT 
+          TO_CHAR(DATE(i.issued_at), 'YYYY-MM-DD') as date_key,
+          COALESCE(SUM(i.total_amount), 0)::numeric as invoiced,
+          COALESCE(SUM(i.paid_amount), 0)::numeric as invoiced_paid,
+          COALESCE(SUM(i.due_amount), 0)::numeric as dues,
+          COUNT(i.id) as invoice_count
+        FROM invoices i
+        WHERE (i.facility_id = $1 OR $1 = '00000000-0000-0000-0000-000000000000')
+          AND i.status != 'cancelled'
+          ${dateFilterInv}
+        GROUP BY DATE(i.issued_at)
+      ),
+      daily_payments AS (
+        SELECT 
+          TO_CHAR(DATE(p.paid_at), 'YYYY-MM-DD') as date_key,
+          COALESCE(SUM(p.amount), 0)::numeric as collected,
+          COUNT(p.id) as payment_count
+        FROM payments p
+        WHERE (p.facility_id = $1 OR $1 = '00000000-0000-0000-0000-000000000000')
+          AND p.status = 'completed'
+          ${dateFilterPay}
+        GROUP BY DATE(p.paid_at)
+      )
+      SELECT 
+        COALESCE(i.date_key, p.date_key) as date,
+        COALESCE(i.invoiced, 0)::numeric as invoiced,
+        COALESCE(p.collected, i.invoiced_paid, 0)::numeric as collected,
+        COALESCE(i.dues, 0)::numeric as dues,
+        COALESCE(i.invoice_count, 0) as invoice_count,
+        COALESCE(p.payment_count, 0) as payment_count
+      FROM daily_invoices i
+      FULL OUTER JOIN daily_payments p ON p.date_key = i.date_key
+      WHERE COALESCE(i.date_key, p.date_key) IS NOT NULL
+      ORDER BY date ASC
+    `;
+        const trendsRes = await database_1.db.query(trendsQuery, params);
+        // 3. Department Revenue Breakdown
+        const deptQuery = `
+      SELECT 
+        d.id as department_id,
+        d.name as department_name,
+        d.code as department_code,
+        COALESCE(d.department_type, 'clinical') as department_type,
+        COUNT(c.id) as charge_count,
+        COALESCE(SUM(c.net_amount), 0)::numeric as total_revenue,
+        COALESCE(SUM(c.net_amount) FILTER (WHERE c.status = 'billed'), 0)::numeric as billed_amount,
+        COALESCE(SUM(c.net_amount) FILTER (WHERE c.status = 'billable'), 0)::numeric as unbilled_dues
+      FROM departments d
+      LEFT JOIN charges c ON c.department_id = d.id 
+        AND (c.facility_id = $1 OR $1 = '00000000-0000-0000-0000-000000000000')
+        AND c.status IN ('billable', 'billed')
+        ${dateFilterChg}
+      GROUP BY d.id, d.name, d.code, d.department_type
+      ORDER BY total_revenue DESC, d.name ASC
+    `;
+        const deptRes = await database_1.db.query(deptQuery, params);
+        // 4. Doctor Revenue Attribution
+        let doctorFilterSql = '';
+        const doctorParams = [...params];
+        if (options?.practitionerId) {
+            doctorParams.push(options.practitionerId);
+            doctorFilterSql = ` WHERE pr.id = $${doctorParams.length}`;
+        }
+        const doctorQuery = `
+      WITH doctor_encounters AS (
+        SELECT 
+          e.primary_practitioner_id as practitioner_id,
+          COUNT(e.id) as encounter_count
+        FROM encounters e
+        WHERE (e.facility_id = $1 OR $1 = '00000000-0000-0000-0000-000000000000')
+        GROUP BY e.primary_practitioner_id
+      ),
+      doctor_charges AS (
+        SELECT 
+          COALESCE(c.ordered_by_practitioner_id, e.primary_practitioner_id) as practitioner_id,
+          COALESCE(SUM(c.net_amount), 0)::numeric as total_charges,
+          COALESCE(SUM(c.net_amount) FILTER (
+            WHERE c.description ILIKE '%consult%' OR c.description ILIKE '%opd%' OR c.description ILIKE '%visit%'
+          ), 0)::numeric as consultation_charges,
+          COALESCE(SUM(c.net_amount) FILTER (
+            WHERE c.description NOT ILIKE '%consult%' AND c.description NOT ILIKE '%opd%' AND c.description NOT ILIKE '%visit%'
+          ), 0)::numeric as procedure_charges
+        FROM charges c
+        LEFT JOIN encounters e ON e.id = c.encounter_id
+        WHERE (c.facility_id = $1 OR $1 = '00000000-0000-0000-0000-000000000000')
+          AND c.status IN ('billable', 'billed')
+          ${dateFilterChg}
+        GROUP BY COALESCE(c.ordered_by_practitioner_id, e.primary_practitioner_id)
+      )
+      SELECT 
+        pr.id as practitioner_id,
+        s.first_name,
+        s.last_name,
+        CASE 
+          WHEN s.first_name ILIKE 'Dr.%' THEN CONCAT(s.first_name, ' ', COALESCE(s.last_name, ''))
+          ELSE CONCAT('Dr. ', s.first_name, ' ', COALESCE(s.last_name, ''))
+        END as doctor_name,
+        COALESCE(sp.name, s.designation, 'Consultant Specialist') as specialty,
+        COALESCE(de.encounter_count, 0) as encounter_count,
+        COALESCE(dc.total_charges, 0)::numeric as total_revenue,
+        COALESCE(dc.consultation_charges, 0)::numeric as consultation_revenue,
+        COALESCE(dc.procedure_charges, 0)::numeric as procedure_revenue
+      FROM practitioners pr
+      JOIN staff s ON s.id = pr.staff_id
+      LEFT JOIN specialties sp ON sp.id = pr.specialty_id
+      LEFT JOIN doctor_encounters de ON de.practitioner_id = pr.id
+      LEFT JOIN doctor_charges dc ON dc.practitioner_id = pr.id
+      ${doctorFilterSql}
+      ORDER BY total_revenue DESC, encounter_count DESC, s.first_name ASC
+    `;
+        const docRes = await database_1.db.query(doctorQuery, doctorParams);
+        // 5. Pathology & Diagnostics Analytics
+        const pathSummaryQuery = `
+      SELECT 
+        COALESCE(SUM(c.net_amount), 0)::numeric as total_revenue,
+        COALESCE(SUM(c.net_amount) FILTER (WHERE c.status = 'billed'), 0)::numeric as billed_amount,
+        COALESCE(SUM(c.net_amount) FILTER (WHERE c.status = 'billable'), 0)::numeric as unbilled_dues,
+        COUNT(c.id) as total_tests
+      FROM charges c
+      LEFT JOIN departments d ON d.id = c.department_id
+      WHERE (c.facility_id = $1 OR $1 = '00000000-0000-0000-0000-000000000000')
+        AND (
+          d.code = 'LAB' 
+          OR d.department_type = 'diagnostic' 
+          OR c.source_type = 'order_item'
+          OR c.description ILIKE '%test%' 
+          OR c.description ILIKE '%cbc%' 
+          OR c.description ILIKE '%kft%'
+        )
+        AND c.status IN ('billable', 'billed')
+        ${dateFilterChg}
+    `;
+        const pathSumRes = await database_1.db.query(pathSummaryQuery, params);
+        const pathSumRow = pathSumRes.rows[0] || {};
+        const pathTestsQuery = `
+      SELECT 
+        c.description as test_name,
+        CASE 
+          WHEN c.description ILIKE '%cbc%' OR c.description ILIKE '%blood%' OR c.description ILIKE '%hemoglobin%' OR c.description ILIKE '%platelet%' THEN 'Hematology'
+          WHEN c.description ILIKE '%kft%' OR c.description ILIKE '%rft%' OR c.description ILIKE '%lft%' OR c.description ILIKE '%glucose%' OR c.description ILIKE '%sugar%' OR c.description ILIKE '%hba1c%' OR c.description ILIKE '%lipid%' OR c.description ILIKE '%electrolyte%' THEN 'Biochemistry'
+          WHEN c.description ILIKE '%urine%' OR c.description ILIKE '%stool%' THEN 'Clinical Pathology'
+          WHEN c.description ILIKE '%ecg%' OR c.description ILIKE '%echo%' OR c.description ILIKE '%x-ray%' OR c.description ILIKE '%scan%' OR c.description ILIKE '%ultrasound%' THEN 'Radiology & ECG'
+          ELSE 'General Laboratory'
+        END as category,
+        COUNT(c.id) as volume,
+        ROUND(AVG(c.unit_price), 2)::numeric as unit_price,
+        COALESCE(SUM(c.net_amount), 0)::numeric as revenue
+      FROM charges c
+      LEFT JOIN departments d ON d.id = c.department_id
+      WHERE (c.facility_id = $1 OR $1 = '00000000-0000-0000-0000-000000000000')
+        AND (
+          d.code = 'LAB' 
+          OR d.department_type = 'diagnostic' 
+          OR c.source_type = 'order_item'
+          OR c.description ILIKE '%test%' 
+          OR c.description ILIKE '%cbc%' 
+          OR c.description ILIKE '%kft%'
+          OR c.description ILIKE '%ecg%'
+        )
+        AND c.status IN ('billable', 'billed')
+        ${dateFilterChg}
+      GROUP BY c.description
+      ORDER BY revenue DESC, volume DESC
+      LIMIT 15
+    `;
+        const pathTestsRes = await database_1.db.query(pathTestsQuery, params);
+        // 6. Payment Modes Breakdown
+        const payModeQuery = `
+      SELECT 
+        COALESCE(pm.name, 'Cash') as payment_mode,
+        COUNT(p.id) as transaction_count,
+        COALESCE(SUM(p.amount), 0)::numeric as total_collected
+      FROM payments p
+      LEFT JOIN payment_methods pm ON pm.id = p.payment_method_id
+      WHERE (p.facility_id = $1 OR $1 = '00000000-0000-0000-0000-000000000000')
+        AND p.status = 'completed'
+        ${dateFilterPay}
+      GROUP BY COALESCE(pm.name, 'Cash')
+      ORDER BY total_collected DESC
+    `;
+        const payModeRes = await database_1.db.query(payModeQuery, params);
+        const totalCollected = payModeRes.rows.reduce((sum, r) => sum + Number(r.total_collected || 0), 0);
+        const paymentModes = payModeRes.rows.map(r => ({
+            mode: r.payment_mode,
+            count: parseInt(r.transaction_count, 10),
+            total: Number(r.total_collected),
+            share: totalCollected > 0 ? Number(((Number(r.total_collected) / totalCollected) * 100).toFixed(1)) : 0
+        }));
+        // 7. Invoices by Type
+        const invTypeQuery = `
+      SELECT 
+        COALESCE(i.invoice_type, 'opd') as invoice_type,
+        COUNT(i.id) as count,
+        COALESCE(SUM(i.total_amount), 0)::numeric as total_amount,
+        COALESCE(SUM(i.paid_amount), 0)::numeric as paid_amount,
+        COALESCE(SUM(i.due_amount), 0)::numeric as due_amount
+      FROM invoices i
+      WHERE (i.facility_id = $1 OR $1 = '00000000-0000-0000-0000-000000000000')
+        AND i.status != 'cancelled'
+        ${dateFilterInv}
+      GROUP BY i.invoice_type
+      ORDER BY total_amount DESC
+    `;
+        const invTypeRes = await database_1.db.query(invTypeQuery, params);
+        const totInv = Number(kpiRow.total_invoiced || 0);
+        const totRev = Number(kpiRow.total_revenue || 0);
+        return {
+            kpis: {
+                totalInvoiced: totInv,
+                totalRevenue: totRev,
+                outstandingDues: Number(kpiRow.outstanding_dues || 0),
+                todayCollections,
+                totalInvoices: parseInt(kpiRow.total_invoices || '0', 10),
+                pendingInvoicesCount: parseInt(kpiRow.pending_invoices_count || '0', 10),
+                collectionEfficiency: totInv > 0 ? Number(((totRev / totInv) * 100).toFixed(1)) : 0
+            },
+            revenueTrends: trendsRes.rows.map(r => ({
+                date: r.date,
+                invoiced: Number(r.invoiced),
+                collected: Number(r.collected),
+                dues: Number(r.dues),
+                invoiceCount: parseInt(r.invoice_count, 10),
+                paymentCount: parseInt(r.payment_count, 10)
+            })),
+            departmentRevenue: deptRes.rows.map(r => ({
+                id: r.department_id,
+                name: r.department_name,
+                code: r.department_code,
+                type: r.department_type,
+                chargeCount: parseInt(r.charge_count, 10),
+                totalRevenue: Number(r.total_revenue),
+                billedAmount: Number(r.billed_amount),
+                unbilledDues: Number(r.unbilled_dues)
+            })),
+            doctorRevenue: docRes.rows.map(r => ({
+                practitionerId: r.practitioner_id,
+                doctorName: r.doctor_name,
+                specialty: r.specialty,
+                encounterCount: parseInt(r.encounter_count, 10),
+                totalRevenue: Number(r.total_revenue),
+                consultationRevenue: Number(r.consultation_revenue),
+                procedureRevenue: Number(r.procedure_revenue)
+            })),
+            pathologyAnalytics: {
+                totalRevenue: Number(pathSumRow.total_revenue || 0),
+                billedAmount: Number(pathSumRow.billed_amount || 0),
+                unbilledDues: Number(pathSumRow.unbilled_dues || 0),
+                totalTests: parseInt(pathSumRow.total_tests || '0', 10),
+                topTests: pathTestsRes.rows.map(r => ({
+                    name: r.test_name,
+                    category: r.category,
+                    volume: parseInt(r.volume, 10),
+                    unitPrice: Number(r.unit_price),
+                    revenue: Number(r.revenue)
+                }))
+            },
+            paymentModes,
+            byInvoiceType: invTypeRes.rows.map(r => ({
+                type: r.invoice_type,
+                count: parseInt(r.count, 10),
+                totalAmount: Number(r.total_amount),
+                paidAmount: Number(r.paid_amount),
+                dueAmount: Number(r.due_amount)
+            }))
+        };
+    }
     async getPatientDues(patientId, facilityId) {
         const invQuery = `
       SELECT i.*, e.encounter_type, e.encounter_type as encounter_class, e.status as encounter_status

@@ -3,9 +3,79 @@ import toast from "react-hot-toast";
 import PageContainer from "../../components/common/PageContainer.jsx";
 import Icon from "../../components/common/Icon.jsx";
 import billingService from "../../api/services/billingService";
+import { useRole } from "../../hooks/useRole.js";
+import {
+  RevenueTrendChart,
+  DepartmentBreakdownChart,
+  DoctorRevenueChart,
+  DiagnosticTestVolumeChart,
+  PaymentModeDonutChart,
+  AnalyticsKpiCard,
+} from "../../components/analytics";
 
 export default function BillingReports() {
-  const [activeTab, setActiveTab] = useState("pending-dues");
+  const { roles, permissions, hasRole, hasPermission, isSuperAdmin, isDeveloper } = useRole();
+
+  // ── RBAC PERMISSION EVALUATION ──
+  const isDoctorRole = hasRole(["doctor"]);
+  const isAdminOrManager =
+    isSuperAdmin ||
+    isDeveloper ||
+    hasRole(["admin", "super_admin", "developer", "accountant", "hospital_admin"]) ||
+    hasPermission("billing.manage");
+
+  const canViewFinancials =
+    isAdminOrManager ||
+    hasPermission("billing.view") ||
+    hasPermission("reports.view") ||
+    isDoctorRole;
+
+  const canViewDoctorRevenue =
+    isAdminOrManager ||
+    isDoctorRole ||
+    hasPermission("billing.view") ||
+    hasPermission("reports.view");
+
+  const canViewPathology =
+    isAdminOrManager ||
+    isDoctorRole ||
+    hasPermission("billing.view") ||
+    hasPermission("laboratory.view");
+
+  const canViewDuesRegister =
+    isAdminOrManager ||
+    hasPermission("billing.view") ||
+    hasRole(["reception", "billing_clerk"]);
+
+  const canCollectDues =
+    isSuperAdmin ||
+    isDeveloper ||
+    hasPermission("billing.create") ||
+    hasPermission("billing.edit") ||
+    hasRole(["admin", "reception", "billing_clerk", "accountant"]);
+
+  const canViewCollections =
+    isAdminOrManager ||
+    hasPermission("billing.view") ||
+    hasRole(["accountant", "reception"]);
+
+  // Role title label for visual telemetry badge
+  const roleBadgeLabel = isSuperAdmin
+    ? "👑 Super Admin View"
+    : isDeveloper
+    ? "⚡ Developer Mode"
+    : hasRole(["admin"])
+    ? "🛡️ Administrator Full View"
+    : isDoctorRole
+    ? "🩺 Practitioner Scoped View"
+    : hasRole(["reception", "billing_clerk"])
+    ? "💼 Billing & Cashier Desk"
+    : "📊 Read-Only View";
+
+  // Tab State (Default to overview if permitted, otherwise first permitted tab)
+  const [activeTab, setActiveTab] = useState(
+    canViewFinancials ? "overview" : canViewDuesRegister ? "pending-dues" : "collections"
+  );
   const [loading, setLoading] = useState(true);
 
   // Filter States
@@ -13,19 +83,32 @@ export default function BillingReports() {
   const [searchQuery, setSearchQuery] = useState("");
   const [invoiceTypeFilter, setInvoiceTypeFilter] = useState("All");
   const [encounterStateFilter, setEncounterStateFilter] = useState("All");
+  const [doctorSearch, setDoctorSearch] = useState("");
   const [page, setPage] = useState(1);
 
   // Data States
-  const [summary, setSummary] = useState({
-    totalInvoiced: 0,
-    totalRevenue: 0,
-    outstandingDues: 0,
-    todayCollections: 0,
-    totalInvoices: 0,
-    pendingInvoicesCount: 0,
-    labTotalCharges: 0,
-    labUnbilledDues: 0,
-    labBilledAmount: 0,
+  const [analytics, setAnalytics] = useState({
+    kpis: {
+      totalInvoiced: 0,
+      totalRevenue: 0,
+      outstandingDues: 0,
+      todayCollections: 0,
+      totalInvoices: 0,
+      pendingInvoicesCount: 0,
+      collectionEfficiency: 0,
+    },
+    revenueTrends: [],
+    departmentRevenue: [],
+    doctorRevenue: [],
+    pathologyAnalytics: {
+      totalRevenue: 0,
+      billedAmount: 0,
+      unbilledDues: 0,
+      totalTests: 0,
+      topTests: [],
+    },
+    paymentModes: [],
+    byInvoiceType: [],
   });
 
   const [pendingDuesData, setPendingDuesData] = useState({
@@ -41,55 +124,65 @@ export default function BillingReports() {
   // Selected Invoice Modal for Bill Preview
   const [selectedInvoice, setSelectedInvoice] = useState(null);
 
-  // Load KPI Summary
-  const loadSummary = async () => {
+  // Helper to compute date boundaries
+  const getDateParams = (range) => {
+    if (range === "today") {
+      const today = new Date().toISOString().split("T")[0];
+      return { dateFrom: today, dateTo: today };
+    } else if (range === "7days") {
+      const d = new Date();
+      d.setDate(d.getDate() - 7);
+      return { dateFrom: d.toISOString().split("T")[0] };
+    } else if (range === "month") {
+      const d = new Date();
+      d.setDate(1);
+      return { dateFrom: d.toISOString().split("T")[0] };
+    }
+    return {};
+  };
+
+  // Load High-Performance Live Analytics
+  const loadAnalytics = async () => {
+    setLoading(true);
     try {
-      const data = await billingService.getReportsSummary();
+      const dateParams = getDateParams(dateRange);
+      const data = await billingService.getReportsAnalytics(dateParams);
       if (data) {
-        setSummary(data);
+        setAnalytics(data);
       }
     } catch (err) {
-      console.warn("Summary load warning:", err);
+      console.warn("Analytics load warning:", err);
+      toast.error("Failed to load real-time analytics data");
+    } finally {
+      setLoading(false);
     }
   };
 
   // Load Pending Dues Table
   const loadPendingDues = async () => {
-    setLoading(true);
     try {
+      const dateParams = getDateParams(dateRange);
       const filters = {
         search: searchQuery,
         invoiceType: invoiceTypeFilter,
         encounterStatus: encounterStateFilter,
         page,
         limit: 20,
+        ...dateParams,
       };
-
-      if (dateRange === "today") {
-        filters.dateFrom = new Date().toISOString().split("T")[0];
-      } else if (dateRange === "7days") {
-        const d = new Date();
-        d.setDate(d.getDate() - 7);
-        filters.dateFrom = d.toISOString().split("T")[0];
-      } else if (dateRange === "month") {
-        const d = new Date();
-        d.setDate(1);
-        filters.dateFrom = d.toISOString().split("T")[0];
-      }
 
       const res = await billingService.getPendingDues(filters);
       setPendingDuesData(res || { invoices: [], pagination: { total: 0 } });
     } catch (err) {
-      toast.error("Failed to load pending dues report");
-    } finally {
-      setLoading(false);
+      console.warn("Pending dues error:", err);
     }
   };
 
   // Load Collections Ledger
   const loadCollections = async () => {
     try {
-      const res = await billingService.getCollections();
+      const dateParams = getDateParams(dateRange);
+      const res = await billingService.getCollections(dateParams);
       if (res) {
         setCollectionsData(res);
       }
@@ -98,10 +191,18 @@ export default function BillingReports() {
     }
   };
 
-  useEffect(() => {
-    loadSummary();
+  // Refresh all data
+  const refreshAll = () => {
+    loadAnalytics();
+    loadPendingDues();
     loadCollections();
-  }, []);
+    toast.success("Financial records refreshed!");
+  };
+
+  useEffect(() => {
+    loadAnalytics();
+    loadCollections();
+  }, [dateRange]);
 
   useEffect(() => {
     if (activeTab === "pending-dues") {
@@ -119,16 +220,29 @@ export default function BillingReports() {
     window.print();
   };
 
+  // Filter doctors in Doctor tab
+  const filteredDoctors = analytics.doctorRevenue.filter((doc) => {
+    if (!doctorSearch.trim()) return true;
+    const term = doctorSearch.toLowerCase();
+    return (
+      doc.doctorName?.toLowerCase().includes(term) ||
+      doc.specialty?.toLowerCase().includes(term)
+    );
+  });
+
   return (
     <PageContainer
       title="Billing & Revenue Reports"
-      subtitle="Comprehensive financial telemetry: outstanding patient dues, department revenue, and collections ledger"
+      subtitle="Comprehensive real-time financial telemetry: revenue curves, doctor attribution, and collections ledger"
     >
       <div className="space-y-6">
-        {/* ── TOP ACTION BAR ── */}
+        {/* ── TOP ACTION BAR & RBAC BADGE ── */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 mr-1">Period:</span>
+          {/* Period selector */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 mr-1">
+              Period:
+            </span>
             {[
               { id: "all", label: "All Time" },
               { id: "today", label: "Today" },
@@ -153,153 +267,415 @@ export default function BillingReports() {
             ))}
           </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition flex items-center gap-1.5"
-            >
-              <Icon name="LuPrinter" size={14} />
-              <span>Print Report</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                loadSummary();
-                loadPendingDues();
-                loadCollections();
-                toast.success("Financial records refreshed!");
-              }}
-              className="px-4 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition flex items-center gap-1.5"
-            >
-              <Icon name="LuRotateCw" size={14} />
-              <span>Refresh</span>
-            </button>
+          {/* Action buttons + Role Badge */}
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+            <div className="text-[11px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+              <span>{roleBadgeLabel}</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition flex items-center gap-1.5"
+              >
+                <Icon name="LuPrinter" size={14} />
+                <span className="hidden sm:inline">Print Report</span>
+              </button>
+              <button
+                type="button"
+                onClick={refreshAll}
+                className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition flex items-center gap-1.5"
+              >
+                <Icon name="LuRotateCw" size={14} />
+                <span>Refresh</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* ── 1. KPI SUMMARY TILES ── */}
+        {/* ── 1. MODULAR KPI SUMMARY TILES ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: Outstanding Patient Dues */}
-          <div className="bg-white border-2 border-amber-200 rounded-xl p-5 shadow-sm relative overflow-hidden bg-gradient-to-br from-amber-50/40 to-white">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-800">
-                Total Outstanding Dues
-              </span>
-              <span className="p-2 bg-amber-100 text-amber-700 rounded-lg">
-                <Icon name="LuAlertTriangle" size={18} />
-              </span>
-            </div>
-            <div className="mt-2 text-2xl font-black text-amber-700">
-              {formatINR(summary.outstandingDues)}
-            </div>
-            <div className="text-xs text-amber-800/80 mt-1 font-medium flex items-center justify-between">
-              <span>{summary.pendingInvoicesCount} invoices pending payment</span>
-              <span className="text-[11px] bg-amber-100 px-1.5 py-0.5 rounded">Action Req.</span>
-            </div>
-          </div>
+          <AnalyticsKpiCard
+            title="Total Revenue Collected"
+            value={analytics.kpis.totalRevenue}
+            subtext={`${analytics.kpis.collectionEfficiency}% collection rate`}
+            icon="LuCheckCircle2"
+            colorScheme="emerald"
+            badge="Realized"
+          />
 
-          {/* Card 2: Total Realized Collections */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Total Revenue Collected
-              </span>
-              <span className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-                <Icon name="LuCheckCircle2" size={18} />
-              </span>
-            </div>
-            <div className="mt-2 text-2xl font-bold text-emerald-600">
-              {formatINR(summary.totalRevenue)}
-            </div>
-            <div className="text-xs text-slate-500 mt-1">Realized payments in system</div>
-          </div>
+          <AnalyticsKpiCard
+            title="Total Outstanding Dues"
+            value={analytics.kpis.outstandingDues}
+            subtext={`${analytics.kpis.pendingInvoicesCount} invoices pending payment`}
+            icon="LuAlertTriangle"
+            colorScheme="amber"
+            badge={analytics.kpis.pendingInvoicesCount > 0 ? "Action Req." : "Clear"}
+          />
 
-          {/* Card 3: Today's Receipts */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Today&apos;s Collections
-              </span>
-              <span className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                <Icon name="LuCalendar" size={18} />
-              </span>
-            </div>
-            <div className="mt-2 text-2xl font-bold text-slate-900">
-              {formatINR(summary.todayCollections)}
-            </div>
-            <div className="text-xs text-slate-500 mt-1">Cash, Card, UPI receipts today</div>
-          </div>
+          <AnalyticsKpiCard
+            title="Today's Receipts"
+            value={analytics.kpis.todayCollections}
+            subtext="Cash, UPI & Card collections today"
+            icon="LuCalendar"
+            colorScheme="blue"
+          />
 
-          {/* Card 4: Pathology / Lab Charges */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Pathology / Lab Volume
-              </span>
-              <span className="p-2 bg-purple-50 text-purple-600 rounded-lg">
-                <Icon name="LuFlaskConical" size={18} />
-              </span>
-            </div>
-            <div className="mt-2 text-2xl font-bold text-purple-700">
-              {formatINR(summary.labTotalCharges)}
-            </div>
-            <div className="text-xs text-slate-500 mt-1">
-              Unbilled Lab Dues: <span className="font-semibold text-amber-600">{formatINR(summary.labUnbilledDues)}</span>
-            </div>
-          </div>
+          <AnalyticsKpiCard
+            title="Total Invoiced Gross"
+            value={analytics.kpis.totalInvoiced}
+            subtext={`${analytics.kpis.totalInvoices} patient invoices issued`}
+            icon="LuReceipt"
+            colorScheme="indigo"
+          />
         </div>
 
-        {/* ── 2. MAIN REPORT TABS ── */}
+        {/* ── 2. MAIN REPORT TABS (RBAC GUARDED) ── */}
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-          <div className="border-b border-slate-200 px-6 pt-4 flex space-x-6">
-            <button
-              type="button"
-              onClick={() => setActiveTab("pending-dues")}
-              className={`pb-4 text-sm font-semibold border-b-2 flex items-center gap-2 transition-colors ${
-                activeTab === "pending-dues"
-                  ? "border-amber-500 text-amber-700"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              <Icon name="LuAlertCircle" size={16} />
-              <span>Pending Dues Register</span>
-              {summary.pendingInvoicesCount > 0 && (
-                <span className="px-2 py-0.5 text-xs bg-amber-100 text-amber-800 rounded-full font-bold">
-                  {summary.pendingInvoicesCount}
-                </span>
-              )}
-            </button>
+          <div className="border-b border-slate-200 px-6 pt-4 flex flex-wrap gap-x-6 gap-y-2">
+            {canViewFinancials && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("overview")}
+                className={`pb-4 text-sm font-semibold border-b-2 flex items-center gap-2 transition-colors ${
+                  activeTab === "overview"
+                    ? "border-indigo-600 text-indigo-600"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Icon name="LuLineChart" size={16} />
+                <span>Financial Overview &amp; Telemetry</span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => setActiveTab("collections")}
-              className={`pb-4 text-sm font-semibold border-b-2 flex items-center gap-2 transition-colors ${
-                activeTab === "collections"
-                  ? "border-indigo-600 text-indigo-600"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              <Icon name="LuWallet" size={16} />
-              <span>Collections Ledger</span>
-            </button>
+            {canViewDoctorRevenue && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("doctor-revenue")}
+                className={`pb-4 text-sm font-semibold border-b-2 flex items-center gap-2 transition-colors ${
+                  activeTab === "doctor-revenue"
+                    ? "border-indigo-600 text-indigo-600"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Icon name="LuStethoscope" size={16} />
+                <span>Doctor Revenue Attribution</span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => setActiveTab("departments")}
-              className={`pb-4 text-sm font-semibold border-b-2 flex items-center gap-2 transition-colors ${
-                activeTab === "departments"
-                  ? "border-indigo-600 text-indigo-600"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              <Icon name="LuBarChart3" size={16} />
-              <span>Department Revenue</span>
-            </button>
+            {canViewPathology && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("pathology")}
+                className={`pb-4 text-sm font-semibold border-b-2 flex items-center gap-2 transition-colors ${
+                  activeTab === "pathology"
+                    ? "border-purple-600 text-purple-700"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Icon name="LuFlaskConical" size={16} />
+                <span>Pathology &amp; Diagnostics</span>
+              </button>
+            )}
+
+            {canViewDuesRegister && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("pending-dues")}
+                className={`pb-4 text-sm font-semibold border-b-2 flex items-center gap-2 transition-colors ${
+                  activeTab === "pending-dues"
+                    ? "border-amber-500 text-amber-700"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Icon name="LuAlertCircle" size={16} />
+                <span>Pending Dues Register</span>
+                {analytics.kpis.pendingInvoicesCount > 0 && (
+                  <span className="px-2 py-0.5 text-xs bg-amber-100 text-amber-800 rounded-full font-bold">
+                    {analytics.kpis.pendingInvoicesCount}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {canViewCollections && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("collections")}
+                className={`pb-4 text-sm font-semibold border-b-2 flex items-center gap-2 transition-colors ${
+                  activeTab === "collections"
+                    ? "border-indigo-600 text-indigo-600"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Icon name="LuWallet" size={16} />
+                <span>Collections Ledger</span>
+              </button>
+            )}
           </div>
 
-          {/* ── TAB 1: PENDING DUES REGISTER ── */}
-          {activeTab === "pending-dues" && (
+          {/* ══════════════════════════════════════════════════════════════════
+              TAB 1: FINANCIAL OVERVIEW & RECHARTS TELEMETRY
+          ══════════════════════════════════════════════════════════════════ */}
+          {activeTab === "overview" && canViewFinancials && (
+            <div className="p-6 space-y-6">
+              {/* Modular Recharts Area Trendline */}
+              <RevenueTrendChart
+                data={analytics.revenueTrends}
+                height={340}
+                title="Revenue & Collections Telemetry Curve"
+                subtitle="Real-time daily progression of invoiced billing, realized receipts, and outstanding balances"
+              />
+
+              {/* Two Column Grid: Department Breakdown & Payment Mode Donut */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <DepartmentBreakdownChart
+                    data={analytics.departmentRevenue}
+                    height={320}
+                    title="Revenue by Hospital Department"
+                    subtitle="Real-time breakdown of billed vs unbilled running charges across clinical & diagnostic modules"
+                  />
+                </div>
+                <div>
+                  <PaymentModeDonutChart
+                    data={analytics.paymentModes}
+                    height={320}
+                    title="Payment Mode Distribution"
+                    subtitle="Share of collections across Cash, UPI and Card payment methods"
+                  />
+                </div>
+              </div>
+
+              {/* Invoice Type Distribution Cards */}
+              <div className="border border-slate-200 rounded-xl p-5 bg-slate-50">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
+                  Billing Episode Distribution
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {analytics.byInvoiceType.map((inv, idx) => (
+                    <div key={idx} className="bg-white border border-slate-200 rounded-lg p-3">
+                      <div className="text-xs font-semibold text-slate-500 capitalize">
+                        {inv.type?.replace("_", " ")} Bills
+                      </div>
+                      <div className="text-lg font-bold text-slate-900 mt-1">
+                        {formatINR(inv.totalAmount)}
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-0.5 flex justify-between">
+                        <span>{inv.count} bills</span>
+                        <span className="text-amber-700 font-medium">Due: {formatINR(inv.dueAmount)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════════
+              TAB 2: DOCTOR REVENUE ATTRIBUTION
+          ══════════════════════════════════════════════════════════════════ */}
+          {activeTab === "doctor-revenue" && canViewDoctorRevenue && (
+            <div className="p-6 space-y-6">
+              {/* Modular Doctor Revenue Horizontal Bar Chart */}
+              <DoctorRevenueChart
+                data={analytics.doctorRevenue}
+                height={320}
+                title="Doctor Revenue Ranking & Breakdown"
+                subtitle="Comparison of revenue generated by practitioners from patient consultations and procedures"
+              />
+
+              {/* Doctor Search & Telemetry Table */}
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <h4 className="text-sm font-bold text-slate-800">
+                    Practitioner Financial Ledger ({analytics.doctorRevenue.length} Doctors)
+                  </h4>
+                  <div className="w-full sm:w-72 relative">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                      <Icon name="LuSearch" size={14} />
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Search doctor or specialty..."
+                      value={doctorSearch}
+                      onChange={(e) => setDoctorSearch(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-left text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs font-semibold uppercase tracking-wider">
+                        <th className="py-3 px-4">Doctor Name</th>
+                        <th className="py-3 px-4">Specialty / Role</th>
+                        <th className="py-3 px-4 text-center">Patients Seen</th>
+                        <th className="py-3 px-4 text-right">Consultation Fees</th>
+                        <th className="py-3 px-4 text-right">Procedures &amp; Tests</th>
+                        <th className="py-3 px-4 text-right">Total Attributed</th>
+                        <th className="py-3 px-4 text-center">Share</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredDoctors.length === 0 ? (
+                        <tr>
+                          <td colSpan="7" className="p-8 text-center text-slate-400">
+                            No practitioners matching search.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredDoctors.map((doc, idx) => {
+                          const totalHospital = analytics.kpis.totalInvoiced || 1;
+                          const sharePct = ((doc.totalRevenue / totalHospital) * 100).toFixed(1);
+
+                          return (
+                            <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                              <td className="py-3.5 px-4 font-semibold text-slate-900 flex items-center gap-2">
+                                <span className="w-7 h-7 rounded-full bg-indigo-50 text-indigo-700 font-bold flex items-center justify-center text-xs">
+                                  {doc.doctorName?.replace(/^Dr\.?\s*/i, "")?.[0] || "D"}
+                                </span>
+                                <span>{doc.doctorName}</span>
+                              </td>
+                              <td className="py-3.5 px-4 text-slate-600 text-xs">
+                                {doc.specialty}
+                              </td>
+                              <td className="py-3.5 px-4 text-center font-semibold text-slate-800">
+                                {doc.encounterCount}
+                              </td>
+                              <td className="py-3.5 px-4 text-right text-indigo-700 font-medium">
+                                {formatINR(doc.consultationRevenue)}
+                              </td>
+                              <td className="py-3.5 px-4 text-right text-slate-700 font-medium">
+                                {formatINR(doc.procedureRevenue)}
+                              </td>
+                              <td className="py-3.5 px-4 text-right font-bold text-slate-900 text-base">
+                                {formatINR(doc.totalRevenue)}
+                              </td>
+                              <td className="py-3.5 px-4 text-center">
+                                <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700">
+                                  {sharePct}%
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════════
+              TAB 3: PATHOLOGY & DIAGNOSTIC ANALYTICS
+          ══════════════════════════════════════════════════════════════════ */}
+          {activeTab === "pathology" && canViewPathology && (
+            <div className="p-6 space-y-6">
+              {/* Pathology KPI Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div className="bg-purple-50/50 border border-purple-200 rounded-xl p-4">
+                  <div className="text-xs font-semibold text-purple-800 uppercase tracking-wider">
+                    Total Lab Revenue
+                  </div>
+                  <div className="text-2xl font-black text-purple-900 mt-1">
+                    {formatINR(analytics.pathologyAnalytics.totalRevenue)}
+                  </div>
+                  <div className="text-xs text-purple-600 mt-0.5">
+                    {analytics.pathologyAnalytics.totalTests} total lab investigations
+                  </div>
+                </div>
+
+                <div className="bg-emerald-50/50 border border-emerald-200 rounded-xl p-4">
+                  <div className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">
+                    Billed / Realized
+                  </div>
+                  <div className="text-2xl font-black text-emerald-900 mt-1">
+                    {formatINR(analytics.pathologyAnalytics.billedAmount)}
+                  </div>
+                  <div className="text-xs text-emerald-600 mt-0.5">Settled diagnostic billing</div>
+                </div>
+
+                <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-4">
+                  <div className="text-xs font-semibold text-amber-800 uppercase tracking-wider">
+                    Unbilled / Running Dues
+                  </div>
+                  <div className="text-2xl font-black text-amber-900 mt-1">
+                    {formatINR(analytics.pathologyAnalytics.unbilledDues)}
+                  </div>
+                  <div className="text-xs text-amber-600 mt-0.5">In-progress or awaiting discharge bill</div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                  <div className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                    Diagnostic Modality
+                  </div>
+                  <div className="text-2xl font-black text-slate-900 mt-1">In-House Lab</div>
+                  <div className="text-xs text-slate-500 mt-0.5">Hematology &amp; Biochemistry</div>
+                </div>
+              </div>
+
+              {/* Diagnostic Test Volume Chart */}
+              <DiagnosticTestVolumeChart
+                data={analytics.pathologyAnalytics.topTests}
+                height={320}
+                title="Top Diagnostic Investigations by Revenue & Volume"
+                subtitle="Realized revenue from routine panels (CBC, KFT, LFT, Lipid, HbA1c, ECG)"
+              />
+
+              {/* Detailed Tests Table */}
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 font-bold text-xs text-slate-700 uppercase tracking-wider">
+                  Laboratory Investigation Breakdown
+                </div>
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/50 border-b border-slate-200 text-slate-600 text-xs font-semibold">
+                      <th className="py-3 px-4">Test / Investigation Name</th>
+                      <th className="py-3 px-4">Category</th>
+                      <th className="py-3 px-4 text-center">Volume Ordered</th>
+                      <th className="py-3 px-4 text-right">Standard Rate</th>
+                      <th className="py-3 px-4 text-right">Total Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {analytics.pathologyAnalytics.topTests.map((t, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-4 font-semibold text-slate-900 flex items-center gap-2">
+                          <span className="p-1 bg-purple-100 text-purple-700 rounded">
+                            <Icon name="LuFlaskConical" size={14} />
+                          </span>
+                          <span>{t.name}</span>
+                        </td>
+                        <td className="py-3 px-4 text-xs">
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full font-medium">
+                            {t.category}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-center font-bold text-slate-800">
+                          {t.volume}
+                        </td>
+                        <td className="py-3 px-4 text-right text-slate-600">
+                          {formatINR(t.unitPrice)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-bold text-purple-800 text-base">
+                          {formatINR(t.revenue)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════════
+              TAB 4: PENDING DUES REGISTER
+          ══════════════════════════════════════════════════════════════════ */}
+          {activeTab === "pending-dues" && canViewDuesRegister && (
             <div className="p-6 space-y-4">
               {/* Filter controls */}
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -470,8 +846,10 @@ export default function BillingReports() {
             </div>
           )}
 
-          {/* ── TAB 2: COLLECTIONS LEDGER ── */}
-          {activeTab === "collections" && (
+          {/* ══════════════════════════════════════════════════════════════════
+              TAB 5: COLLECTIONS LEDGER
+          ══════════════════════════════════════════════════════════════════ */}
+          {activeTab === "collections" && canViewCollections && (
             <div className="p-6 space-y-6">
               {/* Payment Mode Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -547,65 +925,10 @@ export default function BillingReports() {
               </div>
             </div>
           )}
-
-          {/* ── TAB 3: DEPARTMENT BREAKDOWN ── */}
-          {activeTab === "departments" && (
-            <div className="p-6 space-y-4">
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs font-semibold uppercase tracking-wider">
-                      <th className="py-3.5 px-4">Department / Module</th>
-                      <th className="py-3.5 px-4 text-right">Total Charges Posted</th>
-                      <th className="py-3.5 px-4 text-right">Invoiced / Billed</th>
-                      <th className="py-3.5 px-4 text-right">Pending / Running Dues</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    <tr className="hover:bg-slate-50">
-                      <td className="py-4 px-4 font-semibold text-slate-900 flex items-center gap-2">
-                        <span className="p-1.5 bg-purple-50 text-purple-600 rounded">
-                          <Icon name="LuFlaskConical" size={16} />
-                        </span>
-                        <span>Pathology &amp; Laboratory Module</span>
-                      </td>
-                      <td className="py-4 px-4 text-right font-medium">
-                        {formatINR(summary.labTotalCharges)}
-                      </td>
-                      <td className="py-4 px-4 text-right font-medium text-emerald-600">
-                        {formatINR(summary.labBilledAmount)}
-                      </td>
-                      <td className="py-4 px-4 text-right font-bold text-amber-700">
-                        {formatINR(summary.labUnbilledDues)}
-                      </td>
-                    </tr>
-
-                    <tr className="hover:bg-slate-50">
-                      <td className="py-4 px-4 font-semibold text-slate-900 flex items-center gap-2">
-                        <span className="p-1.5 bg-blue-50 text-blue-600 rounded">
-                          <Icon name="LuBedDouble" size={16} />
-                        </span>
-                        <span>Inpatient Department (IPD) Final &amp; Bed Charges</span>
-                      </td>
-                      <td className="py-4 px-4 text-right font-medium">
-                        {formatINR(summary.totalInvoiced)}
-                      </td>
-                      <td className="py-4 px-4 text-right font-medium text-emerald-600">
-                        {formatINR(summary.totalRevenue)}
-                      </td>
-                      <td className="py-4 px-4 text-right font-bold text-amber-700">
-                        {formatINR(summary.outstandingDues)}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* ── MODAL: BILL DETAILS ── */}
+      {/* ── MODAL: BILL DETAILS & RBAC-CONTROLLED ACTIONS ── */}
       {selectedInvoice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
@@ -682,16 +1005,24 @@ export default function BillingReports() {
                 >
                   Close
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    toast.success(`Payment collection slip for ${selectedInvoice.invoice_no} triggered`);
-                    setSelectedInvoice(null);
-                  }}
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-lg transition shadow-sm"
-                >
-                  Collect Dues
-                </button>
+
+                {/* RBAC-controlled action button: only users with billing write permission can collect dues */}
+                {canCollectDues ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toast.success(`Payment collection slip for ${selectedInvoice.invoice_no} triggered`);
+                      setSelectedInvoice(null);
+                    }}
+                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-lg transition shadow-sm"
+                  >
+                    Collect Dues
+                  </button>
+                ) : (
+                  <span className="text-xs text-slate-400 italic bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
+                    Read-Only (Collection restricted)
+                  </span>
+                )}
               </div>
             </div>
           </div>

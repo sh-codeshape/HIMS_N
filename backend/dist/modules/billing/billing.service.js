@@ -106,6 +106,9 @@ class BillingService {
     async getReportsSummary(facilityId, dateFrom, dateTo) {
         return this.repository.getReportsSummary(facilityId, dateFrom, dateTo);
     }
+    async getReportsAnalytics(facilityId, options) {
+        return this.repository.getReportsAnalytics(facilityId, options);
+    }
     async getPendingDuesReport(facilityId, filters, page = 1, limit = 20) {
         return this.repository.getPendingDuesReport(facilityId, filters, page, limit);
     }

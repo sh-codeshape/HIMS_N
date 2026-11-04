@@ -126,6 +126,18 @@ export class BillingService {
     return this.repository.getReportsSummary(facilityId, dateFrom, dateTo);
   }
 
+  async getReportsAnalytics(
+    facilityId: string,
+    options?: {
+      dateFrom?: string;
+      dateTo?: string;
+      practitionerId?: string;
+      role?: string;
+    }
+  ) {
+    return this.repository.getReportsAnalytics(facilityId, options);
+  }
+
   async getPendingDuesReport(
     facilityId: string,
     filters?: {

@@ -16,6 +16,7 @@ router.get('/discount-reasons', controller.getDiscountReasons);
 router.get('/referrals', controller.getReferrals);
 // Report routes (MUST be declared before /:id)
 router.get('/reports/summary', controller.getReportsSummary);
+router.get('/reports/analytics', controller.getReportsAnalytics);
 router.get('/reports/pending-dues', controller.getPendingDuesReport);
 router.get('/reports/collections', controller.getCollectionsReport);
 router.get('/patient/:patientId/dues', controller.getPatientDues);
