@@ -9,6 +9,9 @@ import ipdService from "../../../api/services/ipdService";
 import doctorService from "../../../services/doctorService";
 import axiosInstance from "../../../api/axiosInstance";
 import "./IPDAdmissionView.css";
+import IPDAdmissionPrintHandler from "../../settings/IPDAdmissionPrintHandler.js";
+import { IPD_ADMISSION_SETTINGS_KEY } from "../../settings/ipdAdmissionPrintConfig.js";
+import settingsService from "../../../api/services/settingsService.js";
 
 const POPULAR_IPD_COMPLAINTS = [
   "Fever / High Grade Pyrexia",
@@ -226,6 +229,16 @@ export default function IPDAdmissionView() {
   // ── Modal State ──
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [ipdSlipData, setIpdSlipData] = useState(null);
+  const [admissionTicketSettings, setAdmissionTicketSettings] = useState(null);
+
+  useEffect(() => {
+    settingsService
+      .getSetting(IPD_ADMISSION_SETTINGS_KEY)
+      .then((data) => {
+        if (data && typeof data === "object") setAdmissionTicketSettings(data);
+      })
+      .catch(() => {});
+  }, []);
 
   // ── Fetch Initial Data ──
   useEffect(() => {
@@ -644,7 +657,35 @@ export default function IPDAdmissionView() {
   };
 
   const handlePrintSlip = () => {
-    window.print();
+    if (ipdSlipData) {
+      const ticketData = {
+        uhid: ipdSlipData.uhid || "—",
+        ipdNo: ipdSlipData.uhid ? `IPD-${String(ipdSlipData.uhid).replace(/[^0-9]/g, "").slice(-4) || "0198"}` : "IPD-26-0198",
+        patientName: ipdSlipData.patientName || "—",
+        ageGender: `${ipdSlipData.age || ""} Yrs / ${ipdSlipData.gender || ""}`,
+        mobile: ipdSlipData.phone || "—",
+        address: ipdSlipData.address || "—",
+        bloodGroup: selectedPatient?.blood_group || selectedPatient?.bloodGroup || "B+",
+        guardian: ipdSlipData.attendantName || "—",
+        relation: ipdSlipData.relationship || "Attendant",
+        admissionType: ipdSlipData.admissionType || "Emergency",
+        admissionDate: ipdSlipData.admissionDate || ipdSlipData.date || new Date().toLocaleString(),
+        department: ipdSlipData.department || "General Medicine",
+        doctor: ipdSlipData.doctor ? `${ipdSlipData.doctor} ${ipdSlipData.doctorDegree ? `(${ipdSlipData.doctorDegree})` : ""}` : "On Duty Doctor",
+        patientProblem: ipdSlipData.chiefComplaint || provisionalDiagnosis || "Inpatient Care",
+        duration: `${duration || "3"} ${durationUnit || "Days"}`,
+        bedAllotted: `${ipdSlipData.wardType || "Ward"} • Bed ${ipdSlipData.bedNo || "01"} (${ipdSlipData.floor || "Ward Floor"}, Room ${ipdSlipData.roomNo || "General"})`,
+        provisionalDiagnosis: ipdSlipData.provisionalDiagnosis || "Under Clinical Observation",
+        registrationFee: Number(ipdSlipData.registrationFee || 0),
+        advancePayment: Number(ipdSlipData.totalAdvance || ipdSlipData.bedAdvance || 0),
+        paymentMode: ipdSlipData.paymentMode || "Cash",
+        receiptNo: `RCP-${Date.now().toString().slice(-6)}`,
+        amountInWords: "",
+      };
+      IPDAdmissionPrintHandler.printAdmissionTicket(ticketData, admissionTicketSettings);
+    } else {
+      window.print();
+    }
   };
 
   return (

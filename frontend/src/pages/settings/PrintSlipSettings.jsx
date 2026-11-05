@@ -6,6 +6,7 @@ import PrintSlipHandler from "../../services/PrintSlipHandler.js";
 import { DEFAULT_HOSPITAL_CONFIG } from "../../data/printlslip.data.jsx";
 import IPDDischargePrintSettings from "./IPDDischargePrintSettings.jsx";
 import IPDBillingPrintSettings from "./IPDBillingPrintSettings.jsx";
+import IPDAdmissionPrintSettings from "./IPDAdmissionPrintSettings.jsx";
 
 const SAMPLE_SLIP_DATA = {
   patientName: "Adeesh",
@@ -344,7 +345,7 @@ export default function PrintSlipSettings() {
         </div>
 
         {/* Global Action Buttons for OPD */}
-        {activeTab !== "ipd-discharge" && activeTab !== "ipd-billing" && (
+        {activeTab === "opd" && (
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -379,8 +380,11 @@ export default function PrintSlipSettings() {
       {/* Render IPD Billing Slip Designer Tab */}
       {activeTab === "ipd-billing" && <IPDBillingPrintSettings />}
 
+      {/* Render IPD Admission Ticket Designer Tab */}
+      {activeTab === "ipd" && <IPDAdmissionPrintSettings />}
+
       {/* Save Notification for OPD */}
-      {activeTab !== "ipd-discharge" && activeTab !== "ipd-billing" && saveStatus && (
+      {activeTab === "opd" && saveStatus && (
         <div
           className={`p-3.5 rounded-xl border text-sm font-medium flex items-center justify-between ${
             saveStatus.type === "success"
@@ -403,7 +407,7 @@ export default function PrintSlipSettings() {
       )}
 
       {/* Main Split Grid: Left Form Controls, Right Live Preview */}
-      {activeTab !== "ipd-discharge" && activeTab !== "ipd-billing" && (
+      {activeTab === "opd" && (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
           {/* LEFT COLUMN: Controls Form (5 cols) */}
           <div className="xl:col-span-5 space-y-6">
