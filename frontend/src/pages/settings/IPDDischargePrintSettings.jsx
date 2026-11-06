@@ -9,7 +9,15 @@ import {
   mergeIPDSettings,
 } from "./ipdDischargePrintConfig.js";
 import { IPDDischargePrintHandler } from "./IPDDischargePrintHandler.js";
-import { loadSharedPrintSettings, saveSharedPrintSettings } from "./sharedPrintConfig.js";
+import {
+  DEFAULT_SHARED_CONFIG,
+  SHARED_PRINT_CSS,
+  buildSharedHeaderHTML,
+  mergeSharedSettings,
+  loadSharedPrintSettings,
+  saveSharedPrintSettings,
+  getCachedSharedSettings,
+} from "./sharedPrintConfig.js";
 
 const GROUPS = [
   { key: "hospital", title: "Hospital & header", icon: "LuBuilding2" },
@@ -214,6 +222,46 @@ function IPDDischargePreview({ settings, data = SAMPLE_IPD_DISCHARGE }) {
   const handoverData = data.handover || {};
   const primaryColor = style.primary || "#0B3B60";
 
+  // Master Shared Header Configuration
+  const cachedShared = getCachedSharedSettings() || {};
+  const isUsingShared = cfg.useSharedHeaderFooter !== false;
+
+  const sharedConfig = mergeSharedSettings(DEFAULT_SHARED_CONFIG, {
+    ...cfg,
+    hospital: isUsingShared
+      ? { ...(cfg.hospital || {}), ...(cachedShared.hospital || {}) }
+      : { ...(DEFAULT_SHARED_CONFIG.hospital || {}), ...(cfg.hospital || {}) },
+    header: isUsingShared
+      ? { ...(cfg.header || {}), ...(cachedShared.header || {}) }
+      : { ...(DEFAULT_SHARED_CONFIG.header || {}), ...(cfg.header || {}) },
+    fieldStyles: isUsingShared
+      ? { ...(cfg.fieldStyles || {}), ...(cachedShared.fieldStyles || {}) }
+      : { ...(DEFAULT_SHARED_CONFIG.fieldStyles || {}), ...(cfg.fieldStyles || {}) },
+    slipConfigs: isUsingShared
+      ? { ...(cfg.slipConfigs || {}), ...(cachedShared.slipConfigs || {}) }
+      : { ...(DEFAULT_SHARED_CONFIG.slipConfigs || {}), ...(cfg.slipConfigs || {}) },
+  });
+
+  const normalizedEncounter = {
+    patientName: patientData.name || "Patient",
+    uhid: patientData.uhid || "NH-2026-98412",
+    encounterNo: admissionData.ipdNumber || "IPD-2026-4401",
+    ipdNo: admissionData.ipdNumber || "IPD-2026-4401",
+    tokenNo: admissionData.ipdNumber || "IPD-2026-4401",
+    admissionDate: admissionData.admissionDate || "24 Oct 2026",
+    doctor: admissionData.consultant || "Dr. S. K. Sharma",
+    department: admissionData.department || "Cardiology",
+    ...data,
+  };
+
+  const sharedHeaderHtml = buildSharedHeaderHTML(sharedConfig, {
+    isPreview: false,
+    slipType: "ipd_discharge",
+    encounterData: normalizedEncounter,
+    titleOverride: cfg.header.title || "INPATIENT DISCHARGE SUMMARY & CLINICAL RECORD",
+    copyBadgeOverride: `${admissionData.dischargeType || "NORMAL"} DISCHARGE`,
+  });
+
   return (
     <div
       className="mx-auto w-full max-w-[820px] bg-white p-6 shadow-2xl rounded-xl border border-slate-300 text-slate-900"
@@ -223,92 +271,9 @@ function IPDDischargePreview({ settings, data = SAMPLE_IPD_DISCHARGE }) {
         lineHeight: 1.45,
       }}
     >
-      {/* ── 1. Top Hospital Branding Letterhead ── */}
-      <header className="border-b-2 pb-4 mb-3" style={{ borderColor: primaryColor }}>
-        <div className="flex items-center justify-between gap-4">
-          {/* Logo on Left */}
-          {cfg.header.showLogo && (
-            <div className="shrink-0 flex items-center justify-center p-1 bg-white rounded-lg border border-slate-100 shadow-sm">
-              <img
-                src={cfg.hospital.logoUrl || "/images/Narayan_Logo.png"}
-                alt="Hospital Logo"
-                className="h-16 w-auto max-w-[120px] object-contain"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = "/NarayanLogo.png";
-                }}
-              />
-            </div>
-          )}
-
-          {/* Hospital Info Center */}
-          <div className="flex-1 text-center min-w-0">
-            <h1
-              className="text-[20px] font-black uppercase tracking-wide leading-tight"
-              style={{ color: primaryColor }}
-            >
-              {cfg.hospital.name || "NARAYAN HOSPITAL"}
-            </h1>
-            {cfg.header.showSubtitle && (
-              <p className="text-[10px] font-semibold text-slate-600 mt-0.5 tracking-tight">
-                {cfg.hospital.subtitle || "Super Speciality Healthcare & Research Institute"}
-              </p>
-            )}
-            {cfg.header.showRegistrationNo && (
-              <p className="text-[8.5px] font-medium text-slate-500">
-                NABH Accredited Tertiary Center • Reg No: {cfg.hospital.registrationNo || "REG/UP/2024/098"}
-              </p>
-            )}
-            <p className="text-[8.5px] text-slate-600 mt-0.5">
-              {[cfg.hospital.address, cfg.hospital.phone && `Helpline: ${cfg.hospital.phone}`, cfg.hospital.email]
-                .filter(Boolean)
-                .join(" • ")}
-            </p>
-          </div>
-
-          {/* Right Header: IPD & UHID Identification Badge */}
-          {cfg.header.showBarcode !== false && (cfg.header.showTopUHID !== false || cfg.header.showTopAdmissionNo !== false) && (
-            <div className="shrink-0 hidden sm:flex flex-col gap-1 items-end">
-              <div className="bg-sky-50 border border-sky-200 rounded-lg p-2 text-right">
-                {cfg.header.showTopUHID !== false && (
-                  <div>
-                    <div className="text-[7.5px] uppercase font-bold text-sky-700">Patient UHID</div>
-                    <div className="text-[11px] font-extrabold font-mono text-sky-950">
-                      {patientData.uhid || "—"}
-                    </div>
-                  </div>
-                )}
-                {cfg.header.showTopAdmissionNo !== false && (
-                  <div className={cfg.header.showTopUHID !== false ? "mt-1 pt-1 border-t border-sky-200" : ""}>
-                    <div className="text-[7.5px] uppercase font-bold text-sky-700">IPD Adm No</div>
-                    <div className="text-[11px] font-extrabold font-mono text-sky-950">
-                      {admissionData.ipdNumber || "—"}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Navy Document Banner Ribbon */}
-        {cfg.header.showDocumentLabel && (
-          <div
-            className="mt-3.5 py-2 px-4 rounded-lg flex items-center justify-between text-white shadow-sm"
-            style={{ background: primaryColor }}
-          >
-            <div className="flex items-center gap-2">
-              <Icon name="LuFileCheck" size={17} className="text-sky-300" />
-              <span className="text-[12.5px] font-extrabold tracking-wider uppercase">
-                {cfg.header.title || "CLINICAL DISCHARGE SUMMARY & NO-DUES CLEARANCE"}
-              </span>
-            </div>
-            <div className="text-[10px] font-bold bg-white/20 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-              {admissionData.dischargeType || "NORMAL"} DISCHARGE
-            </div>
-          </div>
-        )}
-      </header>
+      {/* ── 1. Master Shared Header & Document Banner ── */}
+      <style>{SHARED_PRINT_CSS}</style>
+      <div dangerouslySetInnerHTML={{ __html: sharedHeaderHtml }} className="mb-3" />
 
       {/* ── 2. Side-by-Side Demographics & Admission Particulars ── */}
       {(cfg.patient.enabled || cfg.admission.enabled) && (
@@ -977,15 +942,18 @@ export default function IPDDischargePrintSettings() {
           settingsService.getSetting(IPD_DISCHARGE_SETTINGS_KEY).catch(() => null),
           loadSharedPrintSettings().catch(() => null),
         ]);
+        const cached = getCachedSharedSettings() || {};
+        const masterShared = sharedData || cached;
         const saved = response?.data?.value ?? response?.data?.settings ?? response?.data ?? response?.value ?? response;
         if (alive) {
           const merged = mergeIPDSettings(cloneIPDSettings(DEFAULT_IPD_DISCHARGE_SETTINGS), {
             ...(saved || {}),
-            ...(sharedData || {}),
             useSharedHeaderFooter: true,
-            hospital: { ...(saved?.hospital || {}), ...(sharedData?.hospital || {}) },
-            footer: { ...(saved?.footer || {}), ...(sharedData?.footer || {}) },
-            fieldStyles: { ...(saved?.fieldStyles || {}), ...(sharedData?.fieldStyles || {}) },
+            hospital: { ...(saved?.hospital || {}), ...(masterShared?.hospital || {}) },
+            header: { ...(saved?.header || {}), ...(masterShared?.header || {}) },
+            footer: { ...(saved?.footer || {}), ...(masterShared?.footer || {}) },
+            fieldStyles: { ...(saved?.fieldStyles || {}), ...(masterShared?.fieldStyles || {}) },
+            slipConfigs: { ...(saved?.slipConfigs || {}), ...(masterShared?.slipConfigs || {}) },
           });
           setSettings(merged);
         }
@@ -1039,6 +1007,18 @@ export default function IPDDischargePrintSettings() {
             phone: shared.hospital?.phone || prev.hospital?.phone,
             email: shared.hospital?.email || prev.hospital?.email,
             logoUrl: shared.hospital?.logoUrl || prev.hospital?.logoUrl,
+          },
+          header: {
+            ...(prev.header || {}),
+            ...(shared.header || {}),
+          },
+          fieldStyles: {
+            ...(prev.fieldStyles || {}),
+            ...(shared.fieldStyles || {}),
+          },
+          slipConfigs: {
+            ...(prev.slipConfigs || {}),
+            ...(shared.slipConfigs || {}),
           },
           footer: {
             ...(prev.footer || {}),

@@ -5,6 +5,14 @@ import {
   mergeIPDSettings,
   cloneIPDSettings,
 } from "./ipdDischargePrintConfig.js";
+import {
+  DEFAULT_SHARED_CONFIG,
+  SHARED_PRINT_CSS,
+  buildSharedHeaderHTML,
+  mergeSharedSettings,
+  loadSharedPrintSettings,
+  getCachedSharedSettings,
+} from "./sharedPrintConfig.js";
 
 const esc = (value) =>
   String(value ?? "").replace(
@@ -160,48 +168,45 @@ export function buildIPDDischargeHTML(
   const handover = data.handover || {};
   const bill = getBillingState(billing);
 
-  // 1. Header
-  const logo =
-    cfg.header.showLogo && cfg.hospital.logoUrl
-      ? `<img class="hospital-logo" src="${esc(cfg.hospital.logoUrl)}" alt="Logo" onerror="this.onerror=null;this.src='/images/Narayan_Logo.png';" />`
-      : `<img class="hospital-logo" src="/images/Narayan_Logo.png" alt="Logo" />`;
+  // 1. Master Shared Header & Document Banner
+  const cachedShared = getCachedSharedSettings() || {};
+  const isUsingShared = cfg.useSharedHeaderFooter !== false;
 
-  const header = `
-    <header class="hospital-header">
-      <div class="header-left">
-        ${logo}
-        <div class="header-badges">
-          <span class="badge-accred">NABH ACCREDITED</span>
-          <span class="badge-accred">ISO 9001:2015</span>
-        </div>
-      </div>
-      <div class="header-center">
-        <h1 class="hospital-name">${esc(cfg.hospital.name || "NARAYAN HOSPITAL")}</h1>
-        ${cfg.header.showSubtitle && cfg.hospital.subtitle ? `<div class="hospital-subline">${esc(cfg.hospital.subtitle)}</div>` : ""}
-        ${cfg.header.showAddress && cfg.hospital.address ? `<div class="hospital-subline">${esc(cfg.hospital.address)}</div>` : ""}
-        <div class="hospital-contacts">
-          ${cfg.header.showContact && cfg.hospital.phone ? `<span>Emergency: <b>${esc(cfg.hospital.phone)}</b></span>` : ""}
-          ${cfg.header.showContact && cfg.hospital.email ? `<span> · Email: <b>${esc(cfg.hospital.email)}</b></span>` : ""}
-          ${cfg.header.showRegistrationNo && cfg.hospital.registrationNo ? `<span> · Reg No: <b>${esc(cfg.hospital.registrationNo)}</b></span>` : ""}
-        </div>
-      </div>
-      ${
-        cfg.header.showBarcode !== false && (cfg.header.showTopUHID !== false || cfg.header.showTopAdmissionNo !== false)
-          ? `
-      <div class="header-right">
-        <div class="barcode-badge">
-          <div class="barcode-bars">||||| |||| |||||| ||||| ||||</div>
-          <div class="barcode-info">
-            ${cfg.header.showTopUHID !== false ? `<div>UHID: <b>${esc(patient.uhid || "NH-2026-98412")}</b></div>` : ""}
-            ${cfg.header.showTopAdmissionNo !== false ? `<div>IPD: <b>${esc(admission.ipdNumber || "IPD-2026-4401")}</b></div>` : ""}
-          </div>
-        </div>
-      </div>`
-          : ""
-      }
-    </header>
-    ${cfg.header.showDocumentLabel ? `<div class="document-ribbon">${esc(cfg.header.title || "INPATIENT DISCHARGE SUMMARY & CLINICAL RECORD")}</div>` : ""}
-  `;
+  const sharedConfig = mergeSharedSettings(DEFAULT_SHARED_CONFIG, {
+    ...settings,
+    hospital: isUsingShared
+      ? { ...(settings.hospital || {}), ...(cachedShared.hospital || {}) }
+      : { ...(DEFAULT_SHARED_CONFIG.hospital || {}), ...(settings.hospital || {}) },
+    header: isUsingShared
+      ? { ...(settings.header || {}), ...(cachedShared.header || {}) }
+      : { ...(DEFAULT_SHARED_CONFIG.header || {}), ...(settings.header || {}) },
+    fieldStyles: isUsingShared
+      ? { ...(settings.fieldStyles || {}), ...(cachedShared.fieldStyles || {}) }
+      : { ...(DEFAULT_SHARED_CONFIG.fieldStyles || {}), ...(settings.fieldStyles || {}) },
+    slipConfigs: isUsingShared
+      ? { ...(settings.slipConfigs || {}), ...(cachedShared.slipConfigs || {}) }
+      : { ...(DEFAULT_SHARED_CONFIG.slipConfigs || {}), ...(settings.slipConfigs || {}) },
+  });
+
+  const normalizedEncounter = {
+    patientName: patient.name || "Patient",
+    uhid: patient.uhid || "NH-2026-98412",
+    encounterNo: admission.ipdNumber || "IPD-2026-4401",
+    ipdNo: admission.ipdNumber || "IPD-2026-4401",
+    tokenNo: admission.ipdNumber || "IPD-2026-4401",
+    admissionDate: admission.admissionDate || "24 Oct 2026",
+    doctor: admission.consultant || "Dr. S. K. Sharma",
+    department: admission.department || "Cardiology",
+    ...data,
+  };
+
+  const header = buildSharedHeaderHTML(sharedConfig, {
+    isPreview: !autoPrint,
+    slipType: "ipd_discharge",
+    encounterData: normalizedEncounter,
+    titleOverride: cfg.header.title || "INPATIENT DISCHARGE SUMMARY & CLINICAL RECORD",
+    copyBadgeOverride: "CONFIDENTIAL MEDICAL RECORD",
+  });
 
   // 2. Demographics & Stay Particulars
   let demographicsHTML = "";
@@ -726,6 +731,7 @@ export function buildIPDDischargeHTML(
       box-sizing: border-box;
       -webkit-font-smoothing: antialiased;
     }
+    ${SHARED_PRINT_CSS}
     body {
       margin: 0;
       color: ${s.text || "#17263b"};
@@ -1504,9 +1510,12 @@ export class IPDDischargePrintHandler {
       return this._cachedSettings;
     }
     try {
-      const response = await settingsService.getSetting(
-        IPD_DISCHARGE_SETTINGS_KEY,
-      );
+      const [response, shared] = await Promise.all([
+        settingsService.getSetting(IPD_DISCHARGE_SETTINGS_KEY).catch(() => null),
+        loadSharedPrintSettings().catch(() => null),
+      ]);
+      const cached = getCachedSharedSettings() || {};
+      const masterShared = shared || cached;
       const saved =
         response?.data?.value ??
         response?.data?.settings ??
@@ -1515,7 +1524,15 @@ export class IPDDischargePrintHandler {
         response;
       const merged = mergeIPDSettings(
         cloneIPDSettings(DEFAULT_IPD_DISCHARGE_SETTINGS),
-        saved || {},
+        {
+          ...(saved || {}),
+          useSharedHeaderFooter: true,
+          hospital: { ...(saved?.hospital || {}), ...(masterShared?.hospital || {}) },
+          header: { ...(saved?.header || {}), ...(masterShared?.header || {}) },
+          footer: { ...(saved?.footer || {}), ...(masterShared?.footer || {}) },
+          fieldStyles: { ...(saved?.fieldStyles || {}), ...(masterShared?.fieldStyles || {}) },
+          slipConfigs: { ...(saved?.slipConfigs || {}), ...(masterShared?.slipConfigs || {}) },
+        }
       );
       this._cachedSettings = merged;
       return merged;

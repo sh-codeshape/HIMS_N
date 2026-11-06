@@ -663,21 +663,23 @@ export function getElementComputedStyle(key, fieldStyles = {}, extraCss = "", is
   const offsetY = Number(f.offsetY) || 0;
 
   // Rock-solid positioning using relative coordinates + left + top
-  const isBlock = key.endsWith(".card") || key === "patient.address" || key === "terms.list" || key === "header.accreditations";
+  const hasAlign = Boolean(f.textAlign);
+  const isBlock = key.endsWith(".card") || key === "patient.address" || key === "terms.list" || key === "header.accreditations" || hasAlign;
   const displayCss = isBlock ? "display: block !important;" : "display: inline-block !important;";
 
   const positionStyle =
     offsetX !== 0 || offsetY !== 0
       ? `position: relative !important; left: ${offsetX}px !important; top: ${offsetY}px !important; ${displayCss} z-index: 15;`
-      : "position: relative !important;";
+      : isBlock ? "position: relative !important; display: block !important;" : "position: relative !important;";
 
   const fontSz = f.fontSize ? `font-size: ${f.fontSize}px !important;` : "";
   const fontWt = f.fontWeight ? `font-weight: ${f.fontWeight} !important;` : "";
   const textClr = f.textColor ? `color: ${f.textColor} !important;` : "";
   const textAln = f.textAlign ? `text-align: ${f.textAlign} !important;` : "";
+  const textTrans = f.textTransform ? `text-transform: ${f.textTransform} !important;` : "";
   const bgClr = f.bgColor ? `background-color: ${f.bgColor} !important;` : "";
   const brdClr = f.borderColor ? `border-color: ${f.borderColor} !important;` : "";
-  const letterSp = f.letterSpacing ? `letter-spacing: ${f.letterSpacing} !important;` : "";
+  const letterSp = f.letterSpacing !== undefined && f.letterSpacing !== "" ? `letter-spacing: ${String(f.letterSpacing).replace(/px$/, "")}px !important;` : "";
 
   return `
     ${positionStyle}
@@ -685,6 +687,7 @@ export function getElementComputedStyle(key, fieldStyles = {}, extraCss = "", is
     ${fontWt}
     ${textClr}
     ${textAln}
+    ${textTrans}
     ${bgClr}
     ${brdClr}
     ${letterSp}
@@ -757,17 +760,18 @@ export function setCachedSharedSettings(settings) {
  * Load shared settings from DB with fallback and local cache.
  */
 export async function loadSharedPrintSettings() {
-  const cached = getCachedSharedSettings();
   try {
     const data = await settingsService.getSetting(SHARED_PRINT_SETTINGS_KEY);
-    if (data && typeof data === "object") {
-      const merged = mergeSharedSettings(DEFAULT_SHARED_CONFIG, data);
-      setCachedSharedSettings(merged);
-      return merged;
+    if (data && typeof data === "object" && Object.keys(data).length > 0) {
+      const mergedFromDb = mergeSharedSettings(DEFAULT_SHARED_CONFIG, data);
+      // PostgreSQL is the single source of truth: refresh local cache with fresh DB data
+      setCachedSharedSettings(mergedFromDb);
+      return mergedFromDb;
     }
   } catch (err) {
-    console.warn("Could not load shared print settings from DB:", err);
+    console.warn("Could not load shared print settings from DB, falling back to cache:", err);
   }
+  const cached = getCachedSharedSettings();
   if (cached) {
     return mergeSharedSettings(DEFAULT_SHARED_CONFIG, cached);
   }
@@ -783,7 +787,7 @@ export async function saveSharedPrintSettings(settings) {
 }
 
 /**
- * ⚡ Apply shared header, footer, and demographic styles to ALL slips in the database!
+ * ⚡ Apply shared header, footer, and demographic styles to ALL slips in the database in parallel!
  */
 export async function applySharedMasterToAllSlips(sharedSettings) {
   setCachedSharedSettings(sharedSettings);
@@ -795,45 +799,48 @@ export async function applySharedMasterToAllSlips(sharedSettings) {
     "print_slip_ipd_discharge",
   ];
 
-  const results = [];
-  for (const key of keys) {
-    try {
-      const existing = (await settingsService.getSetting(key)) || {};
-      const updated = {
-        ...existing,
-        useSharedHeaderFooter: true,
-        hospital: {
-          ...(existing.hospital || {}),
-          ...(sharedSettings.hospital || {}),
-        },
-        header: {
-          ...(existing.header || {}),
-          ...(sharedSettings.header || {}),
-        },
-        footer: {
-          ...(existing.footer || {}),
-          ...(sharedSettings.footer || {}),
-        },
-        patientDemographics: {
-          ...(existing.patientDemographics || {}),
-          ...(sharedSettings.patientDemographics || {}),
-        },
-        fieldStyles: {
-          ...(existing.fieldStyles || {}),
-          ...(sharedSettings.fieldStyles || {}),
-        },
-        slipConfigs: {
-          ...(existing.slipConfigs || {}),
-          ...(sharedSettings.slipConfigs || {}),
-        },
-      };
-      await settingsService.updateSetting(key, updated);
-      results.push({ key, success: true });
-    } catch (err) {
-      console.error(`Failed to apply shared master to ${key}:`, err);
-      results.push({ key, success: false, error: err.message });
-    }
-  }
+  // Execute in parallel via Promise.all for fast (2-3s) execution instead of 30s sequential loop
+  const results = await Promise.all(
+    keys.map(async (key) => {
+      try {
+        const existing = (await settingsService.getSetting(key)) || {};
+        const updated = {
+          ...existing,
+          useSharedHeaderFooter: true,
+          hospital: {
+            ...(existing.hospital || {}),
+            ...(sharedSettings.hospital || {}),
+          },
+          header: {
+            ...(existing.header || {}),
+            ...(sharedSettings.header || {}),
+          },
+          footer: {
+            ...(existing.footer || {}),
+            ...(sharedSettings.footer || {}),
+          },
+          patientDemographics: {
+            ...(existing.patientDemographics || {}),
+            ...(sharedSettings.patientDemographics || {}),
+          },
+          fieldStyles: {
+            ...(existing.fieldStyles || {}),
+            ...(sharedSettings.fieldStyles || {}),
+          },
+          slipConfigs: {
+            ...(existing.slipConfigs || {}),
+            ...(sharedSettings.slipConfigs || {}),
+          },
+        };
+        await settingsService.updateSetting(key, updated);
+        return { key, success: true };
+      } catch (err) {
+        console.error(`Failed to apply shared master to ${key}:`, err);
+        return { key, success: false, error: err.message };
+      }
+    })
+  );
+
   return results;
 }
 
@@ -859,8 +866,8 @@ export function buildSharedHeaderHTML(
 
   // Slip specific title / copy badge
   const slipCfg = cfg.slipConfigs?.[slipType] || cfg.slipConfigs?.all || {};
-  const docTitle = options?.titleOverride || getText("ticket.title", slipCfg.title || cfg.header?.title || "HOSPITAL ENCOUNTER SLIP");
-  const copyType = options?.copyBadgeOverride || getText("ticket.copyBadge", slipCfg.copyBadge || cfg.header?.copyType || "ORIGINAL FOR PATIENT");
+  const docTitle = getText("ticket.title", slipCfg.title || options?.titleOverride || cfg.header?.title || "HOSPITAL ENCOUNTER SLIP");
+  const copyType = getText("ticket.copyBadge", slipCfg.copyBadge || options?.copyBadgeOverride || cfg.header?.copyType || "ORIGINAL FOR PATIENT");
 
   const hName = getText("header.hospitalName", cfg.hospital?.name || "Narayan Hospital");
   const hSub = getText("header.subtitle", cfg.hospital?.subtitle || "");

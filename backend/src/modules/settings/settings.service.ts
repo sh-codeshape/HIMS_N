@@ -801,10 +801,10 @@ export class SettingsService {
       const params: any[] = [key, orgId];
 
       if (facilityId) {
-        queryStr += ` AND (facility_id = $3 OR facility_id IS NULL) ORDER BY (facility_id = $3) DESC, facility_id DESC NULLS LAST LIMIT 1`;
+        queryStr += ` AND (facility_id = $3 OR facility_id IS NULL) ORDER BY (facility_id = $3) DESC, updated_at DESC LIMIT 1`;
         params.push(facilityId);
       } else {
-        queryStr += ` ORDER BY facility_id DESC NULLS LAST LIMIT 1`;
+        queryStr += ` ORDER BY updated_at DESC LIMIT 1`;
       }
 
       const result = await db.query(queryStr, params);
@@ -853,24 +853,18 @@ export class SettingsService {
       userId || null,
     ]);
 
-    // If saving for a specific facility, also keep the organization-level fallback (facility_id IS NULL) in sync
-    if (facId) {
-      try {
-        await db.query(
-          `
-          INSERT INTO settings (organization_id, facility_id, key, value, created_by, updated_by)
-          VALUES ($1, NULL, $2, $3::jsonb, $4, $4)
-          ON CONFLICT (organization_id, COALESCE(facility_id, '00000000-0000-0000-0000-000000000000'::uuid), key)
-          DO UPDATE SET
-            value = EXCLUDED.value,
-            updated_at = now(),
-            updated_by = EXCLUDED.updated_by;
-          `,
-          [orgId, key, JSON.stringify(value), userId || null]
-        );
-      } catch (e: any) {
-        logger.warn({ err: e?.message, key }, 'Could not mirror setting to org fallback');
-      }
+    // Keep all facilities and org fallback in sync so print templates never get desynchronized across facilities
+    try {
+      await db.query(
+        `
+        UPDATE settings
+        SET value = $1::jsonb, updated_at = now(), updated_by = $2
+        WHERE organization_id = $3 AND key = $4;
+        `,
+        [JSON.stringify(value), userId || null, orgId, key]
+      );
+    } catch (e: any) {
+      logger.warn({ err: e?.message, key }, 'Could not broadcast setting update across organization facilities');
     }
 
     return res.rows[0];

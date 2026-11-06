@@ -7,6 +7,14 @@ import {
   SAMPLE_IPD_BILLING_DATA,
   numberToWords,
 } from "./ipdBillingPrintConfig.js";
+import {
+  DEFAULT_SHARED_CONFIG,
+  SHARED_PRINT_CSS,
+  buildSharedHeaderHTML,
+  mergeSharedSettings,
+  loadSharedPrintSettings,
+  getCachedSharedSettings,
+} from "./sharedPrintConfig.js";
 
 const esc = (value) =>
   String(value ?? "").replace(
@@ -86,6 +94,26 @@ export function buildBillingHTML(data = SAMPLE_IPD_BILLING_DATA, settings = DEFA
   const isThermal = page.size === "Thermal";
   const isStationery = hospital.letterheadMode === "stationery";
 
+  // Shared Master Header Configuration
+  const cachedShared = getCachedSharedSettings() || {};
+  const isUsingShared = settings.useSharedHeaderFooter !== false;
+
+  const sharedConfig = mergeSharedSettings(DEFAULT_SHARED_CONFIG, {
+    ...settings,
+    hospital: isUsingShared
+      ? { ...(settings.hospital || {}), ...(cachedShared.hospital || {}) }
+      : { ...(DEFAULT_SHARED_CONFIG.hospital || {}), ...(settings.hospital || {}) },
+    header: isUsingShared
+      ? { ...(settings.header || {}), ...(cachedShared.header || {}) }
+      : { ...(DEFAULT_SHARED_CONFIG.header || {}), ...(settings.header || {}) },
+    fieldStyles: isUsingShared
+      ? { ...(settings.fieldStyles || {}), ...(cachedShared.fieldStyles || {}) }
+      : { ...(DEFAULT_SHARED_CONFIG.fieldStyles || {}), ...(settings.fieldStyles || {}) },
+    slipConfigs: isUsingShared
+      ? { ...(settings.slipConfigs || {}), ...(cachedShared.slipConfigs || {}) }
+      : { ...(DEFAULT_SHARED_CONFIG.slipConfigs || {}), ...(settings.slipConfigs || {}) },
+  });
+
   // Data extraction with safe fallbacks
   const p = data.patient || {};
   const adm = data.admission || {};
@@ -98,6 +126,26 @@ export function buildBillingHTML(data = SAMPLE_IPD_BILLING_DATA, settings = DEFA
   const invoiceDate = data.invoiceDate || new Date().toLocaleDateString("en-IN");
   const generatedAt = data.generatedAt || new Date().toLocaleString("en-IN");
   const copyType = header.copyType || data.copyType || "ORIGINAL FOR RECIPIENT";
+
+  const normalizedEncounter = {
+    patientName: p.name || "Patient",
+    uhid: p.uhid || "UHID-2026-098",
+    encounterNo: adm.admissionNo || "IPD-2026-4401",
+    ipdNo: adm.admissionNo || "IPD-2026-4401",
+    tokenNo: adm.admissionNo || "IPD-2026-4401",
+    admissionDate: adm.admissionDate || "24 Oct 2026",
+    doctor: adm.consultant || "Dr. S. K. Sharma",
+    department: adm.department || "Cardiology",
+    ...data,
+  };
+
+  const sharedHeaderHtml = buildSharedHeaderHTML(sharedConfig, {
+    isPreview: !isPrint,
+    slipType: "ipd_billing",
+    encounterData: normalizedEncounter,
+    titleOverride: header.title || "INPATIENT FINAL TAX INVOICE",
+    copyBadgeOverride: copyType || "ORIGINAL FOR RECIPIENT",
+  });
 
   // Financial Calculations with GST logic
   const grossCharges = Number(totals.grossCharges ?? items.reduce((acc, it) => acc + (it.qty * it.rate), 0));
@@ -229,6 +277,9 @@ export function buildBillingHTML(data = SAMPLE_IPD_BILLING_DATA, settings = DEFA
       width: 100%;
     }
     ` : ""}
+
+    /* Master Shared Header & Positioning CSS */
+    ${SHARED_PRINT_CSS}
 
     /* Letterhead Header */
     .bill-header {
@@ -918,49 +969,19 @@ export function buildBillingHTML(data = SAMPLE_IPD_BILLING_DATA, settings = DEFA
     <!-- Pre-printed Stationery Blank Top Margin (if enabled) -->
     ${isStationery ? `<div class="stationery-spacer"></div>` : ""}
 
-    <!-- 1. Hospital Letterhead Header (unless pre-printed stationery mode) -->
-    ${
-      !isStationery
-        ? `
-    <header class="bill-header">
-      <div class="bill-brand-left">
-        ${
-          header.showLogo && hospital.logoUrl
-            ? `<img src="${esc(hospital.logoUrl)}" alt="Hospital Logo" class="bill-logo" />`
-            : ""
-        }
-        <div>
-          <h1 class="bill-hosp-name">${esc(hospital.name)}</h1>
-          ${hospital.subtitle ? `<div class="bill-hosp-sub">${esc(hospital.subtitle)}</div>` : ""}
-          ${
-            hospital.showAccreditationBadges && hospital.accreditations?.length > 0
-              ? `
-          <div class="bill-accred-row">
-            ${hospital.accreditations.map((b) => `<span class="bill-accred-badge">✓ ${esc(b)}</span>`).join("")}
-          </div>
-          `
-              : ""
-          }
-          <div class="bill-hosp-meta">
-            ${hospital.address ? `<span>${esc(hospital.address)}</span>` : ""}
-            ${hospital.phone ? ` • <span>24×7 Help: ${esc(hospital.phone)}</span>` : ""}
-            ${hospital.email ? `<br><span>Email: ${esc(hospital.email)}</span>` : ""}
-            ${hospital.website ? ` • <span>Web: ${esc(hospital.website)}</span>` : ""}
-            ${hospital.registrationNo ? ` • <span>Reg No: ${esc(hospital.registrationNo)}</span>` : ""}
-          </div>
-        </div>
-      </div>
+    <!-- 1. Master Shared Letterhead & Document Banner -->
+    ${!isStationery ? sharedHeaderHtml : ""}
 
-      <!-- Compliance & Tax Credentials Box + Optional Header QR Code -->
-      <div style="display: flex; gap: 8px; align-items: stretch;">
-        ${
-          header.showTaxBox && gst.enabled !== false
-            ? `
-        <div class="bill-tax-box">
-          <div class="bill-tax-title">
-            <span>TAX INVOICE CREDENTIALS</span>
-            <span style="font-size: 8px; color: ${accent};">RULE 54 CGST</span>
-          </div>
+    <!-- Optional Compliance & Tax Credentials Box (Rule 54 CGST) -->
+    ${
+      !isStationery && header.showTaxBox && gst.enabled !== false
+        ? `
+      <div class="bill-tax-box" style="margin-top: 6px; margin-bottom: 8px;">
+        <div class="bill-tax-title">
+          <span>TAX INVOICE CREDENTIALS</span>
+          <span style="font-size: 8px; color: ${accent};">RULE 54 CGST</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 12px; margin-top: 4px;">
           ${gst.hospitalGstin ? `<div class="bill-tax-row"><span>GSTIN:</span> <strong>${esc(gst.hospitalGstin)}</strong></div>` : ""}
           ${gst.hospitalPan ? `<div class="bill-tax-row"><span>PAN:</span> <strong>${esc(gst.hospitalPan)}</strong></div>` : ""}
           ${gst.stateName ? `<div class="bill-tax-row"><span>STATE:</span> <strong>${esc(gst.stateName)} (${esc(gst.stateCode || "08")})</strong></div>` : ""}
@@ -968,40 +989,10 @@ export function buildBillingHTML(data = SAMPLE_IPD_BILLING_DATA, settings = DEFA
           <div class="bill-tax-row"><span>REVERSE CHARGE:</span> <strong>${esc(gst.reverseCharge || "No")}</strong></div>
           <div class="bill-tax-row"><span>PLACE OF SUPPLY:</span> <strong>${esc(gst.placeOfSupply || "08 - Rajasthan")}</strong></div>
         </div>
-        `
-            : ""
-        }
-        ${
-          header.showQRCode
-            ? `
-        <div style="border: 1.5px solid ${border}; background: ${headerBg}; border-radius: 4px; padding: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px;">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=64x64&margin=2&data=${encodeURIComponent(`HIMS-TAX-INV:${invoiceNo}|UHID:${p.uhid || ''}|ADM:${adm.admissionNo || ''}|NET:${finalNetBillable}`)}" alt="Invoice QR" style="width: 58px; height: 58px; display: block;" />
-          <span style="font-size: 7px; color: ${muted}; font-weight: 700; margin-top: 2px; text-transform: uppercase;">VERIFIED</span>
-        </div>
-        `
-            : ""
-        }
       </div>
-    </header>
-    `
+      `
         : ""
     }
-
-    <!-- 2. Document Title Banner -->
-    <div class="bill-banner">
-      <div>
-        <div class="bill-banner-title">${esc(header.title)}</div>
-        <div style="font-size: ${fontSize - 2.5}px; opacity: 0.9;">${esc(header.subTitle)}</div>
-      </div>
-      <div class="bill-banner-right">
-        ${header.showCopyBadge ? `<span class="bill-copy-pill">${esc(copyType)}</span>` : ""}
-        <div class="bill-banner-meta">
-          ${page.showGeneratedAt ? `Issued: <strong>${esc(invoiceDate)}</strong>` : ""}
-          ${header.showTopUHID && p.uhid ? ` • UHID: <strong>${esc(p.uhid)}</strong>` : ""}
-          ${header.showTopAdmissionNo && adm.admissionNo ? ` • ADM: <strong>${esc(adm.admissionNo)}</strong>` : ""}
-        </div>
-      </div>
-    </div>
 
     <!-- 3. Demographics & Admission Record Cards -->
     <div class="bill-grid">
@@ -1588,11 +1579,23 @@ export class IPDBillingPrintHandler {
       return this._cachedSettings;
     }
     try {
-      const data = await settingsService.getSetting(IPD_BILLING_SETTINGS_KEY);
-      if (data && typeof data === "object") {
-        this._cachedSettings = mergeIPDBillingSettings(DEFAULT_IPD_BILLING_SETTINGS, data);
-        return this._cachedSettings;
-      }
+      const [data, shared] = await Promise.all([
+        settingsService.getSetting(IPD_BILLING_SETTINGS_KEY).catch(() => null),
+        loadSharedPrintSettings().catch(() => null),
+      ]);
+      const cached = getCachedSharedSettings() || {};
+      const masterShared = shared || cached;
+      const merged = mergeIPDBillingSettings(DEFAULT_IPD_BILLING_SETTINGS, {
+        ...(data || {}),
+        useSharedHeaderFooter: true,
+        hospital: { ...(data?.hospital || {}), ...(masterShared?.hospital || {}) },
+        header: { ...(data?.header || {}), ...(masterShared?.header || {}) },
+        footer: { ...(data?.footer || {}), ...(masterShared?.footer || {}) },
+        fieldStyles: { ...(data?.fieldStyles || {}), ...(masterShared?.fieldStyles || {}) },
+        slipConfigs: { ...(data?.slipConfigs || {}), ...(masterShared?.slipConfigs || {}) },
+      });
+      this._cachedSettings = merged;
+      return merged;
     } catch (err) {
       console.warn("Could not fetch IPD billing print settings from server, using defaults:", err);
     }

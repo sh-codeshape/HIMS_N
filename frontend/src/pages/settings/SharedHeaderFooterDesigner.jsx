@@ -18,6 +18,17 @@ import {
   FONT_FAMILIES,
 } from "./sharedPrintConfig.js";
 
+const BRAND_PRESET_COLORS = [
+  { label: "Master Navy", hex: "#0B3B60" },
+  { label: "Deep Slate", hex: "#0F172A" },
+  { label: "Medical Emerald", hex: "#047857" },
+  { label: "Emergency Red", hex: "#B91C1C" },
+  { label: "Royal Indigo", hex: "#4338CA" },
+  { label: "Sky Blue", hex: "#0284C7" },
+  { label: "Secondary Slate", hex: "#64748B" },
+  { label: "Warm Amber", hex: "#D97706" },
+];
+
 export default function SharedHeaderFooterDesigner() {
   const [settings, setSettings] = useState(DEFAULT_SHARED_CONFIG);
   const [selectedSlipType, setSelectedSlipType] = useState("all"); // 'all' | 'opd' | 'ipd_admission' | 'ipd_billing' | 'ipd_discharge'
@@ -32,6 +43,7 @@ export default function SharedHeaderFooterDesigner() {
   const [previewZoom, setPreviewZoom] = useState(100);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [renderCounter, setRenderCounter] = useState(0);
+  const [nudgeStep, setNudgeStep] = useState(2); // 1, 2, 5, 10, 20
   const iframeRef = useRef(null);
 
   // Load from database on mount
@@ -56,11 +68,24 @@ export default function SharedHeaderFooterDesigner() {
   }, []);
 
   // Keep local cache immediately in sync with every keystroke/slider drag for zero-lag cross-tab sharing
+  const settingsRef = useRef(settings);
   useEffect(() => {
+    settingsRef.current = settings;
     if (!loading && settings) {
       setCachedSharedSettings(settings);
     }
   }, [settings, loading]);
+
+  // Flush any pending save immediately when switching away from this tab
+  useEffect(() => {
+    return () => {
+      if (settingsRef.current) {
+        setCachedSharedSettings(settingsRef.current);
+        saveSharedPrintSettings(settingsRef.current).catch(() => null);
+        applySharedMasterToAllSlips(settingsRef.current).catch(() => null);
+      }
+    };
+  }, []);
 
   // Debounced auto-sync to DB so switching tabs never loses position changes
   const isInitialMount = useRef(true);
@@ -74,11 +99,10 @@ export default function SharedHeaderFooterDesigner() {
     const timer = setTimeout(async () => {
       try {
         await saveSharedPrintSettings(settings);
-        await applySharedMasterToAllSlips(settings);
       } catch (e) {
         console.warn("Background auto-sync failed:", e);
       }
-    }, 1200);
+    }, 800);
 
     return () => clearTimeout(timer);
   }, [settings, loading]);
@@ -106,6 +130,27 @@ export default function SharedHeaderFooterDesigner() {
         cur = cur[keys[i]];
       }
       cur[keys[keys.length - 1]] = value;
+
+      // Keep target customText in sync when primary brand properties are edited
+      if (path === "hospital.name" && next.fieldStyles?.["header.hospitalName"]) {
+        delete next.fieldStyles["header.hospitalName"].customText;
+      }
+      if (path === "hospital.subtitle" && next.fieldStyles?.["header.subtitle"]) {
+        delete next.fieldStyles["header.subtitle"].customText;
+      }
+      if (path === "hospital.slogan" && next.fieldStyles?.["header.slogan"]) {
+        delete next.fieldStyles["header.slogan"].customText;
+      }
+      if (path === "hospital.address" && next.fieldStyles?.["header.address"]) {
+        delete next.fieldStyles["header.address"].customText;
+      }
+      if (path === "hospital.registrationNo" && next.fieldStyles?.["header.regNo"]) {
+        delete next.fieldStyles["header.regNo"].customText;
+      }
+      if (path === "hospital.emergencyPhone" && next.fieldStyles?.["header.emergencyPhone"]) {
+        delete next.fieldStyles["header.emergencyPhone"].customText;
+      }
+
       return next;
     });
     setRenderCounter((c) => c + 1);
@@ -113,16 +158,21 @@ export default function SharedHeaderFooterDesigner() {
 
   // Field style update helper (X/Y Offsets, font, colors, etc.)
   const handleUpdateFieldStyle = (key, prop, value) => {
-    setSettings((prev) => ({
-      ...prev,
-      fieldStyles: {
+    setSettings((prev) => {
+      const nextStyles = {
         ...(prev.fieldStyles || {}),
         [key]: {
           ...(prev.fieldStyles?.[key] || {}),
           [prop]: value,
         },
-      },
-    }));
+      };
+      const next = { ...prev, fieldStyles: nextStyles };
+      if (key === "header.hospitalName" && prop === "customText" && value) {
+        if (!next.hospital) next.hospital = {};
+        next.hospital.name = value;
+      }
+      return next;
+    });
     setRenderCounter((c) => c + 1);
   };
 
@@ -268,6 +318,59 @@ export default function SharedHeaderFooterDesigner() {
   const currentFieldStyle = useMemo(() => {
     return settings.fieldStyles?.[selectedTargetKey] || {};
   }, [selectedTargetKey, settings.fieldStyles]);
+
+  // Nudge selected element in 4 directions
+  const handleNudge = (direction) => {
+    const curX = Number(currentFieldStyle.offsetX) || 0;
+    const curY = Number(currentFieldStyle.offsetY) || 0;
+    if (direction === "up") {
+      handleUpdateFieldStyle(selectedTargetKey, "offsetY", curY - nudgeStep);
+    } else if (direction === "down") {
+      handleUpdateFieldStyle(selectedTargetKey, "offsetY", curY + nudgeStep);
+    } else if (direction === "left") {
+      handleUpdateFieldStyle(selectedTargetKey, "offsetX", curX - nudgeStep);
+    } else if (direction === "right") {
+      handleUpdateFieldStyle(selectedTargetKey, "offsetX", curX + nudgeStep);
+    } else if (direction === "center") {
+      handleUpdateFieldStyle(selectedTargetKey, "offsetX", 0);
+      handleUpdateFieldStyle(selectedTargetKey, "offsetY", 0);
+    }
+  };
+
+  const handleResetPosition = (key) => {
+    handleUpdateFieldStyle(key, "offsetX", 0);
+    handleUpdateFieldStyle(key, "offsetY", 0);
+  };
+
+  // Keyboard arrow shortcuts to nudge elements when inspecting
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA" ||
+        document.activeElement?.tagName === "SELECT"
+      ) {
+        return;
+      }
+      if (activeTab !== "data-designer" || !selectedTargetKey) return;
+
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        handleNudge("up");
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        handleNudge("down");
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        handleNudge("left");
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        handleNudge("right");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedTargetKey, activeTab, nudgeStep, currentFieldStyle]);
 
   // Selected slip metadata
   const currentSlipMeta = useMemo(() => {
@@ -565,14 +668,24 @@ export default function SharedHeaderFooterDesigner() {
                       <span>{isCurrentTargetActive ? "Active on Slip" : "Inactive (Hidden)"}</span>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => handleResetTarget(selectedTargetKey)}
-                      className="text-[10.5px] font-semibold text-slate-500 hover:text-red-600 flex items-center gap-1"
-                      title="Reset this element's position and styles back to defaults"
-                    >
-                      <Icon name="LuRotateCcw" size={11} /> Reset Position
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleResetPosition(selectedTargetKey)}
+                        className="text-[10px] font-semibold text-slate-500 hover:text-sky-700 bg-white border border-slate-200 hover:border-sky-300 rounded px-2 py-0.5 flex items-center gap-1 transition-all"
+                        title="Reset X & Y offsets to 0"
+                      >
+                        <Icon name="LuRotateCcw" size={10} /> Reset (0,0)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleResetTarget(selectedTargetKey)}
+                        className="text-[10px] font-semibold text-slate-500 hover:text-red-600 bg-white border border-slate-200 hover:border-red-300 rounded px-2 py-0.5 flex items-center gap-1 transition-all"
+                        title="Clear all custom styles, text and offsets"
+                      >
+                        <Icon name="LuTrash2" size={10} /> Clear
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -593,22 +706,134 @@ export default function SharedHeaderFooterDesigner() {
                   </div>
                 )}
 
-                {/* ── POSITIONING CONTROLS (X & Y FREE PLACEMENT CONTROLLERS) ── */}
-                <div className="p-3.5 bg-white rounded-xl border border-sky-200 shadow-xs space-y-3.5">
+                {/* ── 🕹️ DIRECTIONAL NUDGE PAD (D-PAD) & STEP CONTROLLER ── */}
+                <div className="p-3.5 bg-white rounded-xl border border-sky-200 shadow-xs space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
                       <Icon name="LuMove" size={14} className="text-sky-700" />
-                      <span>Position Shift Controls</span>
+                      <span>Position Arrangement &amp; Nudge Pad</span>
                     </span>
-                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-sky-50 text-sky-800 border border-sky-200">
-                      X: {Number(currentFieldStyle.offsetX) || 0}px | Y: {Number(currentFieldStyle.offsetY) || 0}px
+                    <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+                      Tip: Use ⬆️ ⬇️ ⬅️ ➡️ arrow keys on keyboard
                     </span>
                   </div>
 
-                  {/* Horizontal Position (X Axis) */}
-                  <div className="space-y-1">
+                  <div className="flex flex-col sm:flex-row items-center gap-4 bg-slate-50/90 p-3 rounded-xl border border-slate-200">
+                    {/* 3x3 Tactile Directional D-Pad */}
+                    <div className="grid grid-cols-3 gap-1.5 w-32 h-32 flex-shrink-0 select-none">
+                      <div></div>
+                      <button
+                        type="button"
+                        onClick={() => handleNudge("up")}
+                        className="bg-white hover:bg-sky-50 text-slate-700 hover:text-sky-700 active:bg-sky-100 border border-slate-300 hover:border-sky-400 rounded-lg flex items-center justify-center shadow-xs transition-all active:scale-95"
+                        title={`Nudge Up by ${nudgeStep}px`}
+                      >
+                        <Icon name="LuArrowUp" size={18} />
+                      </button>
+                      <div></div>
+                      <button
+                        type="button"
+                        onClick={() => handleNudge("left")}
+                        className="bg-white hover:bg-sky-50 text-slate-700 hover:text-sky-700 active:bg-sky-100 border border-slate-300 hover:border-sky-400 rounded-lg flex items-center justify-center shadow-xs transition-all active:scale-95"
+                        title={`Nudge Left by ${nudgeStep}px`}
+                      >
+                        <Icon name="LuArrowLeft" size={18} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleNudge("center")}
+                        className="bg-sky-100 hover:bg-sky-200 text-sky-900 border border-sky-300 rounded-lg flex flex-col items-center justify-center text-[9px] font-extrabold shadow-xs transition-all active:scale-95"
+                        title="Reset Offsets to (0, 0)"
+                      >
+                        <Icon name="LuRotateCcw" size={12} className="mb-0.5" />
+                        (0,0)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleNudge("right")}
+                        className="bg-white hover:bg-sky-50 text-slate-700 hover:text-sky-700 active:bg-sky-100 border border-slate-300 hover:border-sky-400 rounded-lg flex items-center justify-center shadow-xs transition-all active:scale-95"
+                        title={`Nudge Right by ${nudgeStep}px`}
+                      >
+                        <Icon name="LuArrowRight" size={18} />
+                      </button>
+                      <div></div>
+                      <button
+                        type="button"
+                        onClick={() => handleNudge("down")}
+                        className="bg-white hover:bg-sky-50 text-slate-700 hover:text-sky-700 active:bg-sky-100 border border-slate-300 hover:border-sky-400 rounded-lg flex items-center justify-center shadow-xs transition-all active:scale-95"
+                        title={`Nudge Down by ${nudgeStep}px`}
+                      >
+                        <Icon name="LuArrowDown" size={18} />
+                      </button>
+                      <div></div>
+                    </div>
+
+                    {/* Step Size & Offset Readout */}
+                    <div className="flex-1 space-y-2.5 w-full">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-700">Nudge Step:</span>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 5, 10, 20].map((step) => (
+                            <button
+                              key={step}
+                              type="button"
+                              onClick={() => setNudgeStep(step)}
+                              className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${
+                                nudgeStep === step
+                                  ? "bg-sky-700 text-white shadow-xs"
+                                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                              }`}
+                            >
+                              {step}px
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Position Status Chips */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="p-2 rounded-lg bg-white border border-slate-200 flex items-center justify-between">
+                          <div>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase block">X (Horizontal)</span>
+                            <span className="text-xs font-mono font-black text-slate-800">
+                              {Number(currentFieldStyle.offsetX) > 0 ? `+${currentFieldStyle.offsetX}` : (currentFieldStyle.offsetX || 0)}px
+                            </span>
+                          </div>
+                          {Number(currentFieldStyle.offsetX || 0) !== 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetX", 0)}
+                              className="text-[9.5px] text-sky-700 hover:underline font-bold"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+                        <div className="p-2 rounded-lg bg-white border border-slate-200 flex items-center justify-between">
+                          <div>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase block">Y (Vertical)</span>
+                            <span className="text-xs font-mono font-black text-slate-800">
+                              {Number(currentFieldStyle.offsetY) > 0 ? `+${currentFieldStyle.offsetY}` : (currentFieldStyle.offsetY || 0)}px
+                            </span>
+                          </div>
+                          {Number(currentFieldStyle.offsetY || 0) !== 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetY", 0)}
+                              className="text-[9.5px] text-sky-700 hover:underline font-bold"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Horizontal Position (X Axis Slider) */}
+                  <div className="space-y-1 pt-1 border-t border-slate-100">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-slate-700">Horizontal Shift (X Axis):</span>
+                      <span className="font-semibold text-slate-700">Continuous X Shift:</span>
                       <div className="flex items-center gap-1">
                         <input
                           type="number"
@@ -631,27 +856,16 @@ export default function SharedHeaderFooterDesigner() {
                       className="w-full accent-sky-700 cursor-pointer"
                     />
                     <div className="flex items-center justify-between gap-1 pt-0.5">
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetX", (Number(currentFieldStyle.offsetX) || 0) - 20)}
-                        className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
-                      >
-                        -20
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetX", (Number(currentFieldStyle.offsetX) || 0) - 5)}
-                        className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
-                      >
-                        -5
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetX", (Number(currentFieldStyle.offsetX) || 0) - 1)}
-                        className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
-                      >
-                        -1
-                      </button>
+                      {[-20, -5, -1].map((step) => (
+                        <button
+                          key={step}
+                          type="button"
+                          onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetX", (Number(currentFieldStyle.offsetX) || 0) + step)}
+                          className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
+                        >
+                          {step}
+                        </button>
+                      ))}
                       <button
                         type="button"
                         onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetX", 0)}
@@ -659,34 +873,23 @@ export default function SharedHeaderFooterDesigner() {
                       >
                         0 (Center)
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetX", (Number(currentFieldStyle.offsetX) || 0) + 1)}
-                        className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
-                      >
-                        +1
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetX", (Number(currentFieldStyle.offsetX) || 0) + 5)}
-                        className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
-                      >
-                        +5
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetX", (Number(currentFieldStyle.offsetX) || 0) + 20)}
-                        className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
-                      >
-                        +20
-                      </button>
+                      {[1, 5, 20].map((step) => (
+                        <button
+                          key={step}
+                          type="button"
+                          onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetX", (Number(currentFieldStyle.offsetX) || 0) + step)}
+                          className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
+                        >
+                          +{step}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Vertical Position (Y Axis) */}
+                  {/* Vertical Position (Y Axis Slider) */}
                   <div className="space-y-1 pt-2 border-t border-slate-100">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-slate-700">Vertical Shift (Y Axis):</span>
+                      <span className="font-semibold text-slate-700">Continuous Y Shift:</span>
                       <div className="flex items-center gap-1">
                         <input
                           type="number"
@@ -709,27 +912,16 @@ export default function SharedHeaderFooterDesigner() {
                       className="w-full accent-sky-700 cursor-pointer"
                     />
                     <div className="flex items-center justify-between gap-1 pt-0.5">
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetY", (Number(currentFieldStyle.offsetY) || 0) - 20)}
-                        className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
-                      >
-                        -20
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetY", (Number(currentFieldStyle.offsetY) || 0) - 5)}
-                        className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
-                      >
-                        -5
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetY", (Number(currentFieldStyle.offsetY) || 0) - 1)}
-                        className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
-                      >
-                        -1
-                      </button>
+                      {[-20, -5, -1].map((step) => (
+                        <button
+                          key={step}
+                          type="button"
+                          onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetY", (Number(currentFieldStyle.offsetY) || 0) + step)}
+                          className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
+                        >
+                          {step}
+                        </button>
+                      ))}
                       <button
                         type="button"
                         onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetY", 0)}
@@ -737,71 +929,287 @@ export default function SharedHeaderFooterDesigner() {
                       >
                         0 (Center)
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetY", (Number(currentFieldStyle.offsetY) || 0) + 1)}
-                        className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
-                      >
-                        +1
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetY", (Number(currentFieldStyle.offsetY) || 0) + 5)}
-                        className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
-                      >
-                        +5
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetY", (Number(currentFieldStyle.offsetY) || 0) + 20)}
-                        className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
-                      >
-                        +20
-                      </button>
+                      {[1, 5, 20].map((step) => (
+                        <button
+                          key={step}
+                          type="button"
+                          onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetY", (Number(currentFieldStyle.offsetY) || 0) + step)}
+                          className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
+                        >
+                          +{step}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
 
-                {/* ── TEXT & TYPOGRAPHY ADJUSTMENTS ── */}
-                <div className="grid grid-cols-2 gap-2.5 pt-1">
-                  <div className="col-span-2">
-                    <label className="text-[11px] font-bold text-slate-700 block mb-0.5">
-                      Custom Text Override (Optional):
-                    </label>
+                {/* ── 🎨 TEXT ALIGNMENT, TYPOGRAPHY & BRAND PALETTE ── */}
+                <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-xs space-y-3">
+                  <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                    <Icon name="LuType" size={14} className="text-indigo-600" />
+                    <span>Typography, Alignment &amp; Palette</span>
+                  </span>
+
+                  {/* Alignment & Text Case */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-700 block">Text Alignment &amp; Case:</label>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* Alignment Options */}
+                      <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateFieldStyle(selectedTargetKey, "textAlign", "left")}
+                          className={`p-1.5 rounded text-xs font-bold transition-all ${
+                            currentFieldStyle.textAlign === "left" || !currentFieldStyle.textAlign
+                              ? "bg-white text-sky-800 shadow-xs border border-slate-200"
+                              : "text-slate-500 hover:text-slate-800"
+                          }`}
+                          title="Align Left"
+                        >
+                          <Icon name="LuAlignLeft" size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateFieldStyle(selectedTargetKey, "textAlign", "center")}
+                          className={`p-1.5 rounded text-xs font-bold transition-all ${
+                            currentFieldStyle.textAlign === "center"
+                              ? "bg-white text-sky-800 shadow-xs border border-slate-200"
+                              : "text-slate-500 hover:text-slate-800"
+                          }`}
+                          title="Align Center"
+                        >
+                          <Icon name="LuAlignCenter" size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateFieldStyle(selectedTargetKey, "textAlign", "right")}
+                          className={`p-1.5 rounded text-xs font-bold transition-all ${
+                            currentFieldStyle.textAlign === "right"
+                              ? "bg-white text-sky-800 shadow-xs border border-slate-200"
+                              : "text-slate-500 hover:text-slate-800"
+                          }`}
+                          title="Align Right"
+                        >
+                          <Icon name="LuAlignRight" size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateFieldStyle(selectedTargetKey, "textAlign", "justify")}
+                          className={`p-1.5 rounded text-xs font-bold transition-all ${
+                            currentFieldStyle.textAlign === "justify"
+                              ? "bg-white text-sky-800 shadow-xs border border-slate-200"
+                              : "text-slate-500 hover:text-slate-800"
+                          }`}
+                          title="Justify"
+                        >
+                          <Icon name="LuAlignJustify" size={14} />
+                        </button>
+                      </div>
+
+                      {/* Text Transform Options */}
+                      <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateFieldStyle(selectedTargetKey, "textTransform", "")}
+                          className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${
+                            !currentFieldStyle.textTransform
+                              ? "bg-white text-sky-800 shadow-xs border border-slate-200"
+                              : "text-slate-500 hover:text-slate-800"
+                          }`}
+                        >
+                          Normal
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateFieldStyle(selectedTargetKey, "textTransform", "uppercase")}
+                          className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${
+                            currentFieldStyle.textTransform === "uppercase"
+                              ? "bg-white text-sky-800 shadow-xs border border-slate-200"
+                              : "text-slate-500 hover:text-slate-800"
+                          }`}
+                        >
+                          UPPER
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateFieldStyle(selectedTargetKey, "textTransform", "capitalize")}
+                          className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${
+                            currentFieldStyle.textTransform === "capitalize"
+                              ? "bg-white text-sky-800 shadow-xs border border-slate-200"
+                              : "text-slate-500 hover:text-slate-800"
+                          }`}
+                        >
+                          Capital
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Font Size, Weight & Letter Spacing */}
+                  <div className="grid grid-cols-2 gap-2.5 pt-1">
+                    <div>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <label className="text-[11px] font-bold text-slate-700">Font Size (px):</label>
+                        {currentFieldStyle.fontSize && (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateFieldStyle(selectedTargetKey, "fontSize", undefined)}
+                            className="text-[9.5px] text-sky-700 hover:underline"
+                          >
+                            Default
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        type="number"
+                        min="6"
+                        max="42"
+                        value={currentFieldStyle.fontSize ?? ""}
+                        placeholder="Auto"
+                        onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "fontSize", e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full text-xs rounded border border-slate-200 px-2 py-1 font-mono"
+                      />
+                      <div className="flex items-center gap-1 mt-1 flex-wrap">
+                        {[9, 11, 13, 16, 20, 24].map((sz) => (
+                          <button
+                            key={sz}
+                            type="button"
+                            onClick={() => handleUpdateFieldStyle(selectedTargetKey, "fontSize", sz)}
+                            className={`px-1.5 py-0.2 text-[9.5px] font-mono rounded ${
+                              currentFieldStyle.fontSize === sz
+                                ? "bg-sky-700 text-white font-bold"
+                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            }`}
+                          >
+                            {sz}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-0.5">Font Weight:</label>
+                      <select
+                        value={currentFieldStyle.fontWeight ?? ""}
+                        onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "fontWeight", e.target.value || undefined)}
+                        className="w-full text-xs rounded border border-slate-200 px-2 py-1"
+                      >
+                        <option value="">Default</option>
+                        <option value="400">Regular (400)</option>
+                        <option value="500">Medium (500)</option>
+                        <option value="600">Semibold (600)</option>
+                        <option value="700">Bold (700)</option>
+                        <option value="800">Extra Bold (800)</option>
+                        <option value="900">Black (900)</option>
+                      </select>
+
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <label className="text-[11px] font-bold text-slate-700">Letter Spacing:</label>
+                          {currentFieldStyle.letterSpacing !== undefined && currentFieldStyle.letterSpacing !== "" && (
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateFieldStyle(selectedTargetKey, "letterSpacing", undefined)}
+                              className="text-[9.5px] text-sky-700 hover:underline"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {[-0.5, 0, 1, 2, 3].map((ls) => (
+                            <button
+                              key={ls}
+                              type="button"
+                              onClick={() => handleUpdateFieldStyle(selectedTargetKey, "letterSpacing", ls === 0 ? "" : ls)}
+                              className={`flex-1 py-0.5 text-[9.5px] font-mono rounded ${
+                                String(currentFieldStyle.letterSpacing) === String(ls) || (!currentFieldStyle.letterSpacing && ls === 0)
+                                  ? "bg-sky-700 text-white font-bold"
+                                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                              }`}
+                            >
+                              {ls > 0 ? `+${ls}` : ls}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Brand Color Swatches */}
+                  <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-700">Brand Color Palette:</span>
+                      {currentFieldStyle.textColor && (
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateFieldStyle(selectedTargetKey, "textColor", undefined)}
+                          className="text-[10px] text-sky-700 hover:underline font-bold"
+                        >
+                          Clear Color
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {BRAND_PRESET_COLORS.map((clr) => {
+                        const isClrSelected = currentFieldStyle.textColor?.toLowerCase() === clr.hex.toLowerCase();
+                        return (
+                          <button
+                            key={clr.hex}
+                            type="button"
+                            onClick={() => handleUpdateFieldStyle(selectedTargetKey, "textColor", clr.hex)}
+                            className={`w-6 h-6 rounded-md shadow-xs border transition-all flex items-center justify-center ${
+                              isClrSelected
+                                ? "ring-2 ring-sky-500 ring-offset-1 scale-110 border-white"
+                                : "border-slate-300 hover:scale-105"
+                            }`}
+                            style={{ backgroundColor: clr.hex }}
+                            title={`${clr.label} (${clr.hex})`}
+                          >
+                            {isClrSelected && <Icon name="LuCheck" size={12} className="text-white drop-shadow-sm" />}
+                          </button>
+                        );
+                      })}
+                      <div className="flex items-center gap-1 ml-auto">
+                        <input
+                          type="color"
+                          value={currentFieldStyle.textColor || "#0b3b60"}
+                          onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "textColor", e.target.value)}
+                          className="w-7 h-7 rounded border border-slate-300 cursor-pointer p-0.5 bg-white"
+                          title="Pick custom color"
+                        />
+                        <input
+                          type="text"
+                          value={currentFieldStyle.textColor ?? ""}
+                          placeholder="#0b3b60"
+                          onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "textColor", e.target.value || undefined)}
+                          className="w-20 text-[10.5px] font-mono rounded border border-slate-200 px-1.5 py-1 text-slate-700"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Custom Text Override */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <label className="text-[11px] font-bold text-slate-700">Custom Text Override (Optional):</label>
+                      {currentFieldStyle.customText && (
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateFieldStyle(selectedTargetKey, "customText", "")}
+                          className="text-[10px] text-red-600 hover:underline font-bold"
+                        >
+                          Clear Override
+                        </button>
+                      )}
+                    </div>
                     <input
                       type="text"
                       value={currentFieldStyle.customText ?? ""}
-                      placeholder="Leave empty for hospital default"
+                      placeholder="Leave empty for default hospital / system value"
                       onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "customText", e.target.value)}
                       className="w-full text-xs rounded-lg border border-slate-300 px-2.5 py-1.5"
                     />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-0.5">Font Size (px):</label>
-                    <input
-                      type="number"
-                      min="6"
-                      max="36"
-                      value={currentFieldStyle.fontSize ?? ""}
-                      placeholder="Default"
-                      onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "fontSize", e.target.value ? Number(e.target.value) : undefined)}
-                      className="w-full text-xs rounded border border-slate-200 px-2 py-1 font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-0.5">Font Weight:</label>
-                    <select
-                      value={currentFieldStyle.fontWeight ?? ""}
-                      onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "fontWeight", e.target.value || undefined)}
-                      className="w-full text-xs rounded border border-slate-200 px-2 py-1"
-                    >
-                      <option value="">Default</option>
-                      <option value="400">Regular (400)</option>
-                      <option value="500">Medium (500)</option>
-                      <option value="600">Semibold (600)</option>
-                      <option value="700">Bold (700)</option>
-                      <option value="800">Extra Bold (800)</option>
-                    </select>
                   </div>
                 </div>
               </div>

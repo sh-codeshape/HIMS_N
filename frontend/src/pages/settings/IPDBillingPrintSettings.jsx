@@ -11,7 +11,11 @@ import {
   mergeIPDBillingSettings,
 } from "./ipdBillingPrintConfig.js";
 import { IPDBillingPrintHandler, buildBillingHTML } from "./IPDBillingPrintHandler.js";
-import { loadSharedPrintSettings, saveSharedPrintSettings } from "./sharedPrintConfig.js";
+import {
+  loadSharedPrintSettings,
+  saveSharedPrintSettings,
+  getCachedSharedSettings,
+} from "./sharedPrintConfig.js";
 
 const GROUPS = [
   { key: "hospital", title: "Hospital & Letterhead", icon: "LuBuilding2" },
@@ -106,14 +110,17 @@ export default function IPDBillingPrintSettings() {
           settingsService.getSetting(IPD_BILLING_SETTINGS_KEY).catch(() => null),
           loadSharedPrintSettings().catch(() => null),
         ]);
+        const cached = getCachedSharedSettings() || {};
+        const masterShared = sharedData || cached;
         if (mounted) {
           const merged = mergeIPDBillingSettings(DEFAULT_IPD_BILLING_SETTINGS, {
             ...(billData || {}),
-            ...(sharedData || {}),
             useSharedHeaderFooter: true,
-            hospital: { ...(billData?.hospital || {}), ...(sharedData?.hospital || {}) },
-            footer: { ...(billData?.footer || {}), ...(sharedData?.footer || {}) },
-            fieldStyles: { ...(billData?.fieldStyles || {}), ...(sharedData?.fieldStyles || {}) },
+            hospital: { ...(billData?.hospital || {}), ...(masterShared?.hospital || {}) },
+            header: { ...(billData?.header || {}), ...(masterShared?.header || {}) },
+            footer: { ...(billData?.footer || {}), ...(masterShared?.footer || {}) },
+            fieldStyles: { ...(billData?.fieldStyles || {}), ...(masterShared?.fieldStyles || {}) },
+            slipConfigs: { ...(billData?.slipConfigs || {}), ...(masterShared?.slipConfigs || {}) },
           });
           setSettings(merged);
         }
@@ -264,6 +271,18 @@ export default function IPDBillingPrintSettings() {
           hospital: {
             ...(prev.hospital || {}),
             ...(shared.hospital || {}),
+          },
+          header: {
+            ...(prev.header || {}),
+            ...(shared.header || {}),
+          },
+          fieldStyles: {
+            ...(prev.fieldStyles || {}),
+            ...(shared.fieldStyles || {}),
+          },
+          slipConfigs: {
+            ...(prev.slipConfigs || {}),
+            ...(shared.slipConfigs || {}),
           },
           terms: {
             ...(prev.terms || {}),

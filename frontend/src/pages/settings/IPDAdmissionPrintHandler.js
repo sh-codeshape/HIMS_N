@@ -9,6 +9,13 @@ import {
   SAMPLE_IPD_ADMISSION_DATA,
   mergeIPDAdmissionSettings,
 } from "./ipdAdmissionPrintConfig.js";
+import {
+  DEFAULT_SHARED_CONFIG,
+  SHARED_PRINT_CSS,
+  buildSharedHeaderHTML,
+  mergeSharedSettings,
+  getCachedSharedSettings,
+} from "./sharedPrintConfig.js";
 
 /**
  * Generate inline CSS style string for a configured element block.
@@ -121,6 +128,43 @@ export function buildAdmissionTicketHTML(
   const isPreview = options?.isPreview === true;
   const activeKey = options?.activeTargetKey || null;
 
+  // Master Shared Header Configuration
+  const cachedShared = getCachedSharedSettings() || {};
+  const isUsingShared = cfg.useSharedHeaderFooter !== false;
+
+  const sharedConfig = mergeSharedSettings(DEFAULT_SHARED_CONFIG, {
+    ...cfg,
+    hospital: isUsingShared
+      ? { ...(cfg.hospital || {}), ...(cachedShared.hospital || {}) }
+      : { ...(DEFAULT_SHARED_CONFIG.hospital || {}), ...(cfg.hospital || {}) },
+    header: isUsingShared
+      ? { ...(cfg.header || {}), ...(cachedShared.header || {}) }
+      : { ...(DEFAULT_SHARED_CONFIG.header || {}), ...(cfg.header || {}) },
+    fieldStyles: isUsingShared
+      ? { ...(cfg.fieldStyles || {}), ...(cachedShared.fieldStyles || {}) }
+      : { ...(DEFAULT_SHARED_CONFIG.fieldStyles || {}), ...(cfg.fieldStyles || {}) },
+    slipConfigs: isUsingShared
+      ? { ...(cfg.slipConfigs || {}), ...(cachedShared.slipConfigs || {}) }
+      : { ...(DEFAULT_SHARED_CONFIG.slipConfigs || {}), ...(cfg.slipConfigs || {}) },
+  });
+
+  const sharedHeaderHtml = buildSharedHeaderHTML(sharedConfig, {
+    isPreview: isPreview,
+    slipType: "ipd_admission",
+    encounterData: {
+      uhid: d.uhid,
+      ipdNo: d.ipdNo,
+      encounterNo: d.ipdNo,
+      tokenNo: d.ipdNo,
+      patientName: d.patientName,
+      doctor: d.doctor,
+      department: d.department,
+      ...d,
+    },
+    titleOverride: cfg.header?.title || "IPD ADMISSION TICKET",
+    copyBadgeOverride: cfg.header?.copyType || "ORIGINAL",
+  });
+
   const hospitalStyle = getBlockInlineStyle(styles.hospitalHeader, "8px 12px");
   const headerStyle = getBlockInlineStyle(styles.ticketHeader, "6px 12px");
   const patientStyle = getBlockInlineStyle(styles.patientCard, "8px 12px");
@@ -187,6 +231,9 @@ export function buildAdmissionTicketHTML(
       gap: 6px;
       position: relative;
     }
+
+    /* Master Shared Print & Positioning CSS */
+    ${SHARED_PRINT_CSS}
 
     /* ── 1. HOSPITAL LETTERHEAD ── */
     .hospital-block {
@@ -545,7 +592,11 @@ export function buildAdmissionTicketHTML(
 </head>
 <body>
   <div class="ticket-page">
-    <!-- ── 1. HOSPITAL LETTERHEAD ── -->
+    <!-- ── 1. HOSPITAL LETTERHEAD & DOCUMENT BANNER ── -->
+    ${
+      isUsingShared
+        ? sharedHeaderHtml
+        : `
     ${
       styles.hospitalHeader?.show !== false
         ? `
@@ -620,6 +671,8 @@ export function buildAdmissionTicketHTML(
     </div>
     `
         : ""
+    }
+    `
     }
 
     <!-- ── 3. PATIENT DEMOGRAPHICS CARD ── -->

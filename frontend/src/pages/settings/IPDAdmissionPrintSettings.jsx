@@ -13,7 +13,11 @@ import {
   mergeIPDAdmissionSettings,
 } from "./ipdAdmissionPrintConfig.js";
 import { IPDAdmissionPrintHandler } from "./IPDAdmissionPrintHandler.js";
-import { loadSharedPrintSettings, saveSharedPrintSettings } from "./sharedPrintConfig.js";
+import {
+  loadSharedPrintSettings,
+  saveSharedPrintSettings,
+  getCachedSharedSettings,
+} from "./sharedPrintConfig.js";
 
 const GROUPS = [
   { key: "inspector", title: "Moveable Element Inspector", icon: "LuSlidersHorizontal" },
@@ -118,14 +122,17 @@ export default function IPDAdmissionPrintSettings() {
           settingsService.getSetting(IPD_ADMISSION_SETTINGS_KEY).catch(() => null),
           loadSharedPrintSettings().catch(() => null),
         ]);
+        const cached = getCachedSharedSettings() || {};
+        const masterShared = sharedData || cached;
         if (mounted) {
           const merged = mergeIPDAdmissionSettings(DEFAULT_IPD_ADMISSION_SETTINGS, {
             ...(ipdData || {}),
-            ...(sharedData || {}),
             useSharedHeaderFooter: true,
-            hospital: { ...(ipdData?.hospital || {}), ...(sharedData?.hospital || {}) },
-            footer: { ...(ipdData?.footer || {}), ...(sharedData?.footer || {}) },
-            fieldStyles: { ...(ipdData?.fieldStyles || {}), ...(sharedData?.fieldStyles || {}) },
+            hospital: { ...(ipdData?.hospital || {}), ...(masterShared?.hospital || {}) },
+            header: { ...(ipdData?.header || {}), ...(masterShared?.header || {}) },
+            footer: { ...(ipdData?.footer || {}), ...(masterShared?.footer || {}) },
+            fieldStyles: { ...(ipdData?.fieldStyles || {}), ...(masterShared?.fieldStyles || {}) },
+            slipConfigs: { ...(ipdData?.slipConfigs || {}), ...(masterShared?.slipConfigs || {}) },
           });
           setSettings(merged);
         }
@@ -253,8 +260,10 @@ export default function IPDAdmissionPrintSettings() {
           ...prev,
           useSharedHeaderFooter: true,
           hospital: { ...(prev.hospital || {}), ...(shared.hospital || {}) },
+          header: { ...(prev.header || {}), ...(shared.header || {}) },
           footer: { ...(prev.footer || {}), ...(shared.footer || {}) },
           fieldStyles: { ...(prev.fieldStyles || {}), ...(shared.fieldStyles || {}) },
+          slipConfigs: { ...(prev.slipConfigs || {}), ...(shared.slipConfigs || {}) },
         }));
         setSaveStatus({
           type: "success",
