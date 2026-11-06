@@ -27,7 +27,7 @@ export const ELEMENT_DEFINITIONS = [
 ];
 
 export const FIELD_TARGETS = [
-  // ── Hospital Brand & Header Elements (Top Priority) ──
+  // ── Hospital Brand & Header Elements (Independent Positioning) ──
   {
     key: "header.hospitalName",
     cardKey: "hospitalHeader",
@@ -35,7 +35,6 @@ export const FIELD_TARGETS = [
     section: "Hospital Letterhead",
     rowId: "h_row1",
     rowName: "Header Brand Line 1",
-    siblings: ["header.logo", "header.regNo"],
   },
   {
     key: "header.logo",
@@ -44,7 +43,6 @@ export const FIELD_TARGETS = [
     section: "Hospital Letterhead",
     rowId: "h_row1",
     rowName: "Header Brand Line 1",
-    siblings: ["header.hospitalName", "header.regNo"],
   },
   {
     key: "header.regNo",
@@ -53,7 +51,6 @@ export const FIELD_TARGETS = [
     section: "Hospital Letterhead",
     rowId: "h_row1",
     rowName: "Header Brand Line 1",
-    siblings: ["header.hospitalName", "header.logo"],
   },
   {
     key: "header.subtitle",
@@ -62,7 +59,6 @@ export const FIELD_TARGETS = [
     section: "Hospital Letterhead",
     rowId: "h_row2",
     rowName: "Header Subtitle Line 2",
-    siblings: ["header.emergencyPhone"],
   },
   {
     key: "header.emergencyPhone",
@@ -71,7 +67,6 @@ export const FIELD_TARGETS = [
     section: "Hospital Letterhead",
     rowId: "h_row2",
     rowName: "Header Subtitle Line 2",
-    siblings: ["header.subtitle"],
   },
   {
     key: "header.address",
@@ -80,7 +75,6 @@ export const FIELD_TARGETS = [
     section: "Hospital Letterhead",
     rowId: "h_row3",
     rowName: "Header Contact Line 3",
-    siblings: ["header.phoneEmail"],
   },
   {
     key: "header.phoneEmail",
@@ -89,7 +83,6 @@ export const FIELD_TARGETS = [
     section: "Hospital Letterhead",
     rowId: "h_row3",
     rowName: "Header Contact Line 3",
-    siblings: ["header.address"],
   },
   {
     key: "header.accreditations",
@@ -98,7 +91,6 @@ export const FIELD_TARGETS = [
     section: "Hospital Letterhead",
     rowId: "h_row4",
     rowName: "Header Accreditations",
-    siblings: [],
   },
 
   // ── Ticket Header & Barcode Banner ──
@@ -109,7 +101,6 @@ export const FIELD_TARGETS = [
     section: "Ticket Header & Barcode",
     rowId: "t_row1",
     rowName: "Ticket Banner Line",
-    siblings: ["ticket.copyBadge", "ticket.barcode"],
   },
   {
     key: "ticket.copyBadge",
@@ -118,7 +109,6 @@ export const FIELD_TARGETS = [
     section: "Ticket Header & Barcode",
     rowId: "t_row1",
     rowName: "Ticket Banner Line",
-    siblings: ["ticket.title", "ticket.barcode"],
   },
   {
     key: "ticket.barcode",
@@ -127,7 +117,22 @@ export const FIELD_TARGETS = [
     section: "Ticket Header & Barcode",
     rowId: "t_row1",
     rowName: "Ticket Banner Line",
-    siblings: ["ticket.title", "ticket.copyBadge"],
+  },
+  {
+    key: "ticket.topUhid",
+    cardKey: "ticketHeader",
+    name: "Top UHID Identifier Tag",
+    section: "Ticket Header & Barcode",
+    rowId: "t_row1",
+    rowName: "Ticket Banner Line",
+  },
+  {
+    key: "ticket.topAdmissionNo",
+    cardKey: "ticketHeader",
+    name: "Top IPD Admission Number Tag",
+    section: "Ticket Header & Barcode",
+    rowId: "t_row1",
+    rowName: "Ticket Banner Line",
   },
   // ── Patient Demographics Fields ──
   {
@@ -137,7 +142,6 @@ export const FIELD_TARGETS = [
     section: "Patient Demographics",
     rowId: "p_row1",
     rowName: "Demographics Row 1",
-    siblings: ["patient.uhid", "patient.ageGender"],
   },
   {
     key: "patient.uhid",
@@ -146,7 +150,6 @@ export const FIELD_TARGETS = [
     section: "Patient Demographics",
     rowId: "p_row1",
     rowName: "Demographics Row 1",
-    siblings: ["patient.name", "patient.ageGender"],
   },
   {
     key: "patient.ageGender",
@@ -155,7 +158,6 @@ export const FIELD_TARGETS = [
     section: "Patient Demographics",
     rowId: "p_row1",
     rowName: "Demographics Row 1",
-    siblings: ["patient.name", "patient.uhid"],
   },
   {
     key: "patient.mobile",
@@ -164,7 +166,6 @@ export const FIELD_TARGETS = [
     section: "Patient Demographics",
     rowId: "p_row2",
     rowName: "Demographics Row 2",
-    siblings: ["patient.bloodGroup", "patient.guardian"],
   },
   {
     key: "patient.bloodGroup",
@@ -173,7 +174,6 @@ export const FIELD_TARGETS = [
     section: "Patient Demographics",
     rowId: "p_row2",
     rowName: "Demographics Row 2",
-    siblings: ["patient.mobile", "patient.guardian"],
   },
   {
     key: "patient.guardian",
@@ -182,7 +182,6 @@ export const FIELD_TARGETS = [
     section: "Patient Demographics",
     rowId: "p_row2",
     rowName: "Demographics Row 2",
-    siblings: ["patient.mobile", "patient.bloodGroup"],
   },
   {
     key: "patient.address",
@@ -191,7 +190,56 @@ export const FIELD_TARGETS = [
     section: "Patient Demographics",
     rowId: "p_row3",
     rowName: "Demographics Row 3",
-    siblings: [],
+  },
+
+  // ── Footer Terms & Signatures (Independent Positioning) ──
+  {
+    key: "terms.card",
+    cardKey: "termsCard",
+    name: "Terms & Conditions Card Container",
+    section: "Inpatient Terms & Rules",
+  },
+  {
+    key: "terms.title",
+    cardKey: "termsCard",
+    name: "Terms & Conditions Title",
+    section: "Inpatient Terms & Rules",
+  },
+  {
+    key: "terms.list",
+    cardKey: "termsCard",
+    name: "Terms Rules Items List",
+    section: "Inpatient Terms & Rules",
+  },
+  {
+    key: "terms.footerTagline",
+    cardKey: "termsCard",
+    name: "Terms Footer Helpline & Tagline",
+    section: "Inpatient Terms & Rules",
+  },
+  {
+    key: "signatures.doctor",
+    cardKey: "signaturesCard",
+    name: "Treating Doctor Signature Box",
+    section: "Signatures & Stamp",
+  },
+  {
+    key: "signatures.nurse",
+    cardKey: "signaturesCard",
+    name: "Duty Nursing Officer Signature Box",
+    section: "Signatures & Stamp",
+  },
+  {
+    key: "signatures.attendant",
+    cardKey: "signaturesCard",
+    name: "Patient / Attendant Signature Box",
+    section: "Signatures & Stamp",
+  },
+  {
+    key: "signatures.stamp",
+    cardKey: "signaturesCard",
+    name: "Official Hospital Stamp Box",
+    section: "Signatures & Stamp",
   },
 
   // ── Clinical & Admission Target Fields (All 9 covered) ──
@@ -202,7 +250,6 @@ export const FIELD_TARGETS = [
     section: "Clinical Admission",
     rowId: "adm_row1",
     rowName: "Admission Row 1",
-    siblings: ["admission.admissionDate", "admission.department"],
   },
   {
     key: "admission.admissionDate",
@@ -211,7 +258,6 @@ export const FIELD_TARGETS = [
     section: "Clinical Admission",
     rowId: "adm_row1",
     rowName: "Admission Row 1",
-    siblings: ["admission.admissionType", "admission.department"],
   },
   {
     key: "admission.department",
@@ -220,7 +266,6 @@ export const FIELD_TARGETS = [
     section: "Clinical Admission",
     rowId: "adm_row1",
     rowName: "Admission Row 1",
-    siblings: ["admission.admissionType", "admission.admissionDate"],
   },
   {
     key: "admission.doctor",
@@ -229,7 +274,6 @@ export const FIELD_TARGETS = [
     section: "Clinical Admission",
     rowId: "adm_row2",
     rowName: "Admission Row 2",
-    siblings: ["admission.duration", "admission.bedAllotted"],
   },
   {
     key: "admission.duration",
@@ -238,7 +282,6 @@ export const FIELD_TARGETS = [
     section: "Clinical Admission",
     rowId: "adm_row2",
     rowName: "Admission Row 2",
-    siblings: ["admission.doctor", "admission.bedAllotted"],
   },
   {
     key: "admission.bedAllotted",
@@ -247,7 +290,6 @@ export const FIELD_TARGETS = [
     section: "Clinical Admission",
     rowId: "adm_row2",
     rowName: "Admission Row 2",
-    siblings: ["admission.doctor", "admission.duration"],
   },
   {
     key: "admission.patientProblem",
@@ -256,7 +298,6 @@ export const FIELD_TARGETS = [
     section: "Clinical Admission",
     rowId: "adm_row3",
     rowName: "Admission Row 3",
-    siblings: [],
   },
   {
     key: "admission.provisionalDiagnosis",
@@ -265,7 +306,6 @@ export const FIELD_TARGETS = [
     section: "Clinical Admission",
     rowId: "adm_row4",
     rowName: "Admission Row 4",
-    siblings: ["admission.referredBy"],
   },
   {
     key: "admission.referredBy",
@@ -274,7 +314,6 @@ export const FIELD_TARGETS = [
     section: "Clinical Admission",
     rowId: "adm_row4",
     rowName: "Admission Row 4",
-    siblings: ["admission.provisionalDiagnosis"],
   },
 
   // ── Financial Particulars ──
@@ -285,7 +324,6 @@ export const FIELD_TARGETS = [
     section: "Admission Fee & Deposit",
     rowId: "fin_row1",
     rowName: "Fee Row 1",
-    siblings: ["financial.advancePayment", "financial.paymentMode"],
   },
   {
     key: "financial.advancePayment",
@@ -294,7 +332,6 @@ export const FIELD_TARGETS = [
     section: "Admission Fee & Deposit",
     rowId: "fin_row1",
     rowName: "Fee Row 1",
-    siblings: ["financial.registrationFee", "financial.paymentMode"],
   },
   {
     key: "financial.paymentMode",
@@ -303,7 +340,6 @@ export const FIELD_TARGETS = [
     section: "Admission Fee & Deposit",
     rowId: "fin_row1",
     rowName: "Fee Row 1",
-    siblings: ["financial.registrationFee", "financial.advancePayment"],
   },
   {
     key: "financial.receiptNo",
@@ -312,7 +348,6 @@ export const FIELD_TARGETS = [
     section: "Admission Fee & Deposit",
     rowId: "fin_row2",
     rowName: "Fee Row 2",
-    siblings: ["financial.amountInWords"],
   },
   {
     key: "financial.amountInWords",
@@ -321,7 +356,6 @@ export const FIELD_TARGETS = [
     section: "Admission Fee & Deposit",
     rowId: "fin_row2",
     rowName: "Fee Row 2",
-    siblings: ["financial.receiptNo"],
   },
 ];
 
@@ -377,6 +411,7 @@ export const COLOR_PALETTES = {
 };
 
 export const DEFAULT_IPD_ADMISSION_SETTINGS = {
+  useSharedHeaderFooter: true,
   // 1. Hospital Letterhead
   hospital: {
     name: "Narayan Hospital",

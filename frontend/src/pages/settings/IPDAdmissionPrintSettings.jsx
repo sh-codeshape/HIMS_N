@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import Icon from "../../components/common/Icon.jsx";
 import settingsService from "../../api/services/settingsService.js";
 import {
@@ -13,9 +13,10 @@ import {
   mergeIPDAdmissionSettings,
 } from "./ipdAdmissionPrintConfig.js";
 import { IPDAdmissionPrintHandler } from "./IPDAdmissionPrintHandler.js";
+import { loadSharedPrintSettings, saveSharedPrintSettings } from "./sharedPrintConfig.js";
 
 const GROUPS = [
-  { key: "inspector", title: "Slider & Sync Inspector", icon: "LuSlidersHorizontal" },
+  { key: "inspector", title: "Moveable Element Inspector", icon: "LuSlidersHorizontal" },
   { key: "admission", title: "Clinical & Admission Details", icon: "LuClipboardList" },
   { key: "financial", title: "Fee & Advance Deposit", icon: "LuIndianRupee" },
   { key: "patient", title: "Patient Demographics", icon: "LuUserRound" },
@@ -105,6 +106,7 @@ export default function IPDAdmissionPrintSettings() {
   const [status, setStatus] = useState(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [previewZoom, setPreviewZoom] = useState(100);
+  const iframeRef = useRef(null);
 
   // Load saved settings from database
   useEffect(() => {
@@ -112,9 +114,20 @@ export default function IPDAdmissionPrintSettings() {
     (async () => {
       try {
         setLoading(true);
-        const data = await settingsService.getSetting(IPD_ADMISSION_SETTINGS_KEY);
-        if (mounted && data && typeof data === "object") {
-          setSettings(mergeIPDAdmissionSettings(DEFAULT_IPD_ADMISSION_SETTINGS, data));
+        const [ipdData, sharedData] = await Promise.all([
+          settingsService.getSetting(IPD_ADMISSION_SETTINGS_KEY).catch(() => null),
+          loadSharedPrintSettings().catch(() => null),
+        ]);
+        if (mounted) {
+          const merged = mergeIPDAdmissionSettings(DEFAULT_IPD_ADMISSION_SETTINGS, {
+            ...(ipdData || {}),
+            ...(sharedData || {}),
+            useSharedHeaderFooter: true,
+            hospital: { ...(ipdData?.hospital || {}), ...(sharedData?.hospital || {}) },
+            footer: { ...(ipdData?.footer || {}), ...(sharedData?.footer || {}) },
+            fieldStyles: { ...(ipdData?.fieldStyles || {}), ...(sharedData?.fieldStyles || {}) },
+          });
+          setSettings(merged);
         }
       } catch (err) {
         console.warn("Could not fetch IPD admission settings:", err);
@@ -231,25 +244,54 @@ export default function IPDAdmissionPrintSettings() {
     return settings.elementStyles?.[selectedTargetKey] || {};
   }, [isFieldTarget, fieldTargetMeta, selectedTargetKey, settings.elementStyles]);
 
-  // Handle row baseline sync for horizontal elements
-  const handleSyncRow = (targetY) => {
-    if (!fieldTargetMeta) return;
-    const allRowFields = [fieldTargetMeta.key, ...(fieldTargetMeta.siblings || [])];
-    setSettings((prev) => {
-      const nextFieldStyles = { ...(prev.fieldStyles || {}) };
-      allRowFields.forEach((key) => {
-        nextFieldStyles[key] = {
-          ...(nextFieldStyles[key] || {}),
-          offsetY: targetY,
-        };
-      });
-      return { ...prev, fieldStyles: nextFieldStyles };
-    });
+  // Sync Header & Footer from Shared Master
+  const handleSyncFromSharedMaster = async () => {
+    try {
+      const shared = await loadSharedPrintSettings();
+      if (shared) {
+        setSettings((prev) => ({
+          ...prev,
+          useSharedHeaderFooter: true,
+          hospital: { ...(prev.hospital || {}), ...(shared.hospital || {}) },
+          footer: { ...(prev.footer || {}), ...(shared.footer || {}) },
+          fieldStyles: { ...(prev.fieldStyles || {}), ...(shared.fieldStyles || {}) },
+        }));
+        setSaveStatus({
+          type: "success",
+          message: "Synced Hospital Header & Footer from Shared Master!",
+        });
+        setTimeout(() => setSaveStatus(null), 4000);
+      }
+    } catch (e) {
+      console.error("Sync error:", e);
+    }
   };
 
-  // Reset row to 0px baseline
-  const handleResetRow = () => {
-    handleSyncRow(0);
+  // Push Header & Footer to Shared Master
+  const handlePushToSharedMaster = async () => {
+    if (
+      window.confirm(
+        "Push this Admission Ticket's letterhead and footer settings to the Master Shared Header & Footer?"
+      )
+    ) {
+      try {
+        const shared = await loadSharedPrintSettings();
+        const updated = {
+          ...shared,
+          hospital: { ...(shared.hospital || {}), ...(settings.hospital || {}) },
+          footer: { ...(shared.footer || {}), ...(settings.footer || {}) },
+          fieldStyles: { ...(shared.fieldStyles || {}), ...(settings.fieldStyles || {}) },
+        };
+        await saveSharedPrintSettings(updated);
+        setSaveStatus({
+          type: "success",
+          message: "Pushed to Shared Master successfully! All slips using master are now updated.",
+        });
+        setTimeout(() => setSaveStatus(null), 4000);
+      } catch (e) {
+        console.error("Push error:", e);
+      }
+    }
   };
 
   // Nudge stepper (+1px, -1px)
@@ -286,6 +328,22 @@ export default function IPDAdmissionPrintSettings() {
       activeTargetKey: selectedTargetKey,
     });
   }, [settings, selectedTargetKey]);
+
+  // Synchronously update preview iframe on every micro-step change
+  useEffect(() => {
+    if (iframeRef.current) {
+      try {
+        const doc = iframeRef.current.contentDocument || iframeRef.current.contentWindow?.document;
+        if (doc) {
+          doc.open();
+          doc.write(previewHtml);
+          doc.close();
+        }
+      } catch (e) {
+        console.warn("Iframe doc write fallback:", e);
+      }
+    }
+  }, [previewHtml]);
 
   return (
     <div className="space-y-6">
@@ -375,6 +433,42 @@ export default function IPDAdmissionPrintSettings() {
         </div>
       )}
 
+      {/* Shared Master Status & Sync Ribbon */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-gradient-to-r from-sky-50 to-emerald-50 border border-sky-200/90 rounded-xl text-xs">
+        <div className="flex items-center gap-2 text-sky-950 font-bold">
+          <Icon name="LuLayers" size={16} className="text-sky-700" />
+          <span>Shared Master Header &amp; Footer:</span>
+          <label className="flex items-center gap-1.5 cursor-pointer ml-1 text-slate-700">
+            <input
+              type="checkbox"
+              checked={settings.useSharedHeaderFooter !== false}
+              onChange={(e) => handleUpdate("useSharedHeaderFooter", e.target.checked)}
+              className="rounded text-sky-700"
+            />
+            <span className="font-semibold">Linked to Shared Master</span>
+          </label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleSyncFromSharedMaster}
+            className="px-2.5 py-1 text-xs font-bold bg-white text-sky-800 border border-sky-300 rounded-lg hover:bg-sky-100 flex items-center gap-1 shadow-xs"
+            title="Import the latest Hospital Header and Footer from Shared Master"
+          >
+            <Icon name="LuDownload" size={13} /> Sync from Master
+          </button>
+          <button
+            type="button"
+            onClick={handlePushToSharedMaster}
+            className="px-2.5 py-1 text-xs font-bold bg-white text-emerald-800 border border-emerald-300 rounded-lg hover:bg-emerald-100 flex items-center gap-1 shadow-xs"
+            title="Save this admission ticket's header & footer as the new Shared Master"
+          >
+            <Icon name="LuUpload" size={13} /> Push to Master
+          </button>
+        </div>
+      </div>
+
       {/* ── MAIN WORKSPACE: SPLIT GRID ── */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* LEFT COLUMN: Controls & Group Tabs (5 cols) */}
@@ -450,143 +544,198 @@ export default function IPDAdmissionPrintSettings() {
                 </select>
               </div>
 
-              {/* ── 📍 HORIZONTAL ROW SYNC & ALIGNMENT CARD (FOR FIELDS) ── */}
-              {isFieldTarget && fieldTargetMeta && (
-                <div className="p-3 bg-gradient-to-r from-sky-50 to-emerald-50 rounded-xl border border-sky-200/80 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-sky-950">
-                      <Icon name="LuSparkles" size={14} className="text-sky-600" />
-                      <span>Horizontal Row Alignment Sync</span>
-                    </div>
-                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-white text-sky-800 border border-sky-200">
-                      {fieldTargetMeta.rowName}
-                    </span>
-                  </div>
-
-                  <p className="text-[11px] text-slate-600 leading-tight">
-                    This element shares a horizontal row with:{" "}
-                    <strong>
-                      {fieldTargetMeta.siblings.length > 0
-                        ? fieldTargetMeta.siblings.map((s) => FIELD_TARGETS.find((f) => f.key === s)?.name || s).join(", ")
-                        : "Single element in row"}
-                    </strong>
-                  </p>
-
-                  {/* Row Sync Actions */}
-                  {fieldTargetMeta.siblings.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => handleSyncRow(Number(currentFieldStyle.offsetY) || 0)}
-                        className="px-3 py-1.5 text-xs font-bold bg-white text-sky-800 border border-sky-300 rounded-lg hover:bg-sky-100 flex items-center gap-1.5 shadow-xs"
-                      >
-                        <Icon name="LuUnlink" size={13} className="text-sky-600" />
-                        <span>Sync Row to Y: {Number(currentFieldStyle.offsetY) || 0}px</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleResetRow}
-                        className="px-2.5 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-100"
-                        title="Reset all fields in this row to baseline 0px"
-                      >
-                        Reset Row to 0px
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ── POSITIONING SLIDERS & MICRO-NUDGE STEPPERS ── */}
-              <div className="space-y-4 pt-1">
-                {/* 1. TOP / DOWN OFFSET SLIDER */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
-                    <span className="flex items-center gap-1.5">
-                      <Icon name="LuArrowDownUp" size={13} className="text-emerald-700" />
-                      Vertical Position (Top / Down Offset):
-                    </span>
-                    <span className="font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[11px] font-bold">
-                      {(isFieldTarget ? currentFieldStyle.offsetY : currentCardStyle.offsetY) || 0}px
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {/* Micro-Nudge buttons */}
-                    <button
-                      type="button"
-                      onClick={() => handleNudge("offsetY", -1)}
-                      className="px-2 py-1 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-200"
-                      title="Nudge Up 1px"
-                    >
-                      ▲ -1
-                    </button>
-                    <input
-                      type="range"
-                      min="-30"
-                      max="60"
-                      step="1"
-                      value={(isFieldTarget ? currentFieldStyle.offsetY : currentCardStyle.offsetY) || 0}
-                      onChange={(e) =>
-                        isFieldTarget
-                          ? handleUpdate(`fieldStyles.${selectedTargetKey}.offsetY`, Number(e.target.value))
-                          : handleUpdate(`elementStyles.${selectedTargetKey}.offsetY`, Number(e.target.value))
-                      }
-                      className="w-full accent-emerald-700 cursor-pointer"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleNudge("offsetY", 1)}
-                      className="px-2 py-1 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-200"
-                      title="Nudge Down 1px"
-                    >
-                      ▼ +1
-                    </button>
-                  </div>
+              {/* ── POSITIONING SLIDERS & MICRO-NUDGE STEPPERS (NO SYNC) ── */}
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Icon name="LuMove" size={14} className="text-emerald-700" />
+                    <span>Independent Element Position</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500">Free placement (No sibling sync)</span>
                 </div>
 
-                {/* 2. LEFT / RIGHT OFFSET SLIDER */}
+                {/* Horizontal Position (X Offset) */}
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
-                    <span className="flex items-center gap-1.5">
-                      <Icon name="LuArrowLeftRight" size={13} className="text-emerald-700" />
-                      Horizontal Position (Left / Right Offset):
-                    </span>
-                    <span className="font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[11px] font-bold">
-                      {(isFieldTarget ? currentFieldStyle.offsetX : currentCardStyle.offsetX) || 0}px
-                    </span>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-slate-700">Horizontal Shift (X Axis):</span>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="-250"
+                        max="250"
+                        value={(isFieldTarget ? currentFieldStyle.offsetX : currentCardStyle.offsetX) ?? 0}
+                        onChange={(e) =>
+                          isFieldTarget
+                            ? handleUpdate(`fieldStyles.${selectedTargetKey}.offsetX`, Number(e.target.value))
+                            : handleUpdate(`elementStyles.${selectedTargetKey}.offsetX`, Number(e.target.value))
+                        }
+                        className="w-14 text-center text-xs font-mono font-bold bg-white border border-slate-300 rounded px-1 py-0.5"
+                      />
+                      <span className="text-slate-400 text-[11px]">px</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min="-150"
+                    max="150"
+                    step="1"
+                    value={(isFieldTarget ? currentFieldStyle.offsetX : currentCardStyle.offsetX) ?? 0}
+                    onChange={(e) =>
+                      isFieldTarget
+                        ? handleUpdate(`fieldStyles.${selectedTargetKey}.offsetX`, Number(e.target.value))
+                        : handleUpdate(`elementStyles.${selectedTargetKey}.offsetX`, Number(e.target.value))
+                    }
+                    className="w-full accent-emerald-700 cursor-pointer"
+                  />
+                  <div className="flex items-center justify-between gap-1 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => handleNudge("offsetX", -5)}
+                      className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 rounded hover:bg-slate-100"
+                    >
+                      -5px
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleNudge("offsetX", -1)}
-                      className="px-2 py-1 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-200"
-                      title="Nudge Left 1px"
+                      className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 rounded hover:bg-slate-100"
                     >
-                      ◄ -1
+                      -1px
                     </button>
-                    <input
-                      type="range"
-                      min="-30"
-                      max="60"
-                      step="1"
-                      value={(isFieldTarget ? currentFieldStyle.offsetX : currentCardStyle.offsetX) || 0}
-                      onChange={(e) =>
+                    <button
+                      type="button"
+                      onClick={() =>
                         isFieldTarget
-                          ? handleUpdate(`fieldStyles.${selectedTargetKey}.offsetX`, Number(e.target.value))
-                          : handleUpdate(`elementStyles.${selectedTargetKey}.offsetX`, Number(e.target.value))
+                          ? handleUpdate(`fieldStyles.${selectedTargetKey}.offsetX`, 0)
+                          : handleUpdate(`elementStyles.${selectedTargetKey}.offsetX`, 0)
                       }
-                      className="w-full accent-emerald-700 cursor-pointer"
-                    />
+                      className="px-2 py-0.5 text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100"
+                    >
+                      Center 0px
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleNudge("offsetX", 1)}
-                      className="px-2 py-1 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-200"
-                      title="Nudge Right 1px"
+                      className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 rounded hover:bg-slate-100"
                     >
-                      ► +1
+                      +1px
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleNudge("offsetX", 5)}
+                      className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 rounded hover:bg-slate-100"
+                    >
+                      +5px
                     </button>
                   </div>
                 </div>
 
+                {/* Vertical Position (Y Offset) */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-200/80">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-slate-700">Vertical Shift (Y Axis):</span>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="-200"
+                        max="200"
+                        value={(isFieldTarget ? currentFieldStyle.offsetY : currentCardStyle.offsetY) ?? 0}
+                        onChange={(e) =>
+                          isFieldTarget
+                            ? handleUpdate(`fieldStyles.${selectedTargetKey}.offsetY`, Number(e.target.value))
+                            : handleUpdate(`elementStyles.${selectedTargetKey}.offsetY`, Number(e.target.value))
+                        }
+                        className="w-14 text-center text-xs font-mono font-bold bg-white border border-slate-300 rounded px-1 py-0.5"
+                      />
+                      <span className="text-slate-400 text-[11px]">px</span>
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min="-120"
+                    max="120"
+                    step="1"
+                    value={(isFieldTarget ? currentFieldStyle.offsetY : currentCardStyle.offsetY) ?? 0}
+                    onChange={(e) =>
+                      isFieldTarget
+                        ? handleUpdate(`fieldStyles.${selectedTargetKey}.offsetY`, Number(e.target.value))
+                        : handleUpdate(`elementStyles.${selectedTargetKey}.offsetY`, Number(e.target.value))
+                    }
+                    className="w-full accent-emerald-700 cursor-pointer"
+                  />
+                  <div className="flex items-center justify-between gap-1 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => handleNudge("offsetY", -5)}
+                      className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 rounded hover:bg-slate-100"
+                    >
+                      -5px
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleNudge("offsetY", -1)}
+                      className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 rounded hover:bg-slate-100"
+                    >
+                      -1px
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        isFieldTarget
+                          ? handleUpdate(`fieldStyles.${selectedTargetKey}.offsetY`, 0)
+                          : handleUpdate(`elementStyles.${selectedTargetKey}.offsetY`, 0)
+                      }
+                      className="px-2 py-0.5 text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100"
+                    >
+                      Baseline 0px
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleNudge("offsetY", 1)}
+                      className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 rounded hover:bg-slate-100"
+                    >
+                      +1px
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleNudge("offsetY", 5)}
+                      className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 rounded hover:bg-slate-100"
+                    >
+                      +5px
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Visibility and Custom Text Override */}
+              {isFieldTarget && (
+                <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={currentFieldStyle.show !== false}
+                        onChange={(e) => handleUpdate(`fieldStyles.${selectedTargetKey}.show`, e.target.checked)}
+                        className="rounded text-emerald-700"
+                      />
+                      <span>Visible in Print</span>
+                    </label>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 block mb-1">Custom Text Override (Optional):</label>
+                    <input
+                      type="text"
+                      value={currentFieldStyle.customText || ""}
+                      placeholder="Leave empty for default value"
+                      onChange={(e) => handleUpdate(`fieldStyles.${selectedTargetKey}.customText`, e.target.value || undefined)}
+                      className="w-full text-xs rounded-md border border-slate-200 px-2 py-1"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* ── TYPOGRAPHY, COLORS & CARD STYLING ── */}
+              <div className="space-y-4 pt-1">
                 {/* 3. FONT SIZE & WEIGHT */}
                 <div className="grid grid-cols-2 gap-3 pt-1">
                   <div className="space-y-1">
@@ -1493,19 +1642,48 @@ export default function IPDAdmissionPrintSettings() {
               <Icon name="LuEye" size={15} className="text-emerald-400" />
               <span>Interactive WYSIWYG Preview (Click any field to inspect)</span>
             </div>
-            {/* Zoom Slider */}
+            {/* High-Zoom Steppers & Presets (50% to 200%) */}
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-mono text-slate-300">{previewZoom}%</span>
-              <input
-                type="range"
-                aria-label="Preview zoom scale"
-                min="75"
-                max="135"
-                step="5"
-                value={previewZoom}
-                onChange={(e) => setPreviewZoom(Number(e.target.value))}
-                className="w-20 accent-emerald-400 cursor-pointer"
-              />
+              <button
+                type="button"
+                onClick={() => setPreviewZoom((z) => Math.max(50, z - 10))}
+                className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-slate-300 font-bold"
+                title="Zoom Out"
+              >
+                -
+              </button>
+              <span className="text-[11px] font-mono text-emerald-300 min-w-10 text-center">{previewZoom}%</span>
+              <button
+                type="button"
+                onClick={() => setPreviewZoom((z) => Math.min(200, z + 10))}
+                className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-slate-300 font-bold"
+                title="Zoom In"
+              >
+                +
+              </button>
+              <div className="flex items-center gap-1 pl-1 border-l border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setPreviewZoom(100)}
+                  className={`px-1.5 py-0.5 text-[10px] rounded ${previewZoom === 100 ? "bg-emerald-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"}`}
+                >
+                  100%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewZoom(150)}
+                  className={`px-1.5 py-0.5 text-[10px] rounded ${previewZoom === 150 ? "bg-emerald-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"}`}
+                >
+                  150%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewZoom(200)}
+                  className={`px-1.5 py-0.5 text-[10px] rounded ${previewZoom === 200 ? "bg-emerald-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"}`}
+                >
+                  200%
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1536,6 +1714,7 @@ export default function IPDAdmissionPrintSettings() {
 
               {/* Render Preview iframe with live event messaging */}
               <iframe
+                ref={iframeRef}
                 title="IPD Admission Ticket Live Preview"
                 srcDoc={previewHtml}
                 className="w-full border-none pointer-events-auto"

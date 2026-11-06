@@ -757,6 +757,7 @@ const DEFAULT_SETTINGS_MAP: Record<string, any> = {
   print_slip_ipd_admission: DEFAULT_IPD_SLIP_SETTINGS,
   print_slip_ipd_discharge: DEFAULT_IPD_DISCHARGE_SETTINGS,
   print_slip_ipd_bill: DEFAULT_IPD_BILLING_SETTINGS,
+  print_slip_shared_master: DEFAULT_IPD_SLIP_SETTINGS,
 };
 
 function deepMerge(target: any, source: any): any {
@@ -800,10 +801,10 @@ export class SettingsService {
       const params: any[] = [key, orgId];
 
       if (facilityId) {
-        queryStr += ` AND (facility_id = $3 OR facility_id IS NULL) ORDER BY facility_id DESC NULLS LAST LIMIT 1`;
+        queryStr += ` AND (facility_id = $3 OR facility_id IS NULL) ORDER BY (facility_id = $3) DESC, facility_id DESC NULLS LAST LIMIT 1`;
         params.push(facilityId);
       } else {
-        queryStr += ` AND facility_id IS NULL LIMIT 1`;
+        queryStr += ` ORDER BY facility_id DESC NULLS LAST LIMIT 1`;
       }
 
       const result = await db.query(queryStr, params);
@@ -851,6 +852,26 @@ export class SettingsService {
       JSON.stringify(value),
       userId || null,
     ]);
+
+    // If saving for a specific facility, also keep the organization-level fallback (facility_id IS NULL) in sync
+    if (facId) {
+      try {
+        await db.query(
+          `
+          INSERT INTO settings (organization_id, facility_id, key, value, created_by, updated_by)
+          VALUES ($1, NULL, $2, $3::jsonb, $4, $4)
+          ON CONFLICT (organization_id, COALESCE(facility_id, '00000000-0000-0000-0000-000000000000'::uuid), key)
+          DO UPDATE SET
+            value = EXCLUDED.value,
+            updated_at = now(),
+            updated_by = EXCLUDED.updated_by;
+          `,
+          [orgId, key, JSON.stringify(value), userId || null]
+        );
+      } catch (e: any) {
+        logger.warn({ err: e?.message, key }, 'Could not mirror setting to org fallback');
+      }
+    }
 
     return res.rows[0];
   }

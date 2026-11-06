@@ -25,3 +25,22 @@ export {
   SAMPLE_IPD_ADMISSION_DATA,
   IPD_ADMISSION_SETTINGS_KEY,
 } from "./ipdAdmissionPrintConfig.js";
+export { default as SharedHeaderFooterDesigner } from "./SharedHeaderFooterDesigner.jsx";
+export {
+  DEFAULT_SHARED_CONFIG,
+  SHARED_ELEMENT_TARGETS,
+  SLIP_TYPES,
+  SLIP_SAMPLE_DATA,
+  SAMPLE_SHARED_DATA,
+  SHARED_PRINT_SETTINGS_KEY,
+  loadSharedPrintSettings,
+  saveSharedPrintSettings,
+  applySharedMasterToAllSlips,
+  buildSharedPreviewHTML,
+  buildSharedHeaderHTML,
+  buildSharedFooterHTML,
+  buildSharedDemographicsHTML,
+  SHARED_PRINT_CSS,
+  isElementActiveOnSlip,
+  toggleSlipElementActive,
+} from "./sharedPrintConfig.js";

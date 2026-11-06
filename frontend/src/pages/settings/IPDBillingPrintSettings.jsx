@@ -11,6 +11,7 @@ import {
   mergeIPDBillingSettings,
 } from "./ipdBillingPrintConfig.js";
 import { IPDBillingPrintHandler, buildBillingHTML } from "./IPDBillingPrintHandler.js";
+import { loadSharedPrintSettings, saveSharedPrintSettings } from "./sharedPrintConfig.js";
 
 const GROUPS = [
   { key: "hospital", title: "Hospital & Letterhead", icon: "LuBuilding2" },
@@ -101,9 +102,20 @@ export default function IPDBillingPrintSettings() {
     (async () => {
       try {
         setLoading(true);
-        const data = await settingsService.getSetting(IPD_BILLING_SETTINGS_KEY);
-        if (mounted && data && typeof data === "object") {
-          setSettings(mergeIPDBillingSettings(DEFAULT_IPD_BILLING_SETTINGS, data));
+        const [billData, sharedData] = await Promise.all([
+          settingsService.getSetting(IPD_BILLING_SETTINGS_KEY).catch(() => null),
+          loadSharedPrintSettings().catch(() => null),
+        ]);
+        if (mounted) {
+          const merged = mergeIPDBillingSettings(DEFAULT_IPD_BILLING_SETTINGS, {
+            ...(billData || {}),
+            ...(sharedData || {}),
+            useSharedHeaderFooter: true,
+            hospital: { ...(billData?.hospital || {}), ...(sharedData?.hospital || {}) },
+            footer: { ...(billData?.footer || {}), ...(sharedData?.footer || {}) },
+            fieldStyles: { ...(billData?.fieldStyles || {}), ...(sharedData?.fieldStyles || {}) },
+          });
+          setSettings(merged);
         }
       } catch (err) {
         console.warn("Could not fetch IPD billing settings:", err);
@@ -241,6 +253,67 @@ export default function IPDBillingPrintSettings() {
     handleUpdate("hospital.accreditations", current);
   };
 
+  // Sync Header & Footer from Shared Master
+  const handleSyncFromSharedMaster = async () => {
+    try {
+      const shared = await loadSharedPrintSettings();
+      if (shared) {
+        setSettings((prev) => ({
+          ...prev,
+          useSharedHeaderFooter: true,
+          hospital: {
+            ...(prev.hospital || {}),
+            ...(shared.hospital || {}),
+          },
+          terms: {
+            ...(prev.terms || {}),
+            items: shared.footer?.termsItems || prev.terms?.items,
+            footerTagline: shared.footer?.tagline || prev.terms?.footerTagline,
+            disclaimer: shared.footer?.disclaimer || prev.terms?.disclaimer,
+          },
+        }));
+        setStatus({
+          type: "success",
+          message: "Synced Hospital Header & Footer from Shared Master successfully!",
+        });
+        setTimeout(() => setStatus(null), 4000);
+      }
+    } catch (e) {
+      console.error("Sync error:", e);
+    }
+  };
+
+  // Push Header & Footer to Shared Master
+  const handlePushToSharedMaster = async () => {
+    if (
+      window.confirm(
+        "Push this billing slip's letterhead and footer settings to the Master Shared Header & Footer?"
+      )
+    ) {
+      try {
+        const shared = await loadSharedPrintSettings();
+        const updated = {
+          ...shared,
+          hospital: { ...(shared.hospital || {}), ...(settings.hospital || {}) },
+          footer: {
+            ...(shared.footer || {}),
+            termsItems: settings.terms?.items || shared.footer?.termsItems,
+            tagline: settings.terms?.footerTagline || shared.footer?.tagline,
+            disclaimer: settings.terms?.disclaimer || shared.footer?.disclaimer,
+          },
+        };
+        await saveSharedPrintSettings(updated);
+        setStatus({
+          type: "success",
+          message: "Pushed to Shared Master successfully! All slips using master are now updated.",
+        });
+        setTimeout(() => setStatus(null), 4000);
+      } catch (e) {
+        console.error("Push error:", e);
+      }
+    }
+  };
+
   // Live HTML generation for preview
   const previewHtml = useMemo(() => {
     return buildBillingHTML(SAMPLE_IPD_BILLING_DATA, settings, false);
@@ -333,6 +406,42 @@ export default function IPDBillingPrintSettings() {
           </button>
         </div>
       )}
+
+      {/* Shared Master Status & Sync Ribbon */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-gradient-to-r from-sky-50 to-indigo-50 border border-sky-200/90 rounded-xl text-xs">
+        <div className="flex items-center gap-2 text-sky-950 font-bold">
+          <Icon name="LuLayers" size={16} className="text-sky-700" />
+          <span>Shared Master Header &amp; Footer:</span>
+          <label className="flex items-center gap-1.5 cursor-pointer ml-1 text-slate-700">
+            <input
+              type="checkbox"
+              checked={settings.useSharedHeaderFooter !== false}
+              onChange={(e) => handleUpdate("useSharedHeaderFooter", e.target.checked)}
+              className="rounded text-sky-700"
+            />
+            <span className="font-semibold">Linked to Shared Master</span>
+          </label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleSyncFromSharedMaster}
+            className="px-2.5 py-1 text-xs font-bold bg-white text-sky-800 border border-sky-300 rounded-lg hover:bg-sky-100 flex items-center gap-1 shadow-xs"
+            title="Import latest Header and Footer from Shared Master"
+          >
+            <Icon name="LuDownload" size={13} /> Sync from Master
+          </button>
+          <button
+            type="button"
+            onClick={handlePushToSharedMaster}
+            className="px-2.5 py-1 text-xs font-bold bg-white text-indigo-800 border border-indigo-300 rounded-lg hover:bg-indigo-100 flex items-center gap-1 shadow-xs"
+            title="Save this billing slip's header & footer as the new Shared Master"
+          >
+            <Icon name="LuUpload" size={13} /> Push to Master
+          </button>
+        </div>
+      </div>
 
       {/* Main 2-Column Split: Controls on Left (5 cols), Live Preview on Right (7 cols) */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
@@ -1660,29 +1769,43 @@ export default function IPDBillingPrintSettings() {
               </span>
             </span>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-slate-500">Zoom:</span>
               <button
                 type="button"
-                onClick={() => setPreviewZoom((z) => Math.max(60, z - 10))}
-                className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-slate-700 hover:bg-slate-50 text-[11px]"
+                onClick={() => setPreviewZoom((z) => Math.max(50, z - 10))}
+                className="w-6 h-6 bg-white border border-slate-300 rounded text-slate-700 hover:bg-slate-50 text-[11px] font-bold flex items-center justify-center"
               >
                 -
               </button>
-              <span className="font-mono text-[11px] w-9 text-center">{previewZoom}%</span>
+              <span className="font-mono text-[11px] min-w-9 text-center font-bold text-sky-800">{previewZoom}%</span>
               <button
                 type="button"
-                onClick={() => setPreviewZoom((z) => Math.min(140, z + 10))}
-                className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-slate-700 hover:bg-slate-50 text-[11px]"
+                onClick={() => setPreviewZoom((z) => Math.min(200, z + 10))}
+                className="w-6 h-6 bg-white border border-slate-300 rounded text-slate-700 hover:bg-slate-50 text-[11px] font-bold flex items-center justify-center"
               >
                 +
               </button>
               <button
                 type="button"
                 onClick={() => setPreviewZoom(100)}
-                className="px-2 py-0.5 bg-white border border-slate-300 rounded text-slate-700 hover:bg-slate-50 text-[11px]"
+                className={`px-1.5 py-0.5 rounded text-[10px] ${previewZoom === 100 ? "bg-sky-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"}`}
               >
                 100%
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewZoom(150)}
+                className={`px-1.5 py-0.5 rounded text-[10px] ${previewZoom === 150 ? "bg-sky-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"}`}
+              >
+                150%
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewZoom(200)}
+                className={`px-1.5 py-0.5 rounded text-[10px] ${previewZoom === 200 ? "bg-sky-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"}`}
+              >
+                200%
               </button>
             </div>
           </div>

@@ -57,21 +57,32 @@ function getBlockInlineStyle(elConfig, defaultPad = "8px 12px", extraCss = "") {
  */
 function getFieldComputedStyle(fieldKey, cardKey, settings, extraCss = "") {
   const f = settings.fieldStyles?.[fieldKey] || {};
+  if (f.show === false) {
+    return "display: none !important;";
+  }
   const offsetX = Number(f.offsetX) || 0;
   const offsetY = Number(f.offsetY) || 0;
 
-  const transform = offsetX !== 0 || offsetY !== 0 ? `transform: translate(${offsetX}px, ${offsetY}px);` : "";
-  const fontSz = f.fontSize ? `font-size: ${f.fontSize}px;` : "";
-  const fontWt = f.fontWeight ? `font-weight: ${f.fontWeight};` : "";
-  const textClr = f.textColor ? `color: ${f.textColor};` : "";
-  const textAln = f.textAlign ? `text-align: ${f.textAlign};` : "";
+  // Rock-solid positioning using relative left/top + display: inline-block
+  const positionStyle =
+    offsetX !== 0 || offsetY !== 0
+      ? `position: relative !important; left: ${offsetX}px !important; top: ${offsetY}px !important; display: inline-block !important; z-index: 15;`
+      : "position: relative !important;";
+  const fontSz = f.fontSize ? `font-size: ${f.fontSize}px !important;` : "";
+  const fontWt = f.fontWeight ? `font-weight: ${f.fontWeight} !important;` : "";
+  const textClr = f.textColor ? `color: ${f.textColor} !important;` : "";
+  const textAln = f.textAlign ? `text-align: ${f.textAlign} !important;` : "";
+  const bgClr = f.bgColor ? `background-color: ${f.bgColor} !important;` : "";
+  const brdClr = f.borderColor ? `border-color: ${f.borderColor} !important;` : "";
 
   return `
-    ${transform}
+    ${positionStyle}
     ${fontSz}
     ${fontWt}
     ${textClr}
     ${textAln}
+    ${bgClr}
+    ${brdClr}
     ${extraCss}
   `.replace(/\s+/g, " ").trim();
 }
@@ -541,24 +552,24 @@ export function buildAdmissionTicketHTML(
     <div class="hospital-block" style="${hospitalStyle}" ${clickableAttr("hospitalHeader", "card")}>
       <div class="hospital-left">
         ${
-          cfg.hospital?.showLogo && cfg.hospital?.logoUrl
-            ? `<img src="${cfg.hospital.logoUrl}" alt="Logo" class="hospital-logo" />`
+          cfg.hospital?.showLogo && cfg.hospital?.logoUrl && cfg.fieldStyles?.["header.logo"]?.show !== false
+            ? `<img src="${cfg.hospital.logoUrl}" alt="Logo" class="hospital-logo" style="${getFieldComputedStyle("header.logo", "hospitalHeader", cfg)}" ${clickableAttr("header.logo")} />`
             : ""
         }
         <div>
-          <h1 class="hospital-name">${cfg.hospital?.name || "Narayan Hospital"}</h1>
-          <p class="hospital-sub">${cfg.hospital?.subtitle || ""}</p>
-          <p class="hospital-addr">${cfg.hospital?.address || ""}</p>
-          <p class="hospital-addr">📞 ${cfg.hospital?.phone || ""} ${cfg.hospital?.email ? `• ✉️ ${cfg.hospital.email}` : ""}</p>
+          <h1 class="hospital-name" style="${getFieldComputedStyle("header.hospitalName", "hospitalHeader", cfg)}" ${clickableAttr("header.hospitalName")}>${cfg.fieldStyles?.["header.hospitalName"]?.customText || cfg.hospital?.name || "Narayan Hospital"}</h1>
+          <p class="hospital-sub" style="${getFieldComputedStyle("header.subtitle", "hospitalHeader", cfg)}" ${clickableAttr("header.subtitle")}>${cfg.fieldStyles?.["header.subtitle"]?.customText || cfg.hospital?.subtitle || ""}</p>
+          <p class="hospital-addr" style="${getFieldComputedStyle("header.address", "hospitalHeader", cfg)}" ${clickableAttr("header.address")}>${cfg.fieldStyles?.["header.address"]?.customText || cfg.hospital?.address || ""}</p>
+          <p class="hospital-addr" style="${getFieldComputedStyle("header.phoneEmail", "hospitalHeader", cfg)}" ${clickableAttr("header.phoneEmail")}>${cfg.fieldStyles?.["header.phoneEmail"]?.customText || `📞 ${cfg.hospital?.phone || ""} ${cfg.hospital?.email ? `• ✉️ ${cfg.hospital.email}` : ""}`}</p>
         </div>
       </div>
       <div class="hospital-right">
-        ${cfg.hospital?.registrationNo ? `<span class="hospital-reg-badge">Reg: ${cfg.hospital.registrationNo}</span>` : ""}
-        ${cfg.hospital?.emergencyPhone ? `<span class="hospital-em-phone">🚨 24x7 Emergency: ${cfg.hospital.emergencyPhone}</span>` : ""}
+        ${cfg.hospital?.registrationNo && cfg.fieldStyles?.["header.regNo"]?.show !== false ? `<span class="hospital-reg-badge" style="${getFieldComputedStyle("header.regNo", "hospitalHeader", cfg)}" ${clickableAttr("header.regNo")}>${cfg.fieldStyles?.["header.regNo"]?.customText || `Reg: ${cfg.hospital.registrationNo}`}</span>` : ""}
+        ${cfg.hospital?.emergencyPhone && cfg.fieldStyles?.["header.emergencyPhone"]?.show !== false ? `<span class="hospital-em-phone" style="${getFieldComputedStyle("header.emergencyPhone", "hospitalHeader", cfg)}" ${clickableAttr("header.emergencyPhone")}>${cfg.fieldStyles?.["header.emergencyPhone"]?.customText || `🚨 24x7 Emergency: ${cfg.hospital.emergencyPhone}`}</span>` : ""}
         ${
-          cfg.hospital?.showAccreditationBadges && Array.isArray(cfg.hospital?.accreditations)
+          cfg.hospital?.showAccreditationBadges && Array.isArray(cfg.hospital?.accreditations) && cfg.fieldStyles?.["header.accreditations"]?.show !== false
             ? `
-          <div class="accreditation-badges">
+          <div class="accreditation-badges" style="${getFieldComputedStyle("header.accreditations", "hospitalHeader", cfg)}" ${clickableAttr("header.accreditations")}>
             ${cfg.hospital.accreditations.map((acc) => `<span class="acc-pill">${acc}</span>`).join("")}
           </div>
         `
@@ -576,14 +587,14 @@ export function buildAdmissionTicketHTML(
         ? `
     <div class="ticket-header-block" style="${headerStyle}" ${clickableAttr("ticketHeader", "card")}>
       <div class="ticket-title-wrap">
-        <h2 class="ticket-main-title">${cfg.header?.title || "IPD ADMISSION TICKET"}</h2>
-        ${cfg.header?.showCopyBadge ? `<span class="ticket-copy-badge">${cfg.header?.copyType || "ORIGINAL"}</span>` : ""}
+        <h2 class="ticket-main-title" style="${getFieldComputedStyle("ticket.title", "ticketHeader", cfg)}" ${clickableAttr("ticket.title")}>${cfg.fieldStyles?.["ticket.title"]?.customText || cfg.header?.title || "IPD ADMISSION TICKET"}</h2>
+        ${cfg.header?.showCopyBadge && cfg.fieldStyles?.["ticket.copyBadge"]?.show !== false ? `<span class="ticket-copy-badge" style="${getFieldComputedStyle("ticket.copyBadge", "ticketHeader", cfg)}" ${clickableAttr("ticket.copyBadge")}>${cfg.fieldStyles?.["ticket.copyBadge"]?.customText || cfg.header?.copyType || "ORIGINAL"}</span>` : ""}
       </div>
       <div class="ticket-barcode-wrap">
         ${
-          cfg.header?.showTopUHID && d.uhid
+          cfg.header?.showTopUHID && d.uhid && cfg.fieldStyles?.["ticket.topUhid"]?.show !== false
             ? `
-          <div class="top-id-tag">
+          <div class="top-id-tag" style="${getFieldComputedStyle("ticket.topUhid", "ticketHeader", cfg)}" ${clickableAttr("ticket.topUhid")}>
             <small>PATIENT UHID</small>
             ${d.uhid}
           </div>
@@ -591,16 +602,20 @@ export function buildAdmissionTicketHTML(
             : ""
         }
         ${
-          cfg.header?.showTopAdmissionNo && d.ipdNo
+          cfg.header?.showTopAdmissionNo && d.ipdNo && cfg.fieldStyles?.["ticket.topAdmissionNo"]?.show !== false
             ? `
-          <div class="top-id-tag">
+          <div class="top-id-tag" style="${getFieldComputedStyle("ticket.topAdmissionNo", "ticketHeader", cfg)}" ${clickableAttr("ticket.topAdmissionNo")}>
             <small>IPD ADMISSION NO</small>
             ${d.ipdNo}
           </div>
         `
             : ""
         }
-        ${cfg.header?.showBarcode ? generateBarcodeSvg(d.ipdNo || d.uhid) : ""}
+        ${cfg.header?.showBarcode && cfg.fieldStyles?.["ticket.barcode"]?.show !== false ? `
+          <div style="${getFieldComputedStyle("ticket.barcode", "ticketHeader", cfg)}" ${clickableAttr("ticket.barcode")}>
+            ${generateBarcodeSvg(d.ipdNo || d.uhid)}
+          </div>
+        ` : ""}
       </div>
     </div>
     `
@@ -902,18 +917,18 @@ export function buildAdmissionTicketHTML(
 
     <!-- ── 6. INPATIENT TERMS & CONDITIONS METADATA (LIKE IPD BILLING) ── -->
     ${
-      cfg.terms?.enabled !== false && styles.termsCard?.show !== false
+      cfg.terms?.enabled !== false && styles.termsCard?.show !== false && cfg.fieldStyles?.["terms.card"]?.show !== false
         ? `
-    <div class="section-card" style="${termsStyle}" ${clickableAttr("termsCard", "card")}>
+    <div class="section-card" style="${termsStyle}; ${getFieldComputedStyle("terms.card", "termsCard", cfg)}" ${clickableAttr("termsCard", "card")}>
       <div class="section-head" style="margin-bottom: 4px; padding-bottom: 2px;">
-        <h3 class="section-title" style="font-size: 8.5px;">📜 ${cfg.terms?.title || "INPATIENT ADMISSION TERMS & HOSPITAL RULES"}</h3>
+        <h3 class="section-title" style="font-size: 8.5px; ${getFieldComputedStyle("terms.title", "termsCard", cfg)}" ${clickableAttr("terms.title")}>📜 ${cfg.fieldStyles?.["terms.title"]?.customText || cfg.terms?.title || "INPATIENT ADMISSION TERMS & HOSPITAL RULES"}</h3>
       </div>
-      <ol class="terms-list">
+      <ol class="terms-list" style="${getFieldComputedStyle("terms.list", "termsCard", cfg)}" ${clickableAttr("terms.list")}>
         ${(cfg.terms?.items || []).map((term) => `<li>${term}</li>`).join("")}
       </ol>
       ${
-        cfg.terms?.footerTagline
-          ? `<div class="terms-footer-tagline">${cfg.terms.footerTagline}</div>`
+        cfg.terms?.footerTagline && cfg.fieldStyles?.["terms.footerTagline"]?.show !== false
+          ? `<div class="terms-footer-tagline" style="${getFieldComputedStyle("terms.footerTagline", "termsCard", cfg)}" ${clickableAttr("terms.footerTagline")}>${cfg.fieldStyles?.["terms.footerTagline"]?.customText || cfg.terms.footerTagline}</div>`
           : ""
       }
     </div>
@@ -923,14 +938,14 @@ export function buildAdmissionTicketHTML(
 
     <!-- ── 7. SIGNATURES & OFFICIAL STAMP ── -->
     ${
-      cfg.signatures?.enabled !== false && styles.signaturesCard?.show !== false
+      cfg.signatures?.enabled !== false && styles.signaturesCard?.show !== false && cfg.fieldStyles?.["signatures.card"]?.show !== false
         ? `
-    <div class="section-card" style="${sigStyle}" ${clickableAttr("signaturesCard", "card")}>
+    <div class="section-card" style="${sigStyle}; ${getFieldComputedStyle("signatures.card", "signaturesCard", cfg)}" ${clickableAttr("signaturesCard", "card")}>
       <div class="signatures-row">
         ${
-          cfg.signatures?.showDoctor
+          cfg.signatures?.showDoctor && cfg.fieldStyles?.["signatures.doctor"]?.show !== false
             ? `
-          <div class="sig-col">
+          <div class="sig-col" style="${getFieldComputedStyle("signatures.doctor", "signaturesCard", cfg)}" ${clickableAttr("signatures.doctor")}>
             <div class="sig-line"></div>
             <p class="sig-title">${cfg.signatures?.doctorTitle || "Treating Consultant"}</p>
             <p class="sig-sub">${cfg.signatures?.doctorSub || "Signature & Reg No."}</p>
@@ -939,9 +954,9 @@ export function buildAdmissionTicketHTML(
             : "<div></div>"
         }
         ${
-          cfg.signatures?.showNurse
+          cfg.signatures?.showNurse && cfg.fieldStyles?.["signatures.nurse"]?.show !== false
             ? `
-          <div class="sig-col">
+          <div class="sig-col" style="${getFieldComputedStyle("signatures.nurse", "signaturesCard", cfg)}" ${clickableAttr("signatures.nurse")}>
             <div class="sig-line"></div>
             <p class="sig-title">${cfg.signatures?.nurseTitle || "Duty Nursing Officer"}</p>
             <p class="sig-sub">${cfg.signatures?.nurseSub || "Ward Handover"}</p>
@@ -950,9 +965,9 @@ export function buildAdmissionTicketHTML(
             : "<div></div>"
         }
         ${
-          cfg.signatures?.showAttendant
+          cfg.signatures?.showAttendant && cfg.fieldStyles?.["signatures.attendant"]?.show !== false
             ? `
-          <div class="sig-col">
+          <div class="sig-col" style="${getFieldComputedStyle("signatures.attendant", "signaturesCard", cfg)}" ${clickableAttr("signatures.attendant")}>
             <div class="sig-line"></div>
             <p class="sig-title">${cfg.signatures?.attendantTitle || "Patient / Attendant"}</p>
             <p class="sig-sub">${cfg.signatures?.attendantSub || "Verified & Acknowledged"}</p>
@@ -961,9 +976,9 @@ export function buildAdmissionTicketHTML(
             : "<div></div>"
         }
         ${
-          cfg.signatures?.showStamp
+          cfg.signatures?.showStamp && cfg.fieldStyles?.["signatures.stamp"]?.show !== false
             ? `
-          <div class="sig-col">
+          <div class="sig-col" style="${getFieldComputedStyle("signatures.stamp", "signaturesCard", cfg)}" ${clickableAttr("signatures.stamp")}>
             <div class="stamp-box">
               <span>${cfg.signatures?.stampTitle || "HOSPITAL ADMISSION STAMP"}</span>
             </div>

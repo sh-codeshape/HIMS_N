@@ -7,6 +7,8 @@ import { DEFAULT_HOSPITAL_CONFIG } from "../../data/printlslip.data.jsx";
 import IPDDischargePrintSettings from "./IPDDischargePrintSettings.jsx";
 import IPDBillingPrintSettings from "./IPDBillingPrintSettings.jsx";
 import IPDAdmissionPrintSettings from "./IPDAdmissionPrintSettings.jsx";
+import SharedHeaderFooterDesigner from "./SharedHeaderFooterDesigner.jsx";
+import { loadSharedPrintSettings, saveSharedPrintSettings } from "./sharedPrintConfig.js";
 
 const SAMPLE_SLIP_DATA = {
   patientName: "Adeesh",
@@ -117,31 +119,62 @@ const DEFAULT_SETTINGS = {
 };
 
 export default function PrintSlipSettings() {
-  const [activeTab, setActiveTab] = useState("opd"); // 'opd' | 'ipd' | 'branding'
+  const [activeTab, setActiveTab] = useState("shared-master"); // 'shared-master' | 'opd' | 'ipd-admission' | 'ipd-billing' | 'ipd-discharge'
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null); // { type: 'success' | 'error', message }
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
-  // Load from database on mount
+  // Load and merge both OPD settings and Master Shared settings on mount and tab switch
   useEffect(() => {
     let mounted = true;
     const fetchSettings = async () => {
       try {
         setLoading(true);
-        const data = await settingsService.getSetting("print_slip_opd");
-        if (mounted && data && typeof data === "object") {
+        const [opdData, sharedData] = await Promise.all([
+          settingsService.getSetting("print_slip_opd").catch(() => null),
+          loadSharedPrintSettings().catch(() => null),
+        ]);
+        if (mounted) {
           setSettings((prev) => ({
             ...prev,
-            ...data,
-            hospital: { ...prev.hospital, ...(data.hospital || {}) },
-            styling: { ...prev.styling, ...(data.styling || {}) },
-            header: { ...prev.header, ...(data.header || {}) },
-            patientDetails: { ...prev.patientDetails, ...(data.patientDetails || {}) },
-            visitDetails: { ...prev.visitDetails, ...(data.visitDetails || {}) },
-            particulars: { ...prev.particulars, ...(data.particulars || {}) },
-            footer: { ...prev.footer, ...(data.footer || {}) },
+            ...(opdData || {}),
+            ...(sharedData || {}),
+            useSharedHeaderFooter: true,
+            hospital: {
+              ...(prev.hospital || {}),
+              ...(opdData?.hospital || {}),
+              ...(sharedData?.hospital || {}),
+            },
+            styling: {
+              ...(prev.styling || {}),
+              ...(sharedData?.styling || {}),
+              ...(opdData?.styling || {}),
+            },
+            header: {
+              ...(prev.header || {}),
+              ...(opdData?.header || {}),
+              ...(sharedData?.header || {}),
+            },
+            footer: {
+              ...(prev.footer || {}),
+              ...(opdData?.footer || {}),
+              ...(sharedData?.footer || {}),
+            },
+            patientDemographics: {
+              ...(prev.patientDemographics || {}),
+              ...(opdData?.patientDemographics || {}),
+              ...(sharedData?.patientDemographics || {}),
+            },
+            fieldStyles: {
+              ...(opdData?.fieldStyles || {}),
+              ...(sharedData?.fieldStyles || {}),
+            },
+            slipConfigs: {
+              ...(opdData?.slipConfigs || {}),
+              ...(sharedData?.slipConfigs || {}),
+            },
           }));
         }
       } catch (err) {
@@ -155,13 +188,26 @@ export default function PrintSlipSettings() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [activeTab]);
 
   const handleSave = async () => {
     try {
       setSaving(true);
       setSaveStatus(null);
       await settingsService.updateSetting("print_slip_opd", settings);
+      // Keep shared master in sync if branding or demographic styles were touched
+      try {
+        const shared = await loadSharedPrintSettings();
+        const updatedShared = {
+          ...shared,
+          hospital: { ...(shared.hospital || {}), ...(settings.hospital || {}) },
+          footer: { ...(shared.footer || {}), ...(settings.footer || {}) },
+          patientDemographics: { ...(shared.patientDemographics || {}), ...(settings.patientDemographics || {}) },
+          fieldStyles: { ...(shared.fieldStyles || {}), ...(settings.fieldStyles || {}) },
+          slipConfigs: { ...(shared.slipConfigs || {}), ...(settings.slipConfigs || {}) },
+        };
+        await saveSharedPrintSettings(updatedShared);
+      } catch (_) {}
       // Refresh cache in PrintSlipHandler so subsequent prints use new settings immediately
       await PrintSlipHandler.loadDbSettings(true);
       setSaveStatus({
@@ -239,6 +285,91 @@ export default function PrintSlipSettings() {
     reader.readAsDataURL(file);
   };
 
+  // Sync Header, Footer, Demographics & Positioning from Shared Master for OPD
+  const handleSyncFromSharedMaster = async () => {
+    try {
+      const shared = await loadSharedPrintSettings();
+      if (shared) {
+        setSettings((prev) => ({
+          ...prev,
+          useSharedHeaderFooter: true,
+          hospital: {
+            ...prev.hospital,
+            ...(shared.hospital || {}),
+            name: shared.hospital?.name || prev.hospital?.name,
+            subtitle: shared.hospital?.subtitle || prev.hospital?.subtitle,
+            slogan: shared.hospital?.slogan || prev.hospital?.slogan,
+            registrationNo: shared.hospital?.registrationNo || prev.hospital?.registrationNo,
+            address: shared.hospital?.address || prev.hospital?.address,
+            phone: shared.hospital?.phone || prev.hospital?.phone,
+            logo: {
+              ...prev.hospital?.logo,
+              src: shared.hospital?.logoUrl || prev.hospital?.logo?.src,
+            },
+          },
+          footer: {
+            ...prev.footer,
+            ...(shared.footer || {}),
+            infoBullets: shared.footer?.termsItems || prev.footer?.infoBullets,
+            helpline: {
+              show: true,
+              label: "Helpline:",
+              number: shared.hospital?.phone || prev.footer?.helpline?.number,
+            },
+          },
+          patientDemographics: {
+            ...(prev.patientDemographics || {}),
+            ...(shared.patientDemographics || {}),
+          },
+          fieldStyles: {
+            ...(prev.fieldStyles || {}),
+            ...(shared.fieldStyles || {}),
+          },
+          slipConfigs: {
+            ...(prev.slipConfigs || {}),
+            ...(shared.slipConfigs || {}),
+          },
+        }));
+        setSaveStatus({
+          type: "success",
+          message: "Synced Hospital Header, Demographics & Position Controls from Shared Master successfully!",
+        });
+        setTimeout(() => setSaveStatus(null), 4000);
+      }
+    } catch (e) {
+      console.error("Sync error:", e);
+    }
+  };
+
+  const handlePushToSharedMaster = async () => {
+    if (window.confirm("Push OPD slip's branding & footer to the Master Shared Header & Footer?")) {
+      try {
+        const shared = await loadSharedPrintSettings();
+        const updated = {
+          ...shared,
+          hospital: {
+            ...(shared.hospital || {}),
+            name: settings.hospital?.name || shared.hospital?.name,
+            subtitle: settings.hospital?.subtitle || shared.hospital?.subtitle,
+            slogan: settings.hospital?.slogan || shared.hospital?.slogan,
+            registrationNo: settings.hospital?.registrationNo || shared.hospital?.registrationNo,
+            address: settings.hospital?.address || shared.hospital?.address,
+            phone: settings.hospital?.phone || shared.hospital?.phone,
+            logoUrl: settings.hospital?.logo?.src || shared.hospital?.logoUrl,
+          },
+        };
+        await saveSharedPrintSettings(updated);
+        setSaveStatus({
+          type: "success",
+          message: "Pushed to Shared Master successfully!",
+        });
+        setTimeout(() => setSaveStatus(null), 4000);
+      } catch (e) {
+        console.error("Push error:", e);
+      }
+    }
+  };
+
   // Helper state update functions
   const updateHospital = (field, val) => {
     setSettings((prev) => ({
@@ -294,6 +425,18 @@ export default function PrintSlipSettings() {
       {/* Tab Switcher */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-3">
         <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => setActiveTab("shared-master")}
+            className={`px-4 py-2 font-bold text-sm rounded-lg flex items-center gap-2 transition-all ${
+              activeTab === "shared-master"
+                ? "bg-gradient-to-r from-sky-800 to-indigo-900 text-white shadow-sm ring-2 ring-sky-300"
+                : "bg-sky-50 text-sky-900 border border-sky-200 hover:bg-sky-100"
+            }`}
+          >
+            <Icon name="LuSparkles" size={16} className="text-amber-300" />
+            <span>Master Shared Header &amp; Footer</span>
+          </button>
           <button
             type="button"
             onClick={() => setActiveTab("opd")}
@@ -374,6 +517,9 @@ export default function PrintSlipSettings() {
         )}
       </div>
 
+      {/* Render Master Shared Header & Footer Designer */}
+      {activeTab === "shared-master" && <SharedHeaderFooterDesigner />}
+
       {/* Render IPD Discharge Designer Tab */}
       {activeTab === "ipd-discharge" && <IPDDischargePrintSettings />}
 
@@ -382,6 +528,44 @@ export default function PrintSlipSettings() {
 
       {/* Render IPD Admission Ticket Designer Tab */}
       {activeTab === "ipd" && <IPDAdmissionPrintSettings />}
+
+      {/* Shared Master Status & Sync Ribbon for OPD */}
+      {activeTab === "opd" && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-gradient-to-r from-sky-50 to-indigo-50 border border-sky-200/90 rounded-xl text-xs">
+          <div className="flex items-center gap-2 text-sky-950 font-bold">
+            <Icon name="LuLayers" size={16} className="text-sky-700" />
+            <span>Shared Master Header &amp; Footer:</span>
+            <label className="flex items-center gap-1.5 cursor-pointer ml-1 text-slate-700">
+              <input
+                type="checkbox"
+                checked={settings.useSharedHeaderFooter !== false}
+                onChange={(e) => updateStyling("useSharedHeaderFooter", e.target.checked)}
+                className="rounded text-sky-700"
+              />
+              <span className="font-semibold">Linked to Shared Master</span>
+            </label>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSyncFromSharedMaster}
+              className="px-2.5 py-1 text-xs font-bold bg-white text-sky-800 border border-sky-300 rounded-lg hover:bg-sky-100 flex items-center gap-1 shadow-xs"
+              title="Import latest Header and Footer from Shared Master"
+            >
+              <Icon name="LuDownload" size={13} /> Sync from Master
+            </button>
+            <button
+              type="button"
+              onClick={handlePushToSharedMaster}
+              className="px-2.5 py-1 text-xs font-bold bg-white text-indigo-800 border border-indigo-300 rounded-lg hover:bg-indigo-100 flex items-center gap-1 shadow-xs"
+              title="Save this OPD slip's header as the new Shared Master"
+            >
+              <Icon name="LuUpload" size={13} /> Push to Master
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Save Notification for OPD */}
       {activeTab === "opd" && saveStatus && (
@@ -411,11 +595,32 @@ export default function PrintSlipSettings() {
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
           {/* LEFT COLUMN: Controls Form (5 cols) */}
           <div className="xl:col-span-5 space-y-6">
-          {/* Card 1: Hospital Identity & Logo */}
+          {/* Card 1: Master Shared Letterhead & Demographics */}
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
-            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <Icon name="LuBuilding2" size={18} className="text-sky-700" />
-              <h3 className="font-bold text-slate-800 text-sm">Hospital Branding &amp; Logo</h3>
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Icon name="LuLayers" size={18} className="text-sky-700" />
+                <h3 className="font-bold text-slate-800 text-sm">Master Shared Letterhead &amp; Demographics</h3>
+              </div>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Active &amp; Synced
+              </span>
+            </div>
+
+            <div className="p-3 bg-sky-50/70 border border-sky-100 rounded-lg text-xs text-sky-950 space-y-2">
+              <p className="font-medium text-[11px] leading-relaxed">
+                This OPD slip dynamically consumes the <strong>Master Shared Header, Demographics &amp; Footer</strong>.
+                All element coordinate adjustments (X/Y position sliders) and Active/Inactive data toggles made in the Master Designer are live here!
+              </p>
+              <button
+                type="button"
+                onClick={() => setActiveTab("shared-master")}
+                className="w-full py-1.5 px-3 bg-sky-700 hover:bg-sky-800 text-white font-bold rounded-md shadow-xs flex items-center justify-center gap-1.5 text-xs transition-colors"
+              >
+                <Icon name="LuSlidersHorizontal" size={14} />
+                <span>Open Master Designer to Reposition Elements or Toggle Data</span>
+              </button>
             </div>
 
             <div>

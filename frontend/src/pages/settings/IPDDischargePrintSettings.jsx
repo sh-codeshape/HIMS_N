@@ -9,6 +9,7 @@ import {
   mergeIPDSettings,
 } from "./ipdDischargePrintConfig.js";
 import { IPDDischargePrintHandler } from "./IPDDischargePrintHandler.js";
+import { loadSharedPrintSettings, saveSharedPrintSettings } from "./sharedPrintConfig.js";
 
 const GROUPS = [
   { key: "hospital", title: "Hospital & header", icon: "LuBuilding2" },
@@ -972,9 +973,22 @@ export default function IPDDischargePrintSettings() {
     let alive = true;
     (async () => {
       try {
-        const response = await settingsService.getSetting(IPD_DISCHARGE_SETTINGS_KEY);
+        const [response, sharedData] = await Promise.all([
+          settingsService.getSetting(IPD_DISCHARGE_SETTINGS_KEY).catch(() => null),
+          loadSharedPrintSettings().catch(() => null),
+        ]);
         const saved = response?.data?.value ?? response?.data?.settings ?? response?.data ?? response?.value ?? response;
-        if (alive && saved && typeof saved === "object") setSettings(mergeIPDSettings(cloneIPDSettings(DEFAULT_IPD_DISCHARGE_SETTINGS), saved));
+        if (alive) {
+          const merged = mergeIPDSettings(cloneIPDSettings(DEFAULT_IPD_DISCHARGE_SETTINGS), {
+            ...(saved || {}),
+            ...(sharedData || {}),
+            useSharedHeaderFooter: true,
+            hospital: { ...(saved?.hospital || {}), ...(sharedData?.hospital || {}) },
+            footer: { ...(saved?.footer || {}), ...(sharedData?.footer || {}) },
+            fieldStyles: { ...(saved?.fieldStyles || {}), ...(sharedData?.fieldStyles || {}) },
+          });
+          setSettings(merged);
+        }
       } catch (error) {
         console.warn("Could not load IPD discharge print settings:", error);
         if (alive) setStatus({ type: "error", message: "Saved settings could not be loaded. You can still edit defaults and save them." });
@@ -1009,6 +1023,55 @@ export default function IPDDischargePrintSettings() {
   };
   const testPrint = () => IPDDischargePrintHandler.printDischargeSummary(sampleData, settings);
 
+  const handleSyncFromSharedMaster = async () => {
+    try {
+      const shared = await loadSharedPrintSettings();
+      if (shared) {
+        setSettings((prev) => ({
+          ...prev,
+          useSharedHeaderFooter: true,
+          hospital: {
+            ...(prev.hospital || {}),
+            name: shared.hospital?.name || prev.hospital?.name,
+            subtitle: shared.hospital?.subtitle || prev.hospital?.subtitle,
+            registrationNo: shared.hospital?.registrationNo || prev.hospital?.registrationNo,
+            address: shared.hospital?.address || prev.hospital?.address,
+            phone: shared.hospital?.phone || prev.hospital?.phone,
+            email: shared.hospital?.email || prev.hospital?.email,
+            logoUrl: shared.hospital?.logoUrl || prev.hospital?.logoUrl,
+          },
+          footer: {
+            ...(prev.footer || {}),
+            emergencyContact: shared.hospital?.emergencyPhone || prev.footer?.emergencyContact,
+            helpline: shared.hospital?.phone || prev.footer?.helpline,
+            disclaimer: shared.footer?.disclaimer || prev.footer?.disclaimer,
+          },
+        }));
+        setStatus({ type: "success", message: "Synced Hospital Header & Footer from Shared Master!" });
+        setTimeout(() => setStatus(null), 4000);
+      }
+    } catch (e) {
+      console.error("Sync error:", e);
+    }
+  };
+
+  const handlePushToSharedMaster = async () => {
+    if (window.confirm("Push discharge summary's hospital branding to Shared Master?")) {
+      try {
+        const shared = await loadSharedPrintSettings();
+        const updated = {
+          ...shared,
+          hospital: { ...(shared.hospital || {}), ...(settings.hospital || {}) },
+        };
+        await saveSharedPrintSettings(updated);
+        setStatus({ type: "success", message: "Pushed to Shared Master successfully!" });
+        setTimeout(() => setStatus(null), 4000);
+      } catch (e) {
+        console.error("Push error:", e);
+      }
+    }
+  };
+
   const currentGroup = GROUPS.find((group) => group.key === activeGroup) || GROUPS[0];
   const enabledCount = useMemo(() => ["patient", "admission", "diagnosis", "vitals", "billing", "medicines", "advice", "handover"].filter((key) => settings[key].enabled).length + (settings.customSections || []).filter((item) => item.enabled).length, [settings]);
 
@@ -1025,6 +1088,42 @@ export default function IPDDischargePrintSettings() {
 
     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"><span className="font-bold text-slate-800">{enabledCount} sections enabled</span><span>·</span><span>{settings.page.size} {settings.page.orientation}</span><span>·</span><span>Fields with “Print” checked appear on the slip</span></div>
     {status && <div role="status" className={`rounded-lg border p-3 text-xs ${status.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>{status.message}</div>}
+
+    {/* Shared Master Status & Sync Ribbon */}
+    <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-gradient-to-r from-sky-50 to-indigo-50 border border-sky-200/90 rounded-xl text-xs">
+      <div className="flex items-center gap-2 text-sky-950 font-bold">
+        <Icon name="LuLayers" size={16} className="text-sky-700" />
+        <span>Shared Master Header &amp; Footer:</span>
+        <label className="flex items-center gap-1.5 cursor-pointer ml-1 text-slate-700">
+          <input
+            type="checkbox"
+            checked={settings.useSharedHeaderFooter !== false}
+            onChange={(e) => setSettings((s) => ({ ...s, useSharedHeaderFooter: e.target.checked }))}
+            className="rounded text-sky-700"
+          />
+          <span className="font-semibold">Linked to Shared Master</span>
+        </label>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={handleSyncFromSharedMaster}
+          className="px-2.5 py-1 text-xs font-bold bg-white text-sky-800 border border-sky-300 rounded-lg hover:bg-sky-100 flex items-center gap-1 shadow-xs"
+          title="Import latest Header and Footer from Shared Master"
+        >
+          <Icon name="LuDownload" size={13} /> Sync from Master
+        </button>
+        <button
+          type="button"
+          onClick={handlePushToSharedMaster}
+          className="px-2.5 py-1 text-xs font-bold bg-white text-indigo-800 border border-indigo-300 rounded-lg hover:bg-indigo-100 flex items-center gap-1 shadow-xs"
+          title="Save this discharge summary's header as the new Shared Master"
+        >
+          <Icon name="LuUpload" size={13} /> Push to Master
+        </button>
+      </div>
+    </div>
 
     {loading ? <div className="rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Loading discharge print settings…</div> : <div className={`grid items-start gap-5 ${showPreview ? "grid-cols-1 2xl:grid-cols-[minmax(350px,0.82fr)_minmax(620px,1.35fr)]" : "grid-cols-1"}`}>
       <div className="min-w-0 space-y-3">

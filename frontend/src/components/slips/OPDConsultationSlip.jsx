@@ -1,5 +1,13 @@
 import React from "react";
 import "./OPDConsultationSlip.css";
+import {
+  DEFAULT_SHARED_CONFIG,
+  SHARED_PRINT_CSS,
+  buildSharedHeaderHTML,
+  buildSharedDemographicsHTML,
+  buildSharedFooterHTML,
+  mergeSharedSettings,
+} from "../../pages/settings/sharedPrintConfig.js";
 
 // SVG Icons tailored for high-DPI print & vector sharpness
 const StethoscopeIcon = () => (
@@ -40,71 +48,10 @@ const PhoneIcon = () => (
   </svg>
 );
 
-const WaveTop = () => (
-  <svg className="opd-slip-wave-top" viewBox="0 0 400 60" preserveAspectRatio="none" fill="none">
-    <path
-      d="M0,0 C120,45 250,10 400,35 L400,0 L0,0 Z"
-      fill="url(#topWaveGrad)"
-      opacity="0.85"
-    />
-    <defs>
-      <linearGradient id="topWaveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#bae6fd" stopOpacity="0.4" />
-        <stop offset="100%" stopColor="#0284c7" stopOpacity="0.8" />
-      </linearGradient>
-    </defs>
-  </svg>
-);
-
-const WaveBottom = () => (
-  <svg className="opd-slip-wave-bottom" viewBox="0 0 800 24" preserveAspectRatio="none" fill="none">
-    <path
-      d="M0,12 C200,24 600,0 800,16 L800,24 L0,24 Z"
-      fill="url(#botWaveGrad)"
-    />
-    <defs>
-      <linearGradient id="botWaveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#0b3b60" />
-        <stop offset="50%" stopColor="#0284c7" />
-        <stop offset="100%" stopColor="#0284c7" />
-      </linearGradient>
-    </defs>
-  </svg>
-);
-
 export default function OPDConsultationSlip({ data = {}, settings = {}, className = "" }) {
   // Extract or apply defaults from settings
-  const hospital = settings.hospital || {};
   const styling = settings.styling || {};
-  const header = settings.header || {};
-  const patientDetails = settings.patientDetails || {};
-  const visitDetails = settings.visitDetails || {};
   const particularsConfig = settings.particulars || {};
-  const footer = settings.footer || {};
-
-  const hospitalName = hospital.name || "Narayan Hospital";
-  const hospitalSubtitle = hospital.subtitle || "Super Speciality Healthcare & Research Institute";
-  const hospitalSlogan = hospital.slogan || "Better Care. Healthier Tomorrow.";
-  const logoSrc = hospital.logo?.src || "/images/Narayan_Logo.png";
-  const showLogo = hospital.logo?.show !== false && header.showLogo !== false;
-
-  // Colors & Shape
-  const primaryColor = styling.primaryColor || "#0B3B60";
-  const secondaryColor = styling.secondaryColor || "#E0F2FE";
-  const accentColor = styling.accentColor || "#0284C7";
-  const slipBorderColor = styling.slipBorderColor || "#93C5FD";
-  const textColor = styling.textColor || "#0F172A";
-  const borderRadius =
-    styling.shape === "sharp"
-      ? "0px"
-      : styling.shape === "subtle"
-      ? "6px"
-      : styling.shape === "pill"
-      ? "20px"
-      : styling.borderRadius || "12px";
-
-  const fontSizeScale = styling.fontSizeScale || "normal";
-  const showWaves = styling.showWaveDecorations !== false;
 
   // Normalized patient data
   const patientName = data.patientName || data.name || data.full_name || "Adeesh";
@@ -115,11 +62,8 @@ export default function OPDConsultationSlip({ data = {}, settings = {}, classNam
 
   // Normalized visit data
   const token = data.tokenNo || data.token || data.token_number || "T-311026-GEN-03";
-  const visitType = data.visitType || data.category || "OPD Consultation";
   const encounterNo = data.encounterNo || data.uhid || "OPD-26-0044";
   const encounterDate = data.encounterDate || data.date || "31 Oct 2026";
-  const source = data.source || data.bookingSource || "Offline";
-  const status = data.status || "Arrived";
 
   // Build particulars table rows
   let billingRows = [];
@@ -146,6 +90,23 @@ export default function OPDConsultationSlip({ data = {}, settings = {}, classNam
       ? Number(data.totalAmount)
       : billingRows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
 
+  const primaryColor = styling.primaryColor || "#0B3B60";
+  const secondaryColor = styling.secondaryColor || "#E0F2FE";
+  const accentColor = styling.accentColor || "#0284C7";
+  const slipBorderColor = styling.slipBorderColor || "#93C5FD";
+  const textColor = styling.textColor || "#0F172A";
+  const borderRadius =
+    styling.shape === "sharp"
+      ? "0px"
+      : styling.shape === "subtle"
+      ? "6px"
+      : styling.shape === "pill"
+      ? "20px"
+      : styling.borderRadius || "12px";
+
+  const fontSizeScale = styling.fontSizeScale || "normal";
+  const pageSize = (settings.page?.size || styling.paperSize || "A4").toLowerCase();
+
   const containerStyle = {
     "--slip-primary": primaryColor,
     "--slip-secondary": secondaryColor,
@@ -155,7 +116,41 @@ export default function OPDConsultationSlip({ data = {}, settings = {}, classNam
     "--slip-text": textColor,
   };
 
-  const pageSize = (settings.page?.size || styling.paperSize || "A4").toLowerCase();
+  // ── RENDER WITH SHARED MASTER HEADER, DEMOGRAPHICS & FOOTER ──
+  const sharedConfig = mergeSharedSettings(DEFAULT_SHARED_CONFIG, settings || {});
+
+  const normalizedEncounter = {
+    patientName,
+    uhid: encounterNo || "OPD-26-0044",
+    encounterNo,
+    tokenNo: token,
+    ageGender: `${age} Yrs / ${gender}`,
+    mobile: phone,
+    address,
+    bloodGroup: data.bloodGroup || "B+",
+    admissionDate: encounterDate || "Today",
+    doctor: data.doctor || "Dr. Adeesh Singh",
+    department: data.department || "General Medicine",
+    ...data,
+  };
+
+  const headerHtml = buildSharedHeaderHTML(sharedConfig, {
+    isPreview: false,
+    slipType: "opd",
+    encounterData: normalizedEncounter,
+  });
+
+  const demoHtml = buildSharedDemographicsHTML(
+    sharedConfig,
+    normalizedEncounter,
+    null,
+    { isPreview: false, slipType: "opd" }
+  );
+
+  const footerHtml = buildSharedFooterHTML(sharedConfig, {
+    isPreview: false,
+    slipType: "opd",
+  });
 
   return (
     <div
@@ -163,172 +158,17 @@ export default function OPDConsultationSlip({ data = {}, settings = {}, classNam
       style={containerStyle}
       id="narayan-opd-consultation-slip"
     >
-      {/* Wave Accents */}
-      {showWaves && <WaveTop />}
-      {showWaves && <WaveBottom />}
+      <style>{SHARED_PRINT_CSS}</style>
 
-      {/* Header Row */}
-      <div className="opd-slip-header">
-        <div className="opd-slip-brand">
-          {showLogo && (
-            <img
-              src={logoSrc}
-              alt={`${hospitalName} Logo`}
-              className="opd-slip-logo-img"
-              style={{
-                height: hospital.logo?.height || "48px",
-                maxWidth: hospital.logo?.maxWidth || "160px",
-              }}
-              onError={(e) => {
-                // If local path fails, fallback to NarayanLogo.png in public root
-                if (!e.target.src.includes("NarayanLogo.png")) {
-                  e.target.src = "/NarayanLogo.png";
-                }
-              }}
-            />
-          )}
-          <div className="opd-slip-title-group">
-            <h1 className="opd-slip-hospital-name">{hospitalName}</h1>
-            {hospitalSubtitle && (
-              <>
-                <span className="opd-slip-header-divider">|</span>
-                <span className="opd-slip-subtitle">{hospitalSubtitle}</span>
-              </>
-            )}
-          </div>
-        </div>
+      {/* ── 1. SHARED MASTER HOSPITAL HEADER & BANNER ── */}
+      <div dangerouslySetInnerHTML={{ __html: headerHtml }} />
 
-        {header.showTagline !== false && hospitalSlogan && (
-          <div className="opd-slip-slogan">{hospitalSlogan}</div>
-        )}
-      </div>
+      {/* ── 2. SHARED MASTER PATIENT DEMOGRAPHICS ── */}
+      <div dangerouslySetInnerHTML={{ __html: demoHtml }} style={{ marginTop: "6px" }} />
 
-      {/* Title & Token Row */}
-      <div className="opd-slip-title-row">
-        <div className="opd-slip-banner">
-          <div className="opd-slip-banner-icon">
-            <StethoscopeIcon />
-          </div>
-          <div className="opd-slip-banner-title">
-            {header.badgeTitle || "OPD Consultation Slip"}
-          </div>
-        </div>
-
-        <div className="opd-slip-token-box">
-          <span className="opd-slip-token-lbl">{header.tokenLabel || "OPD Token"}</span>
-          <span className="opd-slip-token-val">{token}</span>
-        </div>
-      </div>
-
-      {/* Two Column Cards */}
-      <div className="opd-slip-details-grid">
-        {/* Left Card: Patient Details */}
-        <div className="opd-slip-card">
-          <div className="opd-slip-card-head">
-            <UserIcon />
-            <span>{patientDetails.cardTitle || "Patient Details"}</span>
-          </div>
-          <div className="opd-slip-table-rows">
-            {patientDetails.showName !== false && (
-              <div className="opd-slip-row">
-                <span className="opd-slip-lbl">Name</span>
-                <span className="opd-slip-colon">:</span>
-                <span className="opd-slip-val">{patientName}</span>
-              </div>
-            )}
-            {patientDetails.showAgeGender !== false && (
-              <div className="opd-slip-row">
-                <span className="opd-slip-lbl">Age / Gender</span>
-                <span className="opd-slip-colon">:</span>
-                <span className="opd-slip-val">{age} Yrs / {gender}</span>
-              </div>
-            )}
-            {patientDetails.showPhone !== false && (
-              <div className="opd-slip-row">
-                <span className="opd-slip-lbl">Mobile No.</span>
-                <span className="opd-slip-colon">:</span>
-                <span className="opd-slip-val">{phone}</span>
-              </div>
-            )}
-            {patientDetails.showAddress !== false && (
-              <div className="opd-slip-row">
-                <span className="opd-slip-lbl">Address</span>
-                <span className="opd-slip-colon">:</span>
-                <span className="opd-slip-val">{address}</span>
-              </div>
-            )}
-            {patientDetails.showBloodGroup && data.bloodGroup && (
-              <div className="opd-slip-row">
-                <span className="opd-slip-lbl">Blood Group</span>
-                <span className="opd-slip-colon">:</span>
-                <span className="opd-slip-val" style={{ color: "#DC2626" }}>🩸 {data.bloodGroup}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Card: Visit & Clinical Details */}
-        <div className="opd-slip-card">
-          <div className="opd-slip-card-head">
-            <CalendarIcon />
-            <span>{visitDetails.cardTitle || "Visit & Clinical Details"}</span>
-          </div>
-          <div className="opd-slip-table-rows">
-            {visitDetails.showVisitType !== false && (
-              <div className="opd-slip-row">
-                <span className="opd-slip-lbl">Visit Type</span>
-                <span className="opd-slip-colon">:</span>
-                <span className="opd-slip-val">{visitType}</span>
-              </div>
-            )}
-            {visitDetails.showEncounterNo !== false && (
-              <div className="opd-slip-row">
-                <span className="opd-slip-lbl">Encounter No.</span>
-                <span className="opd-slip-colon">:</span>
-                <span className="opd-slip-val">{encounterNo}</span>
-              </div>
-            )}
-            {visitDetails.showEncounterDate !== false && (
-              <div className="opd-slip-row">
-                <span className="opd-slip-lbl">Encounter Date</span>
-                <span className="opd-slip-colon">:</span>
-                <span className="opd-slip-val">{encounterDate}</span>
-              </div>
-            )}
-            {visitDetails.showDoctor !== false && data.doctor && (
-              <div className="opd-slip-row">
-                <span className="opd-slip-lbl">Doctor</span>
-                <span className="opd-slip-colon">:</span>
-                <span className="opd-slip-val">{data.doctor}</span>
-              </div>
-            )}
-            {visitDetails.showSource !== false && (
-              <div className="opd-slip-row">
-                <span className="opd-slip-lbl">Source</span>
-                <span className="opd-slip-colon">:</span>
-                <span className="opd-slip-val">
-                  <span className="opd-slip-badge opd-slip-badge--source">{source}</span>
-                </span>
-              </div>
-            )}
-            {visitDetails.showStatus !== false && (
-              <div className="opd-slip-row">
-                <span className="opd-slip-lbl">Status</span>
-                <span className="opd-slip-colon">:</span>
-                <span className="opd-slip-val">
-                  <span className="opd-slip-badge opd-slip-badge--status">
-                    <CheckIcon /> {status}
-                  </span>
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Particulars / Billing Table */}
+      {/* ── 3. OPD CONSULTATION PARTICULAR & CHARGES TABLE ── */}
       {particularsConfig.showTable !== false && (
-        <div className="opd-slip-table-wrap">
+        <div className="opd-slip-table-wrap" style={{ marginTop: "8px" }}>
           <table className="opd-slip-table">
             <thead>
               <tr>
@@ -341,53 +181,23 @@ export default function OPDConsultationSlip({ data = {}, settings = {}, classNam
               {billingRows.map((row, idx) => (
                 <tr key={row.id || idx}>
                   <td className="td-num">{idx + 1}</td>
-                  <td>{row.particular || row.service || "OPD Consultation"}</td>
+                  <td>{row.particular || row.service || "OPD Consultation Fee"}</td>
                   <td className="td-amt">₹ {Number(row.amount || 0).toFixed(2)}</td>
                 </tr>
               ))}
               <tr className="total-row">
-                <td colSpan="2" style={{ textAlign: "center" }}>
+                <td colSpan="2" style={{ textAlign: "center", fontWeight: 800 }}>
                   {particularsConfig.totalLabel || "Total Amount"}
                 </td>
-                <td className="td-amt">₹ {totalAmount.toFixed(2)}</td>
+                <td className="td-amt" style={{ fontWeight: 900 }}>₹ {totalAmount.toFixed(2)}</td>
               </tr>
             </tbody>
           </table>
         </div>
       )}
 
-      {/* Footer Area */}
-      <div className="opd-slip-footer">
-        {/* Left: Info Bullets */}
-        <div className="opd-slip-footer-info">
-          <div className="opd-slip-info-icon">i</div>
-          <div className="opd-slip-bullet-list">
-            {(footer.infoBullets || [
-              "Please carry this slip for consultation.",
-              "For any assistance, contact reception.",
-            ]).map((line, idx) => (
-              <span key={idx}>• {line}</span>
-            ))}
-          </div>
-        </div>
-
-        {/* Center: Helpline */}
-        {footer.helpline?.show !== false && (
-          <div className="opd-slip-helpline-wrap">
-            <span className="opd-slip-helpline-icon">
-              <PhoneIcon />
-            </span>
-            <span>{footer.helpline?.label || "Helpline:"} {footer.helpline?.number || hospital.phone || "+91 7388660408"}</span>
-          </div>
-        )}
-
-        {/* Right: Stamp Box */}
-        {footer.stamp?.show !== false && (
-          <div className="opd-slip-stamp-box">
-            {footer.stamp?.label || "HOSPITAL STAMP"}
-          </div>
-        )}
-      </div>
+      {/* ── 4. SHARED MASTER FOOTER POLICIES, SIGNATURES & STAMP ── */}
+      <div dangerouslySetInnerHTML={{ __html: footerHtml }} style={{ marginTop: "8px" }} />
     </div>
   );
 }
