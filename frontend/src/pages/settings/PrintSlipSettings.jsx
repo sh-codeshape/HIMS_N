@@ -7,6 +7,7 @@ import { DEFAULT_HOSPITAL_CONFIG } from "../../data/printlslip.data.jsx";
 import IPDDischargePrintSettings from "./IPDDischargePrintSettings.jsx";
 import IPDBillingPrintSettings from "./IPDBillingPrintSettings.jsx";
 import IPDAdmissionPrintSettings from "./IPDAdmissionPrintSettings.jsx";
+import IPDReceiptPrintSettings from "./IPDReceiptPrintSettings.jsx";
 import SharedHeaderFooterDesigner from "./SharedHeaderFooterDesigner.jsx";
 import { loadSharedPrintSettings, saveSharedPrintSettings } from "./sharedPrintConfig.js";
 
@@ -119,7 +120,17 @@ const DEFAULT_SETTINGS = {
 };
 
 export default function PrintSlipSettings() {
-  const [activeTab, setActiveTab] = useState("shared-master"); // 'shared-master' | 'opd' | 'ipd-admission' | 'ipd-billing' | 'ipd-discharge'
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tab = urlParams.get("tab");
+      if (tab) {
+        if (tab === "receipt" || tab === "ipd-receipt") return "ipd-receipt";
+        return tab;
+      }
+    }
+    return "shared-master";
+  });
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -485,6 +496,18 @@ export default function PrintSlipSettings() {
             <Icon name="LuBed" size={16} />
             <span>IPD Admission Ticket</span>
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("ipd-receipt")}
+            className={`px-4 py-2 font-bold text-sm rounded-lg flex items-center gap-2 transition-all ${
+              activeTab === "ipd-receipt"
+                ? "bg-sky-900 text-white shadow-sm"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
+          >
+            <Icon name="LuReceipt" size={16} />
+            <span>Payment Receipt (Half Page)</span>
+          </button>
         </div>
 
         {/* Global Action Buttons for OPD */}
@@ -528,6 +551,9 @@ export default function PrintSlipSettings() {
 
       {/* Render IPD Admission Ticket Designer Tab */}
       {activeTab === "ipd" && <IPDAdmissionPrintSettings />}
+
+      {/* Render Payment Receipt Slip (Half Page) Designer Tab */}
+      {activeTab === "ipd-receipt" && <IPDReceiptPrintSettings />}
 
       {/* Shared Master Status & Sync Ribbon for OPD */}
       {activeTab === "opd" && (

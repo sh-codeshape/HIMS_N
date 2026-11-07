@@ -68,6 +68,14 @@ export const SLIP_TYPES = [
     defaultTitle: "IPD DISCHARGE SUMMARY",
     defaultCopy: "CONFIDENTIAL MEDICAL RECORD",
   },
+  {
+    id: "ipd_receipt",
+    label: "🧾 Payment Receipt Slip (Half Page)",
+    badge: "Payment Receipt",
+    desc: "Inpatient cash counter receipt, advance deposit & voucher slip (Compact Half Page)",
+    defaultTitle: "OFFICIAL PAYMENT RECEIPT & CASH VOUCHER",
+    defaultCopy: "ORIGINAL FOR PATIENT",
+  },
 ];
 
 export const DEFAULT_SHARED_CONFIG = {
@@ -181,6 +189,16 @@ export const DEFAULT_SHARED_CONFIG = {
       inactiveElements: [
         "signatures.cashier",
         "signatures.attendant",
+      ],
+    },
+    ipd_receipt: {
+      title: "OFFICIAL PAYMENT RECEIPT & CASH VOUCHER",
+      copyBadge: "ORIGINAL FOR PATIENT",
+      inactiveElements: [
+        "signatures.nurse",
+        "signatures.doctor",
+        "patient.doctor",
+        "patient.guardian",
       ],
     },
   },
@@ -554,6 +572,34 @@ export const SLIP_SAMPLE_DATA = {
     doctor: "Dr. Adeesh Singh (MD, FICP)",
     department: "General Medicine & Critical Care",
   },
+  ipd_receipt: {
+    patientName: "Ramesh Chandra Sharma",
+    uhid: "UHID-2026-004481",
+    ipdNo: "IPD-26-0198",
+    encounterNo: "REC-26-0068",
+    tokenNo: "REC-26-0068",
+    ageGender: "48 Yrs / Male",
+    mobile: "+91 98765 43210",
+    address: "Plot 42, Gayatri Nagar, Hospital Road, Jaipur - 302020",
+    bloodGroup: "B+",
+    guardian: "Sunita Sharma",
+    relation: "Wife",
+    payer: "Cash Counter",
+    admissionDate: "04 Nov 2026",
+    doctor: "Dr. Adeesh Singh (MD, FICP)",
+    department: "General Medicine & Critical Care",
+    receiptNo: "REC-26-0068",
+    receiptDate: "06 Nov 2026, 04:44 PM",
+    receiptCategory: "Running Bill Interim Payment",
+    paymentMode: "Cash Counter",
+    receivedAmount: 5141,
+    amountInWords: "Rupees Five Thousand One Hundred Forty One Only",
+    notes: "Running Bill Interim Payment received for Test 1",
+    totalCharges: 3000,
+    totalPaid: 5141,
+    remainingBalance: 0,
+    excessAdvance: 2141,
+  },
 };
 
 export const SAMPLE_SHARED_DATA = SLIP_SAMPLE_DATA.all;
@@ -797,6 +843,7 @@ export async function applySharedMasterToAllSlips(sharedSettings) {
     "print_slip_ipd_admission",
     "print_slip_ipd_bill",
     "print_slip_ipd_discharge",
+    "print_slip_ipd_receipt",
   ];
 
   // Execute in parallel via Promise.all for fast (2-3s) execution instead of 30s sequential loop
@@ -1386,6 +1433,45 @@ function buildSlipBodyPreviewHTML(slipType = "all") {
     `;
   }
 
+  if (slipType === "ipd_receipt") {
+    return `
+      <div class="shared-slip-body-box" style="border: 1.5px solid #0284c7; background: #ffffff;">
+        <div class="shared-body-head" style="background: #f0f9ff; padding: 6px 10px; border-radius: 6px; margin-bottom: 8px;">
+          <span class="shared-body-title" style="color: #0369a1; font-size: 11px;">🧾 PAYMENT RECEIPT &amp; TRANSACTION DETAILS</span>
+          <span class="shared-body-badge" style="background: #0284c7; color: #ffffff; font-weight: 800;">REC-26-0068</span>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+          <!-- Left: Big Amount Box -->
+          <div style="background: #f8fafc; border: 1.5px dashed #0284c7; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: center;">
+            <span style="font-size: 8.5px; font-weight: 700; color: #64748b; text-transform: uppercase;">Amount Received</span>
+            <div style="font-size: 22px; font-weight: 900; color: #059669; font-family: monospace; line-height: 1.2;">
+              ₹ 5,141.00
+            </div>
+            <div style="font-size: 8.5px; color: #334155; font-style: italic; margin-top: 3px;">
+              In Words: <strong>Rupees Five Thousand One Hundred Forty One Only</strong>
+            </div>
+          </div>
+
+          <!-- Right: Payment Meta -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; font-size: 9px; display: flex; flex-direction: column; gap: 3px;">
+            <div style="display: flex; justify-content: space-between;"><span style="color: #64748b;">Receipt Category:</span> <strong style="color: #0f172a;">Running Bill Interim Payment</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span style="color: #64748b;">Payment Mode:</span> <strong style="color: #0f172a;">Cash Counter</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span style="color: #64748b;">Date &amp; Time:</span> <span style="font-weight: 700;">06 Nov 2026, 04:44 PM</span></div>
+            <div style="display: flex; justify-content: space-between;"><span style="color: #64748b;">Remarks / Ref:</span> <span>Running Bill Interim Payment received for Test 1</span></div>
+          </div>
+        </div>
+
+        <!-- Ledger Snapshot Bar -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 6px 8px; background: #f1f5f9; border-radius: 6px; font-size: 8.5px; text-align: center;">
+          <div><span style="color: #64748b; display: block; font-size: 7.5px;">TOTAL CHARGES</span> <strong>₹ 3,000.00</strong></div>
+          <div><span style="color: #64748b; display: block; font-size: 7.5px;">TOTAL RECEIPTS</span> <strong style="color: #059669;">₹ 5,141.00</strong></div>
+          <div><span style="color: #64748b; display: block; font-size: 7.5px;">EXCESS ADVANCE CREDIT</span> <strong style="color: #0284c7;">₹ 2,141.00</strong></div>
+        </div>
+      </div>
+    `;
+  }
+
   // Fallback for "all" / Global Master
   return `
     <div class="shared-placeholder-box">
@@ -1762,8 +1848,8 @@ export function buildSharedPreviewHTML(
   <title>Master Shared Header & Footer Preview - ${slipType.toUpperCase()}</title>
   <style>
     @page {
-      size: A4 portrait;
-      margin: ${cfg.page?.margin ?? 6}mm;
+      size: ${slipType === "ipd_receipt" ? "A5 portrait" : "A4 portrait"};
+      margin: ${cfg.page?.margin ?? (slipType === "ipd_receipt" ? 4 : 6)}mm;
     }
     * {
       box-sizing: border-box;
@@ -1776,16 +1862,16 @@ export function buildSharedPreviewHTML(
       background: #ffffff;
       color: #0f172a;
       font-family: ${cfg.page?.fontFamily || "Inter, system-ui, sans-serif"};
-      font-size: 10px;
+      font-size: ${slipType === "ipd_receipt" ? "9px" : "10px"};
       line-height: 1.35;
     }
     .shared-preview-page {
       width: 100%;
-      max-width: 195mm;
+      max-width: ${slipType === "ipd_receipt" ? "142mm" : "195mm"};
       margin: 0 auto;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: ${slipType === "ipd_receipt" ? "4px" : "6px"};
       position: relative;
     }
 

@@ -25,6 +25,8 @@ export {
   SAMPLE_IPD_ADMISSION_DATA,
   IPD_ADMISSION_SETTINGS_KEY,
 } from "./ipdAdmissionPrintConfig.js";
+export { default as IPDReceiptPrintSettings } from "./IPDReceiptPrintSettings.jsx";
+export { default as IPDReceiptPrintHandler, buildReceiptHTML, IPD_RECEIPT_SETTINGS_KEY, SAMPLE_RECEIPT_PAYLOAD } from "./IPDReceiptPrintHandler.js";
 export { default as SharedHeaderFooterDesigner } from "./SharedHeaderFooterDesigner.jsx";
 export {
   DEFAULT_SHARED_CONFIG,

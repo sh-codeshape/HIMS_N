@@ -757,6 +757,7 @@ const DEFAULT_SETTINGS_MAP: Record<string, any> = {
   print_slip_ipd_admission: DEFAULT_IPD_SLIP_SETTINGS,
   print_slip_ipd_discharge: DEFAULT_IPD_DISCHARGE_SETTINGS,
   print_slip_ipd_bill: DEFAULT_IPD_BILLING_SETTINGS,
+  print_slip_ipd_receipt: DEFAULT_IPD_BILLING_SETTINGS,
   print_slip_shared_master: DEFAULT_IPD_SLIP_SETTINGS,
 };
 

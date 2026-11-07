@@ -14,6 +14,8 @@ import {
   DEFAULT_IPD_BILLING_SETTINGS,
   buildBillingHTML,
   IPD_BILLING_SETTINGS_KEY,
+  IPDReceiptPrintHandler,
+  buildReceiptHTML,
 } from "../settings/index.js";
 
 // Standard Clinical Inpatient Medicines Catalog (with dosage, unit, standard hospital tariff)
@@ -209,10 +211,16 @@ export default function IPDBilling() {
   const [customizerSaving, setCustomizerSaving] = useState(false);
   const [customizerSavedToast, setCustomizerSavedToast] = useState(null);
 
-  // Load custom billing print settings from database
+  // Load custom billing print settings and receipt print settings from database
+  const [ipdReceiptSettings, setIpdReceiptSettings] = useState(null);
+  const [receiptZoom, setReceiptZoom] = useState(100);
+
   useEffect(() => {
     IPDBillingPrintHandler.getSettings().then((s) => {
       if (s) setIpdBillingSettings(s);
+    });
+    IPDReceiptPrintHandler.getSettings().then((s) => {
+      if (s) setIpdReceiptSettings(s);
     });
   }, []);
 
@@ -1537,6 +1545,51 @@ export default function IPDBilling() {
   const handlePrintOfficialBill = () => {
     if (!currentBillingPayload) return;
     IPDBillingPrintHandler.printBillingSlip(currentBillingPayload, ipdBillingSettings);
+  };
+
+  // Live IPD Receipt Payload & HTML for Half-Page Payment Receipt Slip
+  const currentReceiptPayload = useMemo(() => {
+    if (!selectedPaymentForReceipt) return null;
+    return {
+      receiptNo: selectedPaymentForReceipt.receiptNo || "REC-0001",
+      date: selectedPaymentForReceipt.date || "",
+      time: selectedPaymentForReceipt.time || "",
+      amount: Number(selectedPaymentForReceipt.amount || 0),
+      mode: selectedPaymentForReceipt.mode || "Cash Counter",
+      type: selectedPaymentForReceipt.type || "Running Bill",
+      remarks: selectedPaymentForReceipt.remarks || "Counter payment receipt",
+      patient: {
+        name: patient?.name,
+        uhid: patient?.uhid,
+        admissionNo: patient?.admissionNo,
+        encounterNo: patient?.admissionNo,
+        age: patient?.age,
+        gender: patient?.gender,
+        mobile: patient?.mobile,
+        ward: patient?.ward,
+        bedNo: patient?.bedNo,
+        doctor: patient?.doctor,
+        department: patient?.department,
+        address: patient?.address,
+        guardian: patient?.guardian,
+      },
+      audit: {
+        totalCharges: totalBills,
+        totalPaid: totalPaymentsReceivedAll,
+        pendingBalance: pendingAmount,
+        excessCredit: excessAdvance,
+      },
+    };
+  }, [selectedPaymentForReceipt, patient, totalBills, totalPaymentsReceivedAll, pendingAmount, excessAdvance]);
+
+  const currentReceiptHtml = useMemo(() => {
+    if (!currentReceiptPayload) return "";
+    return buildReceiptHTML(currentReceiptPayload, ipdReceiptSettings, false);
+  }, [currentReceiptPayload, ipdReceiptSettings]);
+
+  const handlePrintOfficialReceipt = () => {
+    if (!currentReceiptPayload) return;
+    IPDReceiptPrintHandler.printReceipt(currentReceiptPayload, ipdReceiptSettings);
   };
 
   const handleToggleStamp = () => {
@@ -3689,31 +3742,69 @@ export default function IPDBilling() {
 
 {/* ── MODALS ── */ }
 
-{/* 1.1 Official Inpatient Payment Receipt Modal */}
+{/* 1.1 Official Inpatient Payment Receipt Modal (Customizable Half-Page Slip) */}
 {
   selectedPaymentForReceipt && (
     <div className="ipd-modal-backdrop" onClick={() => setSelectedPaymentForReceipt(null)}>
-      <div className="ipd-modal-box ipd-modal-box--print" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 750 }}>
+      <div className="ipd-modal-box ipd-modal-box--print" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 820 }}>
         <div className="ipd-modal-header hims-no-print">
           <div className="ipd-modal-header-left">
             <div className="ipd-modal-icon-wrap" style={{ background: "#ecfdf5", color: "#059669" }}>
               <Icon name="LuReceipt" size={20} />
             </div>
             <div>
-              <h3 className="ipd-modal-title">Official Inpatient Payment Receipt</h3>
+              <h3 className="ipd-modal-title">Official Inpatient Payment Receipt (Half-Page Slip)</h3>
               <span className="ipd-modal-subtitle">
                 Receipt No: {selectedPaymentForReceipt.receiptNo} • {selectedPaymentForReceipt.date} {selectedPaymentForReceipt.time}
               </span>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Zoom Controls */}
+            <div style={{ display: "flex", alignItems: "center", gap: 3, background: "#f1f5f9", padding: "2px 6px", borderRadius: 8 }}>
+              <button
+                type="button"
+                onClick={() => setReceiptZoom((z) => Math.max(60, z - 10))}
+                className="ipd-zoom-btn"
+                title="Zoom Out"
+              >
+                -
+              </button>
+              <span style={{ fontSize: 11, fontFamily: "monospace", minWidth: 36, textAlign: "center", fontWeight: 700 }}>
+                {receiptZoom}%
+              </span>
+              <button
+                type="button"
+                onClick={() => setReceiptZoom((z) => Math.min(150, z + 10))}
+                className="ipd-zoom-btn"
+                title="Zoom In"
+              >
+                +
+              </button>
+            </div>
+
+            <a
+              href="/settings/print-templates?tab=ipd-receipt"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ipd-btn-edit-slip"
+              title="Open Payment Receipt Slip Customizer in Print Settings"
+              style={{ textDecoration: "none" }}
+            >
+              <Icon name="LuSlidersHorizontal" size={13} />
+              <span>Customize Slip</span>
+            </a>
+
             <button
               type="button"
               className="ipd-btn-search"
-              onClick={() => window.print()}
+              onClick={handlePrintOfficialReceipt}
+              title="Print official payment receipt slip"
             >
-              <Icon name="LuPrinter" size={15} /> Print Receipt
+              <Icon name="LuPrinter" size={15} />
+              <span>Print Receipt</span>
             </button>
+
             <button
               type="button"
               className="ipd-modal-close-btn"
@@ -3724,141 +3815,31 @@ export default function IPDBilling() {
           </div>
         </div>
 
-        <div className="ipd-modal-body hims-inv-print-body" style={{ background: "#ffffff" }}>
-          <div className="hims-receipt-sheet">
-            <div className="hims-inv-top-bar">
-              <div className="hims-inv-brand-col">
-                <div className="hims-inv-brand-title">AURA MULTISPECIALTY HOSPITAL &amp; RESEARCH CENTER</div>
-                <div className="hims-inv-brand-sub">Accredited Multi-Specialty Hospital &amp; Surgical Care Center</div>
-                <div className="hims-inv-brand-contact">
-                  Plot 45, Institutional Area, Hospital Road • Helpline: +91 141 289 0000 • Email: billing@aurahospital.org
-                </div>
-              </div>
-              <div className="hims-inv-tax-col">
-                <div className="hims-inv-tax-title">OFFICIAL PAYMENT RECEIPT</div>
-                <div className="hims-inv-tax-row"><span>GSTIN:</span> <strong>08AAACN1234F1Z8</strong></div>
-                <div className="hims-inv-tax-row"><span>STATUS:</span> <strong style={{ color: "#059669" }}>PAID &amp; RECORDED</strong></div>
-              </div>
-            </div>
-
-            <div className="hims-inv-doc-banner">
-              <span>INPATIENT CASH &amp; ELECTRONIC PAYMENT RECEIPT SLIP</span>
-            </div>
-
-            <div className="hims-inv-demographics-grid">
-              <div className="hims-demo-col">
-                <table className="hims-demo-table">
-                  <tbody>
-                    <tr>
-                      <td className="demo-k">Patient Name</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v demo-v--name">{patient?.name}</td>
-                    </tr>
-                    <tr>
-                      <td className="demo-k">Patient UHID</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v demo-v--code">{patient?.uhid}</td>
-                    </tr>
-                    <tr>
-                      <td className="demo-k">Age / Gender</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v">{patient?.age} Y / {patient?.gender}</td>
-                    </tr>
-                    <tr>
-                      <td className="demo-k">Contact / Phone</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v">{patient?.mobile || "—"}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="hims-demo-col">
-                <table className="hims-demo-table">
-                  <tbody>
-                    <tr>
-                      <td className="demo-k">Receipt Number</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v demo-v--code">{selectedPaymentForReceipt.receiptNo}</td>
-                    </tr>
-                    <tr>
-                      <td className="demo-k">Payment Date / Time</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v">{selectedPaymentForReceipt.date} {selectedPaymentForReceipt.time}</td>
-                    </tr>
-                    <tr>
-                      <td className="demo-k">IPD Admission No</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v demo-v--code">{patient?.admissionNo}</td>
-                    </tr>
-                    <tr>
-                      <td className="demo-k">Ward / Bed</td>
-                      <td className="demo-sep">:</td>
-                      <td className="demo-v">{patient?.ward} - {patient?.bedNo}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="hims-receipt-amount-box">
-              <div className="hims-receipt-amt-left">
-                <div className="hims-receipt-amt-label">Amount Received (INR)</div>
-                <div className="hims-receipt-amt-number">₹{selectedPaymentForReceipt.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</div>
-                <div className="hims-receipt-amt-words">
-                  In Words: <strong>{numberToWords(selectedPaymentForReceipt.amount)}</strong>
-                </div>
-              </div>
-              <div className="hims-receipt-amt-right">
-                <div className="hims-receipt-info-row">
-                  <span>Receipt Category:</span>
-                  <strong>
-                    {selectedPaymentForReceipt.type === "Advance"
-                      ? "Initial Advance Deposit"
-                      : selectedPaymentForReceipt.type === "Settlement"
-                      ? "Discharge Settlement"
-                      : "Running Bill Interim Payment"}
-                  </strong>
-                </div>
-                <div className="hims-receipt-info-row">
-                  <span>Payment Mode:</span>
-                  <strong>{selectedPaymentForReceipt.mode}</strong>
-                </div>
-                <div className="hims-receipt-info-row">
-                  <span>Notes / Reference:</span>
-                  <span>{selectedPaymentForReceipt.remarks || "Counter Receipt"}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="hims-receipt-audit-box">
-              <div className="hims-audit-chip">
-                <span className="lbl">Total Charges Incurred:</span>
-                <span className="val">₹{totalBills.toLocaleString("en-IN")}</span>
-              </div>
-              <div className="hims-audit-chip">
-                <span className="lbl">Total Paid So Far:</span>
-                <span className="val" style={{ color: "#059669" }}>₹{totalPaymentsReceivedAll.toLocaleString("en-IN")}</span>
-              </div>
-              <div className="hims-audit-chip">
-                <span className="lbl">Current Remaining Balance:</span>
-                <span className="val" style={{ color: pendingAmount > 0 ? "#e11d48" : "#059669" }}>
-                  ₹{pendingAmount.toLocaleString("en-IN")}
-                </span>
-              </div>
-            </div>
-
-            <div className="hims-inv-signatures-row" style={{ marginTop: 28 }}>
-              <div className="hims-sig-box">
-                <div className="hims-sig-line"></div>
-                <div className="hims-sig-title">Patient / Attendant Signature</div>
-              </div>
-              <div className="hims-sig-box">
-                <div className="hims-sig-line"></div>
-                <div className="hims-sig-title">Cashier / Authorized Signatory</div>
-                <div className="hims-sig-sub">Aura Hospital Accounts Desk</div>
-              </div>
-            </div>
+        <div className="ipd-modal-body hims-inv-print-body" style={{ background: "#f1f5f9", padding: "16px 20px", overflow: "auto", maxHeight: "78vh" }}>
+          <div
+            style={{
+              width: "148mm",
+              minHeight: "210mm",
+              margin: "0 auto",
+              transform: `scale(${receiptZoom / 100})`,
+              transformOrigin: "top center",
+              transition: "transform 0.12s ease",
+              background: "#ffffff",
+              boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+              borderRadius: 6,
+              padding: 8,
+            }}
+          >
+            <iframe
+              title="Payment Receipt Live Preview"
+              srcDoc={currentReceiptHtml}
+              style={{
+                width: "100%",
+                height: "205mm",
+                border: "none",
+                background: "#ffffff",
+              }}
+            />
           </div>
         </div>
       </div>
