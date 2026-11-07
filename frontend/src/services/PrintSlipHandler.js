@@ -9,6 +9,7 @@ import {
   buildSharedFooterHTML,
   mergeSharedSettings,
   loadSharedPrintSettings,
+  getElementComputedStyle,
 } from '../pages/settings/sharedPrintConfig.js';
 
 /**
@@ -266,7 +267,7 @@ export class PrintSlipHandler {
     width: 100%;
     max-width: ${maxSlipWidth};
     margin: 0 auto;
-    padding: 4px 6px;
+    padding: 0;
     background: #ffffff;
     display: flex;
     flex-direction: column;
@@ -334,7 +335,7 @@ export class PrintSlipHandler {
 
     <!-- 3. OPD Consultation Particulars & Charges -->
     ${particularsConfig.showTable !== false ? `
-    <div class="opd-slip-table-wrap">
+    <div class="opd-slip-table-wrap" style="${getElementComputedStyle("body.card", sharedConfig.fieldStyles || {})}">
       <table class="opd-slip-table">
         <thead>
           <tr>

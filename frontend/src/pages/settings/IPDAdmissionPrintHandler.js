@@ -984,6 +984,16 @@ export function buildAdmissionTicketHTML(
           ? `<div class="terms-footer-tagline" style="${getFieldComputedStyle("terms.footerTagline", "termsCard", cfg)}" ${clickableAttr("terms.footerTagline")}>${cfg.fieldStyles?.["terms.footerTagline"]?.customText || cfg.terms.footerTagline}</div>`
           : ""
       }
+      ${
+        (cfg.hospital?.phone || cfg.fieldStyles?.["terms.helpline"]?.customText) && cfg.fieldStyles?.["terms.helpline"]?.show !== false
+          ? `<div class="terms-footer-helpline" style="font-size: 8px; font-weight: 700; color: #0b3b60; text-align: center; margin-top: 3px; padding-top: 2px; border-top: 1px solid #e2e8f0; ${getFieldComputedStyle("terms.helpline", "termsCard", cfg)}" ${clickableAttr("terms.helpline")}>📞 ${cfg.fieldStyles?.["terms.helpline"]?.customText || `24x7 Helpline: ${cfg.hospital?.phone || "+91 7388660408"}${cfg.hospital?.emergencyPhone ? ` • Emergency: ${cfg.hospital.emergencyPhone}` : ""}`}</div>`
+          : ""
+      }
+      ${
+        (cfg.hospital?.address || cfg.fieldStyles?.["terms.address"]?.customText) && cfg.fieldStyles?.["terms.address"]?.show !== false
+          ? `<div class="terms-footer-address" style="font-size: 7.5px; font-weight: 600; color: #475569; text-align: center; margin-top: 1px; ${getFieldComputedStyle("terms.address", "termsCard", cfg)}" ${clickableAttr("terms.address")}>📍 ${cfg.fieldStyles?.["terms.address"]?.customText || `${cfg.hospital?.name ? `${cfg.hospital.name} • ` : ""}${cfg.hospital?.address}`}</div>`
+          : ""
+      }
     </div>
     `
         : ""

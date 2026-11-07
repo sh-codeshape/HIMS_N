@@ -94,6 +94,7 @@ export const DEFAULT_SHARED_CONFIG = {
     logoHeight: 48,
     logoWidth: 150,
     showLogo: true,
+    showHeaderAddress: false,
     accreditations: ["NABH ACCREDITED", "ISO 9001:2015", "NABL CERTIFIED LABS"],
     showAccreditationBadges: true,
   },
@@ -156,12 +157,13 @@ export const DEFAULT_SHARED_CONFIG = {
     all: {
       title: "HOSPITAL ENCOUNTER & CLINICAL SLIP",
       copyBadge: "ORIGINAL FOR PATIENT",
-      inactiveElements: [],
+      inactiveElements: ["header.address"],
     },
     opd: {
       title: "OPD CONSULTATION SLIP",
       copyBadge: "PATIENT COPY",
       inactiveElements: [
+        "header.address",
         "ticket.topAdmissionNo",
         "signatures.nurse",
         "signatures.cashier",
@@ -172,6 +174,7 @@ export const DEFAULT_SHARED_CONFIG = {
       title: "IPD ADMISSION TICKET",
       copyBadge: "ORIGINAL FOR PATIENT",
       inactiveElements: [
+        "header.address",
         "signatures.cashier",
       ],
     },
@@ -179,6 +182,7 @@ export const DEFAULT_SHARED_CONFIG = {
       title: "INPATIENT FINAL TAX INVOICE",
       copyBadge: "ORIGINAL RECIPIENT",
       inactiveElements: [
+        "header.address",
         "signatures.nurse",
         "terms.card",
       ],
@@ -187,6 +191,7 @@ export const DEFAULT_SHARED_CONFIG = {
       title: "IPD DISCHARGE SUMMARY",
       copyBadge: "CONFIDENTIAL MEDICAL RECORD",
       inactiveElements: [
+        "header.address",
         "signatures.cashier",
         "signatures.attendant",
       ],
@@ -195,6 +200,7 @@ export const DEFAULT_SHARED_CONFIG = {
       title: "OFFICIAL PAYMENT RECEIPT & CASH VOUCHER",
       copyBadge: "ORIGINAL FOR PATIENT",
       inactiveElements: [
+        "header.address",
         "signatures.nurse",
         "signatures.doctor",
         "patient.doctor",
@@ -212,7 +218,9 @@ export const DEFAULT_SHARED_CONFIG = {
   },
 
   // ── 7. Independent Element Positioning & Typography Overrides (NO SYNC) ──
-  fieldStyles: {},
+  fieldStyles: {
+    "header.address": { show: false },
+  },
 };
 
 /**
@@ -221,6 +229,13 @@ export const DEFAULT_SHARED_CONFIG = {
  */
 export const SHARED_ELEMENT_TARGETS = [
   // ── Header Letterhead Elements ──
+  {
+    key: "header.card",
+    section: "Hospital Header",
+    name: "🏥 Hospital Letterhead Box Container",
+    desc: "Outer box, borders and background for the entire hospital brand header",
+    defaultTag: "div",
+  },
   {
     key: "header.hospitalName",
     section: "Hospital Header",
@@ -266,8 +281,8 @@ export const SHARED_ELEMENT_TARGETS = [
   {
     key: "header.address",
     section: "Hospital Header",
-    name: "📍 Physical Address Line",
-    desc: "Street, city, pin code address",
+    name: "📍 Header Address (Hidden • Moved to Footer)",
+    desc: "Hospital physical address moved to footer for a compact hospital letterhead",
     defaultTag: "p",
   },
   {
@@ -408,6 +423,15 @@ export const SHARED_ELEMENT_TARGETS = [
     defaultTag: "div",
   },
 
+  // ── Middle Clinical / Charges Table Body Container ──
+  {
+    key: "body.card",
+    section: "Clinical / Ledger Body",
+    name: "📄 Middle Clinical / Table Box",
+    desc: "Outer container box for middle clinical details or particulars table",
+    defaultTag: "div",
+  },
+
   // ── Footer Elements ──
   {
     key: "terms.card",
@@ -431,10 +455,24 @@ export const SHARED_ELEMENT_TARGETS = [
     defaultTag: "ol",
   },
   {
+    key: "terms.helpline",
+    section: "Footer Policies",
+    name: "📞 Footer Contact & Helpline Number",
+    desc: "Hospital phone & 24x7 emergency helpline line at bottom of slip",
+    defaultTag: "div",
+  },
+  {
+    key: "terms.address",
+    section: "Footer Policies",
+    name: "📍 Footer Hospital Physical Address",
+    desc: "Hospital physical address and location details at bottom of slip",
+    defaultTag: "div",
+  },
+  {
     key: "terms.footerTagline",
     section: "Footer Policies",
-    name: "📞 Footer Helpline & Tagline",
-    desc: "Bottom hospital address & 24x7 emergency line",
+    name: "💬 Footer Hospital Tagline",
+    desc: "Hospital slogan and website link at bottom of slip",
     defaultTag: "div",
   },
   {
@@ -737,7 +775,29 @@ export function getElementComputedStyle(key, fieldStyles = {}, extraCss = "", is
 
   // Height and Width overrides
   const heightStyle = f.height ? `height: ${f.height}${typeof f.height === "number" ? "px" : ""} !important; max-height: ${f.height}${typeof f.height === "number" ? "px" : ""} !important;` : "";
-  const widthStyle = f.width ? `width: ${f.width}${typeof f.width === "number" ? "px" : ""} !important;` : "";
+  const minHeightStyle = f.minHeight ? `min-height: ${f.minHeight}${typeof f.minHeight === "number" ? "px" : ""} !important;` : "";
+  const widthStyle = f.width ? `width: ${f.width}${typeof f.width === "number" ? "px" : (f.width.endsWith("%") || f.width.endsWith("px") || f.width.endsWith("mm") ? "" : "px")} !important;` : "";
+
+  // Dynamic Border & Corner Radius Controls
+  let borderCombined = "";
+  if (f.showBorder === false || f.border === "none" || f.borderWidth === 0 || f.borderWidth === "0px" || f.borderStyle === "none") {
+    borderCombined = "border: none !important; box-shadow: none !important;";
+  } else if (f.borderWidth !== undefined || f.borderStyle || f.borderColor) {
+    const bw = f.borderWidth !== undefined ? (typeof f.borderWidth === "number" ? `${f.borderWidth}px` : f.borderWidth) : "1px";
+    const bs = f.borderStyle || "solid";
+    const bc = f.borderColor || "#cbd5e1";
+    borderCombined = `border: ${bw} ${bs} ${bc} !important;`;
+  } else if (brdClr || brdNone) {
+    borderCombined = `${brdClr} ${brdNone}`;
+  }
+
+  const radiusStyle = f.borderRadius !== undefined && f.borderRadius !== ""
+    ? `border-radius: ${typeof f.borderRadius === "number" ? `${f.borderRadius}px` : f.borderRadius} !important;`
+    : "";
+
+  const marginBtmStyle = f.marginBottom !== undefined && f.marginBottom !== ""
+    ? `margin-bottom: ${typeof f.marginBottom === "number" ? `${f.marginBottom}px` : f.marginBottom} !important;`
+    : "";
 
   // Scale and Zoom overrides
   const scaleNum = Number(f.scale);
@@ -755,13 +815,15 @@ export function getElementComputedStyle(key, fieldStyles = {}, extraCss = "", is
     ${textAln}
     ${textTrans}
     ${bgClr}
-    ${brdClr}
-    ${brdNone}
+    ${borderCombined}
+    ${radiusStyle}
     ${letterSp}
     ${heightStyle}
+    ${minHeightStyle}
     ${widthStyle}
     ${scaleStyle}
     ${padStyle}
+    ${marginBtmStyle}
     ${extraCss}
   `
     .replace(/\s+/g, " ")
@@ -966,7 +1028,10 @@ export function buildSharedHeaderHTML(
 
   return `
     <!-- ── 1. HOSPITAL LETTERHEAD ── -->
-    <div class="shared-hospital-block">
+    ${
+      isActive("header.card") && fs["header.card"]?.show !== false
+        ? `
+    <div class="shared-hospital-block" style="${getStyle("header.card")}" ${click("header.card")}>
       <div class="shared-hospital-left">
         ${
           isActive("header.logo") && cfg.hospital?.showLogo && cfg.hospital?.logoUrl
@@ -977,7 +1042,7 @@ export function buildSharedHeaderHTML(
           ${isActive("header.hospitalName") ? `<h1 class="shared-hospital-name" style="${getStyle("header.hospitalName")}" ${click("header.hospitalName")}>${hName}</h1>` : ""}
           ${isActive("header.subtitle") && hSub ? `<p class="shared-hospital-sub" style="${getStyle("header.subtitle")}" ${click("header.subtitle")}>${hSub}</p>` : ""}
           ${isActive("header.slogan") && hSlogan ? `<p class="shared-hospital-slogan" style="${getStyle("header.slogan")}" ${click("header.slogan")}>${hSlogan}</p>` : ""}
-          ${isActive("header.address") && hAddr ? `<p class="shared-hospital-addr" style="${getStyle("header.address")}" ${click("header.address")}>${hAddr}</p>` : ""}
+          ${isActive("header.address") && cfg.hospital?.showHeaderAddress === true && hAddr ? `<p class="shared-hospital-addr" style="${getStyle("header.address")}" ${click("header.address")}>${hAddr}</p>` : ""}
           ${isActive("header.phoneEmail") && hPhone ? `<p class="shared-hospital-contact" style="${getStyle("header.phoneEmail")}" ${click("header.phoneEmail")}>${hPhone}</p>` : ""}
         </div>
       </div>
@@ -995,6 +1060,9 @@ export function buildSharedHeaderHTML(
         }
       </div>
     </div>
+    `
+        : ""
+    }
 
     <!-- ── 2. DOCUMENT BANNER & BARCODE ── -->
     ${
@@ -1213,6 +1281,11 @@ export function buildSharedFooterHTML(
   const getText = (k, fallback) => fs[k]?.customText || fallback;
 
   const termsTitle = getText("terms.title", cfg.footer?.termsTitle || "HOSPITAL INSTRUCTIONS & POLICIES");
+  const helplineRaw = typeof cfg.footer?.helpline === "object" ? cfg.footer?.helpline?.number : cfg.footer?.helpline;
+  const defaultHelpline = helplineRaw || (cfg.hospital?.phone ? `24x7 Helpline: ${cfg.hospital.phone}${cfg.hospital?.emergencyPhone ? ` • Emergency: ${cfg.hospital.emergencyPhone}` : ""}` : "");
+  const termsHelpline = getText("terms.helpline", defaultHelpline);
+  const defaultAddress = cfg.footer?.address || cfg.hospital?.address ? `${cfg.hospital?.name ? `${cfg.hospital.name} • ` : ""}${cfg.footer?.address || cfg.hospital?.address}` : "";
+  const termsAddress = getText("terms.address", defaultAddress);
   const termsTagline = getText("terms.footerTagline", cfg.footer?.tagline || "");
   const termsDisclaimer = getText("terms.disclaimer", cfg.footer?.disclaimer || "");
 
@@ -1230,6 +1303,8 @@ export function buildSharedFooterHTML(
         <ol class="shared-terms-list" style="${getStyle("terms.list")}" ${click("terms.list")}>
           ${(cfg.footer?.termsItems || []).map((t) => `<li>${t}</li>`).join("")}
         </ol>
+        ${isActive("terms.helpline") && termsHelpline ? `<div class="shared-terms-helpline" style="${getStyle("terms.helpline")}" ${click("terms.helpline")}>📞 ${termsHelpline}</div>` : ""}
+        ${isActive("terms.address") && termsAddress ? `<div class="shared-terms-addr" style="${getStyle("terms.address")}" ${click("terms.address")}>📍 ${termsAddress}</div>` : ""}
         ${isActive("terms.footerTagline") && termsTagline ? `<div class="shared-terms-tagline" style="${getStyle("terms.footerTagline")}" ${click("terms.footerTagline")}>${termsTagline}</div>` : ""}
         ${isActive("terms.disclaimer") && termsDisclaimer ? `<div class="shared-terms-disclaimer" style="${getStyle("terms.disclaimer")}" ${click("terms.disclaimer")}>${termsDisclaimer}</div>` : ""}
       </div>
@@ -1309,10 +1384,18 @@ export function buildSharedFooterHTML(
 /**
  * Builds realistic middle body content for a specific slip in the live preview
  */
-function buildSlipBodyPreviewHTML(slipType = "all") {
+function buildSlipBodyPreviewHTML(slipType = "all", settings = DEFAULT_SHARED_CONFIG, options = { isPreview: false }) {
+  const fs = settings.fieldStyles || {};
+  const isPreview = options?.isPreview === true;
+  const isBodyActive = isElementActiveOnSlip("body.card", slipType, settings) && fs["body.card"]?.show !== false;
+  if (!isBodyActive) return "";
+
+  const bodyStyle = getElementComputedStyle("body.card", fs);
+  const bodyClick = getClickableAttr("body.card", isPreview);
+
   if (slipType === "opd") {
     return `
-      <div class="shared-slip-body-box">
+      <div class="shared-slip-body-box" style="${bodyStyle}" ${bodyClick}>
         <div class="shared-body-head">
           <span class="shared-body-title">🩺 OPD CONSULTATION PARTICULARS &amp; CHARGES</span>
           <span class="shared-body-badge">Token: T-311026-GEN-03</span>
@@ -1356,7 +1439,7 @@ function buildSlipBodyPreviewHTML(slipType = "all") {
 
   if (slipType === "ipd_admission") {
     return `
-      <div class="shared-slip-body-box">
+      <div class="shared-slip-body-box" style="${bodyStyle}" ${bodyClick}>
         <div class="shared-body-head">
           <span class="shared-body-title">🛏️ INPATIENT ADMISSION &amp; BED ALLOTMENT DETAILS</span>
           <span class="shared-body-badge">IPD No: IPD-26-0198</span>
@@ -1385,7 +1468,7 @@ function buildSlipBodyPreviewHTML(slipType = "all") {
 
   if (slipType === "ipd_billing") {
     return `
-      <div class="shared-slip-body-box">
+      <div class="shared-slip-body-box" style="${bodyStyle}" ${bodyClick}>
         <div class="shared-body-head">
           <span class="shared-body-title">💳 INPATIENT BILLING &amp; CHARGES LEDGER</span>
           <span class="shared-body-badge">Tax Invoice: BILL-2026-8812</span>
@@ -1444,7 +1527,7 @@ function buildSlipBodyPreviewHTML(slipType = "all") {
 
   if (slipType === "ipd_discharge") {
     return `
-      <div class="shared-slip-body-box">
+      <div class="shared-slip-body-box" style="${bodyStyle}" ${bodyClick}>
         <div class="shared-body-head">
           <span class="shared-body-title">📋 CLINICAL DISCHARGE SUMMARY &amp; COURSE</span>
           <span class="shared-body-badge">Discharged: Stable</span>
@@ -1479,7 +1562,7 @@ function buildSlipBodyPreviewHTML(slipType = "all") {
 
   if (slipType === "ipd_receipt") {
     return `
-      <div class="shared-slip-body-box" style="border: 1.5px solid #0284c7; background: #ffffff;">
+      <div class="shared-slip-body-box" style="border: 1.5px solid #0284c7; background: #ffffff; ${bodyStyle}" ${bodyClick}>
         <div class="shared-body-head" style="background: #f0f9ff; padding: 6px 10px; border-radius: 6px; margin-bottom: 8px;">
           <span class="shared-body-title" style="color: #0369a1; font-size: 11px;">🧾 PAYMENT RECEIPT &amp; TRANSACTION DETAILS</span>
           <span class="shared-body-badge" style="background: #0284c7; color: #ffffff; font-weight: 800;">REC-26-0068</span>
@@ -1518,7 +1601,7 @@ function buildSlipBodyPreviewHTML(slipType = "all") {
 
   // Fallback for "all" / Global Master
   return `
-    <div class="shared-placeholder-box">
+    <div class="shared-placeholder-box" style="${bodyStyle}" ${bodyClick}>
       <div class="shared-placeholder-title">📄 Slip-Specific Middle Body Area (Shared Master Preview)</div>
       <div>
         Each slip (OPD Consultation, IPD Admission Ticket, IPD Billing Slip, Discharge Summary) displays its own middle clinical or ledger content here.
@@ -1780,14 +1863,28 @@ export const SHARED_PRINT_CSS = `
   .shared-terms-list li {
     margin-bottom: 1px;
   }
+  .shared-terms-helpline {
+    font-size: 8px;
+    font-weight: 700;
+    color: #0b3b60;
+    text-align: center;
+    margin-top: 3px;
+    padding-top: 2px;
+    border-top: 1px solid #e2e8f0;
+  }
+  .shared-terms-addr {
+    font-size: 7.5px;
+    font-weight: 600;
+    color: #475569;
+    text-align: center;
+    margin-top: 1px;
+  }
   .shared-terms-tagline {
     font-size: 8px;
     font-weight: 700;
     color: #0369a1;
     text-align: center;
-    margin-top: 3px;
-    padding-top: 2px;
-    border-top: 1px solid #e2e8f0;
+    margin-top: 2px;
   }
   .shared-terms-disclaimer {
     font-size: 7.5px;
@@ -1877,7 +1974,7 @@ export function buildSharedPreviewHTML(
     slipType,
   });
 
-  const bodyHtml = buildSlipBodyPreviewHTML(slipType);
+  const bodyHtml = buildSlipBodyPreviewHTML(slipType, cfg, { isPreview, activeTargetKey: activeKey });
 
   const footerHtml = buildSharedFooterHTML(cfg, {
     isPreview,
@@ -1902,12 +1999,18 @@ export function buildSharedPreviewHTML(
     }
     html, body {
       margin: 0;
-      padding: 0;
+      padding: ${isPreview ? `${cfg.page?.margin ?? (slipType === "ipd_receipt" ? 4 : 6)}mm` : "0"};
       background: #ffffff;
       color: #0f172a;
       font-family: ${cfg.page?.fontFamily || "Inter, system-ui, sans-serif"};
       font-size: ${slipType === "ipd_receipt" ? "9px" : "10px"};
       line-height: 1.35;
+    }
+    @media print {
+      html, body {
+        padding: 0 !important;
+        margin: 0 !important;
+      }
     }
     .shared-preview-page {
       width: 100%;

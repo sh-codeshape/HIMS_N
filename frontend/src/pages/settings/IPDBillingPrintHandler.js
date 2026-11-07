@@ -1522,10 +1522,12 @@ export function buildBillingHTML(data = SAMPLE_IPD_BILLING_DATA, settings = DEFA
 
     <!-- 13. Footer Tagline -->
     ${
-      terms.footerTagline
+      terms.footerTagline || hospital.phone || hospital.address
         ? `
     <footer class="bill-footer">
-      <div>${esc(terms.footerTagline)}</div>
+      ${hospital.phone ? `<div style="font-weight: 700; color: ${primary}; margin-bottom: 2px;">📞 Helpline / Contact: ${esc(hospital.phone)}${hospital.emergencyPhone ? ` • Emergency: ${esc(hospital.emergencyPhone)}` : ""}</div>` : ""}
+      ${hospital.address ? `<div style="margin-bottom: 2px;">📍 ${esc(hospital.name ? hospital.name + " • " : "")}${esc(hospital.address)}</div>` : ""}
+      ${terms.footerTagline ? `<div>${esc(terms.footerTagline)}</div>` : ""}
       ${terms.disclaimer ? `<div style="font-size: ${fontSize - 3}px; margin-top: 2px; color: ${muted};">${esc(terms.disclaimer)}</div>` : ""}
     </footer>
     `

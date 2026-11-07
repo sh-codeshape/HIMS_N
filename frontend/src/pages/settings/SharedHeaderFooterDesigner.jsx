@@ -349,8 +349,16 @@ export default function SharedHeaderFooterDesigner() {
   const isLogoTarget = selectedTargetKey === "header.logo";
   const isBarcodeTarget = selectedTargetKey === "ticket.barcode";
   const isBannerBoxTarget = selectedTargetKey === "ticket.card";
-  const isContainerTarget = selectedTargetKey.endsWith(".card") || selectedTargetKey === "signatures.row" || selectedTargetKey === "terms.list";
-  const isTextTarget = !isLogoTarget && !isBarcodeTarget && !isContainerTarget && !isBannerBoxTarget;
+  const isPureCardTarget = selectedTargetKey.endsWith(".card") || selectedTargetKey === "signatures.row" || selectedTargetKey === "ticket.card";
+  const isContainerTarget =
+    isPureCardTarget ||
+    selectedTargetKey === "terms.list" ||
+    selectedTargetKey.startsWith("terms.") ||
+    selectedTargetKey.startsWith("signatures.") ||
+    selectedTargetKey.includes("badge") ||
+    selectedTargetKey.includes("tag") ||
+    selectedTargetKey === "header.accreditations";
+  const isTextTarget = !isLogoTarget && !isBarcodeTarget && (!isPureCardTarget || selectedTargetKey === "ticket.title");
 
   // Nudge selected element in 4 directions
   const handleNudge = (direction) => {
@@ -806,7 +814,7 @@ export default function SharedHeaderFooterDesigner() {
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold text-slate-700">Nudge Step:</span>
                         <div className="flex items-center gap-1">
-                          {[1, 2, 5, 10, 20].map((step) => (
+                          {[1, 5, 10, 25, 50].map((step) => (
                             <button
                               key={step}
                               type="button"
@@ -823,14 +831,68 @@ export default function SharedHeaderFooterDesigner() {
                         </div>
                       </div>
 
-                      {/* Position Status Chips */}
+                      {/* Quick Alignment Across Page */}
+                      <div className="flex items-center justify-between gap-1 pt-0.5">
+                        <span className="text-[10px] font-bold text-slate-400">Page Align:</span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetX", 0)}
+                            className="px-2 py-0.5 text-[9.5px] font-bold rounded bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            title="Align to Left Margin (X: 0)"
+                          >
+                            Left
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleUpdateFieldStyle(selectedTargetKey, "textAlign", "center");
+                              handleUpdateFieldStyle(selectedTargetKey, "offsetX", 0);
+                            }}
+                            className="px-2 py-0.5 text-[9.5px] font-bold rounded bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            title="Center Align"
+                          >
+                            Center
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleUpdateFieldStyle(selectedTargetKey, "textAlign", "right");
+                              handleUpdateFieldStyle(selectedTargetKey, "offsetX", 0);
+                            }}
+                            className="px-2 py-0.5 text-[9.5px] font-bold rounded bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            title="Right Align"
+                          >
+                            Right
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleUpdateFieldStyle(selectedTargetKey, "offsetX", 0);
+                              handleUpdateFieldStyle(selectedTargetKey, "offsetY", 0);
+                            }}
+                            className="px-2 py-0.5 text-[9.5px] font-bold rounded bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
+                            title="Reset Position (0, 0)"
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Position Status & Direct Input Chips */}
                       <div className="grid grid-cols-2 gap-2">
                         <div className="p-2 rounded-lg bg-white border border-slate-200 flex items-center justify-between">
                           <div>
                             <span className="text-[9px] font-bold text-slate-400 uppercase block">X (Horizontal)</span>
-                            <span className="text-xs font-mono font-black text-slate-800">
-                              {Number(currentFieldStyle.offsetX) > 0 ? `+${currentFieldStyle.offsetX}` : (currentFieldStyle.offsetX || 0)}px
-                            </span>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <input
+                                type="number"
+                                value={currentFieldStyle.offsetX ?? 0}
+                                onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "offsetX", Number(e.target.value))}
+                                className="w-16 text-xs font-mono font-bold bg-slate-50 border border-slate-300 rounded px-1.5 py-0.5 text-slate-800"
+                              />
+                              <span className="text-[10px] text-slate-400 font-mono">px</span>
+                            </div>
                           </div>
                           {Number(currentFieldStyle.offsetX || 0) !== 0 && (
                             <button
@@ -838,16 +900,22 @@ export default function SharedHeaderFooterDesigner() {
                               onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetX", 0)}
                               className="text-[9.5px] text-sky-700 hover:underline font-bold"
                             >
-                              Reset
+                              0
                             </button>
                           )}
                         </div>
                         <div className="p-2 rounded-lg bg-white border border-slate-200 flex items-center justify-between">
                           <div>
                             <span className="text-[9px] font-bold text-slate-400 uppercase block">Y (Vertical)</span>
-                            <span className="text-xs font-mono font-black text-slate-800">
-                              {Number(currentFieldStyle.offsetY) > 0 ? `+${currentFieldStyle.offsetY}` : (currentFieldStyle.offsetY || 0)}px
-                            </span>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <input
+                                type="number"
+                                value={currentFieldStyle.offsetY ?? 0}
+                                onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "offsetY", Number(e.target.value))}
+                                className="w-16 text-xs font-mono font-bold bg-slate-50 border border-slate-300 rounded px-1.5 py-0.5 text-slate-800"
+                              />
+                              <span className="text-[10px] text-slate-400 font-mono">px</span>
+                            </div>
                           </div>
                           {Number(currentFieldStyle.offsetY || 0) !== 0 && (
                             <button
@@ -855,7 +923,7 @@ export default function SharedHeaderFooterDesigner() {
                               onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetY", 0)}
                               className="text-[9.5px] text-sky-700 hover:underline font-bold"
                             >
-                              Reset
+                              0
                             </button>
                           )}
                         </div>
@@ -875,7 +943,7 @@ export default function SharedHeaderFooterDesigner() {
                             ? "📊 Barcode Size & Dimensions"
                             : isBannerBoxTarget
                             ? "🎫 Banner Box Style & Size"
-                            : isContainerTarget
+                            : isPureCardTarget
                             ? "📐 Container Scale & Size"
                             : "🔤 Component Text & Font Size"}
                         </span>
@@ -886,7 +954,7 @@ export default function SharedHeaderFooterDesigner() {
                           ? `${currentFieldStyle.height || settings.hospital?.logoHeight || 48}px Height`
                           : isBarcodeTarget
                           ? `${currentFieldStyle.height || 24}px Height`
-                          : isBannerBoxTarget || isContainerTarget
+                          : isBannerBoxTarget || isPureCardTarget
                           ? `${currentFieldStyle.scale || 100}% Scale`
                           : `${currentFieldStyle.fontSize || "Auto"}px Font`}
                       </span>
@@ -1124,46 +1192,474 @@ export default function SharedHeaderFooterDesigner() {
                       </div>
                     )}
 
-                    {/* Banner Box (ticket.card) Border & Background Control */}
-                    {isBannerBoxTarget && (
-                      <div className="space-y-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-slate-700">Banner Box Style:</span>
-                          <span className="text-[10.5px] text-slate-500">Remove blue box or customize border</span>
+                    {/* ── 📦 BOX SIZING, BORDER THICKNESS & EDGE SMOOTHNESS DESIGNER ── */}
+                    {(isContainerTarget || isBannerBoxTarget || currentFieldStyle.borderWidth !== undefined || currentFieldStyle.borderRadius !== undefined || currentFieldStyle.borderColor !== undefined || currentFieldStyle.bgColor !== undefined) && (
+                      <div className="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <div className="flex items-center justify-between text-xs border-b border-slate-200/80 pb-2">
+                          <span className="font-extrabold text-slate-800 flex items-center gap-1.5">
+                            <Icon name="LuSquare" size={14} className="text-sky-700" />
+                            <span>Box Sizing, Border Thickness &amp; Edge Smoothness</span>
+                          </span>
+                          {(currentFieldStyle.borderWidth !== undefined || currentFieldStyle.borderRadius !== undefined || currentFieldStyle.padding !== undefined || currentFieldStyle.width !== undefined || currentFieldStyle.bgColor !== undefined) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleUpdateFieldStyle(selectedTargetKey, "borderWidth", undefined);
+                                handleUpdateFieldStyle(selectedTargetKey, "borderStyle", undefined);
+                                handleUpdateFieldStyle(selectedTargetKey, "borderColor", undefined);
+                                handleUpdateFieldStyle(selectedTargetKey, "borderRadius", undefined);
+                                handleUpdateFieldStyle(selectedTargetKey, "showBorder", undefined);
+                                handleUpdateFieldStyle(selectedTargetKey, "padding", undefined);
+                                handleUpdateFieldStyle(selectedTargetKey, "width", undefined);
+                                handleUpdateFieldStyle(selectedTargetKey, "bgColor", undefined);
+                              }}
+                              className="text-[10px] text-sky-700 hover:underline font-bold"
+                            >
+                              Reset Box &amp; Borders
+                            </button>
+                          )}
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleUpdateFieldStyle("ticket.card", "bgColor", undefined);
-                              handleUpdateFieldStyle("ticket.card", "borderColor", undefined);
-                              handleUpdateFieldStyle("ticket.card", "showBorder", true);
+
+                        {/* Quick Presets for Banner Card */}
+                        {isBannerBoxTarget && (
+                          <div className="grid grid-cols-2 gap-2 pb-1 border-b border-slate-200/60">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleUpdateFieldStyle("ticket.card", "bgColor", undefined);
+                                handleUpdateFieldStyle("ticket.card", "borderColor", undefined);
+                                handleUpdateFieldStyle("ticket.card", "borderWidth", undefined);
+                                handleUpdateFieldStyle("ticket.card", "borderRadius", undefined);
+                                handleUpdateFieldStyle("ticket.card", "showBorder", true);
+                              }}
+                              className={`p-1.5 rounded-lg text-xs font-bold border transition-all text-left ${
+                                !currentFieldStyle.bgColor && currentFieldStyle.showBorder !== false
+                                  ? "bg-white border-sky-500 shadow-xs text-sky-800"
+                                  : "bg-white/60 border-slate-200 text-slate-600 hover:bg-white"
+                              }`}
+                            >
+                              <span className="block text-[10.5px]">Default Blue Banner</span>
+                              <span className="block text-[9px] font-normal text-slate-400">Sky blue gradient &amp; 1px border</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleUpdateFieldStyle("ticket.card", "bgColor", "transparent");
+                                handleUpdateFieldStyle("ticket.card", "borderColor", "transparent");
+                                handleUpdateFieldStyle("ticket.card", "borderWidth", 0);
+                                handleUpdateFieldStyle("ticket.card", "showBorder", false);
+                              }}
+                              className={`p-1.5 rounded-lg text-xs font-bold border transition-all text-left ${
+                                currentFieldStyle.showBorder === false || currentFieldStyle.bgColor === "transparent"
+                                  ? "bg-white border-sky-500 shadow-xs text-sky-800"
+                                  : "bg-white/60 border-slate-200 text-slate-600 hover:bg-white"
+                              }`}
+                            >
+                              <span className="block text-[10.5px]">Borderless / Clean</span>
+                              <span className="block text-[9px] font-normal text-slate-400">Transparent (no blue frame)</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Box Width */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-[11px] font-bold text-slate-700">Box Width:</span>
+                            <span className="text-[10px] font-mono text-slate-500">{currentFieldStyle.width || "Auto (100%)"}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {[
+                              { label: "100% (Full)", val: "100%" },
+                              { label: "80%", val: "80%" },
+                              { label: "60%", val: "60%" },
+                              { label: "50% (Half)", val: "50%" },
+                              { label: "Auto", val: undefined },
+                            ].map((w) => (
+                              <button
+                                key={w.label}
+                                type="button"
+                                onClick={() => handleUpdateFieldStyle(selectedTargetKey, "width", w.val)}
+                                className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${
+                                  (currentFieldStyle.width === w.val || (!currentFieldStyle.width && w.val === undefined))
+                                    ? "bg-sky-700 text-white shadow-xs"
+                                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                                }`}
+                              >
+                                {w.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Box Padding (Inner Breathing Room) */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-[11px] font-bold text-slate-700">Inner Padding:</span>
+                            <span className="text-[10px] font-mono text-slate-500">{currentFieldStyle.padding !== undefined ? `${currentFieldStyle.padding}px` : "Default"}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {[
+                              { label: "0px (Flush)", val: 0 },
+                              { label: "4px (Compact)", val: 4 },
+                              { label: "8px (Standard)", val: 8 },
+                              { label: "12px (Spacious)", val: 12 },
+                              { label: "16px", val: 16 },
+                            ].map((p) => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => handleUpdateFieldStyle(selectedTargetKey, "padding", p.val)}
+                                className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${
+                                  Number(currentFieldStyle.padding) === p.val
+                                    ? "bg-sky-700 text-white shadow-xs"
+                                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                                }`}
+                              >
+                                {p.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* ── 📏 BORDER THICKNESS (SLIDER + NUMBER + PRESETS) ── */}
+                        <div className="space-y-1.5 pt-2 border-t border-slate-200/80">
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-bold text-slate-800">Border Thickness:</span>
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 bg-white text-sky-800 rounded font-bold border border-slate-200">
+                                {currentFieldStyle.showBorder === false || currentFieldStyle.borderWidth === 0
+                                  ? "0px (None / Borderless)"
+                                  : currentFieldStyle.borderWidth !== undefined
+                                  ? `${currentFieldStyle.borderWidth}px`
+                                  : "Default (1px)"}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                min="0"
+                                max="10"
+                                step="0.5"
+                                value={
+                                  currentFieldStyle.showBorder === false || currentFieldStyle.borderWidth === 0
+                                    ? 0
+                                    : currentFieldStyle.borderWidth !== undefined
+                                    ? currentFieldStyle.borderWidth
+                                    : 1
+                                }
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value);
+                                  if (isNaN(val) || val <= 0) {
+                                    handleUpdateFieldStyle(selectedTargetKey, "borderWidth", 0);
+                                    handleUpdateFieldStyle(selectedTargetKey, "showBorder", false);
+                                  } else {
+                                    handleUpdateFieldStyle(selectedTargetKey, "borderWidth", val);
+                                    handleUpdateFieldStyle(selectedTargetKey, "showBorder", true);
+                                    if (!currentFieldStyle.borderStyle || currentFieldStyle.borderStyle === "none") {
+                                      handleUpdateFieldStyle(selectedTargetKey, "borderStyle", "solid");
+                                    }
+                                  }
+                                }}
+                                className="w-14 text-center text-xs font-mono font-bold bg-white border border-slate-300 rounded px-1 py-0.5"
+                              />
+                              <span className="text-slate-400 text-[11px]">px</span>
+                              {currentFieldStyle.borderWidth !== undefined && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleUpdateFieldStyle(selectedTargetKey, "borderWidth", undefined);
+                                    handleUpdateFieldStyle(selectedTargetKey, "showBorder", undefined);
+                                  }}
+                                  className="text-[10px] text-sky-700 font-bold hover:underline ml-1"
+                                >
+                                  Reset
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          <input
+                            type="range"
+                            min="0"
+                            max="8"
+                            step="0.5"
+                            value={
+                              currentFieldStyle.showBorder === false || currentFieldStyle.borderWidth === 0
+                                ? 0
+                                : currentFieldStyle.borderWidth !== undefined
+                                ? Number(currentFieldStyle.borderWidth)
+                                : 1
+                            }
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              if (val === 0) {
+                                handleUpdateFieldStyle(selectedTargetKey, "borderWidth", 0);
+                                handleUpdateFieldStyle(selectedTargetKey, "showBorder", false);
+                              } else {
+                                handleUpdateFieldStyle(selectedTargetKey, "borderWidth", val);
+                                handleUpdateFieldStyle(selectedTargetKey, "showBorder", true);
+                                if (!currentFieldStyle.borderStyle || currentFieldStyle.borderStyle === "none") {
+                                  handleUpdateFieldStyle(selectedTargetKey, "borderStyle", "solid");
+                                }
+                              }
                             }}
-                            className={`p-2 rounded-lg text-xs font-bold border transition-all text-left ${
-                              !currentFieldStyle.bgColor && currentFieldStyle.showBorder !== false
-                                ? "bg-white border-sky-500 shadow-xs text-sky-800"
-                                : "bg-white/60 border-slate-200 text-slate-600 hover:bg-white"
-                            }`}
-                          >
-                            <span className="block text-[11px]">Default Blue Box</span>
-                            <span className="block text-[9.5px] font-normal text-slate-400">Light blue gradient &amp; border</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleUpdateFieldStyle("ticket.card", "bgColor", "transparent");
-                              handleUpdateFieldStyle("ticket.card", "borderColor", "transparent");
-                              handleUpdateFieldStyle("ticket.card", "showBorder", false);
-                            }}
-                            className={`p-2 rounded-lg text-xs font-bold border transition-all text-left ${
-                              currentFieldStyle.showBorder === false || currentFieldStyle.bgColor === "transparent"
-                                ? "bg-white border-sky-500 shadow-xs text-sky-800"
-                                : "bg-white/60 border-slate-200 text-slate-600 hover:bg-white"
-                            }`}
-                          >
-                            <span className="block text-[11px]">Borderless / Clean</span>
-                            <span className="block text-[9.5px] font-normal text-slate-400">Transparent (no blue box)</span>
-                          </button>
+                            className="w-full accent-sky-700 cursor-pointer"
+                          />
+
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {[
+                              { label: "0px None", val: 0 },
+                              { label: "0.5px Hairline", val: 0.5 },
+                              { label: "1px Thin", val: 1 },
+                              { label: "1.5px", val: 1.5 },
+                              { label: "2px Medium", val: 2 },
+                              { label: "3px Thick", val: 3 },
+                              { label: "4px Heavy", val: 4 },
+                            ].map((b) => {
+                              const isSelected =
+                                (b.val === 0 && (currentFieldStyle.showBorder === false || currentFieldStyle.borderWidth === 0)) ||
+                                (b.val > 0 && currentFieldStyle.showBorder !== false && Number(currentFieldStyle.borderWidth) === b.val) ||
+                                (b.val === 1 && currentFieldStyle.borderWidth === undefined && currentFieldStyle.showBorder !== false);
+                              return (
+                                <button
+                                  key={b.label}
+                                  type="button"
+                                  onClick={() => {
+                                    if (b.val === 0) {
+                                      handleUpdateFieldStyle(selectedTargetKey, "borderWidth", 0);
+                                      handleUpdateFieldStyle(selectedTargetKey, "showBorder", false);
+                                    } else {
+                                      handleUpdateFieldStyle(selectedTargetKey, "borderWidth", b.val);
+                                      handleUpdateFieldStyle(selectedTargetKey, "showBorder", true);
+                                      if (!currentFieldStyle.borderStyle || currentFieldStyle.borderStyle === "none") {
+                                        handleUpdateFieldStyle(selectedTargetKey, "borderStyle", "solid");
+                                      }
+                                    }
+                                  }}
+                                  className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${
+                                    isSelected
+                                      ? "bg-sky-700 text-white shadow-xs"
+                                      : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  {b.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Border Style */}
+                        <div className="space-y-1 pt-1.5 border-t border-slate-200/60">
+                          <label className="text-[10.5px] font-bold text-slate-700 block">Border Line Style:</label>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {[
+                              { label: "Solid", val: "solid" },
+                              { label: "Dashed", val: "dashed" },
+                              { label: "Dotted", val: "dotted" },
+                              { label: "Double", val: "double" },
+                              { label: "None", val: "none" },
+                            ].map((st) => (
+                              <button
+                                key={st.val}
+                                type="button"
+                                onClick={() => {
+                                  if (st.val === "none") {
+                                    handleUpdateFieldStyle(selectedTargetKey, "borderStyle", "none");
+                                    handleUpdateFieldStyle(selectedTargetKey, "showBorder", false);
+                                  } else {
+                                    handleUpdateFieldStyle(selectedTargetKey, "borderStyle", st.val);
+                                    handleUpdateFieldStyle(selectedTargetKey, "showBorder", true);
+                                  }
+                                }}
+                                className={`px-2 py-0.5 text-[10px] font-bold rounded capitalize transition-all ${
+                                  (currentFieldStyle.borderStyle === st.val || (!currentFieldStyle.borderStyle && st.val === "solid" && currentFieldStyle.showBorder !== false))
+                                    ? "bg-sky-700 text-white shadow-xs"
+                                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                                }`}
+                              >
+                                {st.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* ── ⚪ EDGE SMOOTHNESS (CORNER RADIUS) ── */}
+                        <div className="space-y-1.5 pt-2 border-t border-slate-200/80">
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-bold text-slate-800">Edge Smoothness:</span>
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 bg-white text-sky-800 rounded font-bold border border-slate-200">
+                                {currentFieldStyle.borderRadius === 0
+                                  ? "0px (Sharp Corners)"
+                                  : currentFieldStyle.borderRadius === 999
+                                  ? "Pill (Fully Rounded)"
+                                  : currentFieldStyle.borderRadius !== undefined
+                                  ? `${currentFieldStyle.borderRadius}px Smooth`
+                                  : "Default (8px Rounded)"}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              {/* Live corner curvature indicator */}
+                              <div
+                                className="w-5 h-5 bg-sky-100 border-2 border-sky-600 transition-all shadow-2xs"
+                                style={{
+                                  borderRadius: `${Math.min(10, currentFieldStyle.borderRadius !== undefined ? Number(currentFieldStyle.borderRadius) : 8)}px`,
+                                }}
+                                title="Live Corner Radius Shape"
+                              />
+                              <input
+                                type="number"
+                                min="0"
+                                max="40"
+                                step="1"
+                                value={
+                                  currentFieldStyle.borderRadius !== undefined
+                                    ? currentFieldStyle.borderRadius
+                                    : 8
+                                }
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value, 10);
+                                  handleUpdateFieldStyle(selectedTargetKey, "borderRadius", isNaN(val) ? 0 : val);
+                                }}
+                                className="w-14 text-center text-xs font-mono font-bold bg-white border border-slate-300 rounded px-1 py-0.5"
+                              />
+                              <span className="text-slate-400 text-[11px]">px</span>
+                              {currentFieldStyle.borderRadius !== undefined && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateFieldStyle(selectedTargetKey, "borderRadius", undefined)}
+                                  className="text-[10px] text-sky-700 font-bold hover:underline ml-1"
+                                >
+                                  Reset
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          <input
+                            type="range"
+                            min="0"
+                            max="30"
+                            step="1"
+                            value={
+                              currentFieldStyle.borderRadius !== undefined
+                                ? Number(currentFieldStyle.borderRadius)
+                                : 8
+                            }
+                            onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "borderRadius", Number(e.target.value))}
+                            className="w-full accent-sky-700 cursor-pointer"
+                          />
+
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {[
+                              { label: "0px Sharp", val: 0 },
+                              { label: "2px Crisp", val: 2 },
+                              { label: "4px Subtle", val: 4 },
+                              { label: "8px Standard", val: 8 },
+                              { label: "12px Smooth", val: 12 },
+                              { label: "16px Card", val: 16 },
+                              { label: "Pill", val: 999 },
+                            ].map((r) => {
+                              const isSelected =
+                                (r.val === 999 && Number(currentFieldStyle.borderRadius) >= 999) ||
+                                (r.val !== 999 && Number(currentFieldStyle.borderRadius) === r.val) ||
+                                (r.val === 8 && currentFieldStyle.borderRadius === undefined);
+                              return (
+                                <button
+                                  key={r.label}
+                                  type="button"
+                                  onClick={() => handleUpdateFieldStyle(selectedTargetKey, "borderRadius", r.val)}
+                                  className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${
+                                    isSelected
+                                      ? "bg-sky-700 text-white shadow-xs"
+                                      : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  {r.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Border Color & Background Fill */}
+                        <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-slate-200/80">
+                          <div>
+                            <label className="text-[10.5px] font-bold text-slate-700 block mb-1">Border Color:</label>
+                            <div className="flex items-center gap-1 mb-1.5">
+                              <input
+                                type="color"
+                                value={currentFieldStyle.borderColor || "#cbd5e1"}
+                                onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "borderColor", e.target.value)}
+                                className="w-6 h-6 rounded border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0"
+                              />
+                              <input
+                                type="text"
+                                value={currentFieldStyle.borderColor || ""}
+                                placeholder="#cbd5e1"
+                                onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "borderColor", e.target.value || undefined)}
+                                className="w-20 text-[10px] font-mono rounded border border-slate-200 px-1.5 py-0.5 text-slate-700"
+                              />
+                              {currentFieldStyle.borderColor && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateFieldStyle(selectedTargetKey, "borderColor", undefined)}
+                                  className="text-[9px] text-sky-700 hover:underline font-bold"
+                                >
+                                  Clear
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {[
+                                { label: "Slate", val: "#cbd5e1" },
+                                { label: "Gray", val: "#94a3b8" },
+                                { label: "Dark", val: "#334155" },
+                                { label: "Sky", val: "#0284c7" },
+                                { label: "Navy", val: "#0b3b60" },
+                              ].map((cp) => (
+                                <button
+                                  key={cp.label}
+                                  type="button"
+                                  onClick={() => handleUpdateFieldStyle(selectedTargetKey, "borderColor", cp.val)}
+                                  className={`px-1.5 py-0.5 text-[9px] font-bold rounded border transition-all ${
+                                    currentFieldStyle.borderColor === cp.val
+                                      ? "bg-sky-700 text-white border-sky-700"
+                                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  {cp.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="text-[10.5px] font-bold text-slate-700 block mb-1">Background Fill:</label>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {[
+                                { label: "None", val: "transparent" },
+                                { label: "White", val: "#ffffff" },
+                                { label: "Ice Blue", val: "#f0f9ff" },
+                                { label: "Light Sky", val: "#e0f2fe" },
+                                { label: "Slate", val: "#f8fafc" },
+                              ].map((bg) => (
+                                <button
+                                  key={bg.label}
+                                  type="button"
+                                  onClick={() => handleUpdateFieldStyle(selectedTargetKey, "bgColor", bg.val)}
+                                  className={`px-1.5 py-0.5 text-[9px] font-bold rounded border transition-all ${
+                                    currentFieldStyle.bgColor === bg.val
+                                      ? "bg-sky-700 text-white border-sky-700"
+                                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  {bg.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1942,12 +2438,18 @@ export default function SharedHeaderFooterDesigner() {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700">Physical Address:</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-slate-700">Hospital Physical Address:</label>
+                  <span className="text-[10px] text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full font-semibold border border-sky-200">
+                    Printed on Footer (Header is clean)
+                  </span>
+                </div>
                 <textarea
                   rows={2}
                   value={settings.hospital?.address || ""}
                   onChange={(e) => handleUpdate("hospital.address", e.target.value)}
-                  className="mt-1 w-full text-xs rounded-md border border-slate-200 px-2.5 py-1.5"
+                  placeholder="Street, City, State, PIN code"
+                  className="w-full text-xs rounded-md border border-slate-200 px-2.5 py-1.5 focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                 />
               </div>
 
@@ -2063,11 +2565,23 @@ export default function SharedHeaderFooterDesigner() {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700">Footer Helpline Line:</label>
+                <label className="text-xs font-bold text-slate-700">Footer Phone &amp; Helpline Number:</label>
                 <input
                   type="text"
                   value={settings.footer?.helpline || ""}
                   onChange={(e) => handleUpdate("footer.helpline", e.target.value)}
+                  placeholder="24x7 Helpline: +91 7388660408 • Emergency Trauma: +91 9811223344"
+                  className="mt-1 w-full text-xs rounded-md border border-slate-200 px-2.5 py-1.5"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700">Footer Physical Address:</label>
+                <input
+                  type="text"
+                  value={settings.footer?.address ?? (settings.hospital?.address || "")}
+                  onChange={(e) => handleUpdate("footer.address", e.target.value)}
+                  placeholder="Hospital Address Line in Footer"
                   className="mt-1 w-full text-xs rounded-md border border-slate-200 px-2.5 py-1.5"
                 />
               </div>

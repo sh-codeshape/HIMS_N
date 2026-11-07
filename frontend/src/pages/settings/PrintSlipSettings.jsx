@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import Icon from "../../components/common/Icon.jsx";
 import OPDConsultationSlip from "../../components/slips/OPDConsultationSlip.jsx";
 import settingsService from "../../api/services/settingsService.js";
@@ -136,6 +136,28 @@ export default function PrintSlipSettings() {
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null); // { type: 'success' | 'error', message }
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [previewZoom, setPreviewZoom] = useState(100);
+  const opdIframeRef = useRef(null);
+
+  // Generate real-time print HTML matching 100% what PrintSlipHandler prints
+  const previewHtml = useMemo(() => {
+    return PrintSlipHandler.getSlipHTML(SAMPLE_SLIP_DATA, settings);
+  }, [settings]);
+
+  useEffect(() => {
+    if (opdIframeRef.current) {
+      try {
+        const doc = opdIframeRef.current.contentDocument || opdIframeRef.current.contentWindow?.document;
+        if (doc) {
+          doc.open();
+          doc.write(previewHtml);
+          doc.close();
+        }
+      } catch (e) {
+        console.warn("Iframe write fallback:", e);
+      }
+    }
+  }, [previewHtml, activeTab]);
 
   // Load and merge both OPD settings and Master Shared settings on mount and tab switch
   useEffect(() => {
@@ -367,6 +389,11 @@ export default function PrintSlipSettings() {
             address: settings.hospital?.address || shared.hospital?.address,
             phone: settings.hospital?.phone || shared.hospital?.phone,
             logoUrl: settings.hospital?.logo?.src || shared.hospital?.logoUrl,
+          },
+          footer: {
+            ...(shared.footer || {}),
+            address: settings.footer?.address || settings.hospital?.address || shared.footer?.address,
+            helpline: settings.footer?.helpline?.number || shared.footer?.helpline,
           },
         };
         await saveSharedPrintSettings(updated);
@@ -1017,6 +1044,25 @@ export default function PrintSlipSettings() {
               />
             </div>
 
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Footer Hospital Address</label>
+              <input
+                type="text"
+                value={settings.footer.address || settings.hospital?.address || ""}
+                onChange={(e) =>
+                  setSettings((p) => ({
+                    ...p,
+                    footer: {
+                      ...p.footer,
+                      address: e.target.value,
+                    },
+                  }))
+                }
+                placeholder="Sector 4, Central Hospital Road, Jaipur - 302020"
+                className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg text-slate-700 font-medium"
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Notice Line 1</label>
@@ -1051,18 +1097,61 @@ export default function PrintSlipSettings() {
 
         {/* RIGHT COLUMN: Live Interactive WYSIWYG Preview (7 cols) */}
         <div className="xl:col-span-7 sticky top-6 space-y-3">
-          <div className="bg-slate-100 border border-slate-200 rounded-xl p-3 flex items-center justify-between text-xs text-slate-600 font-medium">
-            <span className="flex items-center gap-1.5 font-bold text-slate-800">
-              <Icon name="LuEye" size={16} className="text-sky-700" />
-              Live Interactive Slip Preview
-            </span>
-            <span className="text-[11px] bg-white px-2 py-0.5 rounded border border-slate-200">
-              Real-time update as you change settings
-            </span>
+          <div className="bg-slate-900 text-white px-4 py-2.5 rounded-xl flex items-center justify-between text-xs font-bold shadow-sm">
+            <div className="flex items-center gap-2">
+              <Icon name="LuEye" size={15} className="text-sky-400" />
+              <span>Live True-Print Preview (1:1 Output)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPreviewZoom((z) => Math.max(50, z - 10))}
+                className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 font-bold"
+                title="Zoom Out"
+              >
+                -
+              </button>
+              <span className="text-[11px] font-mono text-sky-300 min-w-10 text-center">{previewZoom}%</span>
+              <button
+                type="button"
+                onClick={() => setPreviewZoom((z) => Math.min(200, z + 10))}
+                className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 font-bold"
+                title="Zoom In"
+              >
+                +
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewZoom(100)}
+                className={`px-1.5 py-0.5 text-[10px] rounded ${previewZoom === 100 ? "bg-sky-600 text-white" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+              >
+                100%
+              </button>
+            </div>
           </div>
 
-          <div className="bg-slate-200/50 p-4 rounded-2xl border border-slate-300/80 shadow-inner overflow-x-auto">
-            <OPDConsultationSlip data={SAMPLE_SLIP_DATA} settings={settings} />
+          <div className="bg-slate-200/90 p-4 rounded-2xl border border-slate-300 shadow-inner overflow-auto max-h-[82vh] flex justify-center">
+            <div
+              style={{
+                width: "210mm",
+                minHeight: "297mm",
+                transform: `scale(${previewZoom / 100})`,
+                transformOrigin: "top center",
+                transition: "transform 0.12s ease",
+              }}
+              className="bg-white shadow-2xl rounded-sm p-4 text-slate-900 border border-slate-300 relative select-none"
+            >
+              <iframe
+                ref={opdIframeRef}
+                title="Live OPD Slip Print Preview"
+                srcDoc={previewHtml}
+                className="w-full border-none pointer-events-auto"
+                style={{
+                  height: "285mm",
+                  background: "#ffffff",
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
