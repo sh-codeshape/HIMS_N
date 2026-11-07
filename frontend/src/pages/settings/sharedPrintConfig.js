@@ -287,6 +287,13 @@ export const SHARED_ELEMENT_TARGETS = [
 
   // ── Document Title & Barcode Banner ──
   {
+    key: "ticket.card",
+    section: "Document Banner",
+    name: "🎫 Document Title & Barcode Banner Section",
+    desc: "Outer blue banner container and border for document title, copy badge, UHID/IPD tags & barcode",
+    defaultTag: "div",
+  },
+  {
     key: "ticket.title",
     section: "Document Banner",
     name: "📄 Slip / Document Main Title",
@@ -710,7 +717,7 @@ export function getElementComputedStyle(key, fieldStyles = {}, extraCss = "", is
 
   // Rock-solid positioning using relative coordinates + left + top
   const hasAlign = Boolean(f.textAlign);
-  const isBlock = key.endsWith(".card") || key === "patient.address" || key === "terms.list" || key === "header.accreditations" || hasAlign;
+  const isBlock = key.endsWith(".card") || key === "ticket.card" || key === "patient.address" || key === "terms.list" || key === "header.accreditations" || hasAlign;
   const displayCss = isBlock ? "display: block !important;" : "display: inline-block !important;";
 
   const positionStyle =
@@ -723,9 +730,22 @@ export function getElementComputedStyle(key, fieldStyles = {}, extraCss = "", is
   const textClr = f.textColor ? `color: ${f.textColor} !important;` : "";
   const textAln = f.textAlign ? `text-align: ${f.textAlign} !important;` : "";
   const textTrans = f.textTransform ? `text-transform: ${f.textTransform} !important;` : "";
-  const bgClr = f.bgColor ? `background-color: ${f.bgColor} !important;` : "";
+  const bgClr = f.bgColor ? `background: ${f.bgColor} !important; background-color: ${f.bgColor} !important; background-image: none !important;` : "";
   const brdClr = f.borderColor ? `border-color: ${f.borderColor} !important;` : "";
+  const brdNone = f.showBorder === false || f.border === "none" ? "border: none !important; box-shadow: none !important;" : "";
   const letterSp = f.letterSpacing !== undefined && f.letterSpacing !== "" ? `letter-spacing: ${String(f.letterSpacing).replace(/px$/, "")}px !important;` : "";
+
+  // Height and Width overrides
+  const heightStyle = f.height ? `height: ${f.height}${typeof f.height === "number" ? "px" : ""} !important; max-height: ${f.height}${typeof f.height === "number" ? "px" : ""} !important;` : "";
+  const widthStyle = f.width ? `width: ${f.width}${typeof f.width === "number" ? "px" : ""} !important;` : "";
+
+  // Scale and Zoom overrides
+  const scaleNum = Number(f.scale);
+  const isRight = f.textAlign === "right" || key.includes("right") || key === "ticket.barcode" || key === "ticket.topAdmissionNo" || key === "ticket.topUhid";
+  const isCenter = f.textAlign === "center";
+  const origin = isRight ? "right center" : isCenter ? "center center" : "left center";
+  const scaleStyle = scaleNum && scaleNum !== 100 ? `transform: scale(${scaleNum / 100}) !important; transform-origin: ${origin} !important;` : "";
+  const padStyle = f.padding !== undefined && f.padding !== "" ? `padding: ${f.padding}${typeof f.padding === "number" ? "px" : ""} !important;` : "";
 
   return `
     ${positionStyle}
@@ -736,7 +756,12 @@ export function getElementComputedStyle(key, fieldStyles = {}, extraCss = "", is
     ${textTrans}
     ${bgClr}
     ${brdClr}
+    ${brdNone}
     ${letterSp}
+    ${heightStyle}
+    ${widthStyle}
+    ${scaleStyle}
+    ${padStyle}
     ${extraCss}
   `
     .replace(/\s+/g, " ")
@@ -754,18 +779,20 @@ export function getClickableAttr(key, isPreview = false) {
 /**
  * Generate vector barcode SVG
  */
-export function generateBarcodeSvg(value) {
+export function generateBarcodeSvg(value, customHeight = 24, customWidth = 110) {
   const clean = String(value || "HOSP-000000").replace(/[^a-zA-Z0-9-]/g, "");
+  const h = Number(customHeight) || 24;
+  const w = Number(customWidth) || 110;
   let bars = "";
   for (let i = 0; i < clean.length; i++) {
     const code = clean.charCodeAt(i);
     const w1 = (code % 3) + 1.2;
     const w2 = (code % 2) + 1;
-    bars += `<rect x="${i * 7}" y="0" width="${w1}" height="28" fill="#0f172a"/>`;
-    bars += `<rect x="${i * 7 + w1 + 1}" y="0" width="${w2}" height="28" fill="#0f172a"/>`;
+    bars += `<rect x="${i * 7}" y="0" width="${w1}" height="${h + 4}" fill="#0f172a"/>`;
+    bars += `<rect x="${i * 7 + w1 + 1}" y="0" width="${w2}" height="${h + 4}" fill="#0f172a"/>`;
   }
   return `
-    <svg viewBox="0 0 ${clean.length * 7 + 10} 28" class="barcode-svg" preserveAspectRatio="none" style="height: 24px; width: 110px;">
+    <svg viewBox="0 0 ${clean.length * 7 + 10} ${h + 4}" class="barcode-svg" preserveAspectRatio="none" style="height: ${h}px; width: ${w}px;">
       ${bars}
     </svg>
   `;
@@ -925,6 +952,17 @@ export function buildSharedHeaderHTML(
   const hEmergency = getText("header.emergencyPhone", cfg.hospital?.emergencyPhone ? `🚨 24x7 Emergency: ${cfg.hospital.emergencyPhone}` : "");
 
   const logoH = fs["header.logo"]?.height || cfg.hospital?.logoHeight || 48;
+  const logoScale = Number(fs["header.logo"]?.scale);
+  const effectiveLogoH = logoScale && logoScale !== 100 ? Math.round(logoH * (logoScale / 100)) : logoH;
+
+  const isBannerCardActive = isElementActiveOnSlip("ticket.card", slipType, cfg);
+  const showTitle = isActive("ticket.title");
+  const showCopyBadge = isActive("ticket.copyBadge") && cfg.header?.showCopyBadge && Boolean(copyType);
+  const showTopUhid = isActive("ticket.topUhid") && cfg.header?.showTopUHID && Boolean(data.uhid || "UHID-000000");
+  const showTopAdmission = isActive("ticket.topAdmissionNo") && cfg.header?.showTopAdmissionNo && Boolean(data.ipdNo || data.encounterNo || data.tokenNo);
+  const showBarcode = isActive("ticket.barcode") && cfg.header?.showBarcode;
+
+  const hasAnyBannerContent = showTitle || showCopyBadge || showTopUhid || showTopAdmission || showBarcode;
 
   return `
     <!-- ── 1. HOSPITAL LETTERHEAD ── -->
@@ -932,7 +970,7 @@ export function buildSharedHeaderHTML(
       <div class="shared-hospital-left">
         ${
           isActive("header.logo") && cfg.hospital?.showLogo && cfg.hospital?.logoUrl
-            ? `<img src="${cfg.hospital.logoUrl}" alt="Logo" class="shared-hospital-logo" style="height:${logoH}px; ${getStyle("header.logo")}" ${click("header.logo")} />`
+            ? `<img src="${cfg.hospital.logoUrl}" alt="Logo" class="shared-hospital-logo" style="height:${effectiveLogoH}px; max-height:${effectiveLogoH}px; max-width:${fs["header.logo"]?.width || 240}px; width:auto; ${getStyle("header.logo")}" ${click("header.logo")} />`
             : ""
         }
         <div class="shared-hospital-identity">
@@ -959,43 +997,49 @@ export function buildSharedHeaderHTML(
     </div>
 
     <!-- ── 2. DOCUMENT BANNER & BARCODE ── -->
-    <div class="shared-banner-block">
+    ${
+      isBannerCardActive && hasAnyBannerContent
+        ? `
+    <div class="shared-banner-block" style="${getStyle("ticket.card")}" ${click("ticket.card")}>
       <div class="shared-banner-left">
-        ${isActive("ticket.title") ? `<h2 class="shared-doc-title" style="${getStyle("ticket.title")}" ${click("ticket.title")}>${docTitle}</h2>` : ""}
-        ${isActive("ticket.copyBadge") && cfg.header?.showCopyBadge && copyType ? `<span class="shared-copy-pill" style="${getStyle("ticket.copyBadge")}" ${click("ticket.copyBadge")}>${copyType}</span>` : ""}
+        ${showTitle ? `<h2 class="shared-doc-title" style="${getStyle("ticket.title")}" ${click("ticket.title")}>${docTitle}</h2>` : ""}
+        ${showCopyBadge ? `<span class="shared-copy-pill" style="${getStyle("ticket.copyBadge")}" ${click("ticket.copyBadge")}>${copyType}</span>` : ""}
       </div>
       <div class="shared-banner-right">
         ${
-          isActive("ticket.topUhid") && cfg.header?.showTopUHID && (data.uhid || "UHID-000000")
+          showTopUhid
             ? `
           <div class="shared-top-tag" style="${getStyle("ticket.topUhid")}" ${click("ticket.topUhid")}>
             <small>PATIENT UHID</small>
-            <span>${data.uhid}</span>
+            <span>${data.uhid || "UHID-2026-004481"}</span>
           </div>
         `
             : ""
         }
         ${
-          isActive("ticket.topAdmissionNo") && cfg.header?.showTopAdmissionNo && (data.ipdNo || data.encounterNo || data.tokenNo)
+          showTopAdmission
             ? `
           <div class="shared-top-tag" style="${getStyle("ticket.topAdmissionNo")}" ${click("ticket.topAdmissionNo")}>
             <small>${slipType === "opd" ? "TOKEN NO" : "ENCOUNTER / IPD NO"}</small>
-            <span>${data.ipdNo || data.encounterNo || data.tokenNo}</span>
+            <span>${data.ipdNo || data.encounterNo || data.tokenNo || "IPD-26-0198"}</span>
           </div>
         `
             : ""
         }
         ${
-          isActive("ticket.barcode") && cfg.header?.showBarcode
+          showBarcode
             ? `
           <div class="shared-barcode-wrap" style="${getStyle("ticket.barcode")}" ${click("ticket.barcode")}>
-            ${generateBarcodeSvg(data.ipdNo || data.uhid || data.tokenNo)}
+            ${generateBarcodeSvg(data.ipdNo || data.uhid || data.tokenNo || "IPD-26-0198", fs["ticket.barcode"]?.height, fs["ticket.barcode"]?.width)}
           </div>
         `
             : ""
         }
       </div>
     </div>
+        `
+        : ""
+    }
   `;
 }
 

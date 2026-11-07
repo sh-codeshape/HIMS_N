@@ -171,6 +171,10 @@ export default function SharedHeaderFooterDesigner() {
         if (!next.hospital) next.hospital = {};
         next.hospital.name = value;
       }
+      if (key === "header.logo" && prop === "height" && value) {
+        if (!next.hospital) next.hospital = {};
+        next.hospital.logoHeight = Number(value);
+      }
       return next;
     });
     setRenderCounter((c) => c + 1);
@@ -318,6 +322,35 @@ export default function SharedHeaderFooterDesigner() {
   const currentFieldStyle = useMemo(() => {
     return settings.fieldStyles?.[selectedTargetKey] || {};
   }, [selectedTargetKey, settings.fieldStyles]);
+
+  const getDefaultSizeForTarget = (key) => {
+    if (key === "header.logo") return 48;
+    if (key === "ticket.barcode") return 24;
+    if (key === "header.hospitalName") return 20;
+    if (key === "header.subtitle") return 10;
+    if (key === "header.slogan") return 9.5;
+    if (key === "header.address") return 9;
+    if (key === "header.phoneEmail") return 9;
+    if (key === "header.regNo") return 9;
+    if (key === "header.emergencyPhone") return 9.5;
+    if (key === "ticket.title") return 13;
+    if (key === "ticket.copyBadge") return 8;
+    if (key === "ticket.topUhid") return 11;
+    if (key === "ticket.topAdmissionNo") return 11;
+    if (key === "patient.name") return 12;
+    if (key === "patient.uhid") return 11;
+    if (key === "terms.title") return 10.5;
+    if (key === "terms.list") return 8.5;
+    if (key === "terms.helpline") return 9;
+    if (key === "terms.disclaimer") return 8.5;
+    return 11;
+  };
+
+  const isLogoTarget = selectedTargetKey === "header.logo";
+  const isBarcodeTarget = selectedTargetKey === "ticket.barcode";
+  const isBannerBoxTarget = selectedTargetKey === "ticket.card";
+  const isContainerTarget = selectedTargetKey.endsWith(".card") || selectedTargetKey === "signatures.row" || selectedTargetKey === "terms.list";
+  const isTextTarget = !isLogoTarget && !isBarcodeTarget && !isContainerTarget && !isBannerBoxTarget;
 
   // Nudge selected element in 4 directions
   const handleNudge = (direction) => {
@@ -830,115 +863,511 @@ export default function SharedHeaderFooterDesigner() {
                     </div>
                   </div>
 
-                  {/* Horizontal Position (X Axis Slider) */}
-                  <div className="space-y-1 pt-1 border-t border-slate-100">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-slate-700">Continuous X Shift:</span>
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          min="-200"
-                          max="200"
-                          value={currentFieldStyle.offsetX ?? 0}
-                          onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "offsetX", Number(e.target.value))}
-                          className="w-16 text-center text-xs font-mono font-bold bg-slate-50 border border-slate-300 rounded px-1.5 py-0.5"
-                        />
-                        <span className="text-slate-400 text-[11px]">px</span>
-                      </div>
+                  {/* ── 📏 DYNAMIC COMPONENT SIZE & SCALE CONTROL (Replaces Continuous X/Y Sliders) ── */}
+                  <div className="space-y-2.5 pt-3 border-t border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                        <Icon name="LuMaximize2" size={14} className="text-sky-700" />
+                        <span>
+                          {isLogoTarget
+                            ? "🖼️ Logo Size & Dimensions"
+                            : isBarcodeTarget
+                            ? "📊 Barcode Size & Dimensions"
+                            : isBannerBoxTarget
+                            ? "🎫 Banner Box Style & Size"
+                            : isContainerTarget
+                            ? "📐 Container Scale & Size"
+                            : "🔤 Component Text & Font Size"}
+                        </span>
+                      </span>
+                      {/* Current Size Readout Badge */}
+                      <span className="text-[10.5px] font-mono font-bold px-2 py-0.5 rounded bg-sky-50 text-sky-800 border border-sky-200">
+                        {isLogoTarget
+                          ? `${currentFieldStyle.height || settings.hospital?.logoHeight || 48}px Height`
+                          : isBarcodeTarget
+                          ? `${currentFieldStyle.height || 24}px Height`
+                          : isBannerBoxTarget || isContainerTarget
+                          ? `${currentFieldStyle.scale || 100}% Scale`
+                          : `${currentFieldStyle.fontSize || "Auto"}px Font`}
+                      </span>
                     </div>
-                    <input
-                      type="range"
-                      min="-150"
-                      max="150"
-                      step="1"
-                      value={currentFieldStyle.offsetX ?? 0}
-                      onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "offsetX", Number(e.target.value))}
-                      className="w-full accent-sky-700 cursor-pointer"
-                    />
-                    <div className="flex items-center justify-between gap-1 pt-0.5">
-                      {[-20, -5, -1].map((step) => (
-                        <button
-                          key={step}
-                          type="button"
-                          onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetX", (Number(currentFieldStyle.offsetX) || 0) + step)}
-                          className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
-                        >
-                          {step}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetX", 0)}
-                        className="px-2 py-0.5 text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-300 rounded hover:bg-sky-100"
-                      >
-                        0 (Center)
-                      </button>
-                      {[1, 5, 20].map((step) => (
-                        <button
-                          key={step}
-                          type="button"
-                          onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetX", (Number(currentFieldStyle.offsetX) || 0) + step)}
-                          className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
-                        >
-                          +{step}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
 
-                  {/* Vertical Position (Y Axis Slider) */}
-                  <div className="space-y-1 pt-2 border-t border-slate-100">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-slate-700">Continuous Y Shift:</span>
-                      <div className="flex items-center gap-1">
+                    {/* Logo Size Control (Height in px) */}
+                    {isLogoTarget && (
+                      <div className="space-y-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-slate-700">Logo Height:</span>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="20"
+                              max="160"
+                              step="2"
+                              value={currentFieldStyle.height ?? (settings.hospital?.logoHeight || 48)}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                handleUpdateFieldStyle("header.logo", "height", val);
+                                handleUpdate("hospital.logoHeight", val);
+                              }}
+                              className="w-16 text-center text-xs font-mono font-bold bg-white border border-slate-300 rounded px-1.5 py-0.5"
+                            />
+                            <span className="text-slate-400 text-[11px]">px</span>
+                            {Number(currentFieldStyle.height || (settings.hospital?.logoHeight || 48)) !== 48 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  handleUpdateFieldStyle("header.logo", "height", 48);
+                                  handleUpdate("hospital.logoHeight", 48);
+                                }}
+                                className="text-[10px] text-sky-700 font-bold hover:underline ml-1"
+                              >
+                                Reset
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
                         <input
-                          type="number"
-                          min="-200"
-                          max="200"
-                          value={currentFieldStyle.offsetY ?? 0}
-                          onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "offsetY", Number(e.target.value))}
-                          className="w-16 text-center text-xs font-mono font-bold bg-slate-50 border border-slate-300 rounded px-1.5 py-0.5"
+                          type="range"
+                          min="20"
+                          max="150"
+                          step="2"
+                          value={currentFieldStyle.height ?? (settings.hospital?.logoHeight || 48)}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            handleUpdateFieldStyle("header.logo", "height", val);
+                            handleUpdate("hospital.logoHeight", val);
+                          }}
+                          className="w-full accent-sky-700 cursor-pointer"
                         />
-                        <span className="text-slate-400 text-[11px]">px</span>
+
+                        {/* Step Buttons: -10, -2, Default 48px, +2, +10 */}
+                        <div className="flex items-center justify-between gap-1 pt-0.5">
+                          {[-10, -2].map((step) => (
+                            <button
+                              key={step}
+                              type="button"
+                              onClick={() => {
+                                const cur = Number(currentFieldStyle.height ?? (settings.hospital?.logoHeight || 48));
+                                const nextVal = Math.max(20, Math.min(160, cur + step));
+                                handleUpdateFieldStyle("header.logo", "height", nextVal);
+                                handleUpdate("hospital.logoHeight", nextVal);
+                              }}
+                              className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 rounded hover:bg-slate-100"
+                            >
+                              {step}px
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleUpdateFieldStyle("header.logo", "height", 48);
+                              handleUpdate("hospital.logoHeight", 48);
+                            }}
+                            className="px-2 py-0.5 text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-300 rounded hover:bg-sky-100"
+                          >
+                            48px (Default)
+                          </button>
+                          {[2, 10].map((step) => (
+                            <button
+                              key={step}
+                              type="button"
+                              onClick={() => {
+                                const cur = Number(currentFieldStyle.height ?? (settings.hospital?.logoHeight || 48));
+                                const nextVal = Math.max(20, Math.min(160, cur + step));
+                                handleUpdateFieldStyle("header.logo", "height", nextVal);
+                                handleUpdate("hospital.logoHeight", nextVal);
+                              }}
+                              className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 rounded hover:bg-slate-100"
+                            >
+                              +{step}px
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Presets */}
+                        <div className="flex items-center gap-1 pt-1 overflow-x-auto">
+                          <span className="text-[10px] font-bold text-slate-400 mr-1">Presets:</span>
+                          {[
+                            { label: "32px", val: 32 },
+                            { label: "40px", val: 40 },
+                            { label: "48px (Std)", val: 48 },
+                            { label: "64px", val: 64 },
+                            { label: "80px", val: 80 },
+                            { label: "100px", val: 100 },
+                          ].map((p) => {
+                            const isSelected = Number(currentFieldStyle.height ?? (settings.hospital?.logoHeight || 48)) === p.val;
+                            return (
+                              <button
+                                key={p.val}
+                                type="button"
+                                onClick={() => {
+                                  handleUpdateFieldStyle("header.logo", "height", p.val);
+                                  handleUpdate("hospital.logoHeight", p.val);
+                                }}
+                                className={`px-2 py-0.5 text-[10px] font-mono rounded transition-all ${
+                                  isSelected
+                                    ? "bg-sky-700 text-white font-bold"
+                                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                                }`}
+                              >
+                                {p.label}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                    <input
-                      type="range"
-                      min="-120"
-                      max="120"
-                      step="1"
-                      value={currentFieldStyle.offsetY ?? 0}
-                      onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "offsetY", Number(e.target.value))}
-                      className="w-full accent-sky-700 cursor-pointer"
-                    />
-                    <div className="flex items-center justify-between gap-1 pt-0.5">
-                      {[-20, -5, -1].map((step) => (
+                    )}
+
+                    {/* Barcode Size Control (Height in px) */}
+                    {isBarcodeTarget && (
+                      <div className="space-y-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-slate-700">Barcode Height:</span>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="14"
+                              max="60"
+                              step="2"
+                              value={currentFieldStyle.height ?? 24}
+                              onChange={(e) => handleUpdateFieldStyle("ticket.barcode", "height", Number(e.target.value))}
+                              className="w-16 text-center text-xs font-mono font-bold bg-white border border-slate-300 rounded px-1.5 py-0.5"
+                            />
+                            <span className="text-slate-400 text-[11px]">px</span>
+                            {Number(currentFieldStyle.height || 24) !== 24 && (
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateFieldStyle("ticket.barcode", "height", 24)}
+                                className="text-[10px] text-sky-700 font-bold hover:underline ml-1"
+                              >
+                                Reset
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <input
+                          type="range"
+                          min="14"
+                          max="60"
+                          step="2"
+                          value={currentFieldStyle.height ?? 24}
+                          onChange={(e) => handleUpdateFieldStyle("ticket.barcode", "height", Number(e.target.value))}
+                          className="w-full accent-sky-700 cursor-pointer"
+                        />
+
+                        {/* Step Buttons */}
+                        <div className="flex items-center justify-between gap-1 pt-0.5">
+                          {[-6, -2].map((step) => (
+                            <button
+                              key={step}
+                              type="button"
+                              onClick={() => {
+                                const cur = Number(currentFieldStyle.height ?? 24);
+                                handleUpdateFieldStyle("ticket.barcode", "height", Math.max(14, cur + step));
+                              }}
+                              className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 rounded hover:bg-slate-100"
+                            >
+                              {step}px
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateFieldStyle("ticket.barcode", "height", 24)}
+                            className="px-2 py-0.5 text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-300 rounded hover:bg-sky-100"
+                          >
+                            24px (Default)
+                          </button>
+                          {[2, 6].map((step) => (
+                            <button
+                              key={step}
+                              type="button"
+                              onClick={() => {
+                                const cur = Number(currentFieldStyle.height ?? 24);
+                                handleUpdateFieldStyle("ticket.barcode", "height", Math.min(60, cur + step));
+                              }}
+                              className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 rounded hover:bg-slate-100"
+                            >
+                              +{step}px
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Presets */}
+                        <div className="flex items-center gap-1 pt-1 overflow-x-auto">
+                          <span className="text-[10px] font-bold text-slate-400 mr-1">Presets:</span>
+                          {[
+                            { label: "18px", val: 18 },
+                            { label: "24px (Std)", val: 24 },
+                            { label: "32px", val: 32 },
+                            { label: "40px", val: 40 },
+                            { label: "50px", val: 50 },
+                          ].map((p) => {
+                            const isSelected = Number(currentFieldStyle.height ?? 24) === p.val;
+                            return (
+                              <button
+                                key={p.val}
+                                type="button"
+                                onClick={() => handleUpdateFieldStyle("ticket.barcode", "height", p.val)}
+                                className={`px-2 py-0.5 text-[10px] font-mono rounded transition-all ${
+                                  isSelected
+                                    ? "bg-sky-700 text-white font-bold"
+                                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                                }`}
+                              >
+                                {p.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Banner Box (ticket.card) Border & Background Control */}
+                    {isBannerBoxTarget && (
+                      <div className="space-y-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-slate-700">Banner Box Style:</span>
+                          <span className="text-[10.5px] text-slate-500">Remove blue box or customize border</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleUpdateFieldStyle("ticket.card", "bgColor", undefined);
+                              handleUpdateFieldStyle("ticket.card", "borderColor", undefined);
+                              handleUpdateFieldStyle("ticket.card", "showBorder", true);
+                            }}
+                            className={`p-2 rounded-lg text-xs font-bold border transition-all text-left ${
+                              !currentFieldStyle.bgColor && currentFieldStyle.showBorder !== false
+                                ? "bg-white border-sky-500 shadow-xs text-sky-800"
+                                : "bg-white/60 border-slate-200 text-slate-600 hover:bg-white"
+                            }`}
+                          >
+                            <span className="block text-[11px]">Default Blue Box</span>
+                            <span className="block text-[9.5px] font-normal text-slate-400">Light blue gradient &amp; border</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleUpdateFieldStyle("ticket.card", "bgColor", "transparent");
+                              handleUpdateFieldStyle("ticket.card", "borderColor", "transparent");
+                              handleUpdateFieldStyle("ticket.card", "showBorder", false);
+                            }}
+                            className={`p-2 rounded-lg text-xs font-bold border transition-all text-left ${
+                              currentFieldStyle.showBorder === false || currentFieldStyle.bgColor === "transparent"
+                                ? "bg-white border-sky-500 shadow-xs text-sky-800"
+                                : "bg-white/60 border-slate-200 text-slate-600 hover:bg-white"
+                            }`}
+                          >
+                            <span className="block text-[11px]">Borderless / Clean</span>
+                            <span className="block text-[9.5px] font-normal text-slate-400">Transparent (no blue box)</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Text Element Font Size Control */}
+                    {isTextTarget && (
+                      <div className="space-y-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-slate-700">Text / Font Size:</span>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="7"
+                              max="40"
+                              value={currentFieldStyle.fontSize ?? ""}
+                              placeholder="Auto"
+                              onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "fontSize", e.target.value ? Number(e.target.value) : undefined)}
+                              className="w-16 text-center text-xs font-mono font-bold bg-white border border-slate-300 rounded px-1.5 py-0.5"
+                            />
+                            <span className="text-slate-400 text-[11px]">px</span>
+                            {currentFieldStyle.fontSize && (
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateFieldStyle(selectedTargetKey, "fontSize", undefined)}
+                                className="text-[10px] text-sky-700 font-bold hover:underline ml-1"
+                              >
+                                Default
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <input
+                          type="range"
+                          min="7"
+                          max="38"
+                          step="1"
+                          value={currentFieldStyle.fontSize ?? (getDefaultSizeForTarget(selectedTargetKey) || 12)}
+                          onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "fontSize", Number(e.target.value))}
+                          className="w-full accent-sky-700 cursor-pointer"
+                        />
+
+                        {/* Step Buttons: -4, -1, Default, +1, +4 */}
+                        <div className="flex items-center justify-between gap-1 pt-0.5">
+                          {[-4, -1].map((step) => (
+                            <button
+                              key={step}
+                              type="button"
+                              onClick={() => {
+                                const cur = Number(currentFieldStyle.fontSize ?? (getDefaultSizeForTarget(selectedTargetKey) || 12));
+                                handleUpdateFieldStyle(selectedTargetKey, "fontSize", Math.max(7, cur + step));
+                              }}
+                              className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 rounded hover:bg-slate-100"
+                            >
+                              {step}px
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateFieldStyle(selectedTargetKey, "fontSize", undefined)}
+                            className="px-2 py-0.5 text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-300 rounded hover:bg-sky-100"
+                          >
+                            Default
+                          </button>
+                          {[1, 4].map((step) => (
+                            <button
+                              key={step}
+                              type="button"
+                              onClick={() => {
+                                const cur = Number(currentFieldStyle.fontSize ?? (getDefaultSizeForTarget(selectedTargetKey) || 12));
+                                handleUpdateFieldStyle(selectedTargetKey, "fontSize", Math.min(40, cur + step));
+                              }}
+                              className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 rounded hover:bg-slate-100"
+                            >
+                              +{step}px
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Presets */}
+                        <div className="flex items-center gap-1 pt-1 overflow-x-auto">
+                          <span className="text-[10px] font-bold text-slate-400 mr-1">Presets:</span>
+                          {[8, 9, 11, 13, 16, 20, 24].map((sz) => {
+                            const isSelected = currentFieldStyle.fontSize === sz;
+                            return (
+                              <button
+                                key={sz}
+                                type="button"
+                                onClick={() => handleUpdateFieldStyle(selectedTargetKey, "fontSize", sz)}
+                                className={`px-2 py-0.5 text-[10px] font-mono rounded transition-all ${
+                                  isSelected
+                                    ? "bg-sky-700 text-white font-bold"
+                                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                                }`}
+                              >
+                                {sz}px
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Scale Multiplier (%): Zoom & Scale for any component */}
+                    <div className="space-y-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-slate-700">Zoom / Scale Multiplier:</span>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min="50"
+                            max="200"
+                            step="5"
+                            value={currentFieldStyle.scale ?? 100}
+                            onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "scale", Number(e.target.value))}
+                            className="w-16 text-center text-xs font-mono font-bold bg-white border border-slate-300 rounded px-1.5 py-0.5"
+                          />
+                          <span className="text-slate-400 text-[11px]">%</span>
+                          {currentFieldStyle.scale && Number(currentFieldStyle.scale) !== 100 && (
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateFieldStyle(selectedTargetKey, "scale", 100)}
+                              className="text-[10px] text-sky-700 font-bold hover:underline ml-1"
+                            >
+                              100%
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <input
+                        type="range"
+                        min="50"
+                        max="180"
+                        step="5"
+                        value={currentFieldStyle.scale ?? 100}
+                        onChange={(e) => handleUpdateFieldStyle(selectedTargetKey, "scale", Number(e.target.value))}
+                        className="w-full accent-sky-700 cursor-pointer"
+                      />
+
+                      <div className="flex items-center justify-between gap-1 pt-0.5">
+                        {[-20, -5].map((step) => (
+                          <button
+                            key={step}
+                            type="button"
+                            onClick={() => {
+                              const cur = Number(currentFieldStyle.scale || 100);
+                              handleUpdateFieldStyle(selectedTargetKey, "scale", Math.max(50, cur + step));
+                            }}
+                            className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 rounded hover:bg-slate-100"
+                          >
+                            {step}%
+                          </button>
+                        ))}
                         <button
-                          key={step}
                           type="button"
-                          onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetY", (Number(currentFieldStyle.offsetY) || 0) + step)}
-                          className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
+                          onClick={() => handleUpdateFieldStyle(selectedTargetKey, "scale", 100)}
+                          className="px-2 py-0.5 text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-300 rounded hover:bg-sky-100"
                         >
-                          {step}
+                          100% (Normal)
                         </button>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetY", 0)}
-                        className="px-2 py-0.5 text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-300 rounded hover:bg-sky-100"
-                      >
-                        0 (Center)
-                      </button>
-                      {[1, 5, 20].map((step) => (
-                        <button
-                          key={step}
-                          type="button"
-                          onClick={() => handleUpdateFieldStyle(selectedTargetKey, "offsetY", (Number(currentFieldStyle.offsetY) || 0) + step)}
-                          className="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 border border-slate-200 rounded hover:bg-slate-200"
-                        >
-                          +{step}
-                        </button>
-                      ))}
+                        {[5, 20].map((step) => (
+                          <button
+                            key={step}
+                            type="button"
+                            onClick={() => {
+                              const cur = Number(currentFieldStyle.scale || 100);
+                              handleUpdateFieldStyle(selectedTargetKey, "scale", Math.min(200, cur + step));
+                            }}
+                            className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 rounded hover:bg-slate-100"
+                          >
+                            +{step}%
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Scale Presets */}
+                      <div className="flex items-center gap-1 pt-1 overflow-x-auto">
+                        <span className="text-[10px] font-bold text-slate-400 mr-1">Presets:</span>
+                        {[
+                          { label: "75%", val: 75 },
+                          { label: "90%", val: 90 },
+                          { label: "100%", val: 100 },
+                          { label: "115%", val: 115 },
+                          { label: "130%", val: 130 },
+                          { label: "150%", val: 150 },
+                        ].map((p) => {
+                          const isSelected = Number(currentFieldStyle.scale || 100) === p.val;
+                          return (
+                            <button
+                              key={p.val}
+                              type="button"
+                              onClick={() => handleUpdateFieldStyle(selectedTargetKey, "scale", p.val)}
+                              className={`px-2 py-0.5 text-[10px] font-mono rounded transition-all ${
+                                isSelected
+                                  ? "bg-sky-700 text-white font-bold"
+                                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                              }`}
+                            >
+                              {p.label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
