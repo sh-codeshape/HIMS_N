@@ -418,7 +418,7 @@ export const DEFAULT_IPD_ADMISSION_SETTINGS = {
     subtitle: "NABH & NABL ACCREDITED TERTIARY CARE HOSPITAL & RESEARCH INSTITUTE",
     slogan: "Better Care. Healthier Tomorrow.",
     registrationNo: "REG/UP/2024/098",
-    address: "Sector 4, Central Hospital Road, Jaipur - 302020 (Rajasthan)",
+    address: "Upsana Nagar Colony, Beside Hotel Mandirian, Amra-Akhari Bypass, Varanasi",
     phone: "+91 7388660408",
     emergencyPhone: "+91 9811223344",
     email: "admissions@narayanhospital.com",
@@ -518,7 +518,7 @@ export const DEFAULT_IPD_ADMISSION_SETTINGS = {
       "Hospital management is not responsible for any personal cash, jewelry, or valuables kept in patient rooms.",
       "Initial advance deposit will be adjusted in the final IPD billing invoice at discharge.",
     ],
-    footerTagline: "NARAYAN HOSPITAL • Sector 4, Hospital Road, Jaipur - 302020 • 24x7 Emergency: +91 9811223344",
+    footerTagline: "NARAYAN HOSPITAL • Upsana Nagar Colony, Beside Hotel Mandirian, Amra-Akhari Bypass, Varanasi • +91 7388660408",
     disclaimer: "Wishing you a comfortable stay and a healthy, speedy recovery.",
   },
 

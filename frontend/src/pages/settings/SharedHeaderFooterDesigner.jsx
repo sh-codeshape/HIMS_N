@@ -44,6 +44,7 @@ export default function SharedHeaderFooterDesigner() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [renderCounter, setRenderCounter] = useState(0);
   const [nudgeStep, setNudgeStep] = useState(2); // 1, 2, 5, 10, 20
+  const [iframeHeight, setIframeHeight] = useState("285mm");
   const iframeRef = useRef(null);
 
   // Load from database on mount
@@ -431,7 +432,7 @@ export default function SharedHeaderFooterDesigner() {
       } else if (dataCategoryFilter === "demographics") {
         if (t.section !== "Patient Demographics") return false;
       } else if (dataCategoryFilter === "footer") {
-        if (t.section !== "Footer Policies" && t.section !== "Footer Signatures") return false;
+        if (t.section !== "Footer Policies" && t.section !== "Footer Signatures" && t.section !== "Letterhead Footer") return false;
       }
 
       // Search filter
@@ -465,12 +466,36 @@ export default function SharedHeaderFooterDesigner() {
           doc.open();
           doc.write(previewHtml);
           doc.close();
+
+          const updateHeight = () => {
+            try {
+              const body = doc.body;
+              const html = doc.documentElement;
+              const contentHeight = Math.max(
+                body?.scrollHeight || 0,
+                body?.offsetHeight || 0,
+                html?.clientHeight || 0,
+                html?.scrollHeight || 0,
+                html?.offsetHeight || 0
+              );
+              if (contentHeight > 50) {
+                if (selectedSlipType === "opd") {
+                  setIframeHeight(`${contentHeight + 20}px`);
+                } else if (selectedSlipType === "ipd_receipt") {
+                  setIframeHeight(`${Math.max(contentHeight + 20, 520)}px`);
+                } else {
+                  setIframeHeight(`${Math.max(contentHeight + 20, 850)}px`);
+                }
+              }
+            } catch (_) {}
+          };
+          setTimeout(updateHeight, 60);
         }
       } catch (e) {
         console.warn("Iframe doc write fallback:", e);
       }
     }
-  }, [previewHtml]);
+  }, [previewHtml, selectedSlipType]);
 
   if (loading) {
     return (
@@ -2455,7 +2480,7 @@ export default function SharedHeaderFooterDesigner() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-700">Hospital Phone:</label>
+                  <label className="text-xs font-bold text-slate-700">Hospital Phone / Helpline:</label>
                   <input
                     type="text"
                     value={settings.hospital?.phone || ""}
@@ -2472,6 +2497,17 @@ export default function SharedHeaderFooterDesigner() {
                     className="mt-1 w-full text-xs rounded-md border border-slate-200 px-2.5 py-1.5"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700">Hospital Website:</label>
+                <input
+                  type="text"
+                  value={settings.hospital?.website || ""}
+                  onChange={(e) => handleUpdate("hospital.website", e.target.value)}
+                  placeholder="www.narayanhospital.com"
+                  className="mt-1 w-full text-xs rounded-md border border-slate-200 px-2.5 py-1.5"
+                />
               </div>
 
               {/* Logo Upload */}
@@ -2755,8 +2791,8 @@ export default function SharedHeaderFooterDesigner() {
           <div className="bg-slate-200/90 p-4 rounded-2xl border border-slate-300 shadow-inner overflow-auto max-h-[82vh] flex justify-center">
             <div
               style={{
-                width: "210mm",
-                minHeight: "297mm",
+                width: selectedSlipType === "ipd_receipt" ? "148mm" : "210mm",
+                minHeight: selectedSlipType === "opd" ? "auto" : selectedSlipType === "ipd_receipt" ? "210mm" : "297mm",
                 transform: `scale(${previewZoom / 100})`,
                 transformOrigin: "top center",
                 transition: "transform 0.12s ease",
@@ -2782,7 +2818,7 @@ export default function SharedHeaderFooterDesigner() {
                 srcDoc={previewHtml}
                 className="w-full border-none pointer-events-auto"
                 style={{
-                  height: "285mm",
+                  height: iframeHeight,
                   background: "#ffffff",
                 }}
               />

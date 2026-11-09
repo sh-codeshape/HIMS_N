@@ -11,7 +11,7 @@ export const DEFAULT_IPD_DISCHARGE_SETTINGS = {
     name: "Narayan Hospital",
     subtitle: "Super Speciality Healthcare & Research Institute",
     registrationNo: "REG/UP/2024/098",
-    address: "Jansa, Varanasi, Uttar Pradesh, 221405",
+    address: "Upsana Nagar Colony, Beside Hotel Mandirian, Amra-Akhari Bypass, Varanasi",
     phone: "+91 7388660408",
     email: "info@narayanhospital.com",
     logoUrl: "/images/Narayan_Logo.png",

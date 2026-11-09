@@ -41,6 +41,7 @@ export {
   buildSharedPreviewHTML,
   buildSharedHeaderHTML,
   buildSharedFooterHTML,
+  buildLetterheadFooterBarHTML,
   buildSharedDemographicsHTML,
   SHARED_PRINT_CSS,
   isElementActiveOnSlip,

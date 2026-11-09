@@ -13,6 +13,7 @@ import {
   DEFAULT_SHARED_CONFIG,
   SHARED_PRINT_CSS,
   buildSharedHeaderHTML,
+  buildLetterheadFooterBarHTML,
   mergeSharedSettings,
   getCachedSharedSettings,
 } from "./sharedPrintConfig.js";
@@ -1054,6 +1055,8 @@ export function buildAdmissionTicketHTML(
     `
         : ""
     }
+    <!-- 8. SHARED LETTERHEAD FOOTER BAR -->
+    ${isUsingShared ? buildLetterheadFooterBarHTML(sharedConfig, { isPreview, slipType: "ipd_admission" }) : ""}
   </div>
 </body>
 </html>`;

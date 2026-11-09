@@ -25,10 +25,10 @@ export const DEFAULT_HOSPITAL_CONFIG = {
       maxWidth: '160px',
       show: true,
     },
-    address: 'Jansa, Varanasi',
+    address: 'Upsana Nagar Colony, Beside Hotel Mandirian, Amra-Akhari Bypass, Varanasi',
     district: 'Varanasi',
     state: 'Uttar Pradesh',
-    pinCode: '221405',
+    pinCode: '221005',
     phone: '+91 7388660408',
   },
 

@@ -9,6 +9,7 @@ import {
   DEFAULT_SHARED_CONFIG,
   SHARED_PRINT_CSS,
   buildSharedHeaderHTML,
+  buildLetterheadFooterBarHTML,
   mergeSharedSettings,
   loadSharedPrintSettings,
   getCachedSharedSettings,
@@ -699,7 +700,9 @@ export function buildIPDDischargeHTML(
 
   // 11. Footer
   let footerHTML = "";
-  if (cfg.footer.enabled) {
+  if (isUsingShared) {
+    footerHTML = buildLetterheadFooterBarHTML(sharedConfig, { isPreview: !isPrint, slipType: "ipd_discharge" });
+  } else if (cfg.footer.enabled) {
     footerHTML = `
       <footer class="hospital-footer">
         <div class="footer-left">

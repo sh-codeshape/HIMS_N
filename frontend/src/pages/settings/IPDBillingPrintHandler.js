@@ -11,6 +11,7 @@ import {
   DEFAULT_SHARED_CONFIG,
   SHARED_PRINT_CSS,
   buildSharedHeaderHTML,
+  buildLetterheadFooterBarHTML,
   mergeSharedSettings,
   loadSharedPrintSettings,
   getCachedSharedSettings,
@@ -1520,9 +1521,11 @@ export function buildBillingHTML(data = SAMPLE_IPD_BILLING_DATA, settings = DEFA
         : ""
     }
 
-    <!-- 13. Footer Tagline -->
+    <!-- 13. Footer Tagline & Letterhead Footer -->
     ${
-      terms.footerTagline || hospital.phone || hospital.address
+      isUsingShared
+        ? buildLetterheadFooterBarHTML(sharedConfig, { isPreview: !isPrint, slipType: "ipd_billing" })
+        : terms.footerTagline || hospital.phone || hospital.address
         ? `
     <footer class="bill-footer">
       ${hospital.phone ? `<div style="font-weight: 700; color: ${primary}; margin-bottom: 2px;">📞 Helpline / Contact: ${esc(hospital.phone)}${hospital.emergencyPhone ? ` • Emergency: ${esc(hospital.emergencyPhone)}` : ""}</div>` : ""}

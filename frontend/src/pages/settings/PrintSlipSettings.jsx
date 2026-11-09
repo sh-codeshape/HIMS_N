@@ -39,7 +39,7 @@ const DEFAULT_SETTINGS = {
     subtitle: "Super Speciality Healthcare & Research Institute",
     slogan: "Better Care. Healthier Tomorrow.",
     registrationNo: "REG/UP/2024/098",
-    address: "Jansa, Varanasi, Uttar Pradesh, 221405",
+    address: "Upsana Nagar Colony, Beside Hotel Mandirian, Amra-Akhari Bypass, Varanasi",
     phone: "+91 7388660408",
     logo: {
       src: "/images/Narayan_Logo.png",

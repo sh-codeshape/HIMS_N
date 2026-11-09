@@ -82,21 +82,22 @@ export const DEFAULT_SHARED_CONFIG = {
   // ── 1. Hospital Brand & Letterhead ──
   hospital: {
     name: "Narayan Hospital",
-    subtitle: "NABH & NABL ACCREDITED TERTIARY CARE HOSPITAL & RESEARCH INSTITUTE",
+    subtitle: "Super Speciality Hospital & Research Institute",
     slogan: "Better Care. Healthier Tomorrow.",
     registrationNo: "REG/UP/2024/098",
-    address: "Sector 4, Central Hospital Road, Jaipur - 302020 (Rajasthan)",
+    address: "Upsana Nagar Colony, Beside Hotel Mandirian, Amra-Akhari Bypass, Varanasi",
     phone: "+91 7388660408",
-    emergencyPhone: "+91 9811223344",
+    emergencyPhone: "+91 7388660408",
     email: "info@narayanhospital.com",
     website: "www.narayanhospital.com",
     logoUrl: "/images/Narayan_Logo.png",
-    logoHeight: 48,
-    logoWidth: 150,
+    headerWaveUrl: "/images/narayan_letterhead_top_wave.png",
+    logoHeight: 54,
+    logoWidth: 160,
     showLogo: true,
     showHeaderAddress: false,
     accreditations: ["NABH ACCREDITED", "ISO 9001:2015", "NABL CERTIFIED LABS"],
-    showAccreditationBadges: true,
+    showAccreditationBadges: false,
   },
 
   // ── 2. Document Title & Barcode Banner Defaults ──
@@ -119,8 +120,14 @@ export const DEFAULT_SHARED_CONFIG = {
       "Hospital management is not responsible for personal cash, jewellery, or valuables.",
       "All consultations, medications, and clinical investigations are billed per approved hospital schedule.",
     ],
-    helpline: "24x7 Helpline: +91 7388660408 • Emergency Trauma: +91 9811223344",
-    tagline: "NARAYAN HOSPITAL • Sector 4, Hospital Road, Jaipur - 302020 • www.narayanhospital.com",
+    helpline: "+91 7388660408",
+    address: "Upsana Nagar Colony, Beside Hotel Mandirian, Amra-Akhari Bypass, Varanasi",
+    email: "info@narayanhospital.com",
+    website: "www.narayanhospital.com",
+    registrationNo: "REG/UP/2024/098",
+    footerWaveUrl: "/images/narayan_letterhead_bottom_wave.png",
+    showLetterheadFooter: true,
+    tagline: "NARAYAN HOSPITAL • Upsana Nagar Colony, Beside Hotel Mandirian, Amra-Akhari Bypass, Varanasi • www.narayanhospital.com",
     disclaimer: "Thank you for choosing Narayan Hospital. Wishing you a healthy and speedy recovery.",
     signatures: {
       doctor: { show: true, title: "Treating Consultant", sub: "Admitting / Attending Doctor" },
@@ -263,6 +270,13 @@ export const SHARED_ELEMENT_TARGETS = [
     name: "💬 Tagline / Slogan",
     desc: "Inspirational hospital slogan",
     defaultTag: "p",
+  },
+  {
+    key: "header.topWave",
+    section: "Hospital Header",
+    name: "💓 Top ECG Wave Graphic",
+    desc: "Medical pulse line & blue corner wave banner",
+    defaultTag: "img",
   },
   {
     key: "header.regNo",
@@ -524,6 +538,50 @@ export const SHARED_ELEMENT_TARGETS = [
     desc: "Official seal / hospital stamp box",
     defaultTag: "div",
   },
+
+  // ── Official Letterhead Footer Elements (Bottom) ──
+  {
+    key: "footer.letterhead",
+    section: "Letterhead Footer",
+    name: "📜 Official Letterhead Footer Bar",
+    desc: "4-column official hospital contact footer bar with bottom wave",
+    defaultTag: "div",
+  },
+  {
+    key: "footer.address",
+    section: "Letterhead Footer",
+    name: "📍 Column 1: Hospital Address",
+    desc: "Hospital physical address and colony location",
+    defaultTag: "div",
+  },
+  {
+    key: "footer.helpline",
+    section: "Letterhead Footer",
+    name: "📞 Column 2: 24x7 Helpline",
+    desc: "24x7 Helpline phone number",
+    defaultTag: "div",
+  },
+  {
+    key: "footer.contact",
+    section: "Letterhead Footer",
+    name: "✉️ Column 3: Email & Website",
+    desc: "Hospital email address and official website link",
+    defaultTag: "div",
+  },
+  {
+    key: "footer.regNo",
+    section: "Letterhead Footer",
+    name: "🏷️ Column 4: Registration Number",
+    desc: "State clinical registration number",
+    defaultTag: "div",
+  },
+  {
+    key: "footer.bottomWave",
+    section: "Letterhead Footer",
+    name: "🌊 Bottom Decorative Wave Banner",
+    desc: "Stylized cyan & deep navy bottom wave graphic",
+    defaultTag: "div",
+  },
 ];
 
 /**
@@ -538,7 +596,7 @@ export const SLIP_SAMPLE_DATA = {
     tokenNo: "T-311026-GEN-03",
     ageGender: "48 Yrs / Male",
     mobile: "+91 98765 43210",
-    address: "Plot 42, Gayatri Nagar, Hospital Road, Jaipur, Rajasthan - 302020",
+    address: "Plot 42, Gayatri Nagar, Amra-Akhari Bypass, Varanasi - 221005",
     bloodGroup: "B Positive (B+)",
     guardian: "Sunita Sharma",
     relation: "Wife / Next of Kin",
@@ -573,7 +631,7 @@ export const SLIP_SAMPLE_DATA = {
     tokenNo: "ADMIT-0198",
     ageGender: "48 Yrs / Male",
     mobile: "+91 98765 43210",
-    address: "Plot 42, Gayatri Nagar, Hospital Road, Jaipur - 302020",
+    address: "Plot 42, Gayatri Nagar, Amra-Akhari Bypass, Varanasi - 221005",
     bloodGroup: "B+",
     guardian: "Sunita Sharma",
     relation: "Wife",
@@ -591,7 +649,7 @@ export const SLIP_SAMPLE_DATA = {
     tokenNo: "INV-8812",
     ageGender: "48 Yrs / Male",
     mobile: "+91 98765 43210",
-    address: "Plot 42, Gayatri Nagar, Hospital Road, Jaipur - 302020",
+    address: "Plot 42, Gayatri Nagar, Amra-Akhari Bypass, Varanasi - 221005",
     bloodGroup: "B+",
     guardian: "Sunita Sharma",
     relation: "Wife",
@@ -608,7 +666,7 @@ export const SLIP_SAMPLE_DATA = {
     tokenNo: "DIS-0198",
     ageGender: "48 Yrs / Male",
     mobile: "+91 98765 43210",
-    address: "Plot 42, Gayatri Nagar, Hospital Road, Jaipur - 302020",
+    address: "Plot 42, Gayatri Nagar, Amra-Akhari Bypass, Varanasi - 221005",
     bloodGroup: "B+",
     guardian: "Sunita Sharma",
     relation: "Wife",
@@ -625,7 +683,7 @@ export const SLIP_SAMPLE_DATA = {
     tokenNo: "REC-26-0068",
     ageGender: "48 Yrs / Male",
     mobile: "+91 98765 43210",
-    address: "Plot 42, Gayatri Nagar, Hospital Road, Jaipur - 302020",
+    address: "Plot 42, Gayatri Nagar, Amra-Akhari Bypass, Varanasi - 221005",
     bloodGroup: "B+",
     guardian: "Sunita Sharma",
     relation: "Wife",
@@ -1027,38 +1085,44 @@ export function buildSharedHeaderHTML(
   const hasAnyBannerContent = showTitle || showCopyBadge || showTopUhid || showTopAdmission || showBarcode;
 
   return `
-    <!-- ── 1. HOSPITAL LETTERHEAD ── -->
+    <!-- ── 1. OFFICIAL HOSPITAL LETTERHEAD HEADER ── -->
     ${
       isActive("header.card") && fs["header.card"]?.show !== false
         ? `
-    <div class="shared-hospital-block" style="${getStyle("header.card")}" ${click("header.card")}>
-      <div class="shared-hospital-left">
-        ${
-          isActive("header.logo") && cfg.hospital?.showLogo && cfg.hospital?.logoUrl
-            ? `<img src="${cfg.hospital.logoUrl}" alt="Logo" class="shared-hospital-logo" style="height:${effectiveLogoH}px; max-height:${effectiveLogoH}px; max-width:${fs["header.logo"]?.width || 240}px; width:auto; ${getStyle("header.logo")}" ${click("header.logo")} />`
-            : ""
-        }
-        <div class="shared-hospital-identity">
-          ${isActive("header.hospitalName") ? `<h1 class="shared-hospital-name" style="${getStyle("header.hospitalName")}" ${click("header.hospitalName")}>${hName}</h1>` : ""}
-          ${isActive("header.subtitle") && hSub ? `<p class="shared-hospital-sub" style="${getStyle("header.subtitle")}" ${click("header.subtitle")}>${hSub}</p>` : ""}
-          ${isActive("header.slogan") && hSlogan ? `<p class="shared-hospital-slogan" style="${getStyle("header.slogan")}" ${click("header.slogan")}>${hSlogan}</p>` : ""}
-          ${isActive("header.address") && cfg.hospital?.showHeaderAddress === true && hAddr ? `<p class="shared-hospital-addr" style="${getStyle("header.address")}" ${click("header.address")}>${hAddr}</p>` : ""}
-          ${isActive("header.phoneEmail") && hPhone ? `<p class="shared-hospital-contact" style="${getStyle("header.phoneEmail")}" ${click("header.phoneEmail")}>${hPhone}</p>` : ""}
+    <div class="shared-letterhead-header" style="${getStyle("header.card")}" ${click("header.card")}>
+      <div class="lh-header-row">
+        <!-- Left: Logo & Vertical Divider -->
+        <div class="lh-header-left">
+          ${
+            isActive("header.logo") && cfg.hospital?.showLogo !== false
+              ? `<img src="${fs["header.logo"]?.customSrc || cfg.hospital?.logoUrl || "/images/Narayan_Logo.png"}" alt="${hName}" class="lh-logo-img" style="height:${effectiveLogoH}px; max-height:${effectiveLogoH}px; ${getStyle("header.logo")}" ${click("header.logo")} />`
+              : ""
+          }
+          <div class="lh-vertical-divider"></div>
+        </div>
+
+        <!-- Center: Hospital Name & Slogan (in the middle!) -->
+        <div class="lh-header-center">
+          ${isActive("header.hospitalName") ? `<h1 class="lh-hospital-title" style="${getStyle("header.hospitalName")}" ${click("header.hospitalName")}>${hName}</h1>` : ""}
+          ${
+            isActive("header.slogan") && hSlogan
+              ? `
+            <div class="lh-slogan-wrap">
+              <span class="lh-slogan-line"></span>
+              <span class="lh-slogan-text" style="${getStyle("header.slogan")}" ${click("header.slogan")}>${hSlogan}</span>
+              <span class="lh-slogan-line"></span>
+            </div>
+          `
+              : ""
+          }
+        </div>
+
+        <!-- Right: The tiny image (ECG heartbeat pulse + blue corner wave) -->
+        <div class="lh-header-right" style="${getStyle("header.topWave")}" ${click("header.topWave")}>
+          <img src="${fs["header.topWave"]?.customSrc || cfg.hospital?.headerWaveUrl || "/images/narayan_letterhead_top_wave.png"}" alt="ECG Wave" class="lh-top-wave-img" />
         </div>
       </div>
-      <div class="shared-hospital-right">
-        ${isActive("header.regNo") && hReg ? `<span class="shared-reg-badge" style="${getStyle("header.regNo")}" ${click("header.regNo")}>${hReg}</span>` : ""}
-        ${isActive("header.emergencyPhone") && hEmergency ? `<span class="shared-em-badge" style="${getStyle("header.emergencyPhone")}" ${click("header.emergencyPhone")}>${hEmergency}</span>` : ""}
-        ${
-          isActive("header.accreditations") && cfg.hospital?.showAccreditationBadges && Array.isArray(cfg.hospital?.accreditations) && cfg.hospital.accreditations.length > 0
-            ? `
-          <div class="shared-accreditations-row" style="${getStyle("header.accreditations")}" ${click("header.accreditations")}>
-            ${cfg.hospital.accreditations.map((acc) => `<span class="shared-acc-pill">${acc}</span>`).join("")}
-          </div>
-        `
-            : ""
-        }
-      </div>
+      <div class="lh-header-bottom-bar"></div>
     </div>
     `
         : ""
@@ -1290,6 +1354,12 @@ export function buildSharedFooterHTML(
   const termsDisclaimer = getText("terms.disclaimer", cfg.footer?.disclaimer || "");
 
   const sig = cfg.footer?.signatures || {};
+  const hasAnyActiveSig =
+    (isActive("signatures.doctor") && sig.doctor?.show !== false) ||
+    (isActive("signatures.nurse") && sig.nurse?.show !== false) ||
+    (isActive("signatures.attendant") && sig.attendant?.show !== false) ||
+    (isActive("signatures.cashier") && sig.cashier?.show !== false) ||
+    (isActive("signatures.stamp") && sig.stamp?.show !== false);
 
   return `
     <!-- ── SHARED FOOTER POLICIES & TERMS ── -->
@@ -1314,7 +1384,7 @@ export function buildSharedFooterHTML(
 
     <!-- ── SHARED SIGNATURES & STAMP ── -->
     ${
-      isActive("signatures.card") && fs["signatures.card"]?.show !== false
+      isActive("signatures.card") && fs["signatures.card"]?.show !== false && hasAnyActiveSig
         ? `
       <div class="shared-sig-card" style="${getStyle("signatures.card")}" ${click("signatures.card")}>
         <div class="shared-sig-grid">
@@ -1327,7 +1397,7 @@ export function buildSharedFooterHTML(
               <p class="shared-sig-sub">${sig.doctor?.sub || "Admitting / Attending Doctor"}</p>
             </div>
           `
-              : "<div></div>"
+              : ""
           }
           ${
             isActive("signatures.nurse") && sig.nurse?.show !== false
@@ -1338,7 +1408,7 @@ export function buildSharedFooterHTML(
               <p class="shared-sig-sub">${sig.nurse?.sub || "Ward / Counter Incharge"}</p>
             </div>
           `
-              : "<div></div>"
+              : ""
           }
           ${
             isActive("signatures.attendant") && sig.attendant?.show !== false
@@ -1349,7 +1419,7 @@ export function buildSharedFooterHTML(
               <p class="shared-sig-sub">${sig.attendant?.sub || "Consent & Acknowledgment"}</p>
             </div>
           `
-              : "<div></div>"
+              : ""
           }
           ${
             isActive("signatures.cashier") && sig.cashier?.show !== false
@@ -1371,13 +1441,141 @@ export function buildSharedFooterHTML(
               </div>
             </div>
           `
-              : "<div></div>"
+              : ""
           }
         </div>
       </div>
     `
         : ""
     }
+
+    <!-- ── OFFICIAL LETTERHEAD FOOTER (BOTTOM) ── -->
+    ${buildLetterheadFooterBarHTML(cfg, { isPreview, slipType, activeTargetKey: options?.activeTargetKey })}
+  `;
+}
+
+/**
+ * Builds the official 4-column Letterhead Footer Bar with bottom wave graphic.
+ */
+export function buildLetterheadFooterBarHTML(
+  settings = DEFAULT_SHARED_CONFIG,
+  options = { isPreview: false, activeTargetKey: null, slipType: "all" }
+) {
+  const cfg = mergeSharedSettings(DEFAULT_SHARED_CONFIG, settings || {});
+  const fs = cfg.fieldStyles || {};
+  const isPreview = options?.isPreview === true;
+  const slipType = options?.slipType || "all";
+
+  const isActive = (k) => isElementActiveOnSlip(k, slipType, cfg);
+  const getStyle = (k, extra = "") => getElementComputedStyle(k, fs, extra, !isActive(k));
+  const click = (k) => getClickableAttr(k, isPreview);
+  const getText = (k, fallback) => fs[k]?.customText || fallback;
+
+  if (fs["footer.letterhead"]?.show === false || cfg.footer?.showLetterheadFooter === false) {
+    return "";
+  }
+
+  const rawAddr = getText("footer.address", cfg.hospital?.address || "Upsana Nagar Colony, Beside Hotel Mandirian, Amra-Akhari Bypass, Varanasi");
+  let addrLines = [];
+  if (rawAddr.includes("\n")) {
+    addrLines = rawAddr.split("\n").map((s) => s.trim()).filter(Boolean);
+  } else if (rawAddr.includes(",")) {
+    const parts = rawAddr.split(",").map((s) => s.trim());
+    if (parts.length >= 3) {
+      addrLines = [
+        parts[0] + ",",
+        parts.slice(1, -1).join(", ") + ",",
+        parts[parts.length - 1],
+      ];
+    } else {
+      addrLines = [parts[0] + ",", parts.slice(1).join(", ")];
+    }
+  } else {
+    addrLines = [rawAddr];
+  }
+
+  const helplineText = getText("footer.helpline", cfg.hospital?.phone || "+91 7388660408");
+  const emailText = getText("footer.email", cfg.hospital?.email || "info@narayanhospital.com");
+  const webText = getText("footer.website", cfg.hospital?.website || "www.narayanhospital.com");
+  const regNoText = getText("footer.regNo", cfg.hospital?.registrationNo || "REG/UP/2024/098");
+  const formattedReg = regNoText.toLowerCase().startsWith("reg") ? regNoText : `Reg: ${regNoText}`;
+
+  const fls = fs["footer.letterhead"] || {};
+
+  // Custom border controls for footer
+  const bw = fls.borderWidth !== undefined ? fls.borderWidth : (cfg.footer?.borderWidth !== undefined ? cfg.footer.borderWidth : 2);
+  const bs = fls.borderStyle || cfg.footer?.borderStyle || "solid";
+  const bc = fls.borderColor || cfg.footer?.borderColor || "#0077b6";
+  const showBorder = fls.showBorder !== false && Number(bw) > 0 && bs !== "none";
+
+  // Border mode: "box" (full outer border) vs "top" (top divider line only, letterhead default)
+  const isFullBox = fls.borderMode === "box";
+  const borderRule = !showBorder
+    ? "border: none !important;"
+    : isFullBox
+    ? `border: ${bw}px ${bs} ${bc} !important;`
+    : `border: none !important; border-top: ${bw}px ${bs} ${bc} !important;`;
+
+  // Column vertical dividers:
+  const colBw = fls.colDividerWidth !== undefined ? fls.colDividerWidth : 1.5;
+  const colBs = fls.colDividerStyle || "solid";
+  const colBc = fls.colDividerColor || bc || "#0077b6";
+  const showColDivider = fls.showColDivider !== false && Number(colBw) > 0 && colBs !== "none";
+  const colDividerCss = showColDivider
+    ? `border-right: ${colBw}px ${colBs} ${colBc} !important;`
+    : "border-right: none !important;";
+
+  return `
+    <div class="shared-letterhead-footer" style="${borderRule} ${getStyle("footer.letterhead")}" ${click("footer.letterhead")}>
+      <div class="shared-lh-footer-columns">
+        <!-- Col 1: Address -->
+        <div class="shared-lh-footer-col shared-lh-col-1" style="${colDividerCss} ${getStyle("footer.address")}" ${click("footer.address")}>
+          <div class="shared-lh-col-icon">
+            <svg viewBox="0 0 24 24" fill="${bc}" width="18" height="18"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+          </div>
+          <div class="shared-lh-col-text">
+            ${addrLines.map((line) => `<div>${line}</div>`).join("")}
+          </div>
+        </div>
+
+        <!-- Col 2: 24x7 Helpline -->
+        <div class="shared-lh-footer-col shared-lh-col-2" style="${colDividerCss} ${getStyle("footer.helpline")}" ${click("footer.helpline")}>
+          <div class="shared-lh-col-icon">
+            <svg viewBox="0 0 24 24" fill="${bc}" width="18" height="18"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+          </div>
+          <div class="shared-lh-col-text">
+            <div class="shared-lh-helpline-lbl">24x7 Helpline</div>
+            <div class="shared-lh-helpline-num">${helplineText}</div>
+          </div>
+        </div>
+
+        <!-- Col 3: Email & Website -->
+        <div class="shared-lh-footer-col shared-lh-col-3" style="${colDividerCss} ${getStyle("footer.contact")}" ${click("footer.contact")}>
+          <div class="shared-lh-contact-line">
+            <div class="shared-lh-col-icon" style="margin-right:2px;">
+              <svg viewBox="0 0 24 24" fill="${bc}" width="13" height="13"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            </div>
+            <span>${emailText}</span>
+          </div>
+          <div class="shared-lh-contact-line">
+            <div class="shared-lh-col-icon" style="margin-right:2px;">
+              <svg viewBox="0 0 24 24" fill="${bc}" width="13" height="13"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.91 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2 0 .68.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2 0-.68.07-1.35.16-2h4.68c.09.65.16 1.32.16 2 0 .68-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2 0-.68-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z"/></svg>
+            </div>
+            <span>${webText}</span>
+          </div>
+        </div>
+
+        <!-- Col 4: Reg No -->
+        <div class="shared-lh-footer-col shared-lh-col-4" style="${getStyle("footer.regNo")}" ${click("footer.regNo")}>
+          <div class="shared-lh-reg-no">${formattedReg}</div>
+        </div>
+      </div>
+
+      <!-- Bottom Decorative Wave Graphic -->
+      <div class="shared-lh-waves-wrap" style="${getStyle("footer.bottomWave")}" ${click("footer.bottomWave")}>
+        <img src="/images/narayan_letterhead_bottom_wave.png" class="shared-lh-bottom-wave-img" alt="Footer Waves" />
+      </div>
+    </div>
   `;
 }
 
@@ -1615,51 +1813,176 @@ function buildSlipBodyPreviewHTML(slipType = "all", settings = DEFAULT_SHARED_CO
  * Core CSS rules shared across all slip layouts (Header, Demographics, Footer)
  */
 export const SHARED_PRINT_CSS = `
-  /* ── HEADER LETTERHEAD ── */
+  /* ── 1. OFFICIAL LETTERHEAD HEADER ── */
+  .shared-letterhead-header {
+    width: 100%;
+    background: #ffffff;
+    position: relative;
+    padding-top: 2px;
+  }
+  .lh-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    position: relative;
+    min-height: 56px;
+  }
+  .lh-header-left {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 12px;
+  }
+  .lh-logo-img {
+    height: 52px;
+    max-height: 58px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+  }
+  .lh-vertical-divider {
+    width: 1.5px;
+    height: 48px;
+    background: #94a3b8;
+    opacity: 0.85;
+    flex-shrink: 0;
+  }
+  .lh-header-center {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 0 10px;
+  }
+  .lh-hospital-title {
+    font-size: 26px;
+    font-weight: 800;
+    color: #0c3b6e;
+    margin: 0;
+    line-height: 1.15;
+    letter-spacing: -0.3px;
+    font-family: 'Poppins', Inter, system-ui, sans-serif;
+    text-align: center;
+  }
+  .lh-slogan-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 3px;
+  }
+  .lh-slogan-line {
+    height: 1.5px;
+    width: 32px;
+    background: #0c3b6e;
+    display: inline-block;
+  }
+  .lh-slogan-text {
+    font-size: 11px;
+    font-style: italic;
+    font-weight: 600;
+    color: #0c3b6e;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    font-family: Inter, system-ui, sans-serif;
+  }
+  .lh-header-right {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  .lh-top-wave-img {
+    height: 56px;
+    max-height: 60px;
+    width: auto;
+    max-width: 190px;
+    object-fit: contain;
+    object-position: right center;
+    display: block;
+  }
+  .lh-header-bottom-bar {
+    width: 100%;
+    height: 2px;
+    background: #0077b6;
+    margin-top: 6px;
+  }
+
+  /* ── LEGACY HOSPITAL BLOCK (FALLBACK) ── */
   .shared-hospital-block {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 6px 10px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    padding: 4px 2px 8px 2px;
+    border: none;
+    border-bottom: 2px solid #0077b6;
     background: #ffffff;
     position: relative;
   }
   .shared-hospital-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     flex: 1;
   }
   .shared-hospital-logo {
-    max-width: 150px;
+    height: 52px;
+    max-height: 56px;
+    max-width: 160px;
     object-fit: contain;
+    width: auto;
+  }
+  .shared-hospital-divider {
+    width: 1.5px;
+    height: 48px;
+    background: #0077b6;
+    opacity: 0.85;
+    flex-shrink: 0;
   }
   .shared-hospital-identity {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    justify-content: center;
   }
   .shared-hospital-name {
-    font-size: 16px;
+    font-size: 24px;
     font-weight: 800;
-    color: #0b3b60;
+    color: #0c3b6e;
     margin: 0;
-    line-height: 1.2;
+    line-height: 1.1;
+    letter-spacing: -0.3px;
+    font-family: 'Poppins', Inter, system-ui, sans-serif;
   }
-  .shared-hospital-sub {
-    font-size: 9px;
-    font-weight: 600;
-    color: #475569;
-    margin: 0;
+  .shared-hospital-slogan-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .shared-slogan-line {
+    height: 1.5px;
+    width: 32px;
+    background: #0c3b6e;
+    display: inline-block;
   }
   .shared-hospital-slogan {
-    font-size: 8.5px;
+    font-size: 10.5px;
     font-style: italic;
-    color: #0284c7;
+    font-weight: 600;
+    color: #0c3b6e;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
     margin: 0;
+  }
+  .shared-hospital-sub {
+    font-size: 8.5px;
+    font-weight: 600;
+    color: #475569;
+    margin: 2px 0 0 0;
   }
   .shared-hospital-addr {
     font-size: 8.5px;
@@ -1673,9 +1996,17 @@ export const SHARED_PRINT_CSS = `
   }
   .shared-hospital-right {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 3px;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .shared-header-wave-img {
+    height: 52px;
+    max-width: 220px;
+    object-fit: contain;
+    object-position: right center;
+    display: block;
   }
   .shared-reg-badge {
     display: inline-block;
@@ -1900,12 +2231,15 @@ export const SHARED_PRINT_CSS = `
     margin-top: 6px;
   }
   .shared-sig-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr) auto;
-    gap: 12px;
+    display: flex;
+    justify-content: space-between;
     align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
   }
   .shared-sig-col {
+    flex: 1;
+    min-width: 90px;
     text-align: center;
     position: relative;
   }
@@ -1926,6 +2260,7 @@ export const SHARED_PRINT_CSS = `
     margin: 0;
   }
   .shared-stamp-col {
+    flex: 0 0 auto;
     display: flex;
     justify-content: flex-end;
     position: relative;
@@ -1944,6 +2279,95 @@ export const SHARED_PRINT_CSS = `
     color: #0284c7;
     background: rgba(2, 132, 199, 0.04);
     padding: 2px;
+  }
+
+  /* ── 2. SHARED LETTERHEAD FOOTER BAR ── */
+  .shared-letterhead-footer {
+    border-top: 2px solid #0077b6;
+    background: #ffffff;
+    margin-top: 10px;
+    padding-top: 6px;
+    position: relative;
+    width: 100%;
+  }
+  .shared-lh-footer-columns {
+    display: grid;
+    grid-template-columns: 1.4fr 1.05fr 1.3fr 0.85fr;
+    align-items: center;
+    gap: 8px;
+    padding: 0 4px;
+  }
+  .shared-lh-footer-col {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-right: 1.5px solid #0077b6;
+    padding-right: 8px;
+    min-height: 42px;
+  }
+  .shared-lh-col-3 {
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 3px;
+  }
+  .shared-lh-col-4 {
+    border-right: none;
+    padding-right: 0;
+    justify-content: flex-end;
+  }
+  .shared-lh-col-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0077b6;
+  }
+  .shared-lh-col-text {
+    font-size: 8px;
+    line-height: 1.25;
+    color: #0f172a;
+    font-weight: 600;
+  }
+  .shared-lh-helpline-lbl {
+    font-size: 8px;
+    color: #475569;
+    font-weight: 600;
+    margin-bottom: 1px;
+  }
+  .shared-lh-helpline-num {
+    font-size: 10.5px;
+    font-weight: 800;
+    color: #0c3b6e;
+    white-space: nowrap;
+  }
+  .shared-lh-contact-line {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 8px;
+    font-weight: 600;
+    color: #0f172a;
+    line-height: 1.3;
+  }
+  .shared-lh-reg-no {
+    font-size: 9px;
+    font-weight: 700;
+    color: #0f172a;
+    white-space: nowrap;
+    text-align: right;
+  }
+  .shared-lh-waves-wrap {
+    width: 100%;
+    margin-top: 4px;
+    overflow: hidden;
+    line-height: 0;
+  }
+  .shared-lh-bottom-wave-img {
+    width: 100%;
+    height: 26px;
+    object-fit: fill;
+    display: block;
   }
 `;
 
@@ -2015,6 +2439,7 @@ export function buildSharedPreviewHTML(
     .shared-preview-page {
       width: 100%;
       max-width: ${slipType === "ipd_receipt" ? "142mm" : "195mm"};
+      min-height: auto;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
