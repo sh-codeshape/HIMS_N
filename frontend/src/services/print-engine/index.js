@@ -136,7 +136,7 @@ class PrintEngine {
     };
 
     const headerHtml = sharedRenderer.buildHeader(cfg, encounterData, renderOptions);
-    const titleBannerHtml = sharedRenderer.buildDocumentTitleBanner(normType, cfg, encounterData, renderOptions);
+    const titleBannerHtml = ""; // Handled natively by sharedRenderer.buildHeader without duplicate banner
     const demographicsHtml = sharedRenderer.buildDemographics(cfg, encounterData, renderOptions);
     const footerHtml = sharedRenderer.buildFooter(cfg, encounterData, renderOptions);
 

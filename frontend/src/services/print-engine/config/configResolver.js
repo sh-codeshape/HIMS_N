@@ -74,9 +74,18 @@ export function resolveEffectiveConfig(slipType = "opd", masterConfig = null, sl
     ...(baseMaster.billing || {}),
     ...(specific.billing || {}),
     ...(specific.gst?.mode ? { gstMode: specific.gst.mode } : {}),
-    ...(specific.bankDetails?.upiId ? { upiId: specific.bankDetails.upiId } : {}),
+    ...(specific.gst?.showTax !== undefined ? { showTax: Boolean(specific.gst.showTax) } : {}),
+    ...(specific.billing?.showTax !== undefined ? { showTax: Boolean(specific.billing.showTax) } : {}),
+    ...(specific.bankDetails?.upiId !== undefined ? { upiId: specific.bankDetails.upiId } : {}),
+    ...(specific.bankDetails?.showUpiQr !== undefined ? { showUpiQr: Boolean(specific.bankDetails.showUpiQr) } : {}),
+    ...(specific.billing?.showUpiQr !== undefined ? { showUpiQr: Boolean(specific.billing.showUpiQr) } : {}),
     ...(specific.charges?.groupByDepartment !== undefined ? { groupCharges: specific.charges.groupByDepartment } : {}),
     ...(specific.settlement?.showPaymentBreakdown !== undefined ? { paymentBreakdown: specific.settlement.showPaymentBreakdown } : {}),
+    ...(specific.billing?.totalLabel ? { totalLabel: specific.billing.totalLabel } : {}),
+    ...(specific.billing?.payableLabel ? { payableLabel: specific.billing.payableLabel } : {}),
+    ...(specific.billing?.dueLabel ? { dueLabel: specific.billing.dueLabel } : {}),
+    ...(specific.billing?.paidLabel ? { paidLabel: specific.billing.paidLabel } : {}),
+    ...(specific.billing?.paymentsTitle ? { paymentsTitle: specific.billing.paymentsTitle } : {}),
   };
 
   const dischargeSection = {

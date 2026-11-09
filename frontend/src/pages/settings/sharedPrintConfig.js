@@ -1183,6 +1183,7 @@ export function buildSharedHeaderHTML(
       <div class="shared-banner-left">
         ${showTitle ? `<h2 class="shared-doc-title" style="${getStyle("ticket.title")}" ${click("ticket.title")}>${docTitle}</h2>` : ""}
         ${showCopyBadge ? `<span class="shared-copy-pill" style="${getStyle("ticket.copyBadge")}" ${click("ticket.copyBadge")}>${copyType}</span>` : ""}
+        ${data.tokenNo && slipType === "opd" ? `<span class="shared-copy-pill" style="background: #e0f2fe; color: #0369a1; border: 1.5px solid #0284c7; font-family: monospace; font-weight: 800;">TOKEN #${data.tokenNo}</span>` : ""}
       </div>
       <div class="shared-banner-right">
         ${

@@ -101,8 +101,16 @@ export const DEFAULT_SLIP_CONFIGS = {
   ipd_billing: {
     title: "INPATIENT FINAL TAX INVOICE",
     copyBadge: "OFFICIAL SETTLEMENT COPY",
-    gstMode: "composite", // "inclusive" | "exclusive" | "composite" | "exempt"
-    upiId: "narayan.hospital@upi",
+    showTax: false,
+    gstMode: "exempt", // "exempt" | "exclusive" | "inclusive"
+    showUpiQr: false,
+    upiId: "",
+    totalLabel: "Total Amount",
+    payableLabel: "Payable Amount",
+    dueLabel: "Balance Due",
+    paidLabel: "Advance Received",
+    paymentsTitle: "Advance & Payments Received",
+    discountLabel: "Discount",
     groupCharges: true,
     paymentBreakdown: true,
   },

@@ -50,11 +50,11 @@ export function renderReceiptBody(data, cfg, options = {}) {
       ${
         totalCharges > 0 || totalPaid > 0
           ? `
-        <!-- Ledger Snapshot Bar -->
+        <!-- Ledger Snapshot Bar with Light English Labels -->
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: #f1f5f9; border-radius: 6px; padding: 5px 8px; font-size: 8px; text-align: center;">
-          <div><span style="color: #64748b; display: block; font-size: 7px; text-transform: uppercase;">Charges Incurred</span> <strong>₹ ${totalCharges.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></div>
-          <div><span style="color: #64748b; display: block; font-size: 7px; text-transform: uppercase;">Receipts Recorded</span> <strong style="color: #059669;">₹ ${totalPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></div>
-          <div><span style="color: #64748b; display: block; font-size: 7px; text-transform: uppercase;">${excessCredit > 0 ? "Excess Credit" : "Remaining Due"}</span> <strong style="color: #0284c7;">₹ ${(excessCredit > 0 ? excessCredit : pendingBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></div>
+          <div><span style="color: #64748b; display: block; font-size: 7px; text-transform: uppercase;">Total Charges</span> <strong>₹ ${totalCharges.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></div>
+          <div><span style="color: #64748b; display: block; font-size: 7px; text-transform: uppercase;">Amount Paid</span> <strong style="color: #059669;">₹ ${totalPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></div>
+          <div><span style="color: #64748b; display: block; font-size: 7px; text-transform: uppercase;">${excessCredit > 0 ? "Excess Credit" : "Balance Due"}</span> <strong style="color: #0284c7;">₹ ${(excessCredit > 0 ? excessCredit : pendingBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></div>
         </div>
       `
           : ""

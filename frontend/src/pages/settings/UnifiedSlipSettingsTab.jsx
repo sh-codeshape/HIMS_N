@@ -459,49 +459,157 @@ export default function UnifiedSlipSettingsTab({ slipType = "opd", onOpenMaster 
 
             {/* ── IPD BILLING SPECIFIC ── */}
             {normType === "ipd_billing" && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">GST / Tax Status</label>
-                    <select
-                      value={settings.gst?.mode || "exempt"}
-                      onChange={(e) => updateSection("gst", "mode", e.target.value)}
-                      className="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg"
-                    >
-                      <option value="exempt">GST Exempt (Healthcare Default)</option>
-                      <option value="taxable">Taxable Inpatient Services</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">UPI ID for Cashless Settlement</label>
+              <div className="space-y-4">
+                {/* 1. UPI Payment QR Code Toggle & Input */}
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2.5">
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer">
                     <input
-                      type="text"
-                      value={settings.bankDetails?.upiId || "narayan@upi"}
-                      onChange={(e) => updateSection("bankDetails", "upiId", e.target.value)}
-                      placeholder="narayan@upi"
-                      className="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg font-mono"
+                      type="checkbox"
+                      checked={settings.billing?.showUpiQr === true || settings.bankDetails?.showUpiQr === true}
+                      onChange={(e) => {
+                        const show = e.target.checked;
+                        updateSection("billing", "showUpiQr", show);
+                        updateSection("bankDetails", "showUpiQr", show);
+                      }}
+                      className="rounded text-sky-600 w-4 h-4"
                     />
-                  </div>
+                    <span>Show UPI Payment QR Code on Bill</span>
+                  </label>
+                  {(settings.billing?.showUpiQr === true || settings.bankDetails?.showUpiQr === true) && (
+                    <div className="pt-1">
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                        UPI ID for Instant QR Scan &amp; Pay
+                      </label>
+                      <input
+                        type="text"
+                        value={settings.billing?.upiId ?? settings.bankDetails?.upiId ?? ""}
+                        onChange={(e) => {
+                          updateSection("billing", "upiId", e.target.value);
+                          updateSection("bankDetails", "upiId", e.target.value);
+                        }}
+                        placeholder="e.g. hospitalname@okhdfcbank"
+                        className="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg font-mono"
+                      />
+                    </div>
+                  )}
                 </div>
+
+                {/* 2. GST / Tax Breakdown Toggle */}
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2.5">
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.billing?.showTax === true || (settings.gst?.mode && settings.gst?.mode !== "exempt")}
+                      onChange={(e) => {
+                        const show = e.target.checked;
+                        updateSection("billing", "showTax", show);
+                        updateSection("gst", "showTax", show);
+                        if (!show) {
+                          updateSection("billing", "gstMode", "exempt");
+                          updateSection("gst", "mode", "exempt");
+                        } else {
+                          updateSection("billing", "gstMode", "exclusive");
+                          updateSection("gst", "mode", "exclusive");
+                        }
+                      }}
+                      className="rounded text-sky-600 w-4 h-4"
+                    />
+                    <span>Show GST / Tax Line on Bill</span>
+                  </label>
+                  {(settings.billing?.showTax === true || (settings.gst?.mode && settings.gst?.mode !== "exempt")) && (
+                    <div className="pt-1">
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Tax Calculation Mode</label>
+                      <select
+                        value={settings.billing?.gstMode || settings.gst?.mode || "exclusive"}
+                        onChange={(e) => {
+                          updateSection("billing", "gstMode", e.target.value);
+                          updateSection("gst", "mode", e.target.value);
+                        }}
+                        className="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg"
+                      >
+                        <option value="exclusive">5% GST Added (Exclusive)</option>
+                        <option value="inclusive">5% GST Included in Rate</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Section Toggles */}
                 <div className="space-y-2 pt-1 text-xs">
                   <label className="flex items-center gap-2 text-slate-700 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={settings.charges?.groupByDepartment !== false}
-                      onChange={(e) => updateSection("charges", "groupByDepartment", e.target.checked)}
+                      onChange={(e) => {
+                        updateSection("charges", "groupByDepartment", e.target.checked);
+                        updateSection("billing", "groupCharges", e.target.checked);
+                      }}
                       className="rounded text-sky-600 w-4 h-4"
                     />
-                    <span>Group Charges by Department (ICU, Pharmacy, Lab, Nursing)</span>
+                    <span>Group Charges by Category (ICU, Pharmacy, Lab, Nursing)</span>
                   </label>
                   <label className="flex items-center gap-2 text-slate-700 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={settings.settlement?.showPaymentBreakdown !== false}
-                      onChange={(e) => updateSection("settlement", "showPaymentBreakdown", e.target.checked)}
+                      onChange={(e) => {
+                        updateSection("settlement", "showPaymentBreakdown", e.target.checked);
+                        updateSection("billing", "paymentBreakdown", e.target.checked);
+                      }}
                       className="rounded text-sky-600 w-4 h-4"
                     />
                     <span>Show Deposits Ledger &amp; Advance Reconciliation Table</span>
                   </label>
+                </div>
+
+                {/* 4. Editable Financial Summary Labels (Simple / Light English) */}
+                <div className="p-3 bg-white border border-slate-200 rounded-lg space-y-2.5 shadow-2xs">
+                  <div className="flex items-center gap-1.5 border-b border-slate-100 pb-1.5">
+                    <Icon name="LuPencilLine" size={13} className="text-sky-700" />
+                    <span className="text-xs font-bold text-slate-800">Customize Financial Labels (Light English)</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Total Amount Label</label>
+                      <input
+                        type="text"
+                        value={settings.billing?.totalLabel ?? "Total Amount"}
+                        onChange={(e) => updateSection("billing", "totalLabel", e.target.value)}
+                        placeholder="Total Amount"
+                        className="w-full text-xs px-2 py-1 border border-slate-300 rounded font-semibold text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Payable Amount Label</label>
+                      <input
+                        type="text"
+                        value={settings.billing?.payableLabel ?? "Payable Amount"}
+                        onChange={(e) => updateSection("billing", "payableLabel", e.target.value)}
+                        placeholder="Payable Amount"
+                        className="w-full text-xs px-2 py-1 border border-slate-300 rounded font-semibold text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Balance Due Label</label>
+                      <input
+                        type="text"
+                        value={settings.billing?.dueLabel ?? "Balance Due"}
+                        onChange={(e) => updateSection("billing", "dueLabel", e.target.value)}
+                        placeholder="Balance Due"
+                        className="w-full text-xs px-2 py-1 border border-slate-300 rounded font-semibold text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Advance Received Label</label>
+                      <input
+                        type="text"
+                        value={settings.billing?.paidLabel ?? "Advance Received"}
+                        onChange={(e) => updateSection("billing", "paidLabel", e.target.value)}
+                        placeholder="Advance Received"
+                        className="w-full text-xs px-2 py-1 border border-slate-300 rounded font-semibold text-slate-800"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

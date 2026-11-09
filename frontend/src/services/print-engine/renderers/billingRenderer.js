@@ -1,9 +1,11 @@
 /**
  * billingRenderer.js — IPD Final Tax Invoice & Itemized Ledger Body Renderer.
  * 
- * Supports:
- * - Dynamic GST modes (composite, exempt, inclusive, exclusive) via cfg.billing.gstMode
- * - UPI Dynamic QR generation via cfg.billing.upiId
+ * Features:
+ * - Clean, light, simple English labels (Total Amount, Payable Amount, Balance Due)
+ * - Editable financial labels via cfg.billing
+ * - Optional UPI QR Code (hidden by default unless explicitly enabled)
+ * - Optional GST / Tax breakdown (hidden by default unless enabled)
  * - Charge category grouping via cfg.billing.groupCharges
  * - Payments ledger audit via cfg.billing.paymentBreakdown
  */
@@ -17,10 +19,21 @@ export function renderBillingBody(data, cfg, options = {}) {
   const clickAttr = getClickableAttr("body.card", options.isPreview);
 
   const billingCfg = cfg.billing || {};
-  const gstMode = billingCfg.gstMode || "composite";
+  const showTax = billingCfg.showTax === true;
+  const gstMode = billingCfg.gstMode || "exempt";
+  const showUpiQr = billingCfg.showUpiQr === true;
   const upiId = billingCfg.upiId || data.upiId || "";
   const showGroupCharges = billingCfg.groupCharges !== false;
   const showPaymentBreakdown = billingCfg.paymentBreakdown !== false;
+
+  // Customizable light-English financial labels
+  const totalLabel = billingCfg.totalLabel || billingCfg.chargesLabel || "Total Amount";
+  const payableLabel = billingCfg.payableLabel || billingCfg.netLabel || "Payable Amount";
+  const dueLabel = billingCfg.dueLabel || "Balance Due";
+  const creditLabel = billingCfg.creditLabel || "Credit Balance";
+  const discountLabel = billingCfg.discountLabel || "Discount";
+  const paymentsTitle = billingCfg.paymentsTitle || "Advance & Payments Received";
+  const totalPaidLabel = billingCfg.paidLabel || "Total Paid";
 
   const rawItems = Array.isArray(data.items) && data.items.length > 0 ? data.items : [];
   const rawPayments = Array.isArray(data.payments) && data.payments.length > 0 ? data.payments : [];
@@ -33,11 +46,11 @@ export function renderBillingBody(data, cfg, options = {}) {
   let taxAmount = 0;
   let finalNetBillable = netBillable;
 
-  if (gstMode === "exclusive") {
+  if (showTax && gstMode === "exclusive") {
     taxRate = 5;
     taxAmount = (netBillable * taxRate) / 100;
     finalNetBillable = netBillable + taxAmount;
-  } else if (gstMode === "inclusive") {
+  } else if (showTax && gstMode === "inclusive") {
     taxRate = 5;
     taxAmount = (netBillable * taxRate) / (100 + taxRate);
   }
@@ -49,7 +62,8 @@ export function renderBillingBody(data, cfg, options = {}) {
   );
   const balanceDue = finalNetBillable - advancePaid;
 
-  const upiQrUrl = upiId && balanceDue > 0
+  // Only generate and show UPI QR if explicitly turned on AND valid upiId exists
+  const upiQrUrl = showUpiQr && upiId && balanceDue > 0
     ? getUpiQrUrl(upiId, balanceDue, cfg.hospital?.name, data.billNo || data.encounterNo)
     : "";
 
@@ -109,8 +123,8 @@ export function renderBillingBody(data, cfg, options = {}) {
           <!-- Left: Payments Breakdown -->
           <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 8px;">
             <div style="font-size: 8.5px; font-weight: 800; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px; margin-bottom: 4px; display: flex; justify-content: space-between;">
-              <span>ADVANCE &amp; INTERIM PAYMENTS</span>
-              <span style="color: #059669;">Total Paid: ₹ ${advancePaid.toFixed(2)}</span>
+              <span>${esc(paymentsTitle)}</span>
+              <span style="color: #059669;">${esc(totalPaidLabel)}: ₹ ${advancePaid.toFixed(2)}</span>
             </div>
             ${
               rawPayments.length === 0
@@ -131,7 +145,7 @@ export function renderBillingBody(data, cfg, options = {}) {
             : `<div></div>`
         }
 
-        <!-- Right: Financial Summary & UPI QR -->
+        <!-- Right: Financial Summary -->
         <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 6px 8px; display: flex; gap: 8px; justify-content: space-between; align-items: center;">
           ${
             upiQrUrl
@@ -146,12 +160,12 @@ export function renderBillingBody(data, cfg, options = {}) {
 
           <div style="flex-grow: 1;">
             <table style="width: 100%; font-size: 8.5px; border-collapse: collapse;">
-              <tr><td>Gross Incurred:</td><td class="amt-col">₹ ${subtotal.toFixed(2)}</td></tr>
-              ${discount > 0 ? `<tr style="color: #15803d;"><td>Privilege Discount:</td><td class="amt-col">- ₹ ${discount.toFixed(2)}</td></tr>` : ""}
-              ${gstMode !== "exempt" ? `<tr><td>GST (${taxRate}% ${gstMode}):</td><td class="amt-col">₹ ${taxAmount.toFixed(2)}</td></tr>` : ""}
-              <tr style="font-weight: 700; border-top: 1px solid #cbd5e1;"><td>Net Billable:</td><td class="amt-col" style="font-family: monospace;">₹ ${finalNetBillable.toFixed(2)}</td></tr>
+              <tr><td>${esc(totalLabel)}:</td><td class="amt-col">₹ ${subtotal.toFixed(2)}</td></tr>
+              ${discount > 0 ? `<tr style="color: #15803d;"><td>${esc(discountLabel)}:</td><td class="amt-col">- ₹ ${discount.toFixed(2)}</td></tr>` : ""}
+              ${showTax && gstMode !== "exempt" ? `<tr><td>GST (${taxRate}%):</td><td class="amt-col">₹ ${taxAmount.toFixed(2)}</td></tr>` : ""}
+              <tr style="font-weight: 700; border-top: 1px solid #cbd5e1;"><td>${esc(payableLabel)}:</td><td class="amt-col" style="font-family: monospace;">₹ ${finalNetBillable.toFixed(2)}</td></tr>
               <tr style="font-weight: 800; font-size: 9.5px; color: ${balanceDue > 0 ? "#dc2626" : "#059669"};">
-                <td>${balanceDue > 0 ? "Net Due:" : "Credit Balance:"}</td>
+                <td>${esc(balanceDue > 0 ? `${dueLabel}:` : `${creditLabel}:`)}</td>
                 <td class="amt-col" style="font-family: monospace;">₹ ${Math.abs(balanceDue).toFixed(2)}</td>
               </tr>
             </table>
