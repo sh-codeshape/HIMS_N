@@ -68,34 +68,21 @@ export default function SharedHeaderFooterDesigner() {
     };
   }, []);
 
+  // Track if user explicitly edited anything in Master Designer to avoid unnecessary auto-syncs
+  const isUserModified = useRef(false);
+
   // Keep local cache immediately in sync with every keystroke/slider drag for zero-lag cross-tab sharing
   const settingsRef = useRef(settings);
   useEffect(() => {
     settingsRef.current = settings;
-    if (!loading && settings) {
+    if (!loading && settings && isUserModified.current) {
       setCachedSharedSettings(settings);
     }
   }, [settings, loading]);
 
-  // Flush any pending save immediately when switching away from this tab
+  // Debounced auto-sync to DB only after explicit user interaction
   useEffect(() => {
-    return () => {
-      if (settingsRef.current) {
-        setCachedSharedSettings(settingsRef.current);
-        saveSharedPrintSettings(settingsRef.current).catch(() => null);
-        applySharedMasterToAllSlips(settingsRef.current).catch(() => null);
-      }
-    };
-  }, []);
-
-  // Debounced auto-sync to DB so switching tabs never loses position changes
-  const isInitialMount = useRef(true);
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    if (loading) return;
+    if (loading || !isUserModified.current) return;
 
     const timer = setTimeout(async () => {
       try {
@@ -103,7 +90,7 @@ export default function SharedHeaderFooterDesigner() {
       } catch (e) {
         console.warn("Background auto-sync failed:", e);
       }
-    }, 800);
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, [settings, loading]);
@@ -176,6 +163,10 @@ export default function SharedHeaderFooterDesigner() {
         if (!next.hospital) next.hospital = {};
         next.hospital.logoHeight = Number(value);
       }
+      if (key === "footer.letterhead") {
+        if (!next.footer) next.footer = {};
+        next.footer[prop] = value;
+      }
       return next;
     });
     setRenderCounter((c) => c + 1);
@@ -193,7 +184,21 @@ export default function SharedHeaderFooterDesigner() {
     setSettings((prev) => {
       const nextStyles = { ...(prev.fieldStyles || {}) };
       delete nextStyles[key];
-      return { ...prev, fieldStyles: nextStyles };
+      const next = { ...prev, fieldStyles: nextStyles };
+      if (key === "footer.letterhead" && next.footer) {
+        delete next.footer.borderWidth;
+        delete next.footer.borderStyle;
+        delete next.footer.borderColor;
+        delete next.footer.borderMode;
+        delete next.footer.showBorder;
+        delete next.footer.showColDivider;
+        delete next.footer.colDividerWidth;
+        delete next.footer.colDividerStyle;
+        delete next.footer.colDividerColor;
+        delete next.footer.padding;
+        delete next.footer.borderRadius;
+      }
+      return next;
     });
     setRenderCounter((c) => c + 1);
   };
@@ -290,23 +295,37 @@ export default function SharedHeaderFooterDesigner() {
     reader.readAsDataURL(file);
   };
 
-  // Test Print
+  // Test Print via silent hidden iframe - avoids opening about:blank tab
   const handleTestPrint = () => {
     const html = buildSharedPreviewHTML(settings, null, {
       isPreview: false,
       slipType: selectedSlipType,
     });
-    const win = window.open("", "_blank");
-    if (win) {
-      win.document.open();
-      win.document.write(html);
-      win.document.close();
-      setTimeout(() => {
-        try {
-          win.print();
-        } catch (_) {}
-      }, 350);
+    let iframe = document.getElementById("shared-preview-print-iframe");
+    if (!iframe) {
+      iframe = document.createElement("iframe");
+      iframe.id = "shared-preview-print-iframe";
+      iframe.style.position = "fixed";
+      iframe.style.top = "-9999px";
+      iframe.style.left = "-9999px";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "none";
+      iframe.style.visibility = "hidden";
+      document.body.appendChild(iframe);
     }
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    iframe.contentWindow.focus();
+    setTimeout(() => {
+      try {
+        iframe.contentWindow.print();
+      } catch (err) {
+        console.warn("Print execution error:", err);
+      }
+    }, 350);
   };
 
   // Selected target metadata
@@ -323,6 +342,26 @@ export default function SharedHeaderFooterDesigner() {
   const currentFieldStyle = useMemo(() => {
     return settings.fieldStyles?.[selectedTargetKey] || {};
   }, [selectedTargetKey, settings.fieldStyles]);
+
+  // Dedicated computed style for letterhead footer bar with complete fallback resolution
+  const footerComputedStyle = useMemo(() => {
+    const fls = settings.fieldStyles?.["footer.letterhead"] || {};
+    const ftr = settings.footer || {};
+    return {
+      borderMode: fls.borderMode || ftr.borderMode || "top",
+      borderWidth: fls.borderWidth !== undefined ? fls.borderWidth : (ftr.borderWidth !== undefined ? ftr.borderWidth : 2),
+      borderStyle: fls.borderStyle || ftr.borderStyle || "solid",
+      borderColor: fls.borderColor || ftr.borderColor || "#0077b6",
+      showBorder: fls.showBorder !== undefined ? fls.showBorder : (ftr.showBorder !== undefined ? ftr.showBorder : true),
+      showColDivider: fls.showColDivider !== undefined ? fls.showColDivider : (ftr.showColDivider !== undefined ? ftr.showColDivider : true),
+      colDividerWidth: fls.colDividerWidth !== undefined ? fls.colDividerWidth : (ftr.colDividerWidth !== undefined ? ftr.colDividerWidth : 1.5),
+      colDividerStyle: fls.colDividerStyle || ftr.colDividerStyle || "solid",
+      colDividerColor: fls.colDividerColor || ftr.colDividerColor || fls.borderColor || ftr.borderColor || "#0077b6",
+      borderRadius: fls.borderRadius !== undefined ? fls.borderRadius : (ftr.borderRadius !== undefined ? ftr.borderRadius : 0),
+      padding: fls.padding !== undefined ? fls.padding : (ftr.padding !== undefined ? ftr.padding : 6),
+      ...fls,
+    };
+  }, [settings.fieldStyles, settings.footer]);
 
   const getDefaultSizeForTarget = (key) => {
     if (key === "header.logo") return 48;
@@ -350,16 +389,27 @@ export default function SharedHeaderFooterDesigner() {
   const isLogoTarget = selectedTargetKey === "header.logo";
   const isBarcodeTarget = selectedTargetKey === "ticket.barcode";
   const isBannerBoxTarget = selectedTargetKey === "ticket.card";
-  const isPureCardTarget = selectedTargetKey.endsWith(".card") || selectedTargetKey === "signatures.row" || selectedTargetKey === "ticket.card";
+  const isFooterLetterheadTarget = selectedTargetKey === "footer.letterhead";
+  const isFooterTarget = isFooterLetterheadTarget || selectedTargetKey.startsWith("footer.");
+  const isPureCardTarget =
+    selectedTargetKey.endsWith(".card") ||
+    selectedTargetKey === "signatures.row" ||
+    selectedTargetKey === "ticket.card" ||
+    isFooterLetterheadTarget;
   const isContainerTarget =
     isPureCardTarget ||
+    isFooterTarget ||
     selectedTargetKey === "terms.list" ||
     selectedTargetKey.startsWith("terms.") ||
     selectedTargetKey.startsWith("signatures.") ||
     selectedTargetKey.includes("badge") ||
     selectedTargetKey.includes("tag") ||
     selectedTargetKey === "header.accreditations";
-  const isTextTarget = !isLogoTarget && !isBarcodeTarget && (!isPureCardTarget || selectedTargetKey === "ticket.title");
+  const isTextTarget =
+    !isLogoTarget &&
+    !isBarcodeTarget &&
+    !isFooterLetterheadTarget &&
+    (!isPureCardTarget || selectedTargetKey === "ticket.title");
 
   // Nudge selected element in 4 directions
   const handleNudge = (direction) => {
@@ -1217,8 +1267,392 @@ export default function SharedHeaderFooterDesigner() {
                       </div>
                     )}
 
-                    {/* ── 📦 BOX SIZING, BORDER THICKNESS & EDGE SMOOTHNESS DESIGNER ── */}
-                    {(isContainerTarget || isBannerBoxTarget || currentFieldStyle.borderWidth !== undefined || currentFieldStyle.borderRadius !== undefined || currentFieldStyle.borderColor !== undefined || currentFieldStyle.bgColor !== undefined) && (
+                    {/* Helper banner if an individual footer column is selected */}
+                    {selectedTargetKey.startsWith("footer.") && !isFooterLetterheadTarget && (
+                      <div className="bg-sky-50 border border-sky-200 rounded-xl p-2.5 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 text-sky-900">
+                          <Icon name="LuInfo" size={14} className="text-sky-700 flex-shrink-0" />
+                          <span>Editing column. To change the overall footer top border or column dividers:</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTargetKey("footer.letterhead")}
+                          className="px-2.5 py-1 text-[10.5px] font-bold bg-sky-600 hover:bg-sky-700 text-white rounded shadow-xs flex-shrink-0"
+                        >
+                          Configure Footer Bar
+                        </button>
+                      </div>
+                    )}
+
+                    {/* ── 📜 DEDICATED OFFICIAL LETTERHEAD FOOTER BORDER & DIVIDERS DESIGNER ── */}
+                    {isFooterLetterheadTarget && (
+                      <div className="space-y-3 bg-gradient-to-b from-sky-50/70 to-white p-3.5 rounded-xl border-2 border-sky-300 shadow-xs">
+                        <div className="flex items-center justify-between text-xs border-b border-sky-200 pb-2">
+                          <span className="font-extrabold text-slate-800 flex items-center gap-1.5">
+                            <Icon name="LuSquare" size={14} className="text-sky-700" />
+                            <span>Letterhead Footer Border &amp; Dividers</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleUpdateFieldStyle("footer.letterhead", "borderWidth", 2);
+                              handleUpdateFieldStyle("footer.letterhead", "borderStyle", "solid");
+                              handleUpdateFieldStyle("footer.letterhead", "borderColor", "#0077b6");
+                              handleUpdateFieldStyle("footer.letterhead", "borderMode", "top");
+                              handleUpdateFieldStyle("footer.letterhead", "showBorder", true);
+                              handleUpdateFieldStyle("footer.letterhead", "showColDivider", true);
+                              handleUpdateFieldStyle("footer.letterhead", "colDividerWidth", 1.5);
+                              handleUpdateFieldStyle("footer.letterhead", "colDividerStyle", "solid");
+                              handleUpdateFieldStyle("footer.letterhead", "colDividerColor", "#0077b6");
+                            }}
+                            className="text-[10px] text-sky-700 hover:underline font-bold"
+                          >
+                            Reset Defaults
+                          </button>
+                        </div>
+
+                        {/* 1. Border Mode: Top Divider vs Full Box */}
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-bold text-slate-700 block">Border Layout Mode:</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateFieldStyle("footer.letterhead", "borderMode", "top")}
+                              className={`p-2 rounded-lg text-xs font-bold border transition-all text-left flex items-start gap-2 ${
+                                footerComputedStyle.borderMode !== "box"
+                                  ? "bg-white border-sky-500 shadow-xs text-sky-900 ring-2 ring-sky-200"
+                                  : "bg-white/60 border-slate-200 text-slate-600 hover:bg-white"
+                              }`}
+                            >
+                              <div className="w-5 h-5 rounded border-t-2 border-sky-600 bg-sky-50 flex items-center justify-center shrink-0 mt-0.5 text-[9px] font-bold text-sky-700">T</div>
+                              <div>
+                                <span className="block text-[11px] font-extrabold">Top Divider Only</span>
+                                <span className="block text-[9px] font-normal text-slate-500">Classic letterhead top line</span>
+                              </div>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateFieldStyle("footer.letterhead", "borderMode", "box")}
+                              className={`p-2 rounded-lg text-xs font-bold border transition-all text-left flex items-start gap-2 ${
+                                footerComputedStyle.borderMode === "box"
+                                  ? "bg-white border-sky-500 shadow-xs text-sky-900 ring-2 ring-sky-200"
+                                  : "bg-white/60 border-slate-200 text-slate-600 hover:bg-white"
+                              }`}
+                            >
+                              <div className="w-5 h-5 rounded border-2 border-sky-600 bg-sky-50 flex items-center justify-center shrink-0 mt-0.5 text-[9px] font-bold text-sky-700">▢</div>
+                              <div>
+                                <span className="block text-[11px] font-extrabold">Full Outer Box Frame</span>
+                                <span className="block text-[9px] font-normal text-slate-500">4-sided border around footer</span>
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 2. Border Thickness */}
+                        <div className="space-y-1.5 pt-2 border-t border-slate-200/70">
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-bold text-slate-800">
+                                {footerComputedStyle.borderMode === "box" ? "Outer Box Border Thickness:" : "Top Divider Thickness:"}
+                              </span>
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 bg-white text-sky-800 rounded font-bold border border-slate-200">
+                                {!footerComputedStyle.showBorder || footerComputedStyle.borderWidth === 0
+                                  ? "0px (None)"
+                                  : `${footerComputedStyle.borderWidth}px`}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                min="0"
+                                max="10"
+                                step="0.5"
+                                value={!footerComputedStyle.showBorder ? 0 : footerComputedStyle.borderWidth}
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value);
+                                  if (isNaN(val) || val <= 0) {
+                                    handleUpdateFieldStyle("footer.letterhead", "borderWidth", 0);
+                                    handleUpdateFieldStyle("footer.letterhead", "showBorder", false);
+                                  } else {
+                                    handleUpdateFieldStyle("footer.letterhead", "borderWidth", val);
+                                    handleUpdateFieldStyle("footer.letterhead", "showBorder", true);
+                                  }
+                                }}
+                                className="w-14 text-center text-xs font-mono font-bold bg-white border border-slate-300 rounded px-1 py-0.5"
+                              />
+                              <span className="text-slate-400 text-[11px]">px</span>
+                            </div>
+                          </div>
+
+                          <input
+                            type="range"
+                            min="0"
+                            max="8"
+                            step="0.5"
+                            value={!footerComputedStyle.showBorder ? 0 : footerComputedStyle.borderWidth}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              handleUpdateFieldStyle("footer.letterhead", "borderWidth", val);
+                              handleUpdateFieldStyle("footer.letterhead", "showBorder", val > 0);
+                            }}
+                            className="w-full accent-sky-700 cursor-pointer"
+                          />
+
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {[
+                              { label: "0px None", val: 0 },
+                              { label: "0.5px Hairline", val: 0.5 },
+                              { label: "1px Thin", val: 1 },
+                              { label: "1.5px", val: 1.5 },
+                              { label: "2px Default", val: 2 },
+                              { label: "3px Thick", val: 3 },
+                              { label: "4px Heavy", val: 4 },
+                            ].map((b) => (
+                              <button
+                                key={b.label}
+                                type="button"
+                                onClick={() => {
+                                  handleUpdateFieldStyle("footer.letterhead", "borderWidth", b.val);
+                                  handleUpdateFieldStyle("footer.letterhead", "showBorder", b.val > 0);
+                                }}
+                                className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${
+                                  (b.val === 0 && (!footerComputedStyle.showBorder || footerComputedStyle.borderWidth === 0)) ||
+                                  (b.val > 0 && footerComputedStyle.showBorder && Number(footerComputedStyle.borderWidth) === b.val)
+                                    ? "bg-sky-700 text-white shadow-xs"
+                                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                                }`}
+                              >
+                                {b.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 3. Border Line Style */}
+                        <div className="space-y-1 pt-1.5 border-t border-slate-200/60">
+                          <label className="text-[10.5px] font-bold text-slate-700 block">Border Line Style:</label>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {[
+                              { label: "Solid", val: "solid" },
+                              { label: "Dashed", val: "dashed" },
+                              { label: "Dotted", val: "dotted" },
+                              { label: "Double", val: "double" },
+                              { label: "None", val: "none" },
+                            ].map((st) => (
+                              <button
+                                key={st.val}
+                                type="button"
+                                onClick={() => {
+                                  handleUpdateFieldStyle("footer.letterhead", "borderStyle", st.val);
+                                  handleUpdateFieldStyle("footer.letterhead", "showBorder", st.val !== "none");
+                                }}
+                                className={`px-2 py-0.5 text-[10px] font-bold rounded capitalize transition-all ${
+                                  footerComputedStyle.borderStyle === st.val
+                                    ? "bg-sky-700 text-white shadow-xs"
+                                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                                }`}
+                              >
+                                {st.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 4. Border Color */}
+                        <div className="space-y-1.5 pt-2 border-t border-slate-200/70">
+                          <label className="text-[10.5px] font-bold text-slate-700 block">Border &amp; Icon Color:</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={footerComputedStyle.borderColor || "#0077b6"}
+                              onChange={(e) => handleUpdateFieldStyle("footer.letterhead", "borderColor", e.target.value)}
+                              className="w-7 h-7 rounded border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0"
+                            />
+                            <input
+                              type="text"
+                              value={footerComputedStyle.borderColor || "#0077b6"}
+                              onChange={(e) => handleUpdateFieldStyle("footer.letterhead", "borderColor", e.target.value)}
+                              className="w-24 text-xs font-mono rounded border border-slate-300 px-2 py-1 text-slate-800 font-bold"
+                            />
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {[
+                                { label: "Brand Blue", val: "#0077b6" },
+                                { label: "Navy", val: "#0b3b60" },
+                                { label: "Sky", val: "#0284c7" },
+                                { label: "Slate", val: "#94a3b8" },
+                                { label: "Dark", val: "#334155" },
+                                { label: "Silver", val: "#cbd5e1" },
+                              ].map((cp) => (
+                                <button
+                                  key={cp.label}
+                                  type="button"
+                                  onClick={() => handleUpdateFieldStyle("footer.letterhead", "borderColor", cp.val)}
+                                  className={`px-1.5 py-0.5 text-[9px] font-bold rounded border transition-all ${
+                                    footerComputedStyle.borderColor === cp.val
+                                      ? "bg-sky-700 text-white border-sky-700"
+                                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  {cp.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 5. Column Vertical Dividers */}
+                        <div className="space-y-2 pt-2 border-t border-slate-200/70 bg-white/70 p-2.5 rounded-lg border border-slate-200">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-[11px] font-bold text-slate-800 block">Vertical Column Dividers</span>
+                              <span className="text-[9.5px] text-slate-500">Vertical lines separating Address, Phone, Email &amp; Reg</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateFieldStyle("footer.letterhead", "showColDivider", !footerComputedStyle.showColDivider)}
+                              className={`px-2.5 py-1 text-[10px] font-bold rounded flex items-center gap-1 transition-all ${
+                                footerComputedStyle.showColDivider
+                                  ? "bg-emerald-600 text-white shadow-xs"
+                                  : "bg-slate-200 text-slate-600"
+                              }`}
+                            >
+                              <Icon name={footerComputedStyle.showColDivider ? "LuCheck" : "LuX"} size={11} />
+                              <span>{footerComputedStyle.showColDivider ? "Enabled" : "Hidden"}</span>
+                            </button>
+                          </div>
+
+                          {footerComputedStyle.showColDivider && (
+                            <div className="space-y-2 pt-1.5 border-t border-slate-100">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-[10.5px] font-semibold text-slate-600">Divider Thickness:</span>
+                                <div className="flex items-center gap-1">
+                                  {[
+                                    { label: "0.5px", val: 0.5 },
+                                    { label: "1px", val: 1 },
+                                    { label: "1.5px (Std)", val: 1.5 },
+                                    { label: "2px", val: 2 },
+                                  ].map((d) => (
+                                    <button
+                                      key={d.val}
+                                      type="button"
+                                      onClick={() => handleUpdateFieldStyle("footer.letterhead", "colDividerWidth", d.val)}
+                                      className={`px-1.5 py-0.5 text-[9.5px] font-mono rounded transition-all ${
+                                        Number(footerComputedStyle.colDividerWidth) === d.val
+                                          ? "bg-sky-700 text-white font-bold"
+                                          : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                                      }`}
+                                    >
+                                      {d.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-[10.5px] font-semibold text-slate-600">Divider Line Style:</span>
+                                <div className="flex items-center gap-1">
+                                  {[
+                                    { label: "Solid", val: "solid" },
+                                    { label: "Dashed", val: "dashed" },
+                                    { label: "Dotted", val: "dotted" },
+                                  ].map((st) => (
+                                    <button
+                                      key={st.val}
+                                      type="button"
+                                      onClick={() => handleUpdateFieldStyle("footer.letterhead", "colDividerStyle", st.val)}
+                                      className={`px-1.5 py-0.5 text-[9.5px] rounded capitalize transition-all ${
+                                        footerComputedStyle.colDividerStyle === st.val
+                                          ? "bg-sky-700 text-white font-bold"
+                                          : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                                      }`}
+                                    >
+                                      {st.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-[10.5px] font-semibold text-slate-600">Divider Color:</span>
+                                <div className="flex items-center gap-1.5">
+                                  <input
+                                    type="color"
+                                    value={footerComputedStyle.colDividerColor || footerComputedStyle.borderColor || "#0077b6"}
+                                    onChange={(e) => handleUpdateFieldStyle("footer.letterhead", "colDividerColor", e.target.value)}
+                                    className="w-5 h-5 rounded border border-slate-300 cursor-pointer p-0.5 bg-white"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateFieldStyle("footer.letterhead", "colDividerColor", footerComputedStyle.borderColor || "#0077b6")}
+                                    className="text-[9.5px] font-bold text-sky-700 hover:underline"
+                                  >
+                                    Match Border
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 6. Spacing & Corner Radius */}
+                        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/70">
+                          <div>
+                            <label className="text-[10.5px] font-bold text-slate-700 block mb-1">Inner Padding:</label>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {[
+                                { label: "4px", val: 4 },
+                                { label: "6px", val: 6 },
+                                { label: "8px", val: 8 },
+                                { label: "10px", val: 10 },
+                              ].map((p) => (
+                                <button
+                                  key={p.val}
+                                  type="button"
+                                  onClick={() => handleUpdateFieldStyle("footer.letterhead", "padding", p.val)}
+                                  className={`px-1.5 py-0.5 text-[9.5px] font-bold rounded ${
+                                    Number(footerComputedStyle.padding) === p.val
+                                      ? "bg-sky-700 text-white"
+                                      : "bg-white text-slate-600 border border-slate-200"
+                                  }`}
+                                >
+                                  {p.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {footerComputedStyle.borderMode === "box" && (
+                            <div>
+                              <label className="text-[10.5px] font-bold text-slate-700 block mb-1">Corner Radius:</label>
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {[
+                                  { label: "0px Sharp", val: 0 },
+                                  { label: "4px Crisp", val: 4 },
+                                  { label: "8px Rounded", val: 8 },
+                                ].map((r) => (
+                                  <button
+                                    key={r.val}
+                                    type="button"
+                                    onClick={() => handleUpdateFieldStyle("footer.letterhead", "borderRadius", r.val)}
+                                    className={`px-1.5 py-0.5 text-[9.5px] font-bold rounded ${
+                                      Number(footerComputedStyle.borderRadius) === r.val
+                                        ? "bg-sky-700 text-white"
+                                        : "bg-white text-slate-600 border border-slate-200"
+                                    }`}
+                                  >
+                                    {r.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── 📦 BOX SIZING, BORDER THICKNESS & EDGE SMOOTHNESS DESIGNER (FOR CARDS / CONTAINERS) ── */}
+                    {!isFooterLetterheadTarget && (isContainerTarget || isBannerBoxTarget || currentFieldStyle.borderWidth !== undefined || currentFieldStyle.borderRadius !== undefined || currentFieldStyle.borderColor !== undefined || currentFieldStyle.bgColor !== undefined) && (
                       <div className="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
                         <div className="flex items-center justify-between text-xs border-b border-slate-200/80 pb-2">
                           <span className="font-extrabold text-slate-800 flex items-center gap-1.5">
@@ -2537,17 +2971,271 @@ export default function SharedHeaderFooterDesigner() {
           {activeTab === "footer" && (
             <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-5">
               <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Footer Policies &amp; Signatures</h3>
+                <div>
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Footer Policies &amp; Signatures</h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Customize the official hospital letterhead footer bar, borders, rules, and signature rows.</p>
+                </div>
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedTargetKey("signatures.doctor");
+                    setSelectedTargetKey("footer.letterhead");
                     setActiveTab("data-designer");
                   }}
                   className="text-xs font-bold text-sky-700 hover:text-sky-800 flex items-center gap-1"
                 >
                   <Icon name="LuSlidersHorizontal" size={13} /> Position in Designer
                 </button>
+              </div>
+
+              {/* ── 📜 OFFICIAL LETTERHEAD FOOTER BAR & BORDER CONTROLS ── */}
+              <div className="bg-gradient-to-b from-sky-50/70 to-white rounded-xl border border-sky-200 p-4 space-y-4">
+                <div className="flex items-center justify-between border-b border-sky-100 pb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-sky-600"></span>
+                    <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Official Letterhead Footer Bar Borders &amp; Styling</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTargetKey("footer.letterhead");
+                      setActiveTab("data-designer");
+                    }}
+                    className="text-[11px] font-bold text-sky-700 hover:underline flex items-center gap-1"
+                  >
+                    <span>Inspect in Visual Designer</span>
+                    <Icon name="LuArrowRight" size={12} />
+                  </button>
+                </div>
+
+                {/* Border Mode: Top Divider vs Full Box */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700 block">Footer Border Mode:</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateFieldStyle("footer.letterhead", "borderMode", "top")}
+                      className={`p-2.5 rounded-lg text-xs font-bold border transition-all text-left flex items-start gap-2 ${
+                        footerComputedStyle.borderMode !== "box"
+                          ? "bg-white border-sky-500 shadow-xs text-sky-900 ring-2 ring-sky-200"
+                          : "bg-white/60 border-slate-200 text-slate-600 hover:bg-white"
+                      }`}
+                    >
+                      <div className="w-5 h-5 rounded border-t-2 border-sky-600 bg-sky-50 flex items-center justify-center shrink-0 mt-0.5 text-[9px] font-bold text-sky-700">T</div>
+                      <div>
+                        <span className="block text-xs font-extrabold">Top Divider Only</span>
+                        <span className="block text-[10px] font-normal text-slate-500">Letterhead top line separating content from contact bar</span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateFieldStyle("footer.letterhead", "borderMode", "box")}
+                      className={`p-2.5 rounded-lg text-xs font-bold border transition-all text-left flex items-start gap-2 ${
+                        footerComputedStyle.borderMode === "box"
+                          ? "bg-white border-sky-500 shadow-xs text-sky-900 ring-2 ring-sky-200"
+                          : "bg-white/60 border-slate-200 text-slate-600 hover:bg-white"
+                      }`}
+                    >
+                      <div className="w-5 h-5 rounded border-2 border-sky-600 bg-sky-50 flex items-center justify-center shrink-0 mt-0.5 text-[9px] font-bold text-sky-700">▢</div>
+                      <div>
+                        <span className="block text-xs font-extrabold">Full Outer Box Frame</span>
+                        <span className="block text-[10px] font-normal text-slate-500">Full 4-sided card border around footer bar</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Border Thickness & Presets */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-700">
+                      {footerComputedStyle.borderMode === "box" ? "Outer Box Border Thickness:" : "Top Divider Line Thickness:"}
+                    </span>
+                    <span className="font-mono text-xs font-bold text-sky-800 bg-white px-2 py-0.5 rounded border border-slate-200">
+                      {!footerComputedStyle.showBorder || footerComputedStyle.borderWidth === 0
+                        ? "0px (None)"
+                        : `${footerComputedStyle.borderWidth}px`}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="6"
+                    step="0.5"
+                    value={!footerComputedStyle.showBorder ? 0 : footerComputedStyle.borderWidth}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      handleUpdateFieldStyle("footer.letterhead", "borderWidth", val);
+                      handleUpdateFieldStyle("footer.letterhead", "showBorder", val > 0);
+                    }}
+                    className="w-full accent-sky-700 cursor-pointer"
+                  />
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {[
+                      { label: "0px None", val: 0 },
+                      { label: "0.5px Hairline", val: 0.5 },
+                      { label: "1px Thin", val: 1 },
+                      { label: "1.5px Standard", val: 1.5 },
+                      { label: "2px Default", val: 2 },
+                      { label: "3px Thick", val: 3 },
+                      { label: "4px Heavy", val: 4 },
+                    ].map((b) => (
+                      <button
+                        key={b.label}
+                        type="button"
+                        onClick={() => {
+                          handleUpdateFieldStyle("footer.letterhead", "borderWidth", b.val);
+                          handleUpdateFieldStyle("footer.letterhead", "showBorder", b.val > 0);
+                        }}
+                        className={`px-2 py-1 text-[10.5px] font-bold rounded transition-all ${
+                          (b.val === 0 && (!footerComputedStyle.showBorder || footerComputedStyle.borderWidth === 0)) ||
+                          (b.val > 0 && footerComputedStyle.showBorder && Number(footerComputedStyle.borderWidth) === b.val)
+                            ? "bg-sky-700 text-white shadow-xs"
+                            : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                        }`}
+                      >
+                        {b.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Border Style & Color */}
+                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-sky-100">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">Border Line Style:</label>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {[
+                        { label: "Solid", val: "solid" },
+                        { label: "Dashed", val: "dashed" },
+                        { label: "Dotted", val: "dotted" },
+                        { label: "Double", val: "double" },
+                        { label: "None", val: "none" },
+                      ].map((st) => (
+                        <button
+                          key={st.val}
+                          type="button"
+                          onClick={() => {
+                            handleUpdateFieldStyle("footer.letterhead", "borderStyle", st.val);
+                            handleUpdateFieldStyle("footer.letterhead", "showBorder", st.val !== "none");
+                          }}
+                          className={`px-2 py-1 text-[10.5px] font-bold rounded capitalize transition-all ${
+                            footerComputedStyle.borderStyle === st.val
+                              ? "bg-sky-700 text-white shadow-xs"
+                              : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          {st.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">Border &amp; Icon Color:</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={footerComputedStyle.borderColor || "#0077b6"}
+                        onChange={(e) => handleUpdateFieldStyle("footer.letterhead", "borderColor", e.target.value)}
+                        className="w-7 h-7 rounded border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={footerComputedStyle.borderColor || "#0077b6"}
+                        onChange={(e) => handleUpdateFieldStyle("footer.letterhead", "borderColor", e.target.value)}
+                        className="w-24 text-xs font-mono rounded border border-slate-300 px-2 py-1 font-bold text-slate-800"
+                      />
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {[
+                          { label: "Brand Blue", val: "#0077b6" },
+                          { label: "Navy", val: "#0b3b60" },
+                          { label: "Sky", val: "#0284c7" },
+                          { label: "Slate", val: "#94a3b8" },
+                        ].map((cp) => (
+                          <button
+                            key={cp.label}
+                            type="button"
+                            onClick={() => handleUpdateFieldStyle("footer.letterhead", "borderColor", cp.val)}
+                            className={`px-1.5 py-0.5 text-[9.5px] font-bold rounded border transition-all ${
+                              footerComputedStyle.borderColor === cp.val
+                                ? "bg-sky-700 text-white border-sky-700"
+                                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                            }`}
+                          >
+                            {cp.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vertical Column Dividers */}
+                <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block">Vertical Column Dividers</span>
+                      <span className="text-[10px] text-slate-500">Vertical separation lines between Address, Helpline, Email, and Reg No</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateFieldStyle("footer.letterhead", "showColDivider", !footerComputedStyle.showColDivider)}
+                      className={`px-2.5 py-1 text-[10.5px] font-bold rounded flex items-center gap-1 transition-all ${
+                        footerComputedStyle.showColDivider
+                          ? "bg-emerald-600 text-white shadow-xs"
+                          : "bg-slate-200 text-slate-600"
+                      }`}
+                    >
+                      <Icon name={footerComputedStyle.showColDivider ? "LuCheck" : "LuX"} size={12} />
+                      <span>{footerComputedStyle.showColDivider ? "Dividers Visible" : "Dividers Hidden"}</span>
+                    </button>
+                  </div>
+
+                  {footerComputedStyle.showColDivider && (
+                    <div className="flex items-center gap-4 pt-2 border-t border-slate-100 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-slate-600 font-semibold">Thickness:</span>
+                        {[
+                          { label: "0.5px", val: 0.5 },
+                          { label: "1px", val: 1 },
+                          { label: "1.5px (Std)", val: 1.5 },
+                          { label: "2px", val: 2 },
+                        ].map((d) => (
+                          <button
+                            key={d.val}
+                            type="button"
+                            onClick={() => handleUpdateFieldStyle("footer.letterhead", "colDividerWidth", d.val)}
+                            className={`px-1.5 py-0.5 text-[10px] font-mono rounded ${
+                              Number(footerComputedStyle.colDividerWidth) === d.val
+                                ? "bg-sky-700 text-white font-bold"
+                                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                            }`}
+                          >
+                            {d.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-slate-600 font-semibold">Color:</span>
+                        <input
+                          type="color"
+                          value={footerComputedStyle.colDividerColor || footerComputedStyle.borderColor || "#0077b6"}
+                          onChange={(e) => handleUpdateFieldStyle("footer.letterhead", "colDividerColor", e.target.value)}
+                          className="w-5 h-5 rounded border border-slate-300 cursor-pointer p-0.5 bg-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateFieldStyle("footer.letterhead", "colDividerColor", footerComputedStyle.borderColor || "#0077b6")}
+                          className="text-[10px] font-bold text-sky-700 hover:underline"
+                        >
+                          Match Border
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>

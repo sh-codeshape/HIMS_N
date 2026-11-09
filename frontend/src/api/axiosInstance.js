@@ -2,8 +2,8 @@ import axios from "axios";
 import toast from "react-hot-toast";
 
 const BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
-const USE_COOKIE_AUTH = import.meta.env.VITE_USE_COOKIE_AUTH === "true";
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) || "http://localhost:3000/api/v1";
+const USE_COOKIE_AUTH = (typeof import.meta !== "undefined" && import.meta.env?.VITE_USE_COOKIE_AUTH === "true");
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,

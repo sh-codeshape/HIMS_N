@@ -2,6 +2,8 @@ export { default as OutsourceLabMaster } from "./OutsourceLabMaster.jsx";
 export { default as LabTestMaster } from "./LabTestMaster.jsx";
 export { default as SettingsDashboard } from "./SettingsDashboard.jsx";
 export { default as PrintSlipSettings } from "./PrintSlipSettings.jsx";
+export { default as UnifiedSlipSettingsTab } from "./UnifiedSlipSettingsTab.jsx";
+export { default as printEngine, printEngine as unifiedPrintEngine } from "../../services/printEngine.js";
 export { default as IPDDischargePrintSettings, IPDDischargePreview } from "./IPDDischargePrintSettings.jsx";
 export { default as IPDDischargePrintHandler, buildIPDDischargeHTML } from "./IPDDischargePrintHandler.js";
 export {

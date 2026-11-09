@@ -129,6 +129,15 @@ export const DEFAULT_SHARED_CONFIG = {
     showLetterheadFooter: true,
     tagline: "NARAYAN HOSPITAL • Upsana Nagar Colony, Beside Hotel Mandirian, Amra-Akhari Bypass, Varanasi • www.narayanhospital.com",
     disclaimer: "Thank you for choosing Narayan Hospital. Wishing you a healthy and speedy recovery.",
+    borderMode: "top", // 'top' (divider line only) | 'box' (full outer box)
+    borderWidth: 2,
+    borderStyle: "solid",
+    borderColor: "#0077b6",
+    showBorder: true,
+    showColDivider: true,
+    colDividerWidth: 1.5,
+    colDividerStyle: "solid",
+    colDividerColor: "#0077b6",
     signatures: {
       doctor: { show: true, title: "Treating Consultant", sub: "Admitting / Attending Doctor" },
       nurse: { show: true, title: "Duty Nursing Officer", sub: "Ward / Counter Incharge" },
@@ -737,8 +746,15 @@ export function mergeSharedSettings(target, source) {
  * Check if a specific data element is Active on a given slip type
  */
 export function isElementActiveOnSlip(key, slipType = "all", settings = DEFAULT_SHARED_CONFIG) {
-  const fs = settings.fieldStyles?.[key];
+  const fs = settings?.fieldStyles?.[key];
   if (fs?.show === false) return false;
+
+  // If entire terms/instructions card is disabled globally or per-slip
+  if (key.startsWith("terms.") || key === "terms.card") {
+    if (settings?.fieldStyles?.["terms.card"]?.show === false) return false;
+    if (settings?.footer?.showTerms === false) return false;
+    if (slipType && settings?.[slipType]?.showTerms === false) return false;
+  }
 
   // If viewing global master, master fieldStyles dictate visibility
   if (!slipType || slipType === "all") {
@@ -746,10 +762,13 @@ export function isElementActiveOnSlip(key, slipType = "all", settings = DEFAULT_
   }
 
   // Check slip-specific inactive elements
-  const slipCfg = settings.slipConfigs?.[slipType];
+  const slipCfg = settings?.slipConfigs?.[slipType];
   const inactives = slipCfg?.inactiveElements;
-  if (Array.isArray(inactives) && inactives.includes(key)) {
-    return false;
+  if (Array.isArray(inactives)) {
+    if (inactives.includes(key)) return false;
+    if ((key.startsWith("terms.") || key === "terms.card") && inactives.includes("terms.card")) {
+      return false;
+    }
   }
 
   return true;
@@ -803,7 +822,7 @@ export function getElementComputedStyle(key, fieldStyles = {}, extraCss = "", is
   if (isInactive) {
     return "display: none !important;";
   }
-  const f = fieldStyles[key] || {};
+  const f = fieldStyles[key] || (fieldStyles && (fieldStyles.show !== undefined || fieldStyles.offsetX !== undefined) ? fieldStyles : {});
   if (f.show === false) {
     return "display: none !important;";
   }
@@ -813,7 +832,7 @@ export function getElementComputedStyle(key, fieldStyles = {}, extraCss = "", is
 
   // Rock-solid positioning using relative coordinates + left + top
   const hasAlign = Boolean(f.textAlign);
-  const isBlock = key.endsWith(".card") || key === "ticket.card" || key === "patient.address" || key === "terms.list" || key === "header.accreditations" || hasAlign;
+  const isBlock = key.endsWith(".card") || key === "ticket.card" || key === "footer.letterhead" || key === "patient.address" || key === "terms.list" || key === "header.accreditations" || hasAlign;
   const displayCss = isBlock ? "display: block !important;" : "display: inline-block !important;";
 
   const positionStyle =
@@ -838,7 +857,10 @@ export function getElementComputedStyle(key, fieldStyles = {}, extraCss = "", is
 
   // Dynamic Border & Corner Radius Controls
   let borderCombined = "";
-  if (f.showBorder === false || f.border === "none" || f.borderWidth === 0 || f.borderWidth === "0px" || f.borderStyle === "none") {
+  if (key === "footer.letterhead") {
+    // Specifically handled by buildLetterheadFooterBarHTML (Top Divider vs Full Box mode)
+    borderCombined = "";
+  } else if (f.showBorder === false || f.border === "none" || f.borderWidth === 0 || f.borderWidth === "0px" || f.borderStyle === "none") {
     borderCombined = "border: none !important; box-shadow: none !important;";
   } else if (f.borderWidth !== undefined || f.borderStyle || f.borderColor) {
     const bw = f.borderWidth !== undefined ? (typeof f.borderWidth === "number" ? `${f.borderWidth}px` : f.borderWidth) : "1px";
@@ -972,11 +994,36 @@ export async function loadSharedPrintSettings() {
 }
 
 /**
- * Save shared settings to DB and local cache.
+ * Save shared settings to DB and local cache with deep preservation of slip-specific configurations.
  */
 export async function saveSharedPrintSettings(settings) {
-  setCachedSharedSettings(settings);
-  return await settingsService.updateSetting(SHARED_PRINT_SETTINGS_KEY, settings);
+  try {
+    const existing = await settingsService.getSetting(SHARED_PRINT_SETTINGS_KEY);
+    const existingSlipConfigs = existing?.slipConfigs || {};
+    const mergedSlipConfigs = {
+      ...existingSlipConfigs,
+      ...(settings.slipConfigs || {}),
+    };
+    for (const [st, cfg] of Object.entries(existingSlipConfigs)) {
+      if (settings.slipConfigs?.[st]) {
+        mergedSlipConfigs[st] = {
+          ...(cfg || {}),
+          ...settings.slipConfigs[st],
+        };
+      } else {
+        mergedSlipConfigs[st] = cfg;
+      }
+    }
+    const finalSettings = {
+      ...settings,
+      slipConfigs: mergedSlipConfigs,
+    };
+    setCachedSharedSettings(finalSettings);
+    return await settingsService.updateSetting(SHARED_PRINT_SETTINGS_KEY, finalSettings);
+  } catch (_) {
+    setCachedSharedSettings(settings);
+    return await settingsService.updateSetting(SHARED_PRINT_SETTINGS_KEY, settings);
+  }
 }
 
 /**
@@ -1022,8 +1069,8 @@ export async function applySharedMasterToAllSlips(sharedSettings) {
             ...(sharedSettings.fieldStyles || {}),
           },
           slipConfigs: {
-            ...(existing.slipConfigs || {}),
             ...(sharedSettings.slipConfigs || {}),
+            ...(existing.slipConfigs || {}),
           },
         };
         await settingsService.updateSetting(key, updated);
@@ -1065,7 +1112,7 @@ export function buildSharedHeaderHTML(
 
   const hName = getText("header.hospitalName", cfg.hospital?.name || "Narayan Hospital");
   const hSub = getText("header.subtitle", cfg.hospital?.subtitle || "");
-  const hSlogan = getText("header.slogan", cfg.hospital?.slogan || "");
+  const hSlogan = getText("header.slogan", cfg.hospital?.slogan || DEFAULT_SHARED_CONFIG.hospital?.slogan || "Better Care. Healthier Tomorrow.");
   const hAddr = getText("header.address", cfg.hospital?.address || "");
   const hPhone = getText("header.phoneEmail", `📞 ${cfg.hospital?.phone || ""} ${cfg.hospital?.email ? `• ✉️ ${cfg.hospital.email}` : ""}`);
   const hReg = getText("header.regNo", cfg.hospital?.registrationNo ? `Reg: ${cfg.hospital.registrationNo}` : "");
@@ -1105,11 +1152,11 @@ export function buildSharedHeaderHTML(
         <div class="lh-header-center">
           ${isActive("header.hospitalName") ? `<h1 class="lh-hospital-title" style="${getStyle("header.hospitalName")}" ${click("header.hospitalName")}>${hName}</h1>` : ""}
           ${
-            isActive("header.slogan") && hSlogan
+            isActive("header.slogan") && hSlogan && String(hSlogan).trim().length > 0
               ? `
-            <div class="lh-slogan-wrap">
+            <div class="lh-slogan-wrap" style="${getStyle("header.slogan")}" ${click("header.slogan")}>
               <span class="lh-slogan-line"></span>
-              <span class="lh-slogan-text" style="${getStyle("header.slogan")}" ${click("header.slogan")}>${hSlogan}</span>
+              <span class="lh-slogan-text">${hSlogan}</span>
               <span class="lh-slogan-line"></span>
             </div>
           `
@@ -1506,27 +1553,33 @@ export function buildLetterheadFooterBarHTML(
   const bw = fls.borderWidth !== undefined ? fls.borderWidth : (cfg.footer?.borderWidth !== undefined ? cfg.footer.borderWidth : 2);
   const bs = fls.borderStyle || cfg.footer?.borderStyle || "solid";
   const bc = fls.borderColor || cfg.footer?.borderColor || "#0077b6";
-  const showBorder = fls.showBorder !== false && Number(bw) > 0 && bs !== "none";
+  const showBorder = (fls.showBorder !== undefined ? fls.showBorder !== false : cfg.footer?.showBorder !== false) && Number(bw) > 0 && bs !== "none";
 
   // Border mode: "box" (full outer border) vs "top" (top divider line only, letterhead default)
-  const isFullBox = fls.borderMode === "box";
+  const borderMode = fls.borderMode || cfg.footer?.borderMode || "top";
+  const isFullBox = borderMode === "box";
+  const radius = isFullBox && (fls.borderRadius !== undefined || cfg.footer?.borderRadius !== undefined)
+    ? `border-radius: ${fls.borderRadius !== undefined ? fls.borderRadius : cfg.footer.borderRadius}px !important;`
+    : "";
+  const pad = fls.padding !== undefined ? `padding-top: ${fls.padding}px !important; padding-bottom: ${fls.padding}px !important;` : (cfg.footer?.padding !== undefined ? `padding-top: ${cfg.footer.padding}px !important; padding-bottom: ${cfg.footer.padding}px !important;` : "");
+
   const borderRule = !showBorder
     ? "border: none !important;"
     : isFullBox
-    ? `border: ${bw}px ${bs} ${bc} !important;`
-    : `border: none !important; border-top: ${bw}px ${bs} ${bc} !important;`;
+    ? `border: ${bw}px ${bs} ${bc} !important; ${radius}`
+    : `border: none !important; border-top: ${bw}px ${bs} ${bc} !important; border-radius: 0 !important;`;
 
   // Column vertical dividers:
-  const colBw = fls.colDividerWidth !== undefined ? fls.colDividerWidth : 1.5;
-  const colBs = fls.colDividerStyle || "solid";
-  const colBc = fls.colDividerColor || bc || "#0077b6";
-  const showColDivider = fls.showColDivider !== false && Number(colBw) > 0 && colBs !== "none";
+  const colBw = fls.colDividerWidth !== undefined ? fls.colDividerWidth : (cfg.footer?.colDividerWidth !== undefined ? cfg.footer.colDividerWidth : 1.5);
+  const colBs = fls.colDividerStyle || cfg.footer?.colDividerStyle || "solid";
+  const colBc = fls.colDividerColor || cfg.footer?.colDividerColor || bc || "#0077b6";
+  const showColDivider = (fls.showColDivider !== undefined ? fls.showColDivider !== false : cfg.footer?.showColDivider !== false) && Number(colBw) > 0 && colBs !== "none";
   const colDividerCss = showColDivider
     ? `border-right: ${colBw}px ${colBs} ${colBc} !important;`
     : "border-right: none !important;";
 
   return `
-    <div class="shared-letterhead-footer" style="${borderRule} ${getStyle("footer.letterhead")}" ${click("footer.letterhead")}>
+    <div class="shared-letterhead-footer" style="${borderRule} ${pad} ${getStyle("footer.letterhead")}" ${click("footer.letterhead")}>
       <div class="shared-lh-footer-columns">
         <!-- Col 1: Address -->
         <div class="shared-lh-footer-col shared-lh-col-1" style="${colDividerCss} ${getStyle("footer.address")}" ${click("footer.address")}>
@@ -2434,6 +2487,19 @@ export function buildSharedPreviewHTML(
       html, body {
         padding: 0 !important;
         margin: 0 !important;
+        height: auto !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+        background: #ffffff !important;
+      }
+      .shared-preview-page {
+        margin: 0 auto !important;
+        padding: 0 !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        overflow: hidden !important;
       }
     }
     .shared-preview-page {
