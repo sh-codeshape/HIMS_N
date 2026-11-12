@@ -10,7 +10,7 @@ const billingService = {
     return res.data?.data ?? res.data ?? null;
   },
   getInvoices: async (params = {}) => {
-    const res = await axiosInstance.get("/billing/invoices", { params });
+    const res = await axiosInstance.get("/billing", { params });
     return res.data?.data ?? res.data ?? [];
   },
   

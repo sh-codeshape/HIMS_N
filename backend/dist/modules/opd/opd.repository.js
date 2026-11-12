@@ -114,7 +114,7 @@ class OpdRepository {
       LEFT JOIN practitioners pr ON e.primary_practitioner_id = pr.id
       LEFT JOIN staff s ON pr.staff_id = s.id
       LEFT JOIN departments d ON e.department_id = d.id
-      WHERE e.facility_id = $1
+      WHERE (e.facility_id = $1 OR $1 = '00000000-0000-0000-0000-000000000000' OR $1 IS NULL)
         AND e.encounter_type = 'opd'
     `;
         const params = [facilityId];
@@ -165,7 +165,7 @@ class OpdRepository {
       LEFT JOIN practitioners pr ON e.primary_practitioner_id = pr.id
       LEFT JOIN staff s ON pr.staff_id = s.id
       LEFT JOIN departments d ON e.department_id = d.id
-      WHERE e.facility_id = $1
+      WHERE (e.facility_id = $1 OR $1 = '00000000-0000-0000-0000-000000000000' OR $1 IS NULL)
         AND e.encounter_type = 'opd'
     `;
         const params = [facilityId];

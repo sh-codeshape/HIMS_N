@@ -33,8 +33,11 @@ class BillingController {
         (0, response_1.sendSuccess)(res, invoices, 'Invoices retrieved successfully');
     };
     getInvoice = async (req, res) => {
-        const facilityId = req.user?.facilityId || req.query.facilityId || '00000000-0000-0000-0000-000000000000';
         const id = req.params.id;
+        if (id === 'invoices') {
+            return this.listInvoices(req, res);
+        }
+        const facilityId = req.user?.facilityId || req.query.facilityId || '00000000-0000-0000-0000-000000000000';
         const invoice = await this.service.getInvoice(id, facilityId);
         (0, response_1.sendSuccess)(res, invoice, 'Invoice retrieved successfully');
     };

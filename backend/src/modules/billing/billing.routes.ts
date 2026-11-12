@@ -38,6 +38,7 @@ router.post('/wallet/credit', controller.creditWallet);
 router.post('/wallet/settle', controller.settleWithWallet);
 
 // Invoices CRUD
+router.get('/invoices', controller.listInvoices);
 router.post('/', validate(createInvoiceSchema), controller.createInvoice);
 router.get('/', controller.listInvoices);
 router.get('/:id', controller.getInvoice);
