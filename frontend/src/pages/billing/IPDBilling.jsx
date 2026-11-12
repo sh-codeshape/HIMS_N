@@ -407,6 +407,10 @@ export default function IPDBilling() {
       historyPayments: [],
       items: [],
       raw: bp,
+      admittedAtRaw: admDateRaw,
+      dischargedAtRaw: disDateRaw,
+      admittedAt: admDateRaw ? startDate : null,
+      dischargedAt: disDateRaw ? endDate : null,
     };
   };
 
@@ -599,7 +603,7 @@ export default function IPDBilling() {
           location.state?.admission?.id;
 
         const [admissionsRes, doctorsRes, categoriesRes, itemsRes, discountReasonsRes, referralsRes] = await Promise.all([
-          ipdService.getAdmissions({ status: "all" }).catch(() => []),
+          ipdService.getAdmissions({ status: "all", limit: 1000 }).catch(() => []),
           staffService.getDoctors().catch(() => []),
           ipdService.getBedCategories().catch(() => []),
           inventoryService.getItems({ limit: 100 }).catch(() => ({ data: [] })),
@@ -652,7 +656,23 @@ export default function IPDBilling() {
     loadInitial();
   }, [searchParams]);
 
-  // Filtered Admissions List based on Tab & Realtime Search
+  // Inpatients Date Range Filter (Two Dates: fromDate & toDate)
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+  // Date Sort Direction: "desc" (Newest First) | "asc" (Oldest First)
+  const [dateSortOrder, setDateSortOrder] = useState("desc");
+
+  // Inpatients Pagination: Default 30 items per page as requested
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(30);
+
+  // Reset to page 1 whenever any filter or sort changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, inpatientFilter, fromDate, toDate, rowsPerPage, dateSortOrder]);
+
+  // Filtered Admissions List based on Tab, Realtime Search, Date Range & Date Sort
   const filteredAdmissions = useMemo(() => {
     let list = allAdmissions;
     if (inpatientFilter === "admitted") {
@@ -673,8 +693,90 @@ export default function IPDBilling() {
           String(a.consultant).toLowerCase().includes(q)
       );
     }
-    return list;
-  }, [allAdmissions, inpatientFilter, searchTerm]);
+
+    // Two Dates Filter: fromDate & toDate
+    if (fromDate || toDate) {
+      list = list.filter((a) => {
+        const rawDate =
+          inpatientFilter === "discharged" && a.dischargedAtRaw
+            ? a.dischargedAtRaw
+            : a.admittedAtRaw || a.raw?.admitted_at || a.raw?.admission_date || a.raw?.created_at;
+        if (!rawDate) return false;
+        const d = new Date(rawDate);
+        if (isNaN(d.getTime())) return false;
+
+        if (fromDate) {
+          const start = new Date(`${fromDate}T00:00:00`);
+          if (d < start) return false;
+        }
+        if (toDate) {
+          const end = new Date(`${toDate}T23:59:59.999`);
+          if (d > end) return false;
+        }
+        return true;
+      });
+    }
+
+    // Sort by date (descending = newest first by default)
+    return [...list].sort((a, b) => {
+      const getTimestamp = (item) => {
+        const raw =
+          inpatientFilter === "discharged" && item.dischargedAtRaw
+            ? item.dischargedAtRaw
+            : item.admittedAtRaw || item.raw?.admitted_at || item.raw?.admission_date || item.raw?.created_at;
+        return raw ? new Date(raw).getTime() : 0;
+      };
+      const tA = getTimestamp(a);
+      const tB = getTimestamp(b);
+      return dateSortOrder === "asc" ? tA - tB : tB - tA;
+    });
+  }, [allAdmissions, inpatientFilter, searchTerm, fromDate, toDate, dateSortOrder]);
+
+  // Inpatients Directory Pagination calculations
+  const totalRecords = filteredAdmissions.length;
+  const totalPages = Math.max(1, Math.ceil(totalRecords / rowsPerPage));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safePage - 1) * rowsPerPage;
+  const paginatedAdmissions = filteredAdmissions.slice(startIndex, startIndex + rowsPerPage);
+
+  const getPageNumbers = () => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (safePage <= 4) {
+      return [1, 2, 3, 4, 5, "...", totalPages];
+    }
+    if (safePage >= totalPages - 3) {
+      return [1, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, "...", safePage - 1, safePage, safePage + 1, "...", totalPages];
+  };
+
+  const handleSetToday = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    setFromDate(today);
+    setToDate(today);
+  };
+
+  const handleSetLast7Days = () => {
+    const today = new Date();
+    const past7 = new Date();
+    past7.setDate(today.getDate() - 6);
+    setFromDate(past7.toISOString().slice(0, 10));
+    setToDate(today.toISOString().slice(0, 10));
+  };
+
+  const handleSetThisMonth = () => {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    setFromDate(firstDay.toISOString().slice(0, 10));
+    setToDate(today.toISOString().slice(0, 10));
+  };
+
+  const handleClearDates = () => {
+    setFromDate("");
+    setToDate("");
+  };
 
   // Autocomplete Search Change
   const handleSearchChange = (e) => {
@@ -1947,6 +2049,11 @@ export default function IPDBilling() {
 
             <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
               Showing <strong>{filteredAdmissions.length}</strong> {inpatientFilter === "admitted" ? "active admitted inpatients" : inpatientFilter === "discharged" ? "discharged records" : "total inpatients"}
+              {(fromDate || toDate) && (
+                <span className="ipd-date-filter-active-tag">
+                  (Filtered: {fromDate || "Start"} to {toDate || "Present"})
+                </span>
+              )}
             </div>
           </div>
 
@@ -2009,106 +2116,291 @@ export default function IPDBilling() {
             </button>
           </div>
 
+          {/* Date Range Filter Bar with Two Dates & Sort Controls */}
+          <div className="ipd-dir-filters-bar">
+            <div className="ipd-date-filter-group">
+              <div className="ipd-date-filter-item">
+                <label className="ipd-date-filter-label" htmlFor="ipd-from-date">
+                  <Icon name="LuCalendar" size={13} />
+                  <span>From Date:</span>
+                </label>
+                <input
+                  id="ipd-from-date"
+                  type="date"
+                  className="ipd-date-filter-input"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  title="Filter by admission start date"
+                />
+              </div>
+
+              <div className="ipd-date-filter-item">
+                <label className="ipd-date-filter-label" htmlFor="ipd-to-date">
+                  <Icon name="LuCalendar" size={13} />
+                  <span>To Date:</span>
+                </label>
+                <input
+                  id="ipd-to-date"
+                  type="date"
+                  className="ipd-date-filter-input"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  title="Filter by admission end date"
+                />
+              </div>
+
+              <div className="ipd-date-presets">
+                <button
+                  type="button"
+                  className={`ipd-date-preset-btn ${fromDate && toDate && fromDate === toDate && fromDate === new Date().toISOString().slice(0, 10) ? "active" : ""}`}
+                  onClick={handleSetToday}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  className="ipd-date-preset-btn"
+                  onClick={handleSetLast7Days}
+                >
+                  Last 7 Days
+                </button>
+                <button
+                  type="button"
+                  className="ipd-date-preset-btn"
+                  onClick={handleSetThisMonth}
+                >
+                  This Month
+                </button>
+                {(fromDate || toDate) && (
+                  <button
+                    type="button"
+                    className="ipd-date-clear-btn"
+                    onClick={handleClearDates}
+                    title="Clear date filter"
+                  >
+                    <Icon name="LuX" size={13} /> Clear Dates
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="ipd-dir-sort-group">
+              <span className="ipd-sort-label">Sort:</span>
+              <button
+                type="button"
+                className="ipd-sort-toggle-btn"
+                onClick={() => setDateSortOrder((prev) => (prev === "desc" ? "asc" : "desc"))}
+                title={`Sorted by date: ${dateSortOrder === "desc" ? "Newest First" : "Oldest First"}. Click to toggle.`}
+              >
+                <Icon name={dateSortOrder === "desc" ? "LuArrowDown" : "LuArrowUp"} size={13} style={{ color: "#0284c7" }} />
+                <span>Date ({dateSortOrder === "desc" ? "Newest First" : "Oldest First"})</span>
+              </button>
+            </div>
+          </div>
+
           <div className="ipd-inpatient-dir-table-wrap">
             {filteredAdmissions.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 20px", color: "#64748b" }}>
                 <Icon name="LuSearch" size={36} style={{ color: "#94a3b8", marginBottom: 8 }} />
                 <h4 style={{ margin: "4px 0", color: "#1e293b", fontSize: 16 }}>No Inpatients Found</h4>
                 <p style={{ margin: 0, fontSize: 13 }}>
-                  {searchTerm
-                    ? `No matching records found for "${searchTerm}". Try another UHID, Name, or Mobile.`
+                  {searchTerm || fromDate || toDate
+                    ? `No matching records found for the current search/date filters.`
                     : "No admitted or past inpatients found in the system."}
                 </p>
+                {(searchTerm || fromDate || toDate) && (
+                  <div style={{ marginTop: 12 }}>
+                    <button
+                      type="button"
+                      className="ipd-date-clear-btn"
+                      style={{ padding: "6px 14px", fontSize: 12, margin: "0 auto" }}
+                      onClick={() => {
+                        setSearchTerm("");
+                        setFromDate("");
+                        setToDate("");
+                      }}
+                    >
+                      <Icon name="LuRefreshCw" size={13} /> Reset All Filters
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
-              <table className="ipd-dir-table">
-                <thead>
-                  <tr>
-                    <th>Patient Name</th>
-                    <th>UHID</th>
-                    <th>Admission No</th>
-                    <th>Ward &amp; Bed</th>
-                    <th>Admitted On</th>
-                    <th>{inpatientFilter === "discharged" ? "Discharged On" : "Stay Duration"}</th>
-                    <th>Attending Doctor</th>
-                    <th>Status</th>
-                    <th style={{ textAlign: "right" }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAdmissions.map((adm) => (
-                    <tr
-                      key={adm.id}
-                      className="ipd-dir-row"
-                      onClick={() => handleSelectPatient(adm)}
-                    >
-                      <td>
-                        <div className="ipd-dir-patient-cell">
-                          <div className="ipd-dir-avatar">
-                            {(adm.name || "P").charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="ipd-dir-name">{adm.name}</div>
-                            <div className="ipd-dir-sub">
-                              {adm.age} Y / {adm.gender} • 🩸 {adm.bloodGroup}
+              <>
+                <table className="ipd-dir-table">
+                  <thead>
+                    <tr>
+                      <th>Patient Name</th>
+                      <th>UHID</th>
+                      <th>Admission No</th>
+                      <th>Ward &amp; Bed</th>
+                      <th
+                        style={{ cursor: "pointer", userSelect: "none" }}
+                        onClick={() => setDateSortOrder((prev) => (prev === "desc" ? "asc" : "desc"))}
+                        title={`Sorted by Admitted Date (${dateSortOrder === "desc" ? "Newest First" : "Oldest First"}). Click to reverse.`}
+                      >
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                          <span>Admitted On</span>
+                          <Icon name={dateSortOrder === "desc" ? "LuArrowDown" : "LuArrowUp"} size={13} style={{ color: "#0284c7" }} />
+                        </div>
+                      </th>
+                      <th
+                        style={{ cursor: inpatientFilter === "discharged" ? "pointer" : "default", userSelect: "none" }}
+                        onClick={() => inpatientFilter === "discharged" && setDateSortOrder((prev) => (prev === "desc" ? "asc" : "desc"))}
+                        title={inpatientFilter === "discharged" ? `Sorted by Discharged Date (${dateSortOrder === "desc" ? "Newest First" : "Oldest First"}). Click to reverse.` : undefined}
+                      >
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                          <span>{inpatientFilter === "discharged" ? "Discharged On" : "Stay Duration"}</span>
+                          {inpatientFilter === "discharged" && (
+                            <Icon name={dateSortOrder === "desc" ? "LuArrowDown" : "LuArrowUp"} size={13} style={{ color: "#0284c7" }} />
+                          )}
+                        </div>
+                      </th>
+                      <th>Attending Doctor</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: "right" }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedAdmissions.map((adm) => (
+                      <tr
+                        key={adm.id}
+                        className="ipd-dir-row"
+                        onClick={() => handleSelectPatient(adm)}
+                      >
+                        <td>
+                          <div className="ipd-dir-patient-cell">
+                            <div className="ipd-dir-avatar">
+                              {(adm.name || "P").charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="ipd-dir-name">{adm.name}</div>
+                              <div className="ipd-dir-sub">
+                                {adm.age} Y / {adm.gender} • 🩸 {adm.bloodGroup}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="ipd-uhid-pill">{adm.uhid}</span>
-                      </td>
-                      <td>
-                        <span className="ipd-adm-pill">{adm.admissionNo}</span>
-                      </td>
-                      <td>
-                        <div className="ipd-dir-ward">
-                          <Icon name="LuBed" size={13} style={{ color: "#0284c7" }} />
-                          <span>{adm.ward}</span>
-                        </div>
-                        <div className="ipd-dir-bed">{adm.bedNo}</div>
-                      </td>
-                      <td style={{ fontSize: 12, color: "#475569" }}>{adm.admissionDate}</td>
-                      {inpatientFilter === "discharged" ? (
-                        <td style={{ fontSize: 12, color: "#475569" }}>
-                          {adm.dischargeDate || "Discharged"}
                         </td>
-                      ) : (
                         <td>
-                          <span className="ipd-stay-pill">
-                            ⏱️ {adm.stayDays} Day{adm.stayDays > 1 ? "s" : ""}
+                          <span className="ipd-uhid-pill">{adm.uhid}</span>
+                        </td>
+                        <td>
+                          <span className="ipd-adm-pill">{adm.admissionNo}</span>
+                        </td>
+                        <td>
+                          <div className="ipd-dir-ward">
+                            <Icon name="LuBed" size={13} style={{ color: "#0284c7" }} />
+                            <span>{adm.ward}</span>
+                          </div>
+                          <div className="ipd-dir-bed">{adm.bedNo}</div>
+                        </td>
+                        <td style={{ fontSize: 12, color: "#475569" }}>{adm.admissionDate}</td>
+                        {inpatientFilter === "discharged" ? (
+                          <td style={{ fontSize: 12, color: "#475569" }}>
+                            {adm.dischargeDate || "Discharged"}
+                          </td>
+                        ) : (
+                          <td>
+                            <span className="ipd-stay-pill">
+                              ⏱️ {adm.stayDays} Day{adm.stayDays > 1 ? "s" : ""}
+                            </span>
+                          </td>
+                        )}
+                        <td>
+                          <div className="ipd-dir-doc">{adm.consultant}</div>
+                          <div className="ipd-dir-dept">{adm.department}</div>
+                        </td>
+                        <td>
+                          <span
+                            className={`ipd-status-pill ${adm.isDischarged ? "discharged" : "admitted"}`}
+                          >
+                            <span className="ipd-dot" />
+                            {adm.status}
                           </span>
                         </td>
+                        <td style={{ textAlign: "right" }}>
+                          <button
+                            type="button"
+                            className={`ipd-btn-select-inpatient ${adm.isDischarged ? "discharged" : ""}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectPatient(adm);
+                            }}
+                          >
+                            <Icon name="LuReceipt" size={14} />
+                            <span>{adm.isDischarged ? "View Settled Bill" : "Open Bill & Settle"}</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Inpatients Pagination Bar */}
+                <div className="ipd-pag-bar">
+                  <div className="ipd-pag-info">
+                    Showing <strong>{totalRecords === 0 ? 0 : startIndex + 1}</strong> to{" "}
+                    <strong>{Math.min(startIndex + rowsPerPage, totalRecords)}</strong> of{" "}
+                    <strong>{totalRecords}</strong> {inpatientFilter === "admitted" ? "admitted patients" : inpatientFilter === "discharged" ? "discharged records" : "inpatients"}
+                  </div>
+
+                  <div className="ipd-pag-controls">
+                    <button
+                      type="button"
+                      className="ipd-pag-btn ipd-pag-nav"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={safePage === 1}
+                      title="Previous Page"
+                    >
+                      <Icon name="LuChevronLeft" size={14} />
+                      <span>Prev</span>
+                    </button>
+
+                    <div className="ipd-pag-numbers">
+                      {getPageNumbers().map((num, idx) =>
+                        num === "..." ? (
+                          <span key={`dots-${idx}`} className="ipd-pag-ellipsis">…</span>
+                        ) : (
+                          <button
+                            key={`page-${num}`}
+                            type="button"
+                            className={`ipd-pag-btn ipd-pag-num ${num === safePage ? "active" : ""}`}
+                            onClick={() => setCurrentPage(num)}
+                          >
+                            {num}
+                          </button>
+                        )
                       )}
-                      <td>
-                        <div className="ipd-dir-doc">{adm.consultant}</div>
-                        <div className="ipd-dir-dept">{adm.department}</div>
-                      </td>
-                      <td>
-                        <span
-                          className={`ipd-status-pill ${adm.isDischarged ? "discharged" : "admitted"}`}
-                        >
-                          <span className="ipd-dot" />
-                          {adm.status}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: "right" }}>
-                        <button
-                          type="button"
-                          className={`ipd-btn-select-inpatient ${adm.isDischarged ? "discharged" : ""}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSelectPatient(adm);
-                          }}
-                        >
-                          <Icon name="LuReceipt" size={14} />
-                          <span>{adm.isDischarged ? "View Settled Bill" : "Open Bill & Settle"}</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="ipd-pag-btn ipd-pag-nav"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={safePage === totalPages}
+                      title="Next Page"
+                    >
+                      <span>Next</span>
+                      <Icon name="LuChevronRight" size={14} />
+                    </button>
+                  </div>
+
+                  <div className="ipd-pag-perpage">
+                    <label htmlFor="ipd-rows-per-page">Rows per page:</label>
+                    <select
+                      id="ipd-rows-per-page"
+                      value={rowsPerPage}
+                      onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                    >
+                      <option value="10">10 / page</option>
+                      <option value="20">20 / page</option>
+                      <option value="30">30 / page</option>
+                      <option value="50">50 / page</option>
+                      <option value="100">100 / page</option>
+                    </select>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </div>

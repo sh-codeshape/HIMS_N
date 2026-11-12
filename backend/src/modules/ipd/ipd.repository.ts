@@ -356,7 +356,15 @@ export class IpdRepository {
     }
   }
 
-  async getAdmissions(facilityId: string, search?: string, status?: string, page = 1, limit = 50) {
+  async getAdmissions(
+    facilityId: string,
+    search?: string,
+    status?: string,
+    page = 1,
+    limit = 1000,
+    startDate?: string,
+    endDate?: string
+  ) {
     let query = `
       SELECT a.*, e.encounter_no, p.first_name, p.last_name, p.uhid, p.phone,
              p.gender, p.date_of_birth,
@@ -421,6 +429,18 @@ export class IpdRepository {
         e.encounter_no ILIKE $${paramIdx} OR
         a.admission_no ILIKE $${paramIdx}
       )`;
+    }
+
+    if (startDate) {
+      paramIdx++;
+      params.push(startDate);
+      query += ` AND a.admitted_at >= $${paramIdx}::timestamp`;
+    }
+
+    if (endDate) {
+      paramIdx++;
+      params.push(endDate);
+      query += ` AND a.admitted_at <= ($${paramIdx}::date + INTERVAL '1 day')`;
     }
 
     query += ` ORDER BY a.admitted_at DESC`;

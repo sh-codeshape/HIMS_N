@@ -45,15 +45,16 @@ class PatientRepository {
     async createPatient(client, data) {
         const query = `
       INSERT INTO patients (
-        organization_id, uhid, first_name, middle_name, last_name, 
+        organization_id, registered_facility_id, uhid, first_name, middle_name, last_name, 
         gender, date_of_birth, phone, email, blood_group,
         marital_status, occupation, nationality, alternate_phone,
         family_head_id, relation_to_head, custom_fields
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       RETURNING *
     `;
         const values = [
             data.organization_id,
+            data.registered_facility_id || null,
             data.uhid,
             data.first_name,
             data.middle_name || null,
@@ -121,11 +122,44 @@ class PatientRepository {
     `;
         await client.query(query, [patient_id, name, relationship || null, phone || null]);
     }
+    async upsertPatientIdentifier(patientId, organizationId, idType, idValue) {
+        const trimmed = idValue?.trim();
+        if (!trimmed)
+            return;
+        const query = `
+      INSERT INTO patient_identifiers (organization_id, patient_id, id_type, id_value)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (organization_id, id_type, id_value) DO UPDATE
+      SET patient_id = EXCLUDED.patient_id, updated_at = NOW();
+    `;
+        await database_1.db.query(query, [organizationId, patientId, idType, trimmed]);
+    }
+    async upsertPatientContact(patientId, name, relationship, phone) {
+        if (!name && !phone)
+            return;
+        const check = await database_1.db.query('SELECT id FROM patient_contacts WHERE patient_id = $1 AND is_emergency_contact = true LIMIT 1', [patientId]);
+        if (check.rows.length > 0) {
+            await database_1.db.query('UPDATE patient_contacts SET name = COALESCE(NULLIF($2, \'\'), name), relationship = COALESCE($3, relationship), phone = COALESCE($4, phone), updated_at = NOW() WHERE id = $1', [check.rows[0].id, name || null, relationship || null, phone || null]);
+        }
+        else if (name) {
+            await database_1.db.query('INSERT INTO patient_contacts (patient_id, name, relationship, phone, is_emergency_contact) VALUES ($1, $2, $3, $4, true)', [patientId, name, relationship || null, phone || null]);
+        }
+    }
     async searchPatients(organization_id, params) {
         let query = `
       SELECT p.*,
              EXTRACT(YEAR FROM AGE(p.date_of_birth))::int AS age,
-             (SELECT json_agg(a.*) FROM patient_addresses a WHERE a.patient_id = p.id AND a.is_primary = true) as addresses
+             (SELECT json_agg(a.*) FROM patient_addresses a WHERE a.patient_id = p.id AND a.is_primary = true) as addresses,
+             (SELECT json_agg(i.*) FROM patient_identifiers i WHERE i.patient_id = p.id) as identifiers,
+             COALESCE((SELECT i.id_value FROM patient_identifiers i WHERE i.patient_id = p.id AND i.id_type = 'aadhaar_token' LIMIT 1), p.custom_fields->>'aadhaar_number', p.custom_fields->>'aadhaar') as aadhaar_number,
+             COALESCE((SELECT i.id_value FROM patient_identifiers i WHERE i.patient_id = p.id AND i.id_type = 'pan' LIMIT 1), p.custom_fields->>'pan_number', p.custom_fields->>'pan') as pan_number,
+             COALESCE((SELECT c.name FROM patient_contacts c WHERE c.patient_id = p.id AND c.is_emergency_contact = true LIMIT 1), p.custom_fields->>'emergency_name', p.custom_fields->>'guardian_name') as emergency_name,
+             COALESCE((SELECT c.phone FROM patient_contacts c WHERE c.patient_id = p.id AND c.is_emergency_contact = true LIMIT 1), p.custom_fields->>'emergency_phone', p.custom_fields->>'emergency_contact') as emergency_phone,
+             COALESCE((SELECT c.relationship FROM patient_contacts c WHERE c.patient_id = p.id AND c.is_emergency_contact = true LIMIT 1), p.custom_fields->>'emergency_relation') as emergency_relation,
+             COALESCE(p.custom_fields->>'doctor', p.custom_fields->>'referred_by') as doctor,
+             COALESCE(p.custom_fields->>'health_insurance', 'No') as health_insurance,
+             p.custom_fields->>'insurance_provider' as insurance_provider,
+             p.custom_fields->>'insurance_number' as insurance_number
       FROM patients p
       WHERE p.organization_id = $1 AND p.deleted_at IS NULL
     `;
@@ -160,14 +194,36 @@ class PatientRepository {
         const query = `
       SELECT p.*, 
              EXTRACT(YEAR FROM AGE(p.date_of_birth))::int AS age,
-             (SELECT json_agg(a.*) FROM patient_addresses a WHERE a.patient_id = p.id) as addresses
+             (SELECT json_agg(a.*) FROM patient_addresses a WHERE a.patient_id = p.id) as addresses,
+             (SELECT json_agg(i.*) FROM patient_identifiers i WHERE i.patient_id = p.id) as identifiers,
+             (SELECT json_agg(c.*) FROM patient_contacts c WHERE c.patient_id = p.id) as contacts,
+             COALESCE((SELECT i.id_value FROM patient_identifiers i WHERE i.patient_id = p.id AND i.id_type = 'aadhaar_token' LIMIT 1), p.custom_fields->>'aadhaar_number', p.custom_fields->>'aadhaar') as aadhaar_number,
+             COALESCE((SELECT i.id_value FROM patient_identifiers i WHERE i.patient_id = p.id AND i.id_type = 'pan' LIMIT 1), p.custom_fields->>'pan_number', p.custom_fields->>'pan') as pan_number,
+             COALESCE((SELECT c.name FROM patient_contacts c WHERE c.patient_id = p.id AND c.is_emergency_contact = true LIMIT 1), p.custom_fields->>'emergency_name', p.custom_fields->>'guardian_name') as emergency_name,
+             COALESCE((SELECT c.phone FROM patient_contacts c WHERE c.patient_id = p.id AND c.is_emergency_contact = true LIMIT 1), p.custom_fields->>'emergency_phone', p.custom_fields->>'emergency_contact') as emergency_phone,
+             COALESCE((SELECT c.relationship FROM patient_contacts c WHERE c.patient_id = p.id AND c.is_emergency_contact = true LIMIT 1), p.custom_fields->>'emergency_relation') as emergency_relation,
+             COALESCE(p.custom_fields->>'doctor', p.custom_fields->>'referred_by') as doctor,
+             COALESCE(p.custom_fields->>'health_insurance', 'No') as health_insurance,
+             p.custom_fields->>'insurance_provider' as insurance_provider,
+             p.custom_fields->>'insurance_number' as insurance_number
       FROM patients p
       WHERE p.id = $1 AND (p.organization_id = $2 OR p.organization_id IS NULL) AND p.deleted_at IS NULL
     `;
         let result = await database_1.db.query(query, [id, organization_id]);
         if (!result.rows[0]) {
             const fallback = await database_1.db.query(`SELECT p.*, EXTRACT(YEAR FROM AGE(p.date_of_birth))::int AS age,
-                (SELECT json_agg(a.*) FROM patient_addresses a WHERE a.patient_id = p.id) as addresses
+                (SELECT json_agg(a.*) FROM patient_addresses a WHERE a.patient_id = p.id) as addresses,
+                (SELECT json_agg(i.*) FROM patient_identifiers i WHERE i.patient_id = p.id) as identifiers,
+                (SELECT json_agg(c.*) FROM patient_contacts c WHERE c.patient_id = p.id) as contacts,
+                COALESCE((SELECT i.id_value FROM patient_identifiers i WHERE i.patient_id = p.id AND i.id_type = 'aadhaar_token' LIMIT 1), p.custom_fields->>'aadhaar_number', p.custom_fields->>'aadhaar') as aadhaar_number,
+                COALESCE((SELECT i.id_value FROM patient_identifiers i WHERE i.patient_id = p.id AND i.id_type = 'pan' LIMIT 1), p.custom_fields->>'pan_number', p.custom_fields->>'pan') as pan_number,
+                COALESCE((SELECT c.name FROM patient_contacts c WHERE c.patient_id = p.id AND c.is_emergency_contact = true LIMIT 1), p.custom_fields->>'emergency_name', p.custom_fields->>'guardian_name') as emergency_name,
+                COALESCE((SELECT c.phone FROM patient_contacts c WHERE c.patient_id = p.id AND c.is_emergency_contact = true LIMIT 1), p.custom_fields->>'emergency_phone', p.custom_fields->>'emergency_contact') as emergency_phone,
+                COALESCE((SELECT c.relationship FROM patient_contacts c WHERE c.patient_id = p.id AND c.is_emergency_contact = true LIMIT 1), p.custom_fields->>'emergency_relation') as emergency_relation,
+                COALESCE(p.custom_fields->>'doctor', p.custom_fields->>'referred_by') as doctor,
+                COALESCE(p.custom_fields->>'health_insurance', 'No') as health_insurance,
+                p.custom_fields->>'insurance_provider' as insurance_provider,
+                p.custom_fields->>'insurance_number' as insurance_number
          FROM patients p WHERE p.id = $1 AND p.deleted_at IS NULL`, [id]);
             return fallback.rows[0] || null;
         }
@@ -208,7 +264,9 @@ class PatientRepository {
       RETURNING *
     `;
         const result = await database_1.db.query(query, values);
-        return result.rows[0] || null;
+        if (!result.rows[0])
+            return null;
+        return this.getPatientById(id, organization_id);
     }
     async updatePatientAddress(patientId, data) {
         const payload = {

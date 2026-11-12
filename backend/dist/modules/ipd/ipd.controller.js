@@ -27,7 +27,11 @@ class IpdController {
         const facilityId = req.user?.facilityId ?? req.query.facilityId ?? '';
         const search = req.query.search;
         const status = req.query.status;
-        const queue = await this.service.getAdmissions(facilityId, search, status);
+        const page = req.query.page ? parseInt(req.query.page, 10) : 1;
+        const limit = req.query.limit ? parseInt(req.query.limit, 10) : 1000;
+        const startDate = (req.query.startDate || req.query.from_date || req.query.fromDate);
+        const endDate = (req.query.endDate || req.query.to_date || req.query.toDate);
+        const queue = await this.service.getAdmissions(facilityId, search, status, page, limit, startDate, endDate);
         (0, response_1.sendSuccess)(res, queue, 'Admissions retrieved successfully');
     };
     getAdmissionById = async (req, res) => {

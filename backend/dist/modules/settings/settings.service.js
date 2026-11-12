@@ -752,6 +752,8 @@ const DEFAULT_SETTINGS_MAP = {
     print_slip_ipd_admission: exports.DEFAULT_IPD_SLIP_SETTINGS,
     print_slip_ipd_discharge: exports.DEFAULT_IPD_DISCHARGE_SETTINGS,
     print_slip_ipd_bill: exports.DEFAULT_IPD_BILLING_SETTINGS,
+    print_slip_ipd_receipt: exports.DEFAULT_IPD_BILLING_SETTINGS,
+    print_slip_shared_master: exports.DEFAULT_IPD_SLIP_SETTINGS,
 };
 function deepMerge(target, source) {
     if (!source || typeof source !== 'object')
@@ -789,11 +791,11 @@ class SettingsService {
       `;
             const params = [key, orgId];
             if (facilityId) {
-                queryStr += ` AND (facility_id = $3 OR facility_id IS NULL) ORDER BY facility_id DESC NULLS LAST LIMIT 1`;
+                queryStr += ` AND (facility_id = $3 OR facility_id IS NULL) ORDER BY (facility_id = $3) DESC, updated_at DESC LIMIT 1`;
                 params.push(facilityId);
             }
             else {
-                queryStr += ` AND facility_id IS NULL LIMIT 1`;
+                queryStr += ` ORDER BY updated_at DESC LIMIT 1`;
             }
             const result = await database_1.db.query(queryStr, params);
             if (result.rows.length > 0 && result.rows[0].value) {
@@ -830,6 +832,17 @@ class SettingsService {
             JSON.stringify(value),
             userId || null,
         ]);
+        // Keep all facilities and org fallback in sync so print templates never get desynchronized across facilities
+        try {
+            await database_1.db.query(`
+        UPDATE settings
+        SET value = $1::jsonb, updated_at = now(), updated_by = $2
+        WHERE organization_id = $3 AND key = $4;
+        `, [JSON.stringify(value), userId || null, orgId, key]);
+        }
+        catch (e) {
+            logger_1.logger.warn({ err: e?.message, key }, 'Could not broadcast setting update across organization facilities');
+        }
         return res.rows[0];
     }
     /**

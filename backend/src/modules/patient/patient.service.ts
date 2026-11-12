@@ -237,8 +237,48 @@ export class PatientService {
     try {
       await client.query('BEGIN');
       
+      let registeredFacilityId: string | null = null;
+      if (data.facility_id) {
+        try {
+          const facCheck = await client.query('SELECT id FROM facilities WHERE id = $1 LIMIT 1', [data.facility_id]);
+          if (facCheck.rows.length > 0) {
+            registeredFacilityId = data.facility_id;
+          }
+        } catch {
+          registeredFacilityId = null;
+        }
+      }
+
+      const customFields: Record<string, any> = {
+        visit_type: data.visit_type,
+        department: data.department,
+        doctor: data.doctor || data.referred_by,
+        referred_by: data.referred_by || data.doctor,
+        payment_type: data.payment_type,
+        health_insurance: data.health_insurance,
+        insurance_provider: data.insurance_provider,
+        insurance_number: data.insurance_number,
+        aadhaar_number: normalizedData.aadhaar_number,
+        aadhaar: normalizedData.aadhaar_number,
+        pan_number: normalizedData.pan_number,
+        pan: normalizedData.pan_number,
+        emergency_name: data.emergency_name,
+        guardian_name: data.emergency_name,
+        emergency_phone: data.emergency_phone,
+        emergency_contact: data.emergency_phone,
+        emergency_relation: data.emergency_relation,
+        ...((data as any).custom_fields || {}),
+      };
+
+      Object.keys(customFields).forEach((key) => {
+        if (customFields[key] === undefined) {
+          delete customFields[key];
+        }
+      });
+
       const newPatient = await patientRepository.createPatient(client, {
         organization_id: organizationId,
+        registered_facility_id: registeredFacilityId,
         uhid,
         first_name: normalizedData.first_name,
         middle_name: normalizedData.middle_name,
@@ -254,12 +294,7 @@ export class PatientService {
         alternate_phone: normalizedData.alternate_phone,
         family_head_id: data.family_head_id,
         relation_to_head: data.relation_to_head,
-        custom_fields: {
-          visit_type: data.visit_type,
-          department: data.department,
-          referred_by: data.referred_by,
-          payment_type: data.payment_type
-        }
+        custom_fields: customFields
       });
 
       const patientAge = getPatientAge(newPatient.date_of_birth);
@@ -286,24 +321,52 @@ export class PatientService {
         });
       }
 
+      const identifiers = [];
       if (normalizedData.aadhaar_number) {
         await patientRepository.createPatientIdentifier(client, organizationId, newPatient.id, 'aadhaar_token', normalizedData.aadhaar_number);
+        identifiers.push({
+          id_type: 'aadhaar_token',
+          id_value: normalizedData.aadhaar_number,
+        });
       }
       
       if (normalizedData.pan_number) {
         await patientRepository.createPatientIdentifier(client, organizationId, newPatient.id, 'pan', normalizedData.pan_number);
+        identifiers.push({
+          id_type: 'pan',
+          id_value: normalizedData.pan_number,
+        });
       }
 
+      const contacts = [];
       if (data.emergency_name) {
         await patientRepository.createPatientContact(client, newPatient.id, data.emergency_name, data.emergency_relation, data.emergency_phone);
+        contacts.push({
+          name: data.emergency_name,
+          relationship: data.emergency_relation || null,
+          phone: data.emergency_phone || null,
+          is_emergency_contact: true,
+        });
       }
 
       await client.query('COMMIT');
       return {
         ...newPatient,
+        registered_facility_id: newPatient.registered_facility_id ?? registeredFacilityId ?? null,
         age: patientAge,
         full_name: patientName,
+        aadhaar_number: normalizedData.aadhaar_number ?? null,
+        pan_number: normalizedData.pan_number ?? null,
+        emergency_name: data.emergency_name ?? null,
+        emergency_phone: data.emergency_phone ?? null,
+        emergency_relation: data.emergency_relation ?? null,
+        doctor: data.doctor || data.referred_by || null,
+        health_insurance: data.health_insurance ?? null,
+        insurance_provider: data.insurance_provider ?? null,
+        insurance_number: data.insurance_number ?? null,
         addresses: addresses.length > 0 ? addresses : null,
+        identifiers: identifiers.length > 0 ? identifiers : null,
+        contacts: contacts.length > 0 ? contacts : null,
       };
     } catch (error: any) {
       await client.query('ROLLBACK');
@@ -364,6 +427,19 @@ export class PatientService {
       country: updateData.country,
     };
 
+    const aadhaarVal = updateData.aadhaar_number ?? updateData.aadhaar;
+    const panVal = updateData.pan_number ?? updateData.pan;
+    const emgName = updateData.emergency_name ?? updateData.guardian_name;
+    const emgPhone = updateData.emergency_phone ?? updateData.emergency_contact;
+    const emgRelation = updateData.emergency_relation;
+    const doctorVal = updateData.doctor ?? updateData.referred_by;
+    const deptVal = updateData.department;
+    const visitTypeVal = updateData.visit_type ?? updateData.category;
+    const paymentTypeVal = updateData.payment_type ?? updateData.paymentMode;
+    const insuranceVal = updateData.health_insurance;
+    const providerVal = updateData.insurance_provider;
+    const policyNumVal = updateData.insurance_number;
+
     delete updateData.age;
     delete updateData.address;
     delete updateData.address_line1;
@@ -372,6 +448,49 @@ export class PatientService {
     delete updateData.postal_code;
     delete updateData.pincode;
     delete updateData.country;
+    delete updateData.aadhaar;
+    delete updateData.aadhaar_number;
+    delete updateData.pan;
+    delete updateData.pan_number;
+    delete updateData.emergency_name;
+    delete updateData.guardian_name;
+    delete updateData.emergency_phone;
+    delete updateData.emergency_contact;
+    delete updateData.emergency_relation;
+    delete updateData.doctor;
+    delete updateData.referred_by;
+    delete updateData.department;
+    delete updateData.visit_type;
+    delete updateData.category;
+    delete updateData.payment_type;
+    delete updateData.paymentMode;
+    delete updateData.health_insurance;
+    delete updateData.insurance_provider;
+    delete updateData.insurance_number;
+
+    const hasCustomFieldInputs = [
+      aadhaarVal, panVal, emgName, emgPhone, emgRelation, doctorVal,
+      deptVal, visitTypeVal, paymentTypeVal, insuranceVal, providerVal, policyNumVal
+    ].some(v => v !== undefined);
+
+    if (hasCustomFieldInputs || updateData.custom_fields) {
+      const existingCustom = (typeof updateData.custom_fields === 'object' && updateData.custom_fields) ? updateData.custom_fields : {};
+      updateData.custom_fields = {
+        ...existingCustom,
+        ...(aadhaarVal !== undefined ? { aadhaar_number: aadhaarVal, aadhaar: aadhaarVal } : {}),
+        ...(panVal !== undefined ? { pan_number: panVal, pan: panVal } : {}),
+        ...(emgName !== undefined ? { emergency_name: emgName, guardian_name: emgName } : {}),
+        ...(emgPhone !== undefined ? { emergency_phone: emgPhone, emergency_contact: emgPhone } : {}),
+        ...(emgRelation !== undefined ? { emergency_relation: emgRelation } : {}),
+        ...(doctorVal !== undefined ? { doctor: doctorVal, referred_by: doctorVal } : {}),
+        ...(deptVal !== undefined ? { department: deptVal } : {}),
+        ...(visitTypeVal !== undefined ? { visit_type: visitTypeVal } : {}),
+        ...(paymentTypeVal !== undefined ? { payment_type: paymentTypeVal } : {}),
+        ...(insuranceVal !== undefined ? { health_insurance: insuranceVal } : {}),
+        ...(providerVal !== undefined ? { insurance_provider: providerVal } : {}),
+        ...(policyNumVal !== undefined ? { insurance_number: policyNumVal } : {}),
+      };
+    }
 
     if (updateData.blood_group !== undefined) {
       const bloodGroup = normalizeBloodGroup(updateData.blood_group);
@@ -400,6 +519,16 @@ export class PatientService {
     const hasAddressUpdate = Object.values(addressData).some((value) => value !== undefined && value !== null && String(value).trim() !== '');
     if (hasAddressUpdate) {
       await patientRepository.updatePatientAddress(id, addressData);
+    }
+
+    if (aadhaarVal && (patientRepository as any).upsertPatientIdentifier) {
+      await (patientRepository as any).upsertPatientIdentifier(id, organizationId, 'aadhaar_token', aadhaarVal);
+    }
+    if (panVal && (patientRepository as any).upsertPatientIdentifier) {
+      await (patientRepository as any).upsertPatientIdentifier(id, organizationId, 'pan', panVal);
+    }
+    if ((emgName || emgPhone) && (patientRepository as any).upsertPatientContact) {
+      await (patientRepository as any).upsertPatientContact(id, emgName, emgRelation, emgPhone);
     }
 
     return patient;

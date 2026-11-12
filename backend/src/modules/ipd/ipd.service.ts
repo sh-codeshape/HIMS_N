@@ -31,8 +31,16 @@ export class IpdService {
     );
   }
 
-  async getAdmissions(facilityId: string, search?: string, status?: string) {
-    return this.repository.getAdmissions(facilityId, search, status);
+  async getAdmissions(
+    facilityId: string,
+    search?: string,
+    status?: string,
+    page?: number,
+    limit?: number,
+    startDate?: string,
+    endDate?: string
+  ) {
+    return this.repository.getAdmissions(facilityId, search, status, page, limit, startDate, endDate);
   }
 
   async getAdmissionById(admissionId: string) {

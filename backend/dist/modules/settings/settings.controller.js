@@ -19,7 +19,8 @@ class SettingsController {
     }
     static async updateSettingByKey(req, res) {
         const key = String(req.params.key || '');
-        const { value } = req.body;
+        // Allow payload either as { value: ... } or directly as the setting object
+        const value = req.body?.value !== undefined ? req.body.value : req.body;
         if (!key) {
             throw new AppError_1.ValidationError('Setting key is required');
         }

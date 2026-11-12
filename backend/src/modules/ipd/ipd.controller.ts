@@ -33,8 +33,12 @@ export class IpdController {
     const facilityId = req.user?.facilityId ?? (req.query.facilityId as string) ?? '';
     const search = req.query.search as string | undefined;
     const status = req.query.status as string | undefined;
+    const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 1000;
+    const startDate = (req.query.startDate || req.query.from_date || req.query.fromDate) as string | undefined;
+    const endDate = (req.query.endDate || req.query.to_date || req.query.toDate) as string | undefined;
 
-    const queue = await this.service.getAdmissions(facilityId, search, status);
+    const queue = await this.service.getAdmissions(facilityId, search, status, page, limit, startDate, endDate);
     
     sendSuccess(res, queue, 'Admissions retrieved successfully');
   };

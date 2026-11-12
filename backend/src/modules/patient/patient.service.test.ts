@@ -11,6 +11,13 @@ vi.mock('./patient.repository', () => ({
     findPatientByPhoneAndName: vi.fn(),
     checkPhoneNameExists: vi.fn(),
     findPatientByIdentifier: vi.fn(),
+    upsertPatientIdentifier: vi.fn(),
+    upsertPatientContact: vi.fn(),
+    createPatient: vi.fn(),
+    createPatientAddress: vi.fn(),
+    createPatientIdentifier: vi.fn(),
+    createPatientContact: vi.fn(),
+    getNextUHIDSerial: vi.fn(),
   },
 }));
 
@@ -210,5 +217,35 @@ describe('patientService.createPatient duplicate verification', () => {
       'pan',
       'ABCDE1234F'
     );
+  });
+
+  it('updates custom fields, identifiers, and emergency contacts in updatePatient', async () => {
+    vi.mocked(patientRepository.updatePatient).mockResolvedValue({ id: 'p-1' } as any);
+    vi.mocked(patientRepository.upsertPatientIdentifier).mockResolvedValue(undefined as any);
+    vi.mocked(patientRepository.upsertPatientContact).mockResolvedValue(undefined as any);
+
+    await patientService.updatePatient('p-1', 'org-1', {
+      aadhaar_number: '888899990000',
+      emergency_name: 'A.I. M.l.',
+      emergency_phone: '7667676825',
+      doctor: 'Dr. shyam',
+      health_insurance: 'No',
+    });
+
+    expect(patientRepository.updatePatient).toHaveBeenCalledWith(
+      'p-1',
+      'org-1',
+      expect.objectContaining({
+        custom_fields: expect.objectContaining({
+          aadhaar_number: '888899990000',
+          emergency_name: 'A.I. M.l.',
+          emergency_phone: '7667676825',
+          doctor: 'Dr. shyam',
+          health_insurance: 'No',
+        }),
+      })
+    );
+    expect(patientRepository.upsertPatientIdentifier).toHaveBeenCalledWith('p-1', 'org-1', 'aadhaar_token', '888899990000');
+    expect(patientRepository.upsertPatientContact).toHaveBeenCalledWith('p-1', 'A.I. M.l.', undefined, '7667676825');
   });
 });

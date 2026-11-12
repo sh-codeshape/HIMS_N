@@ -6428,5 +6428,271 @@
   gap: 8px;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   IPD DIRECTORY DATE FILTER & PAGINATION BAR STYLES
+   ═══════════════════════════════════════════════════════════════ */
+
+.ipd-dir-filters-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+.ipd-date-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ipd-date-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ipd-date-filter-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.ipd-date-filter-input {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+  background: #ffffff;
+  outline: none;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.ipd-date-filter-input:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+}
+
+.ipd-date-presets {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ipd-date-preset-btn {
+  padding: 5px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-date-preset-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.ipd-date-preset-btn.active {
+  background: #eff6ff;
+  color: #0284c7;
+  border-color: #93c5fd;
+  font-weight: 700;
+}
+
+.ipd-date-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-date-clear-btn:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.ipd-dir-sort-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ipd-sort-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.ipd-sort-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-sort-toggle-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.ipd-date-filter-active-tag {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0284c7;
+  background: #e0f2fe;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* Pagination Bar Styles */
+.ipd-pag-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
+
+.ipd-pag-info {
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.ipd-pag-info strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.ipd-pag-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ipd-pag-numbers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ipd-pag-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-pag-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.ipd-pag-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ipd-pag-nav {
+  padding: 0 10px;
+}
+
+.ipd-pag-num {
+  min-width: 30px;
+  padding: 0 6px;
+}
+
+.ipd-pag-num.active {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+  font-weight: 700;
+}
+
+.ipd-pag-ellipsis {
+  padding: 0 4px;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.ipd-pag-perpage {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.ipd-pag-perpage select {
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ipd-pag-perpage select:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+}
+
+
 
 

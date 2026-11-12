@@ -11,8 +11,8 @@ class IpdService {
     async admitPatient(data, organizationId) {
         return this.repository.admitPatient(data.facility_id, organizationId, data.patient_id, data.bed_id, data.admitting_practitioner_id, data.department_id, data.referred_by, data.admission_type, data.reason_for_admission, data.attendant_name, data.attendant_relation, data.attendant_phone, data.tariff_plan_id, data.entitled_bed_category_id, data.payer_type, data.patient_coverage_id, data.advance_deposit);
     }
-    async getAdmissions(facilityId, search, status) {
-        return this.repository.getAdmissions(facilityId, search, status);
+    async getAdmissions(facilityId, search, status, page, limit, startDate, endDate) {
+        return this.repository.getAdmissions(facilityId, search, status, page, limit, startDate, endDate);
     }
     async getAdmissionById(admissionId) {
         const admission = await this.repository.getAdmissionById(admissionId);
