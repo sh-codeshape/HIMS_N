@@ -5,27 +5,39 @@ import { useRole } from "../hooks/useRole";
 import { useModules } from "../context/ModuleContext";
 import sidebarConfig from "../config/sidebarConfig";
 
-// Find permissions for a route path from sidebarConfig
-function findRoutePermissions(pathname) {
+// Find route metadata (moduleKey, submoduleKey, permissions, allowedRoles) from sidebarConfig
+function findRouteConfig(pathname) {
   if (!pathname) return null;
   const current = pathname.toLowerCase();
   for (const item of sidebarConfig) {
     if (item.path && (item.path.toLowerCase() === current || current.startsWith(item.path.toLowerCase() + "/"))) {
-      if (item.allowedPermissions && item.allowedPermissions.length > 0) {
-        return item.allowedPermissions;
-      }
+      return {
+        moduleKey: item.key,
+        submoduleKey: item.submoduleKey || null,
+        allowedRoles: item.allowedRoles || [],
+        allowedPermissions: item.allowedPermissions || [],
+      };
     }
     if (item.children) {
       for (const child of item.children) {
         if (child.path && (child.path.toLowerCase() === current || current.startsWith(child.path.toLowerCase() + "/"))) {
-          if (child.allowedPermissions && child.allowedPermissions.length > 0) {
-            return child.allowedPermissions;
-          }
+          return {
+            moduleKey: item.key,
+            submoduleKey: child.submoduleKey || null,
+            allowedRoles: child.allowedRoles || item.allowedRoles || [],
+            allowedPermissions: child.allowedPermissions || [],
+          };
         }
       }
     }
   }
   return null;
+}
+
+// Find permissions for a route path from sidebarConfig (legacy helper fallback)
+function findRoutePermissions(pathname) {
+  const meta = findRouteConfig(pathname);
+  return meta?.allowedPermissions?.length ? meta.allowedPermissions : null;
 }
 
 // Domain-level fallback check for custom role users
@@ -67,7 +79,7 @@ function hasDomainPermission(pathname, userPermissions) {
 /**
  * Wrap any route element with this to enforce auth + role/permission checks.
  */
-export default function ProtectedRoute({ children, allowedRoles, allowedPermissions, moduleKey }) {
+export default function ProtectedRoute({ children, allowedRoles, allowedPermissions, moduleKey, submoduleKey }) {
   const { isAuthenticated, user, loading } = useAuth();
   const { roles } = useRole();
   const { isModuleEnabled } = useModules();
@@ -90,12 +102,34 @@ export default function ProtectedRoute({ children, allowedRoles, allowedPermissi
   const isDeveloper = roles.includes("developer") || userRoles.includes("developer");
   const isSuperAdmin = userRoles.includes("super_admin") || !!user.is_superadmin;
 
-  // Module-level gate (developer bypasses)
-  if (!isDeveloper && moduleKey && !isModuleEnabled(moduleKey)) {
+  // Resolve route-level module & submodule from config if not explicitly passed
+  const routeMeta = findRouteConfig(location.pathname);
+  const effectiveModuleKey = moduleKey || routeMeta?.moduleKey;
+  const effectiveSubmoduleKey = submoduleKey || routeMeta?.submoduleKey;
+
+  // 1. Developer Console is strictly isolated for developer accounts only
+  // Super admin and admin CANNOT access /developer routes
+  const isDevConsoleRoute =
+    effectiveModuleKey === "developerConsole" ||
+    location.pathname.toLowerCase().startsWith("/developer") ||
+    (allowedRoles && allowedRoles.length === 1 && allowedRoles[0] === "developer");
+
+  if (isDevConsoleRoute && !isDeveloper) {
     return <Navigate to="/unauthorized" replace />;
   }
 
-  // Developer and Super Admin have full access
+  // 2. Global Module & Submodule gates (developer bypasses all)
+  // Super admin and other users CANNOT access disabled modules or disabled submodules
+  if (!isDeveloper) {
+    if (effectiveModuleKey && !isModuleEnabled(effectiveModuleKey)) {
+      return <Navigate to="/unauthorized" replace />;
+    }
+    if (effectiveSubmoduleKey && !isModuleEnabled(effectiveSubmoduleKey)) {
+      return <Navigate to="/unauthorized" replace />;
+    }
+  }
+
+  // 3. Super Admin and Developer have full operational access across all active hospital modules
   if (isDeveloper || isSuperAdmin) {
     return children;
   }

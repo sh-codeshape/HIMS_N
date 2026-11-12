@@ -91,26 +91,40 @@ export default function Sidebar() {
 
   /**
    * Layer 1: Module registry check (developer bypasses).
-   * If a module is disabled globally, no one except the developer can see it.
+   * If a module or submodule is disabled globally, no one except the developer can see it.
    *
-   * Layer 2: RBAC role + permission check with domain fallback.
+   * Layer 2: Developer Console isolation (strictly developer role only).
+   *
+   * Layer 3: RBAC role + permission check with domain fallback.
+   * Super Admin has full operational access across all enabled hospital features.
    */
   const itemVisible = (item) => {
-    // Layer 1: Module gate
-    if (!isDeveloper && item.key && !isModuleEnabled(item.key)) {
-      return false; // Module disabled globally → hide from everyone except developer
+    // Developer Console is strictly for developer accounts only — super_admin and admin CANNOT access
+    if (item.key === "developerConsole" && !isDeveloper) {
+      return false;
     }
 
-    if (isDeveloper || userRoles.includes("super_admin") || !!user.is_superadmin) {
-      return true;
+    // Layer 1: Module and Submodule gates (developer bypasses all)
+    if (!isDeveloper) {
+      if (item.key && !isModuleEnabled(item.key)) {
+        return false; // Root module disabled globally
+      }
+      if (item.submoduleKey && !isModuleEnabled(item.submoduleKey)) {
+        return false; // Submodule disabled globally
+      }
     }
 
-    // If item has children, it is visible if at least one child is visible
+    // If item has children, it is visible only if at least one child is visible
     if (item.children && item.children.length > 0) {
       return item.children.some((child) => {
         const childWithKey = { ...child, key: child.key || item.key };
         return itemVisible(childWithKey);
       });
+    }
+
+    // Developer and Super Admin have universal access to all active hospital items
+    if (isDeveloper || userRoles.includes("super_admin") || !!user.is_superadmin) {
+      return true;
     }
 
     // Role-based check

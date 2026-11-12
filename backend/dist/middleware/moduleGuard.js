@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.moduleGuard = void 0;
+exports.submoduleGuard = exports.moduleGuard = void 0;
 const AppError_1 = require("../shared/errors/AppError");
 const modules_service_1 = require("../modules/modules/modules.service");
 /**
@@ -30,3 +30,8 @@ const moduleGuard = (moduleKey) => {
     };
 };
 exports.moduleGuard = moduleGuard;
+/**
+ * Submodule-level middleware alias for fine-grained feature gates (e.g., 'billing.refunds').
+ */
+const submoduleGuard = (submoduleKey) => (0, exports.moduleGuard)(submoduleKey);
+exports.submoduleGuard = submoduleGuard;

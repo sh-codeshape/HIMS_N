@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import axiosInstance from "../api/axiosInstance";
 import { ENDPOINTS } from "../api/endpoints";
 
@@ -7,6 +7,22 @@ const ModuleContext = createContext(null);
 export function ModuleProvider({ children }) {
   const [enabledModules, setEnabledModules] = useState({});
   const [loading, setLoading] = useState(true);
+
+  const fetchModules = useCallback(async () => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.MODULES.BASE);
+      const modules = res.data.data || [];
+      const map = {};
+      modules.forEach((m) => {
+        map[m.module_key] = m.is_enabled;
+      });
+      setEnabledModules(map);
+    } catch (error) {
+      console.error("Failed to load module registry", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     // Only fetch modules if a token exists — avoids 401 spam when unauthenticated
@@ -30,39 +46,33 @@ export function ModuleProvider({ children }) {
     };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchModules]);
 
-  const fetchModules = async () => {
-    try {
-      const res = await axiosInstance.get(ENDPOINTS.MODULES.BASE);
-      const modules = res.data.data || [];
-      const map = {};
-      modules.forEach((m) => {
-        map[m.module_key] = m.is_enabled;
-      });
-      setEnabledModules(map);
-    } catch (error) {
-      console.error("Failed to load module registry", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const isModuleEnabled = (moduleKey) => {
+  const isModuleEnabled = useCallback((moduleKey) => {
     if (!moduleKey) return true;
     if (Object.keys(enabledModules).length === 0) return true;
+
+    // If it's a submodule like "billing.refunds", check if parent "billing" is disabled
+    if (moduleKey.includes('.')) {
+      const parentKey = moduleKey.split('.')[0];
+      if (enabledModules[parentKey] === false) {
+        return false;
+      }
+    }
+
     return enabledModules[moduleKey] !== false;
-  };
+  }, [enabledModules]);
 
   const value = useMemo(
     () => ({
       enabledModules,
       isModuleEnabled,
+      isSubmoduleEnabled: isModuleEnabled,
+      isFeatureEnabled: isModuleEnabled,
       loading,
       refetch: fetchModules,
     }),
-    [enabledModules, loading, fetchModules]
+    [enabledModules, isModuleEnabled, loading, fetchModules]
   );
 
   return <ModuleContext.Provider value={value}>{children}</ModuleContext.Provider>;

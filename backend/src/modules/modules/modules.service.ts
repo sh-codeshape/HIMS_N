@@ -27,6 +27,18 @@ export class ModulesService {
   }
 
   async isModuleEnabled(moduleKey: string): Promise<boolean> {
+    // If it's a submodule like "billing.refunds", check if parent "billing" is disabled first
+    if (moduleKey.includes('.')) {
+      const parentKey = moduleKey.split('.')[0];
+      const parentResult = await db.query(
+        `SELECT is_enabled FROM module_registry WHERE module_key = $1`,
+        [parentKey]
+      );
+      if (parentResult.rows.length > 0 && !parentResult.rows[0].is_enabled) {
+        return false;
+      }
+    }
+
     const query = `
       SELECT is_enabled
       FROM module_registry

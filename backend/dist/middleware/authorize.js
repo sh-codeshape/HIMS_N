@@ -8,8 +8,19 @@ const authorize = (allowedPermissions) => {
         if (!user) {
             return next(new AppError_1.UnauthorizedError('Not authenticated'));
         }
-        // Super admin, admin, and developer override permission checks
-        if (user.roles?.includes('developer') || user.roles?.includes('super_admin') || user.roles?.includes('admin')) {
+        const isDeveloper = user.roles?.includes('developer');
+        const isSuperAdminOrAdmin = user.roles?.includes('super_admin') || user.roles?.includes('admin');
+        const requiresDeveloperOnly = allowedPermissions.some((permission) => permission.startsWith('developer.') || permission === 'developer');
+        // Developer role has universal access across all permissions
+        if (isDeveloper) {
+            return next();
+        }
+        // Developer-only endpoints are strictly reserved for developer role — super_admin and admin CANNOT bypass
+        if (requiresDeveloperOnly) {
+            return next(new AppError_1.UnauthorizedError('Developer access required'));
+        }
+        // Super admin and admin override general hospital permissions
+        if (isSuperAdminOrAdmin) {
             return next();
         }
         if (!user.permissions || user.permissions.length === 0) {

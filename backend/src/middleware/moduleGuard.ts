@@ -30,3 +30,8 @@ export const moduleGuard = (moduleKey: string) => {
     next();
   };
 };
+
+/**
+ * Submodule-level middleware alias for fine-grained feature gates (e.g., 'billing.refunds').
+ */
+export const submoduleGuard = (submoduleKey: string) => moduleGuard(submoduleKey);
