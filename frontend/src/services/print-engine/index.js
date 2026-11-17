@@ -186,6 +186,10 @@ class PrintEngine {
    */
   async printSlip(slipType = "opd", data = null, customSettings = null) {
     const normType = normalizeSlipType(slipType);
+    // Always ensure Master is loaded before building HTML so that
+    // buildSlipHTML → resolveEffectiveConfig has a valid master context
+    // (prevents fallback to DEFAULT_SHARED_CONFIG which has nothing deactivated)
+    await this.loadSharedMaster(false);
     let settings = customSettings;
     if (!settings) {
       settings = await this.loadSlipSettings(normType);

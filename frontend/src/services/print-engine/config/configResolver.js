@@ -54,6 +54,9 @@ export function resolveEffectiveConfig(slipType = "opd", masterConfig = null, sl
     ...DEFAULT_SLIP_CONFIGS.opd,
     ...(baseMaster.opd || {}),
     ...(specific.opd || {}),
+    showRxNotes: specific.opd?.showRxNotes !== undefined ? specific.opd.showRxNotes : (baseMaster.opd?.showRxNotes !== false),
+    showSignatures: specific.opd?.showSignatures !== undefined ? specific.opd.showSignatures : (baseMaster.opd?.showSignatures !== false),
+    showTerms: specific.opd?.showTerms !== undefined ? specific.opd.showTerms : (baseMaster.opd?.showTerms !== false),
     ...(specific.particulars
       ? {
           showParticulars: specific.particulars.showTable !== false,
@@ -110,7 +113,12 @@ export function resolveEffectiveConfig(slipType = "opd", masterConfig = null, sl
 
   // Check if terms / hospital instructions are disabled on this slip or globally
   const isTermsDisabled =
+    specific[normType]?.showTerms === false ||
     specific.opd?.showTerms === false ||
+    specific.receipt?.showTerms === false ||
+    specific.billing?.showTerms === false ||
+    specific.admission?.showTerms === false ||
+    specific.discharge?.showTerms === false ||
     specific.showTerms === false ||
     specific.particulars?.showTerms === false ||
     specific.footer?.showTerms === false ||
@@ -129,6 +137,32 @@ export function resolveEffectiveConfig(slipType = "opd", masterConfig = null, sl
     combinedInactives.add("terms.disclaimer");
     if (!resolvedFieldStyles["terms.card"]) resolvedFieldStyles["terms.card"] = {};
     resolvedFieldStyles["terms.card"].show = false;
+  }
+
+  // Check if signatures are disabled on this slip or globally
+  const isSignaturesDisabled =
+    specific[normType]?.showSignatures === false ||
+    specific.opd?.showSignatures === false ||
+    specific.receipt?.showSignatures === false ||
+    specific.billing?.showSignatures === false ||
+    specific.admission?.showSignatures === false ||
+    specific.discharge?.showSignatures === false ||
+    specific.showSignatures === false ||
+    specific.footer?.showSignatures === false ||
+    baseMaster.footer?.showSignatures === false ||
+    masterInactives.includes("signatures.card") ||
+    specificInactives.includes("signatures.card") ||
+    resolvedFieldStyles["signatures.card"]?.show === false;
+
+  if (isSignaturesDisabled) {
+    combinedInactives.add("signatures.card");
+    combinedInactives.add("signatures.doctor");
+    combinedInactives.add("signatures.nurse");
+    combinedInactives.add("signatures.attendant");
+    combinedInactives.add("signatures.cashier");
+    combinedInactives.add("signatures.stamp");
+    if (!resolvedFieldStyles["signatures.card"]) resolvedFieldStyles["signatures.card"] = {};
+    resolvedFieldStyles["signatures.card"].show = false;
   }
 
   const resolvedInactiveElements = Array.from(combinedInactives);

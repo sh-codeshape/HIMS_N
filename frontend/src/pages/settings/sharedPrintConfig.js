@@ -756,6 +756,13 @@ export function isElementActiveOnSlip(key, slipType = "all", settings = DEFAULT_
     if (slipType && settings?.[slipType]?.showTerms === false) return false;
   }
 
+  // If entire signatures card is disabled globally or per-slip
+  if (key.startsWith("signatures.") || key === "signatures.card") {
+    if (settings?.fieldStyles?.["signatures.card"]?.show === false) return false;
+    if (settings?.footer?.showSignatures === false) return false;
+    if (slipType && settings?.[slipType]?.showSignatures === false) return false;
+  }
+
   // If viewing global master, master fieldStyles dictate visibility
   if (!slipType || slipType === "all") {
     return fs?.show !== false;
@@ -763,10 +770,13 @@ export function isElementActiveOnSlip(key, slipType = "all", settings = DEFAULT_
 
   // Check slip-specific inactive elements
   const slipCfg = settings?.slipConfigs?.[slipType];
-  const inactives = slipCfg?.inactiveElements;
+  const inactives = slipCfg?.inactiveElements || settings?.inactiveElements;
   if (Array.isArray(inactives)) {
     if (inactives.includes(key)) return false;
     if ((key.startsWith("terms.") || key === "terms.card") && inactives.includes("terms.card")) {
+      return false;
+    }
+    if ((key.startsWith("signatures.") || key === "signatures.card") && inactives.includes("signatures.card")) {
       return false;
     }
   }
@@ -827,8 +837,14 @@ export function getElementComputedStyle(key, fieldStyles = {}, extraCss = "", is
     return "display: none !important;";
   }
 
-  const offsetX = Number(f.offsetX) || 0;
-  const offsetY = Number(f.offsetY) || 0;
+  let offsetX = Number(f.offsetX) || 0;
+  let offsetY = Number(f.offsetY) || 0;
+
+  // Clamp offsets for critical header elements to prevent out-of-bounds rendering
+  if (key === "header.slogan" || key === "header.hospitalName" || key === "header.subtitle") {
+    offsetX = Math.max(-50, Math.min(50, offsetX));
+    offsetY = Math.max(-20, Math.min(20, offsetY));
+  }
 
   // Rock-solid positioning using relative coordinates + left + top
   const hasAlign = Boolean(f.textAlign);
@@ -1069,8 +1085,22 @@ export async function applySharedMasterToAllSlips(sharedSettings) {
             ...(sharedSettings.fieldStyles || {}),
           },
           slipConfigs: {
-            ...(sharedSettings.slipConfigs || {}),
             ...(existing.slipConfigs || {}),
+            ...(sharedSettings.slipConfigs || {}),
+            ...Object.fromEntries(
+              Object.keys({ ...(sharedSettings.slipConfigs || {}), ...(existing.slipConfigs || {}) }).map((sk) => {
+                const masterInacts = sharedSettings.slipConfigs?.[sk]?.inactiveElements || [];
+                const existingInacts = existing.slipConfigs?.[sk]?.inactiveElements || [];
+                return [
+                  sk,
+                  {
+                    ...(existing.slipConfigs?.[sk] || {}),
+                    ...(sharedSettings.slipConfigs?.[sk] || {}),
+                    inactiveElements: Array.from(new Set([...masterInacts, ...existingInacts])),
+                  },
+                ];
+              })
+            ),
           },
         };
         await settingsService.updateSetting(key, updated);

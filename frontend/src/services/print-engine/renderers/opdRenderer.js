@@ -105,6 +105,9 @@ export function renderOpdBody(data, cfg, options = {}) {
       }
 
       <!-- Doctor Clinical Examination & Prescription Lines -->
+      ${
+        cfg.opd?.showRxNotes !== false && !cfg.slipConfigs?.opd?.inactiveElements?.includes("opd.rxNotes")
+          ? `
       <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 8px; margin-top: 6px; min-height: 140px; background: #fafafa;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 6px;">
           <strong style="font-size: 8.5px; color: #475569; text-transform: uppercase;">Rx / Doctor Clinical Notes, Vitals &amp; Advice:</strong>
@@ -117,6 +120,9 @@ export function renderOpdBody(data, cfg, options = {}) {
           <div style="border-bottom: 1px dotted #e2e8f0; height: 1px;"></div>
         </div>
       </div>
+      `
+          : ""
+      }
     </div>
   `;
 }

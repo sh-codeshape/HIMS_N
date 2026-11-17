@@ -4,7 +4,6 @@ import opdService from "../../../api/services/opdService";
 import patientService from "../../../api/services/patientService";
 import PrintSlipHandler from "../../../services/PrintSlipHandler";
 import OPDConsultationSlip from "../../../components/slips/OPDConsultationSlip.jsx";
-import settingsService from "../../../api/services/settingsService.js";
 import { DEFAULT_HOSPITAL_CONFIG } from "../../../data/printlslip.data.jsx";
 import { useAuth } from "../../../auth";
 import { ROLES } from "../../../auth/roles";
@@ -85,8 +84,7 @@ export default function OPDReportsView() {
   const [slipSettings, setSlipSettings] = useState(null);
 
   useEffect(() => {
-    settingsService
-      .getSetting("print_slip_opd")
+    PrintSlipHandler.loadDbSettings(true)
       .then((data) => {
         if (data) setSlipSettings(data);
       })

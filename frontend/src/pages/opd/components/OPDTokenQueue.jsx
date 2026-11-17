@@ -8,7 +8,6 @@ import opdService from "../../../api/services/opdService";
 import doctorService from "../../../services/doctorService";
 import PrintSlipHandler from "../../../services/PrintSlipHandler";
 import OPDConsultationSlip from "../../../components/slips/OPDConsultationSlip.jsx";
-import settingsService from "../../../api/services/settingsService.js";
 import "./OPDTokenQueue.css";
 
 // ── Complaint Categories & Popular Complaints Dataset ──────────────────────────
@@ -208,10 +207,9 @@ export default function OPDTokenQueue() {
   const [opdSlipData, setOpdSlipData] = useState(null);
   const [slipSettings, setSlipSettings] = useState(null);
 
-  // Load custom hospital slip settings from database
+  // Load custom hospital slip settings via PrintEngine (resolves Master + slip-specific)
   useEffect(() => {
-    settingsService
-      .getSetting("print_slip_opd")
+    PrintSlipHandler.loadDbSettings(true)
       .then((data) => {
         if (data) setSlipSettings(data);
       })

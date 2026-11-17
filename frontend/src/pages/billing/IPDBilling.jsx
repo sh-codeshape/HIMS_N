@@ -224,6 +224,15 @@ export default function IPDBilling() {
     });
   }, []);
 
+  // Refresh IPD receipt settings whenever receipt modal is opened
+  useEffect(() => {
+    if (selectedPaymentForReceipt) {
+      IPDReceiptPrintHandler.getSettings(true).then((s) => {
+        if (s) setIpdReceiptSettings(s);
+      });
+    }
+  }, [selectedPaymentForReceipt]);
+
   // Print Preview Zoom & Dynamic Iframe Height state
   const [printZoom, setPrintZoom] = useState(100);
   const [printFrameHeight, setPrintFrameHeight] = useState(1280);

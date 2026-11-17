@@ -160,6 +160,223 @@ export default function UnifiedSlipSettingsTab({ slipType = "opd", onOpenMaster 
     });
   };
 
+  // ── Universal Section Visibility Helpers ──
+  const isTermsActive = useMemo(() => {
+    if (!settings) return true;
+    const inactives = settings.slipConfigs?.[normType]?.inactiveElements || [];
+    if (inactives.includes("terms.card")) return false;
+    if (settings.fieldStyles?.["terms.card"]?.show === false) return false;
+    if (settings[normType]?.showTerms === false) return false;
+    if (settings.opd?.showTerms === false && normType === "opd") return false;
+    return true;
+  }, [settings, normType]);
+
+  const isSignaturesActive = useMemo(() => {
+    if (!settings) return true;
+    const inactives = settings.slipConfigs?.[normType]?.inactiveElements || [];
+    if (inactives.includes("signatures.card")) return false;
+    if (settings.fieldStyles?.["signatures.card"]?.show === false) return false;
+    if (settings[normType]?.showSignatures === false) return false;
+    if (settings.opd?.showSignatures === false && normType === "opd") return false;
+    return true;
+  }, [settings, normType]);
+
+  const isFooterActive = useMemo(() => {
+    if (!settings) return true;
+    const inactives = settings.slipConfigs?.[normType]?.inactiveElements || [];
+    if (inactives.includes("footer.letterhead")) return false;
+    if (settings.fieldStyles?.["footer.letterhead"]?.show === false) return false;
+    if (settings.footer?.showLetterheadFooter === false) return false;
+    return true;
+  }, [settings, normType]);
+
+  const isRxNotesActive = useMemo(() => {
+    if (!settings) return true;
+    const inactives = settings.slipConfigs?.[normType]?.inactiveElements || [];
+    if (inactives.includes("opd.rxNotes")) return false;
+    if (settings.opd?.showRxNotes === false) return false;
+    return true;
+  }, [settings, normType]);
+
+  const toggleTermsSection = (show) => {
+    setSettings((prev) => {
+      if (!prev) return prev;
+      const inactives = new Set(prev.slipConfigs?.[normType]?.inactiveElements || []);
+      const termKeys = [
+        "terms.card",
+        "terms.title",
+        "terms.list",
+        "terms.helpline",
+        "terms.address",
+        "terms.footerTagline",
+        "terms.disclaimer",
+      ];
+      if (show) {
+        termKeys.forEach((k) => inactives.delete(k));
+      } else {
+        termKeys.forEach((k) => inactives.add(k));
+      }
+      return {
+        ...prev,
+        [normType]: {
+          ...(prev[normType] || {}),
+          showTerms: show,
+        },
+        opd: {
+          ...(prev.opd || {}),
+          showTerms: show,
+        },
+        fieldStyles: {
+          ...(prev.fieldStyles || {}),
+          "terms.card": {
+            ...(prev.fieldStyles?.["terms.card"] || {}),
+            show,
+          },
+        },
+        slipConfigs: {
+          ...(prev.slipConfigs || {}),
+          [normType]: {
+            ...(prev.slipConfigs?.[normType] || {}),
+            inactiveElements: Array.from(inactives),
+          },
+        },
+      };
+    });
+  };
+
+  const toggleSignaturesSection = (show) => {
+    setSettings((prev) => {
+      if (!prev) return prev;
+      const inactives = new Set(prev.slipConfigs?.[normType]?.inactiveElements || []);
+      const sigKeys = [
+        "signatures.card",
+        "signatures.doctor",
+        "signatures.nurse",
+        "signatures.attendant",
+        "signatures.cashier",
+        "signatures.stamp",
+      ];
+      if (show) {
+        sigKeys.forEach((k) => inactives.delete(k));
+      } else {
+        sigKeys.forEach((k) => inactives.add(k));
+      }
+      return {
+        ...prev,
+        [normType]: {
+          ...(prev[normType] || {}),
+          showSignatures: show,
+        },
+        opd: {
+          ...(prev.opd || {}),
+          showSignatures: show,
+        },
+        fieldStyles: {
+          ...(prev.fieldStyles || {}),
+          "signatures.card": {
+            ...(prev.fieldStyles?.["signatures.card"] || {}),
+            show,
+          },
+        },
+        slipConfigs: {
+          ...(prev.slipConfigs || {}),
+          [normType]: {
+            ...(prev.slipConfigs?.[normType] || {}),
+            inactiveElements: Array.from(inactives),
+          },
+        },
+      };
+    });
+  };
+
+  const toggleSignatureRole = (roleKey, show) => {
+    setSettings((prev) => {
+      if (!prev) return prev;
+      const inactives = new Set(prev.slipConfigs?.[normType]?.inactiveElements || []);
+      if (show) {
+        inactives.delete(roleKey);
+      } else {
+        inactives.add(roleKey);
+      }
+      return {
+        ...prev,
+        fieldStyles: {
+          ...(prev.fieldStyles || {}),
+          [roleKey]: {
+            ...(prev.fieldStyles?.[roleKey] || {}),
+            show,
+          },
+        },
+        slipConfigs: {
+          ...(prev.slipConfigs || {}),
+          [normType]: {
+            ...(prev.slipConfigs?.[normType] || {}),
+            inactiveElements: Array.from(inactives),
+          },
+        },
+      };
+    });
+  };
+
+  const toggleFooterSection = (show) => {
+    setSettings((prev) => {
+      if (!prev) return prev;
+      const inactives = new Set(prev.slipConfigs?.[normType]?.inactiveElements || []);
+      if (show) {
+        inactives.delete("footer.letterhead");
+      } else {
+        inactives.add("footer.letterhead");
+      }
+      return {
+        ...prev,
+        footer: {
+          ...(prev.footer || {}),
+          showLetterheadFooter: show,
+        },
+        fieldStyles: {
+          ...(prev.fieldStyles || {}),
+          "footer.letterhead": {
+            ...(prev.fieldStyles?.["footer.letterhead"] || {}),
+            show,
+          },
+        },
+        slipConfigs: {
+          ...(prev.slipConfigs || {}),
+          [normType]: {
+            ...(prev.slipConfigs?.[normType] || {}),
+            inactiveElements: Array.from(inactives),
+          },
+        },
+      };
+    });
+  };
+
+  const toggleRxNotes = (show) => {
+    setSettings((prev) => {
+      if (!prev) return prev;
+      const inactives = new Set(prev.slipConfigs?.[normType]?.inactiveElements || []);
+      if (show) {
+        inactives.delete("opd.rxNotes");
+      } else {
+        inactives.add("opd.rxNotes");
+      }
+      return {
+        ...prev,
+        opd: {
+          ...(prev.opd || {}),
+          showRxNotes: show,
+        },
+        slipConfigs: {
+          ...(prev.slipConfigs || {}),
+          [normType]: {
+            ...(prev.slipConfigs?.[normType] || {}),
+            inactiveElements: Array.from(inactives),
+          },
+        },
+      };
+    });
+  };
+
   if (loading || !settings) {
     return (
       <div className="flex flex-col items-center justify-center p-16 text-slate-500">
@@ -365,59 +582,6 @@ export default function UnifiedSlipSettingsTab({ slipType = "opd", onOpenMaster 
                     className="rounded text-sky-600 w-4 h-4"
                   />
                   <span>Show Service Particulars &amp; Amount Breakdown Table</span>
-                </label>
-
-                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer pt-1">
-                  <input
-                    type="checkbox"
-                    checked={
-                      !settings.slipConfigs?.[normType]?.inactiveElements?.includes("terms.card") &&
-                      settings.fieldStyles?.["terms.card"]?.show !== false &&
-                      settings.opd?.showTerms !== false
-                    }
-                    onChange={(e) => {
-                      const show = e.target.checked;
-                      setSettings((prev) => {
-                        const inactives = new Set(prev.slipConfigs?.[normType]?.inactiveElements || []);
-                        if (show) {
-                          inactives.delete("terms.card");
-                          inactives.delete("terms.title");
-                          inactives.delete("terms.list");
-                          inactives.delete("terms.helpline");
-                          inactives.delete("terms.address");
-                        } else {
-                          inactives.add("terms.card");
-                          inactives.add("terms.title");
-                          inactives.add("terms.list");
-                          inactives.add("terms.helpline");
-                          inactives.add("terms.address");
-                        }
-                        return {
-                          ...prev,
-                          opd: {
-                            ...(prev.opd || {}),
-                            showTerms: show,
-                          },
-                          fieldStyles: {
-                            ...(prev.fieldStyles || {}),
-                            "terms.card": {
-                              ...(prev.fieldStyles?.["terms.card"] || {}),
-                              show,
-                            },
-                          },
-                          slipConfigs: {
-                            ...(prev.slipConfigs || {}),
-                            [normType]: {
-                              ...(prev.slipConfigs?.[normType] || {}),
-                              inactiveElements: Array.from(inactives),
-                            },
-                          },
-                        };
-                      });
-                    }}
-                    className="rounded text-sky-600 w-4 h-4"
-                  />
-                  <span>Show Hospital Instructions &amp; Policies Box (Terms List)</span>
                 </label>
               </div>
             )}
@@ -655,6 +819,130 @@ export default function UnifiedSlipSettingsTab({ slipType = "opd", onOpenMaster 
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Card 4: Universal Section Visibility & Print Modules */}
+          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Icon name="LuSlidersHorizontal" size={16} className="text-sky-700" />
+                <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wide">
+                  Section Visibility &amp; Print Modules
+                </h3>
+              </div>
+              <span className="text-[10px] text-slate-500 font-medium">Toggle on / off per slip</span>
+            </div>
+
+            <div className="space-y-2.5">
+              {/* 1. Hospital Instructions & Policies (Terms List) */}
+              <div className="p-3 bg-slate-50/80 border border-slate-200 rounded-lg hover:border-sky-300 transition-colors">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isTermsActive}
+                    onChange={(e) => toggleTermsSection(e.target.checked)}
+                    className="mt-0.5 rounded text-sky-600 w-4 h-4"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 block">
+                      📜 Hospital Instructions &amp; Policies (Terms List)
+                    </span>
+                    <span className="text-[11px] text-slate-500 leading-snug block mt-0.5">
+                      Visiting rules, attendant pass policy, personal cash/valuables disclaimer &amp; hospital address
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              {/* 2. Signatures & Stamp Block */}
+              <div className="p-3 bg-slate-50/80 border border-slate-200 rounded-lg hover:border-sky-300 transition-colors space-y-2.5">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isSignaturesActive}
+                    onChange={(e) => toggleSignaturesSection(e.target.checked)}
+                    className="mt-0.5 rounded text-sky-600 w-4 h-4"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 block">
+                      ✍️ Signatures &amp; Official Stamp Box
+                    </span>
+                    <span className="text-[11px] text-slate-500 leading-snug block mt-0.5">
+                      Signature columns for consultant doctor, duty nurse, attendant acknowledgment &amp; official stamp
+                    </span>
+                  </div>
+                </label>
+
+                {isSignaturesActive && (
+                  <div className="pl-6 pt-2 grid grid-cols-2 gap-2 border-t border-slate-200 text-[11px] text-slate-700">
+                    {[
+                      { key: "signatures.doctor", label: "Treating Consultant" },
+                      { key: "signatures.nurse", label: "Duty Nursing Officer" },
+                      { key: "signatures.attendant", label: "Patient / Attendant" },
+                      { key: "signatures.cashier", label: "Billing Officer" },
+                      { key: "signatures.stamp", label: "Official Stamp Box" },
+                    ].map((sig) => {
+                      const isActive =
+                        !settings.slipConfigs?.[normType]?.inactiveElements?.includes(sig.key) &&
+                        settings.fieldStyles?.[sig.key]?.show !== false;
+                      return (
+                        <label key={sig.key} className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isActive}
+                            onChange={(e) => toggleSignatureRole(sig.key, e.target.checked)}
+                            className="rounded text-sky-600 w-3.5 h-3.5"
+                          />
+                          <span>{sig.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Official Letterhead Footer Bar */}
+              <div className="p-3 bg-slate-50/80 border border-slate-200 rounded-lg hover:border-sky-300 transition-colors">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isFooterActive}
+                    onChange={(e) => toggleFooterSection(e.target.checked)}
+                    className="mt-0.5 rounded text-sky-600 w-4 h-4"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 block">
+                      🏥 Official Letterhead Contact Footer
+                    </span>
+                    <span className="text-[11px] text-slate-500 leading-snug block mt-0.5">
+                      4-column bottom footer: Hospital address, 24x7 helpline, email, website &amp; reg number
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              {/* 4. OPD Clinical Notes Lines (OPD only) */}
+              {normType === "opd" && (
+                <div className="p-3 bg-slate-50/80 border border-slate-200 rounded-lg hover:border-sky-300 transition-colors">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isRxNotesActive}
+                      onChange={(e) => toggleRxNotes(e.target.checked)}
+                      className="mt-0.5 rounded text-sky-600 w-4 h-4"
+                    />
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block">
+                        🩺 Doctor Rx Notes &amp; Clinical Examination Box
+                      </span>
+                      <span className="text-[11px] text-slate-500 leading-snug block mt-0.5">
+                        Blank dotted lines for handwritten prescription, vitals, and doctor diagnosis
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
