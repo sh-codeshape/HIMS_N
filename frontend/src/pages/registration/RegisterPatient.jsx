@@ -991,10 +991,6 @@ export default function RegisterPatient() {
                 </select>
               </div>
 
-             
-
-             
-
               <div>
                 <label className="rp-label">Visit Type</label>
                 <div className="rp-radios">
@@ -1038,7 +1034,14 @@ export default function RegisterPatient() {
             <span>Cancel</span>
           </button>
 
-         
+          <button
+            type="button"
+            onClick={handleReset}
+            className="rp-btn rp-btn--ghost"
+          >
+            <LuRotateCcw size={15} />
+            <span>Reset</span>
+          </button>
         </div>
 
         {/* Right Action Buttons */}

@@ -66,6 +66,59 @@
 .rp-toast--error { background: linear-gradient(180deg, #f04444, var(--red)); }
 .rp-toast--info { background: linear-gradient(180deg, var(--navy-700), var(--navy-800)); }
 
+/* ---------- Page Header Hero Card ---------- */
+.dash-header-card,
+.rp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: linear-gradient(100deg, var(--navy-800) 0%, var(--blue-600) 100%);
+  box-shadow: 0 6px 16px rgba(8, 26, 61, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  flex-wrap: wrap;
+}
+
+.dash-header-icon-box,
+.rp-header-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #ffd766, var(--gold));
+  border: 1px solid #e0ac1f;
+  color: var(--navy-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+}
+
+.dash-header-title-box,
+.rp-header-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-header-title-box h1,
+.rp-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 0 2px 0;
+  letter-spacing: 0.01em;
+}
+
+.dash-header-title-box p,
+.rp-subtitle {
+  font-size: 12.5px;
+  color: #cfe2f5;
+  margin: 0;
+  font-weight: 500;
+}
+
 /* ---------- Breadcrumbs ---------- */
 .rp-crumbs {
   display: flex;
@@ -312,6 +365,48 @@
   width: 100%;
 }
 
+.rp-card {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px 16px;
+  box-shadow: 0 2px 8px rgba(8, 26, 61, 0.06);
+}
+
+.rp-card--family {
+  background: rgba(255, 244, 214, 0.75);
+  border: 1.5px solid #e0ac1f;
+  margin-bottom: 12px;
+}
+
+/* ---------- Section title bar (used inside panels) ---------- */
+.dash-section-bar,
+.rp-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  margin-bottom: 12px;
+  background: linear-gradient(180deg, var(--sky-300), #a9c6de);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--navy-900);
+  letter-spacing: 0.01em;
+}
+
+.dash-section-bar::before,
+.rp-card-head::before {
+  content: "";
+  width: 4px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--navy-700);
+  flex-shrink: 0;
+}
+
 /* ---------- Unified Single Form Card ---------- */
 .rp-unified-card {
   background: rgba(255, 255, 255, 0.55);
@@ -329,6 +424,22 @@
   display: flex;
   flex-direction: column;
   gap: 9px;
+}
+
+/* Standard Grids */
+.rp-grid {
+  display: grid;
+  gap: 10px 14px;
+  align-items: start;
+}
+.rp-grid--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.rp-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.rp-grid--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 /* Grids for unified full-width layout */
@@ -365,6 +476,11 @@
   grid-template-columns: minmax(180px, 1.2fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(170px, 1fr);
   gap: 10px 14px;
   align-items: start;
+}
+
+/* When 2 items are present in consult grid (Doctor & Visit Type), balance cleanly */
+.rp-grid--consult-unified:has(> :last-child:nth-child(2)) {
+  grid-template-columns: minmax(260px, 1.4fr) minmax(220px, 1fr);
 }
 
 @media (max-width: 1100px) {
