@@ -17,6 +17,24 @@ export default function PrintSlipSettings() {
     return "shared-master";
   });
 
+  const [masterInitialSlip, setMasterInitialSlip] = useState(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tab = urlParams.get("tab");
+      if (tab === "receipt" || tab === "ipd-receipt") return "ipd_receipt";
+      if (tab === "opd") return "opd";
+      if (tab === "ipd-billing") return "ipd_billing";
+      if (tab === "ipd-discharge") return "ipd_discharge";
+      if (tab === "ipd") return "ipd_admission";
+    }
+    return "all";
+  });
+
+  const handleOpenMasterForSlip = (slipKey) => {
+    setMasterInitialSlip(slipKey || "all");
+    setActiveTab("shared-master");
+  };
+
   return (
     <div className="space-y-6">
       {/* Tab Switcher Navigation */}
@@ -105,13 +123,15 @@ export default function PrintSlipSettings() {
       {/* Tab Contents with Error Boundary */}
       <ErrorBoundary>
         {/* Render Master Shared Header & Footer Designer */}
-        {activeTab === "shared-master" && <SharedHeaderFooterDesigner />}
+        {activeTab === "shared-master" && (
+          <SharedHeaderFooterDesigner initialSlipType={masterInitialSlip} />
+        )}
 
         {/* Render OPD Consultation Slip */}
         {activeTab === "opd" && (
           <UnifiedSlipSettingsTab
             slipType="opd"
-            onOpenMaster={() => setActiveTab("shared-master")}
+            onOpenMaster={() => handleOpenMasterForSlip("opd")}
           />
         )}
 
@@ -119,7 +139,7 @@ export default function PrintSlipSettings() {
         {activeTab === "ipd-billing" && (
           <UnifiedSlipSettingsTab
             slipType="ipd_billing"
-            onOpenMaster={() => setActiveTab("shared-master")}
+            onOpenMaster={() => handleOpenMasterForSlip("ipd_billing")}
           />
         )}
 
@@ -127,7 +147,7 @@ export default function PrintSlipSettings() {
         {activeTab === "ipd-discharge" && (
           <UnifiedSlipSettingsTab
             slipType="ipd_discharge"
-            onOpenMaster={() => setActiveTab("shared-master")}
+            onOpenMaster={() => handleOpenMasterForSlip("ipd_discharge")}
           />
         )}
 
@@ -135,7 +155,7 @@ export default function PrintSlipSettings() {
         {activeTab === "ipd" && (
           <UnifiedSlipSettingsTab
             slipType="ipd_admission"
-            onOpenMaster={() => setActiveTab("shared-master")}
+            onOpenMaster={() => handleOpenMasterForSlip("ipd_admission")}
           />
         )}
 
@@ -143,7 +163,7 @@ export default function PrintSlipSettings() {
         {activeTab === "ipd-receipt" && (
           <UnifiedSlipSettingsTab
             slipType="ipd_receipt"
-            onOpenMaster={() => setActiveTab("shared-master")}
+            onOpenMaster={() => handleOpenMasterForSlip("ipd_receipt")}
           />
         )}
       </ErrorBoundary>

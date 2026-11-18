@@ -30,9 +30,15 @@ const BRAND_PRESET_COLORS = [
   { label: "Warm Amber", hex: "#D97706" },
 ];
 
-export default function SharedHeaderFooterDesigner() {
+export default function SharedHeaderFooterDesigner({ initialSlipType = "all" }) {
   const [settings, setSettings] = useState(DEFAULT_SHARED_CONFIG);
-  const [selectedSlipType, setSelectedSlipType] = useState("all"); // 'all' | 'opd' | 'ipd_admission' | 'ipd_billing' | 'ipd_discharge'
+  const [selectedSlipType, setSelectedSlipType] = useState(initialSlipType || "all"); // 'all' | 'opd' | 'ipd_admission' | 'ipd_billing' | 'ipd_discharge' | 'ipd_receipt'
+
+  useEffect(() => {
+    if (initialSlipType) {
+      setSelectedSlipType(initialSlipType);
+    }
+  }, [initialSlipType]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [applyingAll, setApplyingAll] = useState(false);
@@ -617,9 +623,7 @@ export default function SharedHeaderFooterDesigner() {
                 html?.offsetHeight || 0
               );
               if (contentHeight > 50) {
-                if (selectedSlipType === "opd") {
-                  setIframeHeight(`${contentHeight + 20}px`);
-                } else if (selectedSlipType === "ipd_receipt") {
+                if (selectedSlipType === "ipd_receipt") {
                   setIframeHeight(`${Math.max(contentHeight + 20, 520)}px`);
                 } else {
                   setIframeHeight(`${Math.max(contentHeight + 20, 850)}px`);
@@ -758,7 +762,7 @@ export default function SharedHeaderFooterDesigner() {
         </div>
 
         {/* Segmented Buttons for Slip Types */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
           {SLIP_TYPES.map((st) => {
             const isSelected = selectedSlipType === st.id;
             return (
@@ -3578,7 +3582,7 @@ export default function SharedHeaderFooterDesigner() {
             <div
               style={{
                 width: selectedSlipType === "ipd_receipt" ? "148mm" : "210mm",
-                minHeight: selectedSlipType === "opd" ? "auto" : selectedSlipType === "ipd_receipt" ? "210mm" : "297mm",
+                minHeight: selectedSlipType === "ipd_receipt" ? "210mm" : "297mm",
                 transform: `scale(${previewZoom / 100})`,
                 transformOrigin: "top center",
                 transition: "transform 0.12s ease",

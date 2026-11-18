@@ -342,6 +342,58 @@ export default function UnifiedSlipSettingsTab({ slipType = "opd", onOpenMaster 
     });
   };
 
+  const toggleHeaderElement = (elementKey, show) => {
+    setSettings((prev) => {
+      if (!prev) return prev;
+      const inactives = new Set(prev.slipConfigs?.[normType]?.inactiveElements || []);
+      if (show) {
+        inactives.delete(elementKey);
+      } else {
+        inactives.add(elementKey);
+      }
+      return {
+        ...prev,
+        fieldStyles: {
+          ...(prev.fieldStyles || {}),
+          [elementKey]: {
+            ...(prev.fieldStyles?.[elementKey] || {}),
+            show,
+          },
+        },
+        slipConfigs: {
+          ...(prev.slipConfigs || {}),
+          [normType]: {
+            ...(prev.slipConfigs?.[normType] || {}),
+            inactiveElements: Array.from(inactives),
+          },
+        },
+      };
+    });
+  };
+
+  const isHeaderElementActive = (key) => {
+    if (!settings) return true;
+    const inactives = settings.slipConfigs?.[normType]?.inactiveElements || [];
+    if (inactives.includes(key)) return false;
+    return settings.fieldStyles?.[key]?.show !== false;
+  };
+
+  const updateHeaderFontSize = (size) => {
+    setSettings((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        fieldStyles: {
+          ...(prev.fieldStyles || {}),
+          "header.hospitalName": {
+            ...(prev.fieldStyles?.["header.hospitalName"] || {}),
+            fontSize: size,
+          },
+        },
+      };
+    });
+  };
+
   const toggleSignatureRole = (roleKey, show) => {
     setSettings((prev) => {
       if (!prev) return prev;
@@ -543,9 +595,90 @@ export default function UnifiedSlipSettingsTab({ slipType = "opd", onOpenMaster 
                 className="w-full py-2 px-3 bg-gradient-to-r from-sky-700 to-indigo-800 hover:from-sky-800 hover:to-indigo-900 text-white font-bold rounded-lg shadow-sm flex items-center justify-center gap-2 text-xs transition-all"
               >
                 <Icon name="LuSlidersHorizontal" size={14} />
-                <span>Open Master Designer (Move Elements / Style Letterhead)</span>
+                <span>Open in Master Designer with this slip selected</span>
               </button>
             )}
+          </div>
+
+          {/* Card 1b: Hospital Header & Letterhead Appearance on this Slip */}
+          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Icon name="LuBuilding2" size={16} className="text-sky-700" />
+                <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wide">
+                  Hospital Header on {slipMeta.label}
+                </h3>
+              </div>
+              <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">
+                Per-Slip Elements
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-snug">
+              Toggle which hospital header elements appear on this slip. Changes update the live preview on the right instantly.
+            </p>
+
+            {/* Header Element Checkboxes */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-700">
+              {[
+                { key: "header.card", label: "Hospital Header Box", icon: "LuBuilding2" },
+                { key: "header.logo", label: "Hospital Logo", icon: "LuImage" },
+                { key: "header.hospitalName", label: "Hospital Name", icon: "LuHeading" },
+                { key: "header.subtitle", label: "Subtitle / Specialty", icon: "LuFileText" },
+                { key: "header.slogan", label: "Tagline / Slogan", icon: "LuMessageSquare" },
+                { key: "header.topWave", label: "Top ECG / Wave Graphic", icon: "LuActivity" },
+                { key: "header.regNo", label: "Registration No. Tag", icon: "LuTag" },
+                { key: "header.emergencyPhone", label: "24x7 Emergency Helpline", icon: "LuPhoneCall" },
+                { key: "header.address", label: "Header Address Line", icon: "LuMapPin" },
+                { key: "header.phoneEmail", label: "Phone & Email", icon: "LuPhone" },
+                { key: "header.accreditations", label: "Accreditation Badges", icon: "LuAward" },
+              ].map((item) => {
+                const active = isHeaderElementActive(item.key);
+                return (
+                  <label
+                    key={item.key}
+                    className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
+                      active
+                        ? "bg-sky-50/70 border-sky-300 text-sky-950 font-semibold"
+                        : "bg-slate-50 border-slate-200 text-slate-400"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={active}
+                      onChange={(e) => toggleHeaderElement(item.key, e.target.checked)}
+                      className="rounded text-sky-600 w-3.5 h-3.5"
+                    />
+                    <span className="truncate">{item.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+
+            {/* Quick Header Font Size Preset */}
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+              <span className="text-[11px] font-bold text-slate-700">Hospital Name Size:</span>
+              <div className="flex items-center gap-1">
+                {[16, 18, 19, 22, 24, 26].map((sz) => {
+                  const currentSz = Number(settings?.fieldStyles?.["header.hospitalName"]?.fontSize) || (normType === "ipd_receipt" ? 19 : 24);
+                  const isCurrent = currentSz === sz;
+                  return (
+                    <button
+                      key={sz}
+                      type="button"
+                      onClick={() => updateHeaderFontSize(sz)}
+                      className={`px-2 py-0.5 text-[11px] rounded font-bold transition-all ${
+                        isCurrent
+                          ? "bg-sky-700 text-white shadow-2xs"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {sz}px
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           {/* Card 2: Slip Identity, Title & Copy Badge */}

@@ -11,6 +11,7 @@
  * Persisted in DB under key: print_slip_shared_master
  */
 import settingsService from "../../api/services/settingsService.js";
+import { settingsCache } from "../../services/print-engine/services/settingsCache.js";
 
 export const SHARED_PRINT_SETTINGS_KEY = "print_slip_shared_master";
 
@@ -842,8 +843,8 @@ export function getElementComputedStyle(key, fieldStyles = {}, extraCss = "", is
 
   // Clamp offsets for critical header elements to prevent out-of-bounds rendering
   if (key === "header.slogan" || key === "header.hospitalName" || key === "header.subtitle") {
-    offsetX = Math.max(-50, Math.min(50, offsetX));
-    offsetY = Math.max(-20, Math.min(20, offsetY));
+    offsetX = Math.max(-250, Math.min(250, offsetX));
+    offsetY = Math.max(-120, Math.min(120, offsetY));
   }
 
   // Rock-solid positioning using relative coordinates + left + top
@@ -1035,9 +1036,11 @@ export async function saveSharedPrintSettings(settings) {
       slipConfigs: mergedSlipConfigs,
     };
     setCachedSharedSettings(finalSettings);
+    settingsCache.clear();
     return await settingsService.updateSetting(SHARED_PRINT_SETTINGS_KEY, finalSettings);
   } catch (_) {
     setCachedSharedSettings(settings);
+    settingsCache.clear();
     return await settingsService.updateSetting(SHARED_PRINT_SETTINGS_KEY, settings);
   }
 }
@@ -1047,6 +1050,7 @@ export async function saveSharedPrintSettings(settings) {
  */
 export async function applySharedMasterToAllSlips(sharedSettings) {
   setCachedSharedSettings(sharedSettings);
+  settingsCache.clear();
   const keys = [
     "print_slip_opd",
     "print_slip_ipd",
@@ -1161,28 +1165,44 @@ export function buildSharedHeaderHTML(
 
   const hasAnyBannerContent = showTitle || showCopyBadge || showTopUhid || showTopAdmission || showBarcode;
 
+  const isCompact = slipType === "ipd_receipt";
+  const showLogo = isActive("header.logo") && cfg.hospital?.showLogo !== false;
+  const showTopWave = isActive("header.topWave") && fs["header.topWave"]?.show !== false;
+  const showSub = isActive("header.subtitle") && Boolean(hSub && String(hSub).trim().length > 0);
+  const showSlogan = isActive("header.slogan") && Boolean(hSlogan && String(hSlogan).trim().length > 0);
+  const showAddress = isActive("header.address") && Boolean(hAddr && String(hAddr).trim().length > 0);
+  const showContact = isActive("header.phoneEmail") && Boolean(hPhone && String(hPhone).trim().length > 0);
+  const showReg = isActive("header.regNo") && Boolean(hReg);
+  const showEmergency = isActive("header.emergencyPhone") && Boolean(hEmergency);
+  const accreditations = Array.isArray(cfg.hospital?.accreditations) ? cfg.hospital.accreditations : [];
+  const showAccreditations = isActive("header.accreditations") && accreditations.length > 0;
+  const hasBadges = showReg || showEmergency || showAccreditations;
+
   return `
     <!-- ── 1. OFFICIAL HOSPITAL LETTERHEAD HEADER ── -->
     ${
       isActive("header.card") && fs["header.card"]?.show !== false
         ? `
-    <div class="shared-letterhead-header" style="${getStyle("header.card")}" ${click("header.card")}>
+    <div class="shared-letterhead-header ${isCompact ? "lh--compact" : ""}" style="${getStyle("header.card")}" ${click("header.card")}>
       <div class="lh-header-row">
         <!-- Left: Logo & Vertical Divider -->
+        ${
+          showLogo
+            ? `
         <div class="lh-header-left">
-          ${
-            isActive("header.logo") && cfg.hospital?.showLogo !== false
-              ? `<img src="${fs["header.logo"]?.customSrc || cfg.hospital?.logoUrl || "/images/Narayan_Logo.png"}" alt="${hName}" class="lh-logo-img" style="height:${effectiveLogoH}px; max-height:${effectiveLogoH}px; ${getStyle("header.logo")}" ${click("header.logo")} />`
-              : ""
-          }
+          <img src="${fs["header.logo"]?.customSrc || cfg.hospital?.logoUrl || "/images/Narayan_Logo.png"}" alt="${hName}" class="lh-logo-img" style="height:${effectiveLogoH}px; max-height:${effectiveLogoH}px; ${getStyle("header.logo")}" ${click("header.logo")} />
           <div class="lh-vertical-divider"></div>
         </div>
+        `
+            : ""
+        }
 
-        <!-- Center: Hospital Name & Slogan (in the middle!) -->
+        <!-- Center: Hospital Brand Identity -->
         <div class="lh-header-center">
           ${isActive("header.hospitalName") ? `<h1 class="lh-hospital-title" style="${getStyle("header.hospitalName")}" ${click("header.hospitalName")}>${hName}</h1>` : ""}
+          ${showSub ? `<p class="lh-hospital-subtitle" style="${getStyle("header.subtitle")}" ${click("header.subtitle")}>${hSub}</p>` : ""}
           ${
-            isActive("header.slogan") && hSlogan && String(hSlogan).trim().length > 0
+            showSlogan
               ? `
             <div class="lh-slogan-wrap" style="${getStyle("header.slogan")}" ${click("header.slogan")}>
               <span class="lh-slogan-line"></span>
@@ -1192,12 +1212,37 @@ export function buildSharedHeaderHTML(
           `
               : ""
           }
+          ${showAddress ? `<p class="lh-hospital-address" style="${getStyle("header.address")}" ${click("header.address")}>📍 ${hAddr}</p>` : ""}
+          ${showContact ? `<p class="lh-hospital-contact" style="${getStyle("header.phoneEmail")}" ${click("header.phoneEmail")}>${hPhone}</p>` : ""}
+          ${
+            hasBadges
+              ? `
+            <div class="lh-badges-row">
+              ${showReg ? `<span class="lh-reg-badge" style="${getStyle("header.regNo")}" ${click("header.regNo")}>${hReg}</span>` : ""}
+              ${showEmergency ? `<span class="lh-emergency-badge" style="${getStyle("header.emergencyPhone")}" ${click("header.emergencyPhone")}>${hEmergency}</span>` : ""}
+              ${showAccreditations ? `<div class="lh-accreditations-wrap" style="${getStyle("header.accreditations")}" ${click("header.accreditations")}>${accreditations.map((a) => `<span class="lh-accreditation-pill">${a}</span>`).join("")}</div>` : ""}
+            </div>
+          `
+              : ""
+          }
         </div>
 
-        <!-- Right: The tiny image (ECG heartbeat pulse + blue corner wave) -->
+        <!-- Right: Top ECG Wave or Emergency/Reg Badges -->
+        ${
+          showTopWave
+            ? `
         <div class="lh-header-right" style="${getStyle("header.topWave")}" ${click("header.topWave")}>
           <img src="${fs["header.topWave"]?.customSrc || cfg.hospital?.headerWaveUrl || "/images/narayan_letterhead_top_wave.png"}" alt="ECG Wave" class="lh-top-wave-img" />
         </div>
+        `
+            : hasBadges && !showLogo
+            ? `
+        <div class="lh-header-right">
+          ${showEmergency ? `<span class="lh-emergency-badge" style="${getStyle("header.emergencyPhone")}" ${click("header.emergencyPhone")}>${hEmergency}</span>` : ""}
+        </div>
+        `
+            : ""
+        }
       </div>
       <div class="lh-header-bottom-bar"></div>
     </div>
@@ -1904,19 +1949,27 @@ export const SHARED_PRINT_CSS = `
     position: relative;
     padding-top: 2px;
   }
+  .shared-letterhead-header.lh--compact {
+    padding-top: 1px;
+  }
   .lh-header-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     width: 100%;
     position: relative;
-    min-height: 56px;
+    min-height: 52px;
+    gap: 12px;
+  }
+  .lh--compact .lh-header-row {
+    min-height: 44px;
+    gap: 8px;
   }
   .lh-header-left {
     display: flex;
     align-items: center;
     flex: 0 0 auto;
-    gap: 12px;
+    gap: 10px;
   }
   .lh-logo-img {
     height: 52px;
@@ -1925,12 +1978,19 @@ export const SHARED_PRINT_CSS = `
     object-fit: contain;
     display: block;
   }
+  .lh--compact .lh-logo-img {
+    height: 42px;
+    max-height: 46px;
+  }
   .lh-vertical-divider {
     width: 1.5px;
-    height: 48px;
-    background: #94a3b8;
-    opacity: 0.85;
+    height: 46px;
+    background: #cbd5e1;
+    opacity: 0.9;
     flex-shrink: 0;
+  }
+  .lh--compact .lh-vertical-divider {
+    height: 36px;
   }
   .lh-header-center {
     flex: 1 1 auto;
@@ -1939,10 +1999,11 @@ export const SHARED_PRINT_CSS = `
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 0 10px;
+    padding: 0 6px;
+    min-width: 0;
   }
   .lh-hospital-title {
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 800;
     color: #0c3b6e;
     margin: 0;
@@ -1951,27 +2012,107 @@ export const SHARED_PRINT_CSS = `
     font-family: 'Poppins', Inter, system-ui, sans-serif;
     text-align: center;
   }
+  .lh--compact .lh-hospital-title {
+    font-size: 18.5px;
+    letter-spacing: -0.2px;
+  }
+  .lh-hospital-subtitle {
+    font-size: 9.5px;
+    font-weight: 700;
+    color: #475569;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    margin: 1.5px 0 0 0;
+    line-height: 1.2;
+    text-align: center;
+  }
+  .lh--compact .lh-hospital-subtitle {
+    font-size: 8px;
+  }
   .lh-slogan-wrap {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    margin-top: 3px;
+    margin-top: 2px;
   }
   .lh-slogan-line {
     height: 1.5px;
-    width: 32px;
-    background: #0c3b6e;
+    width: 28px;
+    background: #0077b6;
     display: inline-block;
+    opacity: 0.7;
+  }
+  .lh--compact .lh-slogan-line {
+    width: 18px;
+    height: 1px;
   }
   .lh-slogan-text {
-    font-size: 11px;
+    font-size: 10.5px;
     font-style: italic;
     font-weight: 600;
-    color: #0c3b6e;
+    color: #0077b6;
     letter-spacing: 0.2px;
     white-space: nowrap;
     font-family: Inter, system-ui, sans-serif;
+  }
+  .lh--compact .lh-slogan-text {
+    font-size: 9px;
+  }
+  .lh-hospital-address {
+    font-size: 8px;
+    color: #64748b;
+    margin: 2px 0 0 0;
+    line-height: 1.2;
+    text-align: center;
+  }
+  .lh-hospital-contact {
+    font-size: 8px;
+    color: #334155;
+    font-weight: 600;
+    margin: 1px 0 0 0;
+    line-height: 1.2;
+    text-align: center;
+  }
+  .lh-badges-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 3px;
+  }
+  .lh-reg-badge {
+    font-size: 8px;
+    font-weight: 700;
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+    padding: 1px 5px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .lh-emergency-badge {
+    font-size: 8px;
+    font-weight: 700;
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    padding: 1px 5px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .lh-accreditation-pill {
+    font-size: 7.5px;
+    font-weight: 800;
+    background: #f0f9ff;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+    padding: 1px 5px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    display: inline-block;
+    letter-spacing: 0.3px;
   }
   .lh-header-right {
     flex: 0 0 auto;
@@ -1980,19 +2121,29 @@ export const SHARED_PRINT_CSS = `
     justify-content: flex-end;
   }
   .lh-top-wave-img {
-    height: 56px;
-    max-height: 60px;
+    height: 52px;
+    max-height: 58px;
     width: auto;
-    max-width: 190px;
+    max-width: 180px;
     object-fit: contain;
     object-position: right center;
     display: block;
   }
+  .lh--compact .lh-top-wave-img {
+    height: 42px;
+    max-height: 46px;
+    max-width: 130px;
+  }
   .lh-header-bottom-bar {
     width: 100%;
+    height: 2.5px;
+    background: linear-gradient(90deg, #0c3b6e 0%, #0077b6 60%, #38bdf8 100%);
+    margin-top: 5px;
+    border-radius: 2px;
+  }
+  .lh--compact .lh-header-bottom-bar {
     height: 2px;
-    background: #0077b6;
-    margin-top: 6px;
+    margin-top: 3px;
   }
 
   /* ── LEGACY HOSPITAL BLOCK (FALLBACK) ── */
