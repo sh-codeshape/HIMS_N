@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import Icon from "../../components/common/Icon.jsx";
 import settingsService from "../../api/services/settingsService.js";
+import { slipVersionService } from "../../services/printEngine.js";
 import {
   DEFAULT_SHARED_CONFIG,
   SHARED_ELEMENT_TARGETS,
@@ -46,6 +47,25 @@ export default function SharedHeaderFooterDesigner() {
   const [nudgeStep, setNudgeStep] = useState(2); // 1, 2, 5, 10, 20
   const [iframeHeight, setIframeHeight] = useState("285mm");
   const iframeRef = useRef(null);
+
+  // Granular Reset Modal & Version Management states
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [masterVersions, setMasterVersions] = useState([]);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showVersionsModal, setShowVersionsModal] = useState(false);
+  const [versionNameInput, setVersionNameInput] = useState("");
+  const [isPermanentInput, setIsPermanentInput] = useState(false);
+  const [versionsFilter, setVersionsFilter] = useState("all");
+
+  // Load saved versions for Shared Master
+  useEffect(() => {
+    slipVersionService
+      .getVersions("shared_master")
+      .then((v) => {
+        setMasterVersions(v || []);
+      })
+      .catch(() => {});
+  }, []);
 
   // Load from database on mount
   useEffect(() => {
@@ -203,8 +223,18 @@ export default function SharedHeaderFooterDesigner() {
     setRenderCounter((c) => c + 1);
   };
 
-  // Save to DB and automatically propagate to all slip templates!
-  const handleSave = async () => {
+  // Open Save Master Version Modal
+  const handleOpenSaveModal = () => {
+    const count = masterVersions.length;
+    const now = new Date();
+    const formatted = now.toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) + ", " + now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+    setVersionNameInput(`Master v1.${count + 1} • ${formatted}`);
+    setIsPermanentInput(false);
+    setShowSaveModal(true);
+  };
+
+  // Confirm save master settings and version snapshot
+  const handleConfirmSave = async () => {
     try {
       setSaving(true);
       setStatusMessage(null);
@@ -213,9 +243,15 @@ export default function SharedHeaderFooterDesigner() {
       // 2. Automatically sync and apply to all slips (OPD, Admission, Billing, Discharge)
       const results = await applySharedMasterToAllSlips(settings);
       const successCount = results.filter((r) => r.success).length;
+
+      // 3. Save version snapshot to slipVersionService
+      const verResult = await slipVersionService.saveVersion("shared_master", settings, versionNameInput, isPermanentInput);
+      setMasterVersions(verResult.allVersions);
+      setShowSaveModal(false);
+
       setStatusMessage({
         type: "success",
-        message: `Master Shared Header & Footer saved and synced to all ${successCount} slips (OPD, Admission Ticket, Billing Slip, Discharge Summary)!`,
+        message: `Master Shared Header & Footer saved as "${verResult.newVersion.name}" and synced to all ${successCount} slips!`,
       });
       setTimeout(() => setStatusMessage(null), 5000);
     } catch (err) {
@@ -246,26 +282,78 @@ export default function SharedHeaderFooterDesigner() {
       const successCount = results.filter((r) => r.success).length;
       setStatusMessage({
         type: "success",
-        message: `Successfully propagated Master Header & Footer with per-slip data rules to ${successCount} slip templates!`,
+        message: `Applied Master Header & Footer to ${successCount} slips!`,
       });
-      setTimeout(() => setStatusMessage(null), 6000);
+      setTimeout(() => setStatusMessage(null), 5000);
     } catch (err) {
-      console.error("Propagation error:", err);
+      console.error("Apply all error:", err);
       setStatusMessage({
         type: "error",
-        message: err?.message || "Failed to apply to all slips.",
+        message: err?.response?.data?.message || err?.message || "Failed to apply shared master to all slips.",
       });
     } finally {
       setApplyingAll(false);
     }
   };
 
-  // Factory reset
-  const handleResetDefaults = () => {
-    if (window.confirm("Reset all Shared Master customizations back to factory defaults?")) {
+  const handleRestoreVersion = (version) => {
+    if (!version || !version.settings) return;
+    setSettings(JSON.parse(JSON.stringify(version.settings)));
+    setRenderCounter((c) => c + 1);
+    setShowVersionsModal(false);
+    setStatusMessage({
+      type: "success",
+      message: `Restored Master snapshot "${version.name}"! Click "Save Shared Master" if you wish to re-commit to all slips.`,
+    });
+    setTimeout(() => setStatusMessage(null), 6000);
+  };
+
+  const handleTogglePermanent = async (versionId) => {
+    const updated = await slipVersionService.togglePermanent("shared_master", versionId);
+    setMasterVersions(updated);
+  };
+
+  const handleDeleteVersion = async (versionId) => {
+    const updated = await slipVersionService.deleteVersion("shared_master", versionId);
+    setMasterVersions(updated);
+  };
+
+  // Granular Reset Handlers
+  const handleResetCurrentSlip = () => {
+    if (selectedSlipType === "all") return;
+    setSettings((prev) => {
+      const nextSlipConfigs = { ...(prev.slipConfigs || {}) };
+      delete nextSlipConfigs[selectedSlipType];
+      return {
+        ...prev,
+        slipConfigs: nextSlipConfigs,
+      };
+    });
+    setRenderCounter((c) => c + 1);
+    setShowResetModal(false);
+    setStatusMessage({
+      type: "success",
+      message: `Reset ${currentSlipMeta.label} back to Master defaults! Master branding and all other slips are unchanged.`,
+    });
+    setTimeout(() => setStatusMessage(null), 5000);
+  };
+
+  const handleFactoryResetAll = () => {
+    if (window.confirm("ARE YOU ABSOLUTELY SURE?\n\nThis will reset ALL hospital branding, slogans, logos, styles, and all 5 slip configurations back to initial factory defaults.")) {
       setSettings(DEFAULT_SHARED_CONFIG);
       setRenderCounter((c) => c + 1);
+      setShowResetModal(false);
+      setStatusMessage({
+        type: "success",
+        message: "All Shared Master & slip configurations reset to factory defaults.",
+      });
+      setTimeout(() => setStatusMessage(null), 5000);
     }
+  };
+
+  // Legacy fallback wrapper
+  const handleResetDefaults = () => {
+    setShowResetModal(true);
   };
 
   // Logo upload
@@ -583,11 +671,21 @@ export default function SharedHeaderFooterDesigner() {
         <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
-            onClick={handleResetDefaults}
+            onClick={() => setShowResetModal(true)}
             className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 flex items-center gap-1.5"
-            title="Reset to factory defaults"
+            title="Reset options (Current Slip, Target Element, or Factory Reset)"
           >
-            <Icon name="LuRotateCcw" size={13} /> Reset
+            <Icon name="LuRotateCcw" size={13} /> Reset Options
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowVersionsModal(true)}
+            className="px-3 py-1.5 text-xs font-bold bg-white text-indigo-900 border border-indigo-200 hover:bg-indigo-50 rounded-lg flex items-center gap-1.5 shadow-2xs transition-colors"
+            title="Retrieve or revert to last saved master versions"
+          >
+            <Icon name="LuHistory" size={14} className="text-indigo-600" />
+            <span>Master Versions ({masterVersions.length})</span>
           </button>
 
           <button
@@ -611,7 +709,7 @@ export default function SharedHeaderFooterDesigner() {
 
           <button
             type="button"
-            onClick={handleSave}
+            onClick={handleOpenSaveModal}
             disabled={saving}
             className="px-5 py-1.5 text-xs font-bold text-white bg-sky-900 hover:bg-sky-950 rounded-lg flex items-center gap-1.5 shadow-md disabled:opacity-50"
           >
@@ -3514,6 +3612,366 @@ export default function SharedHeaderFooterDesigner() {
           </div>
         </div>
       </div>
+
+      {/* ── GRANULAR RESET MODAL ── */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-5 py-4 bg-gradient-to-r from-slate-900 to-indigo-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                  <Icon name="LuRotateCcw" size={18} className="text-sky-300" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm">Choose What to Reset</h3>
+                  <p className="text-[11px] text-slate-300">Target a specific slip, single element, or full factory reset</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowResetModal(false)}
+                className="text-white/70 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <Icon name="LuX" size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3.5 text-xs">
+              {/* Option 1: Reset Current Slip Only (Active if viewing a specific slip) */}
+              {selectedSlipType !== "all" ? (
+                <div className="p-3.5 bg-sky-50/80 border border-sky-200 rounded-xl hover:border-sky-300 transition-colors">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5 font-bold text-sky-950 text-xs">
+                        <Icon name="LuRotateCcw" size={14} className="text-sky-600" />
+                        <span>Reset Only {currentSlipMeta.label}</span>
+                      </div>
+                      <p className="text-[11px] text-sky-800 leading-snug">
+                        Clears per-slip title, badge, and inactive element overrides for <strong>{currentSlipMeta.label}</strong> only. Your Master branding and all other slips remain 100% untouched.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleResetCurrentSlip}
+                      className="px-3 py-1.5 text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white rounded-lg shadow-2xs shrink-0"
+                    >
+                      Reset Slip
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-[11px]">
+                  <em>Select a specific slip tab above (e.g. OPD, Admission, Receipt) to enable per-slip reset.</em>
+                </div>
+              )}
+
+              {/* Option 2: Reset Selected Element */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl hover:border-slate-300 transition-colors">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold text-slate-800 text-xs">
+                      <Icon name="LuSlidersHorizontal" size={14} className="text-slate-600" />
+                      <span>Reset Selected Element ({currentTargetMeta?.name || selectedTargetKey})</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-snug">
+                      Resets X/Y position offsets to (0, 0) and removes all custom color/typography overrides for this element only.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleResetTarget(selectedTargetKey);
+                      setShowResetModal(false);
+                      setStatusMessage({
+                        type: "success",
+                        message: `Reset styles & offsets for ${currentTargetMeta?.name || selectedTargetKey}!`,
+                      });
+                      setTimeout(() => setStatusMessage(null), 4000);
+                    }}
+                    className="px-3 py-1.5 text-xs font-bold bg-slate-700 hover:bg-slate-800 text-white rounded-lg shadow-2xs shrink-0"
+                  >
+                    Reset Element
+                  </button>
+                </div>
+              </div>
+
+              {/* Option 3: Full Factory Reset */}
+              <div className="p-3.5 bg-red-50/60 border border-red-200 rounded-xl hover:border-red-300 transition-colors">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold text-red-950 text-xs">
+                      <Icon name="LuAlertTriangle" size={14} className="text-red-600" />
+                      <span>Factory Reset Everything (Master + All Slips)</span>
+                    </div>
+                    <p className="text-[11px] text-red-800 leading-snug">
+                      Wipes all hospital branding, slogan, logos, custom offsets, and all slip overrides back to factory defaults.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleFactoryResetAll}
+                    className="px-3 py-1.5 text-xs font-bold bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-2xs shrink-0"
+                  >
+                    Factory Reset
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowResetModal(false)}
+                className="px-3.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-800 bg-white border border-slate-300 rounded-lg"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SAVE MASTER VERSION MODAL ── */}
+      {showSaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-5 py-4 bg-gradient-to-r from-sky-900 to-indigo-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                  <Icon name="LuSave" size={18} className="text-sky-300" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm">Save Master Shared Version</h3>
+                  <p className="text-[11px] text-sky-200">Name this snapshot to easily retrieve or revert later</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSaveModal(false)}
+                className="text-white/70 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <Icon name="LuX" size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs">
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">Version Name / Label</label>
+                <input
+                  type="text"
+                  value={versionNameInput}
+                  onChange={(e) => setVersionNameInput(e.target.value)}
+                  placeholder="e.g. Master - Centered Slogan & Clean Borders"
+                  className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 font-semibold text-slate-900"
+                  autoFocus
+                />
+              </div>
+
+              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isPermanentInput}
+                    onChange={(e) => setIsPermanentInput(e.target.checked)}
+                    className="mt-0.5 rounded text-amber-600 focus:ring-amber-500 w-4 h-4"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-amber-950 flex items-center gap-1">
+                      ⭐ Mark as Permanent Save
+                    </span>
+                    <span className="text-[11px] text-amber-800 leading-snug block mt-0.5">
+                      Permanent saves are pinned forever and protected from auto-rotation.
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-[11px] text-slate-600">
+                <div className="font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1">Master Brand Summary</div>
+                <div className="flex justify-between">
+                  <span>Hospital Name:</span>
+                  <strong className="text-slate-800">{settings.hospital?.name || "Narayan Multispeciality Hospital"}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Hospital Slogan:</span>
+                  <strong className="text-slate-800">{settings.hospital?.slogan || "Healing Hands, Caring Hearts"}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowSaveModal(false)}
+                className="px-3.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-200/60 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSave}
+                disabled={saving}
+                className="px-4 py-1.5 text-xs font-bold text-white bg-sky-900 hover:bg-sky-950 rounded-lg shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <Icon name={saving ? "LuLoader" : "LuSave"} size={14} className={saving ? "animate-spin" : ""} />
+                <span>{saving ? "Saving..." : "Confirm & Save Master"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── RETRIEVE / VERSION HISTORY MODAL ── */}
+      {showVersionsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-5 py-4 bg-gradient-to-r from-sky-900 via-indigo-900 to-slate-900 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                  <Icon name="LuHistory" size={18} className="text-sky-300" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm">Saved Master Versions</h3>
+                  <p className="text-[11px] text-sky-200">Retrieve, inspect, or delete any of the last 5 saved snapshots or marked permanent saves</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowVersionsModal(false)}
+                className="text-white/70 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <Icon name="LuX" size={18} />
+              </button>
+            </div>
+
+            <div className="px-5 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between gap-3 text-xs shrink-0">
+              <div className="flex items-center gap-1.5">
+                {[
+                  { id: "all", label: `All (${masterVersions.length})` },
+                  { id: "permanent", label: `⭐ Permanent (${masterVersions.filter((v) => v.isPermanent).length})` },
+                  { id: "recent", label: `Recent (${masterVersions.filter((v) => !v.isPermanent).length})` },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setVersionsFilter(tab.id)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                      versionsFilter === tab.id
+                        ? "bg-white text-sky-900 shadow-2xs border border-sky-300"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <span className="text-[11px] text-slate-500 font-medium">Keeps last 5 recent + all permanent saves</span>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-3 flex-1">
+              {(() => {
+                const filtered = masterVersions.filter((v) => {
+                  if (versionsFilter === "permanent") return v.isPermanent;
+                  if (versionsFilter === "recent") return !v.isPermanent;
+                  return true;
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="text-center py-12 text-slate-400">
+                      <Icon name="LuHistory" size={36} className="mx-auto mb-2 opacity-40" />
+                      <p className="font-semibold text-xs text-slate-600">No saved versions found in this filter.</p>
+                      <p className="text-[11px] text-slate-400 mt-1">Click "Save Shared Master" to create your first snapshot!</p>
+                    </div>
+                  );
+                }
+
+                return filtered.map((v) => (
+                  <div
+                    key={v.id}
+                    className={`p-3.5 rounded-xl border transition-all ${
+                      v.isPermanent
+                        ? "bg-amber-50/40 border-amber-300 hover:border-amber-400 shadow-2xs"
+                        : "bg-white border-slate-200 hover:border-sky-300 shadow-2xs"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-xs text-slate-900">{v.name}</h4>
+                          {v.isPermanent ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                              ⭐ Permanent
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                              Snapshot
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                          <span>{v.formattedDate || new Date(v.timestamp).toLocaleString("en-IN")}</span>
+                          <span>•</span>
+                          <span>Hospital: {v.settings?.hospital?.name || "Narayan Multispeciality Hospital"}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePermanent(v.id)}
+                          className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-colors ${
+                            v.isPermanent
+                              ? "bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200"
+                              : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                          }`}
+                          title={v.isPermanent ? "Unpin permanent status" : "Mark as permanent (prevent auto-deletion)"}
+                        >
+                          <Icon name="LuStar" size={13} className={v.isPermanent ? "fill-amber-500 text-amber-600" : ""} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(`Delete saved version "${v.name}"? This cannot be undone.`)) {
+                              handleDeleteVersion(v.id);
+                            }
+                          }}
+                          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors"
+                          title="Delete this saved version"
+                        >
+                          <Icon name="LuTrash2" size={13} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRestoreVersion(v)}
+                          className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors"
+                          title="Restore this Master snapshot into the editor"
+                        >
+                          <Icon name="LuRotateCcw" size={13} />
+                          <span>Restore</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+
+            <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 shrink-0">
+              <span>Restoring a version loads it into the editor so you can review before re-applying to all slips.</span>
+              <button
+                type="button"
+                onClick={() => setShowVersionsModal(false)}
+                className="px-3.5 py-1 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

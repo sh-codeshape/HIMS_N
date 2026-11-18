@@ -6,3 +6,4 @@ export { default as PageContainer } from "./PageContainer.jsx";
 export { default as PageHeader } from "./PageHeader.jsx";
 export { default as Modal } from "./Modal.jsx";
 export { default as Loader, Loader as CommonLoader } from "./Loader.jsx";
+export { default as ErrorBoundary } from "./ErrorBoundary.jsx";

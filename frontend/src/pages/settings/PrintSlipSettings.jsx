@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Icon from "../../components/common/Icon.jsx";
+import ErrorBoundary from "../../components/common/ErrorBoundary.jsx";
 import SharedHeaderFooterDesigner from "./SharedHeaderFooterDesigner.jsx";
 import UnifiedSlipSettingsTab from "./UnifiedSlipSettingsTab.jsx";
 
@@ -101,48 +102,51 @@ export default function PrintSlipSettings() {
         </div>
       </div>
 
-      {/* Render Master Shared Header & Footer Designer */}
-      {activeTab === "shared-master" && <SharedHeaderFooterDesigner />}
+      {/* Tab Contents with Error Boundary */}
+      <ErrorBoundary>
+        {/* Render Master Shared Header & Footer Designer */}
+        {activeTab === "shared-master" && <SharedHeaderFooterDesigner />}
 
-      {/* Render OPD Consultation Slip */}
-      {activeTab === "opd" && (
-        <UnifiedSlipSettingsTab
-          slipType="opd"
-          onOpenMaster={() => setActiveTab("shared-master")}
-        />
-      )}
+        {/* Render OPD Consultation Slip */}
+        {activeTab === "opd" && (
+          <UnifiedSlipSettingsTab
+            slipType="opd"
+            onOpenMaster={() => setActiveTab("shared-master")}
+          />
+        )}
 
-      {/* Render IPD Billing Slip */}
-      {activeTab === "ipd-billing" && (
-        <UnifiedSlipSettingsTab
-          slipType="ipd_billing"
-          onOpenMaster={() => setActiveTab("shared-master")}
-        />
-      )}
+        {/* Render IPD Billing Slip */}
+        {activeTab === "ipd-billing" && (
+          <UnifiedSlipSettingsTab
+            slipType="ipd_billing"
+            onOpenMaster={() => setActiveTab("shared-master")}
+          />
+        )}
 
-      {/* Render IPD Discharge Summary */}
-      {activeTab === "ipd-discharge" && (
-        <UnifiedSlipSettingsTab
-          slipType="ipd_discharge"
-          onOpenMaster={() => setActiveTab("shared-master")}
-        />
-      )}
+        {/* Render IPD Discharge Summary */}
+        {activeTab === "ipd-discharge" && (
+          <UnifiedSlipSettingsTab
+            slipType="ipd_discharge"
+            onOpenMaster={() => setActiveTab("shared-master")}
+          />
+        )}
 
-      {/* Render IPD Admission Ticket */}
-      {activeTab === "ipd" && (
-        <UnifiedSlipSettingsTab
-          slipType="ipd_admission"
-          onOpenMaster={() => setActiveTab("shared-master")}
-        />
-      )}
+        {/* Render IPD Admission Ticket */}
+        {activeTab === "ipd" && (
+          <UnifiedSlipSettingsTab
+            slipType="ipd_admission"
+            onOpenMaster={() => setActiveTab("shared-master")}
+          />
+        )}
 
-      {/* Render Payment Receipt Slip */}
-      {activeTab === "ipd-receipt" && (
-        <UnifiedSlipSettingsTab
-          slipType="ipd_receipt"
-          onOpenMaster={() => setActiveTab("shared-master")}
-        />
-      )}
+        {/* Render Payment Receipt Slip */}
+        {activeTab === "ipd-receipt" && (
+          <UnifiedSlipSettingsTab
+            slipType="ipd_receipt"
+            onOpenMaster={() => setActiveTab("shared-master")}
+          />
+        )}
+      </ErrorBoundary>
     </div>
   );
 }

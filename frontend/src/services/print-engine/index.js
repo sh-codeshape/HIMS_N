@@ -23,6 +23,7 @@ import { renderDischargeBody } from "./renderers/dischargeRenderer.js";
 import { renderReceiptBody } from "./renderers/receiptRenderer.js";
 import { assembleHtmlDocument } from "./printing/htmlDocument.js";
 import { printService } from "./printing/printService.js";
+import { slipVersionService } from "./services/slipVersionService.js";
 import {
   DEFAULT_SHARED_CONFIG,
   loadSharedPrintSettings,
@@ -218,4 +219,5 @@ export {
   renderReceiptBody,
   assembleHtmlDocument,
   printService,
+  slipVersionService,
 };

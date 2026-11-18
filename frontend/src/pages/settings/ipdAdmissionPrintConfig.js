@@ -414,9 +414,9 @@ export const DEFAULT_IPD_ADMISSION_SETTINGS = {
   useSharedHeaderFooter: true,
   // 1. Hospital Letterhead
   hospital: {
-    name: "Narayan Hospital",
+    name: "Narayan Multispeciality Hospital",
     subtitle: "NABH & NABL ACCREDITED TERTIARY CARE HOSPITAL & RESEARCH INSTITUTE",
-    slogan: "Better Care. Healthier Tomorrow.",
+    slogan: "Healing Hands, Caring Hearts",
     registrationNo: "REG/UP/2024/098",
     address: "Upsana Nagar Colony, Beside Hotel Mandirian, Amra-Akhari Bypass, Varanasi",
     phone: "+91 7388660408",

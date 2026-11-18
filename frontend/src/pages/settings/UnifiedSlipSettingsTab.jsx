@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import Icon from "../../components/common/Icon.jsx";
-import printEngine, { SLIP_SETTINGS_KEYS } from "../../services/printEngine.js";
+import printEngine, { SLIP_SETTINGS_KEYS, slipVersionService } from "../../services/printEngine.js";
 import { SLIP_SAMPLE_DATA, SLIP_TYPES, loadSharedPrintSettings } from "./sharedPrintConfig.js";
 
 export default function UnifiedSlipSettingsTab({ slipType = "opd", onOpenMaster }) {
@@ -13,6 +13,14 @@ export default function UnifiedSlipSettingsTab({ slipType = "opd", onOpenMaster 
   const [saveStatus, setSaveStatus] = useState(null);
   const [previewZoom, setPreviewZoom] = useState(100);
   const iframeRef = useRef(null);
+
+  // Version management states (isolated per slip type)
+  const [savedVersions, setSavedVersions] = useState([]);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showVersionsModal, setShowVersionsModal] = useState(false);
+  const [versionNameInput, setVersionNameInput] = useState("");
+  const [isPermanentInput, setIsPermanentInput] = useState(false);
+  const [versionsFilter, setVersionsFilter] = useState("all"); // "all" | "permanent" | "recent"
 
   const sampleData = useMemo(() => {
     return SLIP_SAMPLE_DATA[normType] || SLIP_SAMPLE_DATA.all || {};
@@ -70,14 +78,38 @@ export default function UnifiedSlipSettingsTab({ slipType = "opd", onOpenMaster 
     }
   }, [previewHtml]);
 
-  const handleSave = async () => {
+  // Load saved versions for this slip type on mount or tab change
+  useEffect(() => {
+    slipVersionService
+      .getVersions(normType)
+      .then((v) => {
+        setSavedVersions(v || []);
+      })
+      .catch(() => {});
+  }, [normType]);
+
+  const handleOpenSaveModal = () => {
+    const count = savedVersions.length;
+    const now = new Date();
+    const formatted = now.toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) + ", " + now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+    setVersionNameInput(`Version ${count + 1} • ${formatted}`);
+    setIsPermanentInput(false);
+    setShowSaveModal(true);
+  };
+
+  const handleConfirmSave = async () => {
     try {
       setSaving(true);
       setSaveStatus(null);
+      // 1. Save slip settings to DB
       await printEngine.saveSlipSettings(normType, settings);
+      // 2. Save version snapshot to slipVersionService
+      const result = await slipVersionService.saveVersion(normType, settings, versionNameInput, isPermanentInput);
+      setSavedVersions(result.allVersions);
+      setShowSaveModal(false);
       setSaveStatus({
         type: "success",
-        message: `${slipMeta.label} settings saved successfully! All hospital counters now use this configuration.`,
+        message: `${slipMeta.label} saved as "${result.newVersion.name}"! Version history updated.`,
       });
       setTimeout(() => setSaveStatus(null), 5000);
     } catch (err) {
@@ -89,6 +121,27 @@ export default function UnifiedSlipSettingsTab({ slipType = "opd", onOpenMaster 
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleRestoreVersion = (version) => {
+    if (!version || !version.settings) return;
+    setSettings(JSON.parse(JSON.stringify(version.settings)));
+    setShowVersionsModal(false);
+    setSaveStatus({
+      type: "success",
+      message: `Restored snapshot "${version.name}"! Live preview updated. Click "Save Settings" if you want to commit changes.`,
+    });
+    setTimeout(() => setSaveStatus(null), 6000);
+  };
+
+  const handleTogglePermanent = async (versionId) => {
+    const updated = await slipVersionService.togglePermanent(normType, versionId);
+    setSavedVersions(updated);
+  };
+
+  const handleDeleteVersion = async (versionId) => {
+    const updated = await slipVersionService.deleteVersion(normType, versionId);
+    setSavedVersions(updated);
   };
 
   const handleSyncMaster = async () => {
@@ -417,6 +470,15 @@ export default function UnifiedSlipSettingsTab({ slipType = "opd", onOpenMaster 
           </button>
           <button
             type="button"
+            onClick={() => setShowVersionsModal(true)}
+            className="px-3 py-1.5 text-xs font-bold bg-white text-indigo-900 border border-indigo-200 hover:bg-indigo-50 rounded-lg flex items-center gap-1.5 shadow-2xs transition-colors"
+            title="Retrieve or revert to last saved versions"
+          >
+            <Icon name="LuHistory" size={14} className="text-indigo-600" />
+            <span>Versions ({savedVersions.length})</span>
+          </button>
+          <button
+            type="button"
             onClick={handleTestPrint}
             className="px-3.5 py-1.5 text-xs font-bold text-sky-900 bg-sky-100/80 hover:bg-sky-200 border border-sky-300 rounded-lg flex items-center gap-1.5 shadow-2xs transition-colors"
           >
@@ -425,7 +487,7 @@ export default function UnifiedSlipSettingsTab({ slipType = "opd", onOpenMaster 
           </button>
           <button
             type="button"
-            onClick={handleSave}
+            onClick={handleOpenSaveModal}
             disabled={saving}
             className="px-4 py-1.5 text-xs font-bold text-white bg-sky-900 hover:bg-sky-950 rounded-lg shadow-sm flex items-center gap-1.5 disabled:opacity-50 transition-colors"
           >
@@ -1008,6 +1070,301 @@ export default function UnifiedSlipSettingsTab({ slipType = "opd", onOpenMaster 
           </div>
         </div>
       </div>
+
+      {/* ── SAVE VERSION MODAL ── */}
+      {showSaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="px-5 py-4 bg-gradient-to-r from-sky-900 to-indigo-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                  <Icon name="LuSave" size={18} className="text-sky-300" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm">Save Version — {slipMeta.label}</h3>
+                  <p className="text-[11px] text-sky-200">Name this snapshot to easily retrieve or revert later</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSaveModal(false)}
+                className="text-white/70 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <Icon name="LuX" size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4 text-xs">
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                  Version Name / Label
+                </label>
+                <input
+                  type="text"
+                  value={versionNameInput}
+                  onChange={(e) => setVersionNameInput(e.target.value)}
+                  placeholder="e.g. Clean Look - No Policies"
+                  className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 font-semibold text-slate-900"
+                  autoFocus
+                />
+                <span className="text-[11px] text-slate-500 block mt-1">
+                  Give this version a recognizable name so you can retrieve it anytime.
+                </span>
+              </div>
+
+              {/* Permanent Save Checkbox */}
+              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isPermanentInput}
+                    onChange={(e) => setIsPermanentInput(e.target.checked)}
+                    className="mt-0.5 rounded text-amber-600 focus:ring-amber-500 w-4 h-4"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-amber-950 flex items-center gap-1">
+                      ⭐ Mark as Permanent Save
+                    </span>
+                    <span className="text-[11px] text-amber-800 leading-snug block mt-0.5">
+                      Permanent saves are pinned forever and will NEVER be replaced when recent snapshots exceed 5 versions.
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              {/* Snapshot Summary Preview */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-[11px] text-slate-600">
+                <div className="font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1">
+                  Current Settings Summary
+                </div>
+                <div className="flex justify-between">
+                  <span>Document Title:</span>
+                  <strong className="text-slate-800">{currentTitle}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Hospital Instructions (Policies):</span>
+                  <strong className={isTermsActive ? "text-emerald-700" : "text-slate-400"}>
+                    {isTermsActive ? "✓ Visible" : "✕ Removed"}
+                  </strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Signatures &amp; Stamp:</span>
+                  <strong className={isSignaturesActive ? "text-emerald-700" : "text-slate-400"}>
+                    {isSignaturesActive ? "✓ Visible" : "✕ Removed"}
+                  </strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Letterhead Footer:</span>
+                  <strong className={isFooterActive ? "text-emerald-700" : "text-slate-400"}>
+                    {isFooterActive ? "✓ Visible" : "✕ Removed"}
+                  </strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowSaveModal(false)}
+                className="px-3.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-200/60 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSave}
+                disabled={saving}
+                className="px-4 py-1.5 text-xs font-bold text-white bg-sky-900 hover:bg-sky-950 rounded-lg shadow-sm flex items-center gap-1.5 disabled:opacity-50 transition-colors"
+              >
+                <Icon name={saving ? "LuLoader" : "LuSave"} size={14} className={saving ? "animate-spin" : ""} />
+                <span>{saving ? "Saving..." : "Confirm & Save Version"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── RETRIEVE / VERSION HISTORY MODAL ── */}
+      {showVersionsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="px-5 py-4 bg-gradient-to-r from-sky-900 via-indigo-900 to-slate-900 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                  <Icon name="LuHistory" size={18} className="text-sky-300" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm">Saved Versions — {slipMeta.label}</h3>
+                  <p className="text-[11px] text-sky-200">
+                    Retrieve, inspect, or delete any of the last 5 saved snapshots or marked permanent saves
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowVersionsModal(false)}
+                className="text-white/70 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <Icon name="LuX" size={18} />
+              </button>
+            </div>
+
+            {/* Filter Pills & Quick Actions */}
+            <div className="px-5 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between gap-3 text-xs shrink-0">
+              <div className="flex items-center gap-1.5">
+                {[
+                  { id: "all", label: `All (${savedVersions.length})` },
+                  { id: "permanent", label: `⭐ Permanent (${savedVersions.filter((v) => v.isPermanent).length})` },
+                  { id: "recent", label: `Recent (${savedVersions.filter((v) => !v.isPermanent).length})` },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setVersionsFilter(tab.id)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                      versionsFilter === tab.id
+                        ? "bg-white text-sky-900 shadow-2xs border border-sky-300"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
+                Keeps last 5 recent + all permanent saves
+              </span>
+            </div>
+
+            {/* Version List */}
+            <div className="p-5 overflow-y-auto space-y-3 flex-1">
+              {(() => {
+                const filtered = savedVersions.filter((v) => {
+                  if (versionsFilter === "permanent") return v.isPermanent;
+                  if (versionsFilter === "recent") return !v.isPermanent;
+                  return true;
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="text-center py-12 text-slate-400">
+                      <Icon name="LuHistory" size={36} className="mx-auto mb-2 opacity-40" />
+                      <p className="font-semibold text-xs text-slate-600">No saved versions found in this filter.</p>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Click "Save Settings" to create your first named snapshot!
+                      </p>
+                    </div>
+                  );
+                }
+
+                return filtered.map((v) => (
+                  <div
+                    key={v.id}
+                    className={`p-3.5 rounded-xl border transition-all ${
+                      v.isPermanent
+                        ? "bg-amber-50/40 border-amber-300 hover:border-amber-400 shadow-2xs"
+                        : "bg-white border-slate-200 hover:border-sky-300 shadow-2xs"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-xs text-slate-900">{v.name}</h4>
+                          {v.isPermanent ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                              ⭐ Permanent
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                              Snapshot
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                          <span>{v.formattedDate || new Date(v.timestamp).toLocaleString("en-IN")}</span>
+                          <span>•</span>
+                          <span>Title: "{v.summary?.title || "Encounter Slip"}"</span>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1 text-[10px]">
+                          <span
+                            className={`px-1.5 py-0.5 rounded ${
+                              v.summary?.showTerms ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-slate-100 text-slate-500"
+                            }`}
+                          >
+                            📜 Policies: {v.summary?.showTerms ? "ON" : "OFF"}
+                          </span>
+                          <span
+                            className={`px-1.5 py-0.5 rounded ${
+                              v.summary?.showSignatures ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-slate-100 text-slate-500"
+                            }`}
+                          >
+                            ✍️ Signatures: {v.summary?.showSignatures ? "ON" : "OFF"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePermanent(v.id)}
+                          className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-colors ${
+                            v.isPermanent
+                              ? "bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200"
+                              : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                          }`}
+                          title={v.isPermanent ? "Unpin permanent status" : "Mark as permanent save (prevent auto-deletion)"}
+                        >
+                          <Icon name="LuStar" size={13} className={v.isPermanent ? "fill-amber-500 text-amber-600" : ""} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(`Delete saved version "${v.name}"? This cannot be undone.`)) {
+                              handleDeleteVersion(v.id);
+                            }
+                          }}
+                          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors"
+                          title="Delete this saved version"
+                        >
+                          <Icon name="LuTrash2" size={13} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRestoreVersion(v)}
+                          className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors"
+                          title="Restore this version into the editor"
+                        >
+                          <Icon name="LuRotateCcw" size={13} />
+                          <span>Restore</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 shrink-0">
+              <span>Restoring a version loads it into the editor so you can review before re-saving.</span>
+              <button
+                type="button"
+                onClick={() => setShowVersionsModal(false)}
+                className="px-3.5 py-1 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

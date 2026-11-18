@@ -13,10 +13,10 @@
 export const DEFAULT_HOSPITAL_CONFIG = {
   // Hospital identity & branding
   hospital: {
-    name: 'Narayan Hospital',
+    name: 'Narayan Multispeciality Hospital',
     subtitle: 'Super Speciality Healthcare & Research Institute',
     tagline: 'Super Speciality Healthcare & Research Institute',
-    slogan: 'Better Care. Healthier Tomorrow.',
+    slogan: 'Healing Hands, Caring Hearts',
     registrationNo: 'REG/UP/2024/098',
     logo: {
       src: '/images/Narayan_Logo.png',

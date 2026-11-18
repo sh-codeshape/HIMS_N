@@ -81,9 +81,9 @@ export const SLIP_TYPES = [
 export const DEFAULT_SHARED_CONFIG = {
   // ── 1. Hospital Brand & Letterhead ──
   hospital: {
-    name: "Narayan Hospital",
+    name: "Narayan Multispeciality Hospital",
     subtitle: "Super Speciality Hospital & Research Institute",
-    slogan: "Better Care. Healthier Tomorrow.",
+    slogan: "Healing Hands, Caring Hearts",
     registrationNo: "REG/UP/2024/098",
     address: "Upsana Nagar Colony, Beside Hotel Mandirian, Amra-Akhari Bypass, Varanasi",
     phone: "+91 7388660408",
@@ -1140,9 +1140,9 @@ export function buildSharedHeaderHTML(
   const docTitle = getText("ticket.title", slipCfg.title || options?.titleOverride || cfg.header?.title || "HOSPITAL ENCOUNTER SLIP");
   const copyType = getText("ticket.copyBadge", slipCfg.copyBadge || options?.copyBadgeOverride || cfg.header?.copyType || "ORIGINAL FOR PATIENT");
 
-  const hName = getText("header.hospitalName", cfg.hospital?.name || "Narayan Hospital");
+  const hName = getText("header.hospitalName", cfg.hospital?.name || "Narayan Multispeciality Hospital");
   const hSub = getText("header.subtitle", cfg.hospital?.subtitle || "");
-  const hSlogan = getText("header.slogan", cfg.hospital?.slogan || DEFAULT_SHARED_CONFIG.hospital?.slogan || "Better Care. Healthier Tomorrow.");
+  const hSlogan = getText("header.slogan", cfg.hospital?.slogan || DEFAULT_SHARED_CONFIG.hospital?.slogan || "Healing Hands, Caring Hearts");
   const hAddr = getText("header.address", cfg.hospital?.address || "");
   const hPhone = getText("header.phoneEmail", `📞 ${cfg.hospital?.phone || ""} ${cfg.hospital?.email ? `• ✉️ ${cfg.hospital.email}` : ""}`);
   const hReg = getText("header.regNo", cfg.hospital?.registrationNo ? `Reg: ${cfg.hospital.registrationNo}` : "");

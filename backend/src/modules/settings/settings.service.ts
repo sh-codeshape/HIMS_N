@@ -6,9 +6,9 @@ export const DEFAULT_ORG_ID = 'd6f81fd8-e196-4d3b-aa75-a69cfa8d8001';
 
 export const DEFAULT_OPD_SLIP_SETTINGS = {
   hospital: {
-    name: 'Narayan Hospital',
+    name: 'Narayan Multispeciality Hospital',
     subtitle: 'Super Speciality Healthcare & Research Institute',
-    slogan: 'Better Care. Healthier Tomorrow.',
+    slogan: 'Healing Hands, Caring Hearts',
     registrationNo: 'REG/UP/2024/098',
     address: 'Jansa, Varanasi, Uttar Pradesh, 221405',
     phone: '+91 7388660408',
@@ -98,9 +98,9 @@ const field = (label: string, show: boolean = true) => ({ label, show });
 
 export const DEFAULT_IPD_SLIP_SETTINGS = {
   hospital: {
-    name: 'Narayan Hospital',
+    name: 'Narayan Multispeciality Hospital',
     subtitle: 'NABH & NABL ACCREDITED TERTIARY CARE HOSPITAL & RESEARCH INSTITUTE',
-    slogan: 'Better Care. Healthier Tomorrow.',
+    slogan: 'Healing Hands, Caring Hearts',
     registrationNo: 'REG/UP/2024/098',
     address: 'Sector 4, Central Hospital Road, Jaipur - 302020 (Rajasthan)',
     phone: '+91 7388660408',
