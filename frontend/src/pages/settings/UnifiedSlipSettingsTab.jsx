@@ -170,9 +170,21 @@ export default function UnifiedSlipSettingsTab({ slipType = "opd", onOpenMaster 
             cleanFieldStyles[k] = { ...v };
           }
         }
-        // Reset any corrupt offsets on demographics fields that break grid alignment
-        if (cleanFieldStyles["department"]) delete cleanFieldStyles["department"];
-        if (cleanFieldStyles["patient.department"]) delete cleanFieldStyles["patient.department"];
+        // 2b. Sanitize all patient demographics fields:
+        // Strip any corrupted relative offsets (offsetX, offsetY) so the 3-column CSS grid aligns perfectly!
+        const demographicsKeys = [
+          "patient.name", "patient.uhid", "patient.ageGender", "patient.mobile",
+          "patient.bloodGroup", "patient.guardian", "patient.address", "patient.payer",
+          "patient.doctor", "patient.department", "name", "uhid", "ageGender",
+          "mobile", "bloodGroup", "guardian", "address", "payer", "doctor", "department"
+        ];
+        demographicsKeys.forEach((dk) => {
+          if (cleanFieldStyles[dk]) {
+            delete cleanFieldStyles[dk].offsetX;
+            delete cleanFieldStyles[dk].offsetY;
+            delete cleanFieldStyles[dk].display;
+          }
+        });
 
         // 3. Preserve non-header inactives from current slip (like opd.rxNotes, terms.card, etc.)
         const existingNonHeaderInacts = (

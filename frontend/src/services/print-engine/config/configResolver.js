@@ -109,6 +109,25 @@ export function resolveEffectiveConfig(slipType = "opd", masterConfig = null, sl
     resolvedFieldStyles[inactKey].show = false;
   }
 
+  // 3b. Sanitize Patient Demographics Field Styles:
+  // Patient demographics is a structured 3-column CSS grid table.
+  // Individual fields inside the grid must NEVER carry relative coordinate offsets (offsetX, offsetY)
+  // which causes fields to overlap, collide or break out of grid columns.
+  const demographicsKeys = [
+    "patient.name", "patient.uhid", "patient.ageGender", "patient.mobile",
+    "patient.bloodGroup", "patient.guardian", "patient.address", "patient.payer",
+    "patient.doctor", "patient.department", "name", "uhid", "ageGender",
+    "mobile", "bloodGroup", "guardian", "address", "payer", "doctor", "department"
+  ];
+
+  for (const dk of demographicsKeys) {
+    if (resolvedFieldStyles[dk]) {
+      delete resolvedFieldStyles[dk].offsetX;
+      delete resolvedFieldStyles[dk].offsetY;
+      delete resolvedFieldStyles[dk].display;
+    }
+  }
+
   // 4. Resolve Domain-Specific Section Configurations (toggles & features)
   const opdSection = {
     ...DEFAULT_SLIP_CONFIGS.opd,

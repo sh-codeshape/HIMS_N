@@ -880,28 +880,24 @@ export function getElementComputedStyle(key, fieldStyles = {}, extraCss = "", is
     offsetY = Math.max(-120, Math.min(120, offsetY));
   }
 
-  // Clamp offsets for demographics fields to prevent grid breaks
-  if (
-    key.startsWith("patient.") ||
-    key === "department" ||
-    key === "name" ||
-    key === "uhid" ||
-    key === "doctor" ||
-    key === "payer" ||
-    key === "mobile" ||
-    key === "bloodGroup" ||
-    key === "guardian" ||
-    key === "address" ||
-    key === "ageGender"
-  ) {
-    offsetX = Math.max(-25, Math.min(25, offsetX));
-    offsetY = Math.max(-15, Math.min(15, offsetY));
+  // Patient demographics fields are structured 3-column CSS grid cells.
+  // They must NEVER carry relative offsets or display overrides that break grid alignment or cause overlapping!
+  const isDemographicsField =
+    (key.startsWith("patient.") && key !== "patient.card") ||
+    [
+      "department", "doctor", "name", "uhid", "address", "payer",
+      "mobile", "bloodGroup", "guardian", "ageGender"
+    ].includes(key);
+
+  if (isDemographicsField) {
+    offsetX = 0;
+    offsetY = 0;
   }
 
   // Rock-solid positioning using relative coordinates + left + top
   const hasAlign = Boolean(f.textAlign);
-  const isBlock = key.endsWith(".card") || key === "ticket.card" || key === "footer.letterhead" || key === "patient.address" || key === "terms.list" || key === "header.accreditations" || hasAlign;
-  const displayCss = isBlock ? "display: block !important;" : "display: inline-block !important;";
+  const isBlock = key.endsWith(".card") || key === "ticket.card" || key === "footer.letterhead" || key === "terms.list" || key === "header.accreditations" || hasAlign;
+  const displayCss = isBlock ? "display: block !important;" : isDemographicsField ? "" : "display: inline-block !important;";
 
   const positionStyle =
     offsetX !== 0 || offsetY !== 0
@@ -1141,13 +1137,32 @@ export async function applySharedMasterToAllSlips(sharedSettings) {
           Object.entries(existing.fieldStyles || {}).filter(([k]) => !k.startsWith("header."))
         );
         // Also reset any wild offsets on demographics fields that break grid alignment
-        if (cleanedExistingStyles["department"]) delete cleanedExistingStyles["department"];
-        if (cleanedExistingStyles["patient.department"]) delete cleanedExistingStyles["patient.department"];
+        const demographicsKeys = [
+          "patient.name", "patient.uhid", "patient.ageGender", "patient.mobile",
+          "patient.bloodGroup", "patient.guardian", "patient.address", "patient.payer",
+          "patient.doctor", "patient.department", "name", "uhid", "ageGender",
+          "mobile", "bloodGroup", "guardian", "address", "payer", "doctor", "department"
+        ];
+        demographicsKeys.forEach((dk) => {
+          if (cleanedExistingStyles[dk]) {
+            delete cleanedExistingStyles[dk].offsetX;
+            delete cleanedExistingStyles[dk].offsetY;
+            delete cleanedExistingStyles[dk].display;
+          }
+        });
 
         const mergedFieldStyles = {
           ...cleanedExistingStyles,
           ...(sharedSettings.fieldStyles || {}),
         };
+
+        demographicsKeys.forEach((dk) => {
+          if (mergedFieldStyles[dk]) {
+            delete mergedFieldStyles[dk].offsetX;
+            delete mergedFieldStyles[dk].offsetY;
+            delete mergedFieldStyles[dk].display;
+          }
+        });
 
         // Compute inactive elements for this slip:
         // 1. Master inactives for this slip type
@@ -2461,18 +2476,20 @@ export const SHARED_PRINT_CSS = `
     color: #64748b;
   }
   .shared-demo-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 5px 12px;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 7px 14px !important;
+    align-items: start !important;
   }
   .shared-field-cell {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    position: relative;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1.5px !important;
+    position: relative !important;
+    min-width: 0 !important;
   }
   .shared-field-cell.span-3 {
-    grid-column: span 3;
+    grid-column: 1 / -1 !important;
   }
   .shared-field-label {
     font-size: 8px;
