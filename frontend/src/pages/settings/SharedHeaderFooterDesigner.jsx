@@ -762,7 +762,7 @@ export default function SharedHeaderFooterDesigner({ initialSlipType = "all" }) 
         </div>
 
         {/* Segmented Buttons for Slip Types */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
           {SLIP_TYPES.map((st) => {
             const isSelected = selectedSlipType === st.id;
             return (

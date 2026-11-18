@@ -764,11 +764,6 @@ export function isElementActiveOnSlip(key, slipType = "all", settings = DEFAULT_
     if (slipType && settings?.[slipType]?.showSignatures === false) return false;
   }
 
-  // If viewing global master, master fieldStyles dictate visibility
-  if (!slipType || slipType === "all") {
-    return fs?.show !== false;
-  }
-
   // Check slip-specific inactive elements
   const slipCfg = settings?.slipConfigs?.[slipType];
   const inactives = slipCfg?.inactiveElements || settings?.inactiveElements;
@@ -780,6 +775,16 @@ export function isElementActiveOnSlip(key, slipType = "all", settings = DEFAULT_
     if ((key.startsWith("signatures.") || key === "signatures.card") && inactives.includes("signatures.card")) {
       return false;
     }
+  }
+
+  // Also check slipConfigs.all inactive elements
+  if (settings?.slipConfigs?.all?.inactiveElements?.includes(key)) {
+    return false;
+  }
+
+  // If viewing global master, master fieldStyles dictate visibility
+  if (!slipType || slipType === "all") {
+    return fs?.show !== false;
   }
 
   return true;
@@ -797,6 +802,26 @@ export function toggleSlipElementActive(settings, slipType, elementKey, active) 
     if (!next.fieldStyles) next.fieldStyles = {};
     if (!next.fieldStyles[elementKey]) next.fieldStyles[elementKey] = {};
     next.fieldStyles[elementKey].show = active;
+
+    // Synchronize inactiveElements across all slip types when edited in Global Master
+    const slipKeys = ["all", "opd", "ipd_admission", "ipd_billing", "ipd_discharge", "ipd_receipt"];
+    slipKeys.forEach((sk) => {
+      if (!next.slipConfigs[sk]) {
+        next.slipConfigs[sk] = {
+          title: "",
+          copyBadge: "",
+          inactiveElements: [],
+        };
+      }
+      const inacts = new Set(next.slipConfigs[sk].inactiveElements || []);
+      if (active) {
+        inacts.delete(elementKey);
+      } else {
+        inacts.add(elementKey);
+      }
+      next.slipConfigs[sk].inactiveElements = Array.from(inacts);
+    });
+
     return next;
   }
 
@@ -821,6 +846,11 @@ export function toggleSlipElementActive(settings, slipType, elementKey, active) 
     }
   }
 
+  // Also set fieldStyles for this element to keep both in sync
+  if (!next.fieldStyles) next.fieldStyles = {};
+  if (!next.fieldStyles[elementKey]) next.fieldStyles[elementKey] = {};
+  next.fieldStyles[elementKey].show = active;
+
   return next;
 }
 
@@ -833,7 +863,10 @@ export function getElementComputedStyle(key, fieldStyles = {}, extraCss = "", is
   if (isInactive) {
     return "display: none !important;";
   }
-  const f = fieldStyles[key] || (fieldStyles && (fieldStyles.show !== undefined || fieldStyles.offsetX !== undefined) ? fieldStyles : {});
+  const f =
+    fieldStyles[key] ||
+    (key.startsWith("patient.") ? fieldStyles[key.replace(/^patient\./, "")] : null) ||
+    (fieldStyles && (fieldStyles.show !== undefined || fieldStyles.offsetX !== undefined) ? fieldStyles : {});
   if (f.show === false) {
     return "display: none !important;";
   }
@@ -845,6 +878,24 @@ export function getElementComputedStyle(key, fieldStyles = {}, extraCss = "", is
   if (key === "header.slogan" || key === "header.hospitalName" || key === "header.subtitle") {
     offsetX = Math.max(-250, Math.min(250, offsetX));
     offsetY = Math.max(-120, Math.min(120, offsetY));
+  }
+
+  // Clamp offsets for demographics fields to prevent grid breaks
+  if (
+    key.startsWith("patient.") ||
+    key === "department" ||
+    key === "name" ||
+    key === "uhid" ||
+    key === "doctor" ||
+    key === "payer" ||
+    key === "mobile" ||
+    key === "bloodGroup" ||
+    key === "guardian" ||
+    key === "address" ||
+    key === "ageGender"
+  ) {
+    offsetX = Math.max(-25, Math.min(25, offsetX));
+    offsetY = Math.max(-15, Math.min(15, offsetY));
   }
 
   // Rock-solid positioning using relative coordinates + left + top
@@ -1060,54 +1111,102 @@ export async function applySharedMasterToAllSlips(sharedSettings) {
     "print_slip_ipd_receipt",
   ];
 
-  // Execute in parallel via Promise.all for fast (2-3s) execution instead of 30s sequential loop
+  // Map each DB key to its slipConfig type name
+  const keyToSlipType = {
+    print_slip_opd: "opd",
+    print_slip_ipd: "ipd_admission",
+    print_slip_ipd_admission: "ipd_admission",
+    print_slip_ipd_bill: "ipd_billing",
+    print_slip_ipd_discharge: "ipd_discharge",
+    print_slip_ipd_receipt: "ipd_receipt",
+  };
+
+  // Collect all header element inactive keys from Master:
+  const masterHeaderInacts = new Set();
+  for (const [k, v] of Object.entries(sharedSettings.fieldStyles || {})) {
+    if (k.startsWith("header.") && v && v.show === false) {
+      masterHeaderInacts.add(k);
+    }
+  }
+
+  // Execute in parallel via Promise.all for fast execution
   const results = await Promise.all(
     keys.map(async (key) => {
       try {
+        const norm = keyToSlipType[key] || "opd";
         const existing = (await settingsService.getSetting(key)) || {};
+
+        // Strip out existing stale header.* fieldStyles so Master header is authoritative
+        const cleanedExistingStyles = Object.fromEntries(
+          Object.entries(existing.fieldStyles || {}).filter(([k]) => !k.startsWith("header."))
+        );
+        // Also reset any wild offsets on demographics fields that break grid alignment
+        if (cleanedExistingStyles["department"]) delete cleanedExistingStyles["department"];
+        if (cleanedExistingStyles["patient.department"]) delete cleanedExistingStyles["patient.department"];
+
+        const mergedFieldStyles = {
+          ...cleanedExistingStyles,
+          ...(sharedSettings.fieldStyles || {}),
+        };
+
+        // Compute inactive elements for this slip:
+        // 1. Master inactives for this slip type
+        const masterInactsForSlip = new Set([
+          ...(sharedSettings.slipConfigs?.[norm]?.inactiveElements || []),
+          ...(sharedSettings.slipConfigs?.all?.inactiveElements || []),
+          ...(sharedSettings.inactiveElements || []),
+          ...masterHeaderInacts,
+        ]);
+
+        // 2. Existing non-header inactives preserved (terms, signatures, etc.)
+        const existingNonHeaderInacts = (
+          existing.slipConfigs?.[norm]?.inactiveElements ||
+          existing.inactiveElements ||
+          []
+        ).filter((k) => !k.startsWith("header."));
+
+        const mergedInactives = Array.from(new Set([...masterInactsForSlip, ...existingNonHeaderInacts]));
+
+        // Ensure all inactive elements in mergedFieldStyles have show: false
+        mergedInactives.forEach((k) => {
+          if (!mergedFieldStyles[k]) mergedFieldStyles[k] = {};
+          mergedFieldStyles[k].show = false;
+        });
+
         const updated = {
           ...existing,
           useSharedHeaderFooter: true,
           hospital: {
-            ...(existing.hospital || {}),
             ...(sharedSettings.hospital || {}),
           },
           header: {
-            ...(existing.header || {}),
             ...(sharedSettings.header || {}),
+            title: existing.header?.title || sharedSettings.slipConfigs?.[norm]?.title || sharedSettings.header?.title,
+            copyType: existing.header?.copyType || sharedSettings.slipConfigs?.[norm]?.copyBadge || sharedSettings.header?.copyType,
           },
           footer: {
             ...(existing.footer || {}),
             ...(sharedSettings.footer || {}),
           },
           patientDemographics: {
-            ...(existing.patientDemographics || {}),
             ...(sharedSettings.patientDemographics || {}),
           },
-          fieldStyles: {
-            ...(existing.fieldStyles || {}),
-            ...(sharedSettings.fieldStyles || {}),
-          },
+          fieldStyles: mergedFieldStyles,
           slipConfigs: {
             ...(existing.slipConfigs || {}),
             ...(sharedSettings.slipConfigs || {}),
-            ...Object.fromEntries(
-              Object.keys({ ...(sharedSettings.slipConfigs || {}), ...(existing.slipConfigs || {}) }).map((sk) => {
-                const masterInacts = sharedSettings.slipConfigs?.[sk]?.inactiveElements || [];
-                const existingInacts = existing.slipConfigs?.[sk]?.inactiveElements || [];
-                return [
-                  sk,
-                  {
-                    ...(existing.slipConfigs?.[sk] || {}),
-                    ...(sharedSettings.slipConfigs?.[sk] || {}),
-                    inactiveElements: Array.from(new Set([...masterInacts, ...existingInacts])),
-                  },
-                ];
-              })
-            ),
+            [norm]: {
+              ...(existing.slipConfigs?.[norm] || {}),
+              ...(sharedSettings.slipConfigs?.[norm] || {}),
+              title: existing.slipConfigs?.[norm]?.title || sharedSettings.slipConfigs?.[norm]?.title,
+              copyBadge: existing.slipConfigs?.[norm]?.copyBadge || sharedSettings.slipConfigs?.[norm]?.copyBadge,
+              inactiveElements: mergedInactives,
+            },
           },
         };
+
         await settingsService.updateSetting(key, updated);
+        settingsCache.set(norm, updated);
         return { key, success: true };
       } catch (err) {
         console.error(`Failed to apply shared master to ${key}:`, err);
@@ -1116,6 +1215,7 @@ export async function applySharedMasterToAllSlips(sharedSettings) {
     })
   );
 
+  settingsCache.clear();
   return results;
 }
 
@@ -1166,16 +1266,16 @@ export function buildSharedHeaderHTML(
   const hasAnyBannerContent = showTitle || showCopyBadge || showTopUhid || showTopAdmission || showBarcode;
 
   const isCompact = slipType === "ipd_receipt";
-  const showLogo = isActive("header.logo") && cfg.hospital?.showLogo !== false;
+  const showLogo = isActive("header.logo") && fs["header.logo"]?.show !== false && cfg.hospital?.showLogo !== false;
   const showTopWave = isActive("header.topWave") && fs["header.topWave"]?.show !== false;
-  const showSub = isActive("header.subtitle") && Boolean(hSub && String(hSub).trim().length > 0);
-  const showSlogan = isActive("header.slogan") && Boolean(hSlogan && String(hSlogan).trim().length > 0);
-  const showAddress = isActive("header.address") && Boolean(hAddr && String(hAddr).trim().length > 0);
-  const showContact = isActive("header.phoneEmail") && Boolean(hPhone && String(hPhone).trim().length > 0);
-  const showReg = isActive("header.regNo") && Boolean(hReg);
-  const showEmergency = isActive("header.emergencyPhone") && Boolean(hEmergency);
+  const showSub = isActive("header.subtitle") && fs["header.subtitle"]?.show !== false && Boolean(hSub && String(hSub).trim().length > 0);
+  const showSlogan = isActive("header.slogan") && fs["header.slogan"]?.show !== false && Boolean(hSlogan && String(hSlogan).trim().length > 0);
+  const showAddress = isActive("header.address") && fs["header.address"]?.show !== false && Boolean(hAddr && String(hAddr).trim().length > 0);
+  const showContact = isActive("header.phoneEmail") && fs["header.phoneEmail"]?.show !== false && Boolean(hPhone && String(hPhone).trim().length > 0);
+  const showReg = isActive("header.regNo") && fs["header.regNo"]?.show !== false && Boolean(hReg);
+  const showEmergency = isActive("header.emergencyPhone") && fs["header.emergencyPhone"]?.show !== false && Boolean(hEmergency);
   const accreditations = Array.isArray(cfg.hospital?.accreditations) ? cfg.hospital.accreditations : [];
-  const showAccreditations = isActive("header.accreditations") && accreditations.length > 0;
+  const showAccreditations = isActive("header.accreditations") && fs["header.accreditations"]?.show !== false && accreditations.length > 0;
   const hasBadges = showReg || showEmergency || showAccreditations;
 
   return `
@@ -2338,6 +2438,7 @@ export const SHARED_PRINT_CSS = `
     background: #ffffff;
     position: relative;
     margin-top: 6px;
+    overflow: hidden;
   }
   .shared-demo-head {
     display: flex;

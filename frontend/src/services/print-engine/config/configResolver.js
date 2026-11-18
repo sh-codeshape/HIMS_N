@@ -42,12 +42,72 @@ export function resolveEffectiveConfig(slipType = "opd", masterConfig = null, sl
     margin: specific.page?.margin ?? baseMaster.page?.margin ?? 6,
   };
 
-  // 3. Resolve FieldStyles (Per-element offsets, colors, typography)
-  // Master fieldStyles apply to all slips; specific fieldStyles can override for that slip
+  // 3. Resolve Inactive Elements (Master Designer authority + Per-slip toggles)
+  const masterInactives = new Set([
+    ...(masterSlipSubCfg.inactiveElements || []),
+    ...(baseMaster.slipConfigs?.all?.inactiveElements || []),
+    ...(baseMaster.inactiveElements || []),
+  ]);
+
+  // Any element explicitly marked show: false in Master fieldStyles is inactive across all slips
+  for (const [k, v] of Object.entries(baseMaster.fieldStyles || {})) {
+    if (v && v.show === false) {
+      masterInactives.add(k);
+    }
+  }
+
+  const specificInactives = specificSlipSubCfg.inactiveElements || specific.inactiveElements || [];
+  const combinedInactives = new Set([
+    ...masterInactives,
+    ...specificInactives,
+  ]);
+
+  // 4. Resolve FieldStyles (Per-element offsets, colors, typography)
+  // Master letterhead & identity owns header.* and base styling.
   const resolvedFieldStyles = {
     ...(baseMaster.fieldStyles || {}),
-    ...(specific.fieldStyles || {}),
   };
+
+  // Merge slip-specific fieldStyles:
+  for (const [k, v] of Object.entries(specific.fieldStyles || {})) {
+    if (k.startsWith("header.")) {
+      // Header styles are Master-governed.
+      // If Master has marked this header element inactive or hidden, Master ALWAYS wins!
+      if (masterInactives.has(k) || baseMaster.fieldStyles?.[k]?.show === false) {
+        resolvedFieldStyles[k] = {
+          ...(resolvedFieldStyles[k] || {}),
+          ...(v || {}),
+          show: false,
+        };
+        combinedInactives.add(k);
+      } else if (combinedInactives.has(k)) {
+        resolvedFieldStyles[k] = {
+          ...(resolvedFieldStyles[k] || {}),
+          ...(v || {}),
+          show: false,
+        };
+      } else {
+        // Active in Master: inherit Master's base layout, allowing safe per-slip font size tweaks
+        resolvedFieldStyles[k] = {
+          ...(baseMaster.fieldStyles?.[k] || {}),
+          ...(v || {}),
+          show: true,
+        };
+      }
+    } else {
+      // Non-header styles (slip body, ledger, clinical details)
+      resolvedFieldStyles[k] = {
+        ...(resolvedFieldStyles[k] || {}),
+        ...(v || {}),
+      };
+    }
+  }
+
+  // Ensure all inactive elements have show: false in resolvedFieldStyles
+  for (const inactKey of combinedInactives) {
+    if (!resolvedFieldStyles[inactKey]) resolvedFieldStyles[inactKey] = {};
+    resolvedFieldStyles[inactKey].show = false;
+  }
 
   // 4. Resolve Domain-Specific Section Configurations (toggles & features)
   const opdSection = {
@@ -103,14 +163,6 @@ export function resolveEffectiveConfig(slipType = "opd", masterConfig = null, sl
     ...(specific.receipt || {}),
   };
 
-  // 4b. Resolve Inactive Elements (Per-slip element removal from Master Designer or Slip tab)
-  const masterInactives = masterSlipSubCfg.inactiveElements || [];
-  const specificInactives = specificSlipSubCfg.inactiveElements || specific.inactiveElements || [];
-  const combinedInactives = new Set([
-    ...masterInactives,
-    ...specificInactives,
-  ]);
-
   // Check if terms / hospital instructions are disabled on this slip or globally
   const isTermsDisabled =
     specific[normType]?.showTerms === false ||
@@ -123,7 +175,7 @@ export function resolveEffectiveConfig(slipType = "opd", masterConfig = null, sl
     specific.particulars?.showTerms === false ||
     specific.footer?.showTerms === false ||
     baseMaster.footer?.showTerms === false ||
-    masterInactives.includes("terms.card") ||
+    masterInactives.has("terms.card") ||
     specificInactives.includes("terms.card") ||
     resolvedFieldStyles["terms.card"]?.show === false;
 
@@ -150,7 +202,7 @@ export function resolveEffectiveConfig(slipType = "opd", masterConfig = null, sl
     specific.showSignatures === false ||
     specific.footer?.showSignatures === false ||
     baseMaster.footer?.showSignatures === false ||
-    masterInactives.includes("signatures.card") ||
+    masterInactives.has("signatures.card") ||
     specificInactives.includes("signatures.card") ||
     resolvedFieldStyles["signatures.card"]?.show === false;
 

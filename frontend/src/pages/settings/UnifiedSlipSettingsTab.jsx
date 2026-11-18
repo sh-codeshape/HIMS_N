@@ -149,16 +149,88 @@ export default function UnifiedSlipSettingsTab({ slipType = "opd", onOpenMaster 
       setLoading(true);
       const master = await loadSharedPrintSettings();
       if (master) {
-        const fresh = await printEngine.loadSlipSettings(normType, true);
-        setSettings(fresh);
+        // 1. Collect all inactive elements from Master
+        const masterInacts = new Set([
+          ...(master.slipConfigs?.[normType]?.inactiveElements || []),
+          ...(master.slipConfigs?.all?.inactiveElements || []),
+          ...(master.inactiveElements || []),
+        ]);
+        for (const [k, v] of Object.entries(master.fieldStyles || {})) {
+          if (k.startsWith("header.") && v && v.show === false) {
+            masterInacts.add(k);
+          }
+        }
+
+        // 2. Clean out stale header styles and replace with Master
+        const cleanFieldStyles = Object.fromEntries(
+          Object.entries(settings?.fieldStyles || {}).filter(([k]) => !k.startsWith("header."))
+        );
+        for (const [k, v] of Object.entries(master.fieldStyles || {})) {
+          if (k.startsWith("header.")) {
+            cleanFieldStyles[k] = { ...v };
+          }
+        }
+        // Reset any corrupt offsets on demographics fields that break grid alignment
+        if (cleanFieldStyles["department"]) delete cleanFieldStyles["department"];
+        if (cleanFieldStyles["patient.department"]) delete cleanFieldStyles["patient.department"];
+
+        // 3. Preserve non-header inactives from current slip (like opd.rxNotes, terms.card, etc.)
+        const existingNonHeaderInacts = (
+          settings?.slipConfigs?.[normType]?.inactiveElements ||
+          settings?.inactiveElements ||
+          []
+        ).filter((k) => !k.startsWith("header."));
+
+        const resolvedInacts = Array.from(new Set([...masterInacts, ...existingNonHeaderInacts]));
+
+        // Ensure all inactive elements have show: false
+        resolvedInacts.forEach((k) => {
+          if (!cleanFieldStyles[k]) cleanFieldStyles[k] = {};
+          cleanFieldStyles[k].show = false;
+        });
+
+        const synced = {
+          ...settings,
+          useSharedHeaderFooter: true,
+          hospital: { ...(master.hospital || {}) },
+          header: {
+            ...(settings?.header || {}),
+            ...(master.header || {}),
+            title: settings?.header?.title || master.slipConfigs?.[normType]?.title || settings?.slipConfigs?.[normType]?.title,
+            copyType: settings?.header?.copyType || master.slipConfigs?.[normType]?.copyBadge || settings?.slipConfigs?.[normType]?.copyBadge,
+          },
+          footer: {
+            ...(settings?.footer || {}),
+            ...(master.footer || {}),
+          },
+          patientDemographics: { ...(master.patientDemographics || {}) },
+          fieldStyles: cleanFieldStyles,
+          slipConfigs: {
+            ...(settings?.slipConfigs || {}),
+            [normType]: {
+              ...(settings?.slipConfigs?.[normType] || {}),
+              title: settings?.slipConfigs?.[normType]?.title || master.slipConfigs?.[normType]?.title,
+              copyBadge: settings?.slipConfigs?.[normType]?.copyBadge || master.slipConfigs?.[normType]?.copyBadge,
+              inactiveElements: resolvedInacts,
+            },
+          },
+        };
+
+        // Persist to DB directly and update cache!
+        await printEngine.saveSlipSettings(normType, synced);
+        setSettings(synced);
         setSaveStatus({
           type: "success",
-          message: "Synced Hospital Branding, Demographics & Footer from Master Shared Designer!",
+          message: "Synced and saved Hospital Header & Letterhead from Master Shared Designer!",
         });
         setTimeout(() => setSaveStatus(null), 4000);
       }
     } catch (e) {
       console.error("Sync error:", e);
+      setSaveStatus({
+        type: "error",
+        message: e?.message || "Failed to sync from Master.",
+      });
     } finally {
       setLoading(false);
     }
@@ -375,6 +447,8 @@ export default function UnifiedSlipSettingsTab({ slipType = "opd", onOpenMaster 
     if (!settings) return true;
     const inactives = settings.slipConfigs?.[normType]?.inactiveElements || [];
     if (inactives.includes(key)) return false;
+    if (settings.slipConfigs?.all?.inactiveElements?.includes(key)) return false;
+    if (settings.inactiveElements?.includes(key)) return false;
     return settings.fieldStyles?.[key]?.show !== false;
   };
 
